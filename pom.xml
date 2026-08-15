@@ -17,6 +17,9 @@
         <module>tt-data-league-core-repository-jpa</module>
         <module>tt-data-league-import-runtime</module>
         <module>tt-data-league-import</module>
+        <module>tt-data-league-api-rest</module>
+        <module>tt-data-league-api-runtime</module>
+        <module>tt-data-league-api-graphql</module>
     </modules>
 
 
@@ -28,6 +31,27 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>org.albertsanso</groupId>
+                <artifactId>commons-core</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>org.albertsanso</groupId>
+                <artifactId>commandbus-synchronous-inmemory</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>org.albertsanso</groupId>
+                <artifactId>querybus-synchronous-inmemory</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>org.albertsanso</groupId>
+                <artifactId>eventbus-synchronous-inmemory</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+
             <dependency>
                 <groupId>org.cttelsamicsterrassa</groupId>
                 <artifactId>tt-data-league-core-domain</artifactId>
@@ -65,6 +89,58 @@
                 <version>3.5.8</version>
                 <type>pom</type>
                 <scope>import</scope>
+            </dependency>
+
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-api</artifactId>
+                <version>0.11.5</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>0.11.5</version>
+            </dependency>
+            <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>0.11.5</version>
+            </dependency>
+
+            <!-- Spring Boot Security -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-security</artifactId>
+                <version>3.5.8</version>
+            </dependency>
+
+            <!-- Springdoc OpenAPI: runtime OpenAPI generation and Swagger UI -->
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+                <version>2.0.4</version>
+            </dependency>
+
+            <!-- Spring GraphQL -->
+            <dependency>
+                <groupId>org.springframework.graphql</groupId>
+                <artifactId>spring-graphql</artifactId>
+                <version>1.4.1</version>
+            </dependency>
+
+            <!-- GraphQL Java implementation -->
+            <dependency>
+                <groupId>com.graphql-java</groupId>
+                <artifactId>graphql-java</artifactId>
+                <version>21.0</version>
+            </dependency>
+
+            <!-- Test dependencies -->
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-starter-test</artifactId>
+                <version>3.5.8</version>
+                <scope>test</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
