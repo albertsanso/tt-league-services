@@ -9,10 +9,9 @@ import java.util.UUID;
 /**
  * A player's registration for one season, keyed by federation licence.
  *
- * <p>{@code source} is part of the natural key together with {@code license} and {@code season}: the
- * two federations number licences independently, so the same licence value in RFETM and BCNESA
- * identifies two different people. Measured across both exports, 212 licences occur in both, and all
- * 212 belong to different players.</p>
+ * <p>{@code source} is part of the natural key together with {@code license} and {@code season}:
+ * federation licences are source-specific, so the same licence value can identify different people
+ * in different sources.</p>
  */
 public class PlayerSeason extends Entity {
     private final UUID id;

@@ -8,10 +8,9 @@ import java.util.UUID;
 /**
  * A table tennis club or team entity.
  *
- * <p>{@code source} records which federation the row was imported from. BCNESA carries no team id at
- * all, so its clubs resolve by name instead; the two federations' club names are not the same
- * namespace (a handful of names coincide by chance across sources without being the same entity), so
- * a BCNESA lookup is always scoped to {@code (source, name)}, never to name alone.</p>
+ * <p>{@code source} records which federation supplied the row. Club names are source-scoped rather
+ * than a shared namespace, so a lookup is always scoped to {@code (source, name)}, never to name
+ * alone.</p>
  */
 public class Club extends Entity {
     private final UUID id;

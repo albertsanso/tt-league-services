@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaActasDirectoryNavigator;
+import org.cttelsamicsterrassa.data.load.fctt.traverse.FcttActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.rfetm.traverse.RfetmActasDirectoryNavigator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +18,7 @@ import java.util.Locale;
  * Entry point of the league import.
  *
  * <pre>
- * --source=rfetm|bcnesa     which export to read (optional; defaults to rfetm)
+ * --source=rfetm|bcnesa|fctt which export to read (optional; defaults to rfetm)
  * --base-folder=&lt;path&gt;      root of the actas-json export (required)
  * --season=&lt;YYYY-YYYY&gt;      import a single season (optional; all seasons when omitted)
  * </pre>
@@ -39,13 +40,17 @@ public class App implements CommandLineRunner {
     private static final String SEASON_ARGUMENT = "--season=";
     private static final String SOURCE_RFETM = "rfetm";
     private static final String SOURCE_BCNESA = "bcnesa";
+    private static final String SOURCE_FCTT = "fctt";
 
     private final RfetmActasDirectoryNavigator rfetmNavigator;
     private final BcnesaActasDirectoryNavigator bcnesaNavigator;
+    private final FcttActasDirectoryNavigator fcttNavigator;
 
-    public App(RfetmActasDirectoryNavigator rfetmNavigator, BcnesaActasDirectoryNavigator bcnesaNavigator) {
+    public App(RfetmActasDirectoryNavigator rfetmNavigator, BcnesaActasDirectoryNavigator bcnesaNavigator,
+               FcttActasDirectoryNavigator fcttNavigator) {
         this.rfetmNavigator = rfetmNavigator;
         this.bcnesaNavigator = bcnesaNavigator;
+        this.fcttNavigator = fcttNavigator;
     }
 
     public static void main(String[] args) {
@@ -60,7 +65,7 @@ public class App implements CommandLineRunner {
         String baseFolder = valueOf(args, BASE_FOLDER_ARGUMENT);
         if (baseFolder == null) {
             LOGGER.error("Missing required argument {}<path>", BASE_FOLDER_ARGUMENT);
-            LOGGER.error("Usage: --source=rfetm|bcnesa --base-folder=<path> [--season=<YYYY-YYYY>]");
+            LOGGER.error("Usage: --source=rfetm|bcnesa|fctt --base-folder=<path> [--season=<YYYY-YYYY>]");
             throw new IllegalArgumentException("Missing required argument " + BASE_FOLDER_ARGUMENT + "<path>");
         }
 
@@ -76,8 +81,13 @@ public class App implements CommandLineRunner {
                 var summary = season == null ? bcnesaNavigator.traverse(base) : bcnesaNavigator.traverseSeason(base, season);
                 LOGGER.info("BCNESA import finished: {}", summary);
             }
+            case SOURCE_FCTT -> {
+                var summary = season == null ? fcttNavigator.traverse(base) : fcttNavigator.traverseSeason(base, season);
+                LOGGER.info("FCTT import finished: {}", summary);
+            }
             default -> {
-                LOGGER.error("Unknown {}{}; expected \"{}\" or \"{}\"", SOURCE_ARGUMENT, source, SOURCE_RFETM, SOURCE_BCNESA);
+                LOGGER.error("Unknown {}{}; expected \"{}\", \"{}\", or \"{}\"",
+                        SOURCE_ARGUMENT, source, SOURCE_RFETM, SOURCE_BCNESA, SOURCE_FCTT);
                 throw new IllegalArgumentException("Unknown source: " + source);
             }
         }

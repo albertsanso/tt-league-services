@@ -9,8 +9,8 @@ import java.util.UUID;
 
 /**
  * Persistence port for {@link PlayerSeason}, a player's registration for one season. The natural
- * key is the federation licence within a season, scoped to the source federation: RFETM and BCNESA
- * number licences independently, so the same licence value can name two different players.
+ * key is the federation licence within a season, scoped to the source federation: licences are
+ * independently assigned by source, so the same value can name different players.
  */
 public interface PlayerSeasonRepository {
     Optional<PlayerSeason> findPlayerSeasonById(UUID id);

@@ -20,8 +20,8 @@ where `[day]` and `[match_number]` are arbitrary identifiers that carry no meani
 File names must never be parsed for the match day or for team identifiers — the match day is read from the JSON payload (`jornada`),
 and the teams involved are determined from the payload as well.
 
-The goal is to give the collected information to a list of components that will process the information.
-The different components will process the collected information for different aspects, basically store the collected information into a data model in a database.
+The goal is to give the collected information to a list of components that process the information and
+store it through domain repository ports.
 The list of components that process the information must be a parameter for the traverse/navigation component.
 
 # Procedure
@@ -31,10 +31,27 @@ The list of components that process the information must be a parameter for the 
 3. While traversing, build a context collecting the information for the season, league-competition, group, and the corresponding match report file names. Parse each report and read the match day from the JSON payload (`jornada`); do not derive it from the file name.
 4. When a match report file is found, pass the collected context and the file path to the list of components for processing. Reports whose payload carries no match day cannot be placed in a round and are skipped.
 
+# Current implementation
+
+FCTT JSON reports are persisted by three Spring-discovered, source-specific processors in
+`org.cttelsamicsterrassa.data.load.fctt.process`:
+
+1. `FcttClubImportProcessor` (`@Order(10)`) stores source-scoped clubs and club-season registrations.
+2. `FcttPlayerImportProcessor` (`@Order(20)`) stores source-scoped players and player-season
+   registrations from lineups and doubles participants.
+3. `FcttMatchImportProcessor` (`@Order(30)`) stores idempotent matches, lineups, games, set scores,
+   and doubles-pair members when those fields occur in the JSON payload.
+
+All use `ImportSource.FCTT`; club and player lookup is source scoped, and no FCTT external-id fields
+are added to those domain entities. The group folder is explicitly parsed as `G<number>` or `<number>`;
+reports with any other group name are logged and skipped because the match natural key requires an
+integer group number. The navigator receives the ordered processor list by Spring injection, so the
+runtime's `--source=fctt` path discovers these processors automatically.
+
 # Architecture
 
-All import logic will be located into a new module called `tt-data-league-import`, which will be a dependency 
-of the `tt-data-league-import-runtime` module and included into `tt-data-league-core` root module.
+All import logic is located in the `tt-data-league-import` module, which is a dependency of
+`tt-data-league-import-runtime`.
 
 - The traverse/navigation component and the processing components will be designed to work together.
 - The traverse/navigation component will handle the directory traversal and context collection, while the processing components will handle the specific logic for storing or manipulating the collected information.
@@ -48,7 +65,8 @@ of the `tt-data-league-import-runtime` module and included into `tt-data-league-
 The basic idea is the JPA data model will be the common persistence model for all the data, both FCTT and BCNESA, and the processing components
 will be responsible for mapping the parsed data into the JPA data model and persisting it into the database.
 
-- Current `org.cttelsamicsterrassa.data.load.fctt.parse`  package in `tt-data-league-import` module will be used for parsing the match report files, and the parsed data will be passed to the processing components for further handling.
+- `shared.parse.ActaParser` parses the currently supported FCTT JSON shape, and the parsed data is
+  passed to the source-specific processing components for persistence.
 - The traverse/navigation component will be implemented as a class named `FcttActasDirectoryNavigator`, which will provide methods for traversing the directory structure and collecting the necessary context information.
 
 # Implementation Plan file
@@ -61,6 +79,5 @@ Create an implementation plan file named `fctt-actas-directory-navigator-impleme
 - Implementation Steps: A step-by-step guide on how to implement the traverse/navigation component and the processing components, including any necessary setup or configuration.
 - Testing: A description of the testing strategy for the traverse/navigation component and the processing components, including any test cases or scenarios that should be covered.
 - Conclusion: A summary of the implementation plan and any final thoughts or considerations for the implementation.
-
 
 

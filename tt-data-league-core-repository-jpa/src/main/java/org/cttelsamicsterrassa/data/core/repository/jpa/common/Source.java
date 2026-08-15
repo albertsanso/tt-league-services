@@ -8,5 +8,6 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
  */
 public enum Source {
     RFETM,
-    BCNESA
+    BCNESA,
+    FCTT
 }

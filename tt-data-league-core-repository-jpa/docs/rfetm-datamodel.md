@@ -2,7 +2,10 @@
 
 ## Context
 
-This document defines the relational database model for the **Royal Spanish Table Tennis Federation (RFETM)** match record system.
+This document defines the relational database model for imported table-tennis federation match records.
+
+`source` is stored as an enum string. The supported source values are `RFETM`, `BCNESA`, and
+`FCTT`; every source-scoped natural key remains scoped by this value.
 
 The domain covers **team table tennis competitions**: two clubs meet in a **match** (the overall event), which consists of several individual **games** (singles and doubles). Each game is played as a best-of series of **sets**.
 
