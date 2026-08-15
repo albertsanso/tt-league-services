@@ -1,0 +1,51 @@
+{
+  "federacion": "Federació Catalana de Tennis Taula",
+  "temporada": "2020/2021",
+  "competicion": "Preferent",
+  "grupo": 1,
+  "jornada": 7,
+  "fecha": "2020-11-15",
+  "hora": null,
+  "lugar": null,
+  "equipos": {
+    "local": { "id": null, "nombre": "FALCONS DE SABADELL", "delegado": null, "entrenador": null },
+    "visitante": { "id": null, "nombre": "CTT DELS HORTS", "delegado": null, "entrenador": null }
+  },
+  "abc_es_local": true,
+  "arbitros": { "principal": null, "asistente": null },
+  "alineaciones": {
+    "local": {
+      "A": { "licencia": "7026", "nombre": "CAMPOS Ramon" }
+    },
+    "visitante": {
+      "Y": { "licencia": "4595", "nombre": "PORTET Joan" }
+    }
+  },
+  "dobles": null,
+  "partidos": [
+    {
+      "numero": 1,
+      "tipo": "individual",
+      "cruce": "A vs Y",
+      "local": { "letra": "A", "licencia": "7026", "nombre": "CAMPOS Ramon" },
+      "visitante": { "letra": "Y", "licencia": "4595", "nombre": "PORTET Joan" },
+      "sets": [],
+      "resultado_juegos": { "local": 3, "visitante": 1 },
+      "ganador": "local",
+      "marcador_acumulado": { "local": 1, "visitante": 0 }
+    },
+    {
+      "numero": 2,
+      "tipo": "dobles",
+      "cruce": "Db vs Db",
+      "local": { "letra": "Db", "jugadores": [{"nombre": "CAMPOS Ramon", "licencia": "7026"}, {"nombre": "CAMPOS Ramon", "licencia": "7026"}] },
+      "visitante": { "letra": "Db", "jugadores": [{"nombre": "PORTET Joan", "licencia": "4595"}, {"nombre": "PORTET Joan", "licencia": "4595"}] },
+      "sets": [],
+      "resultado_juegos": { "local": 3, "visitante": 2 },
+      "ganador": "local",
+      "marcador_acumulado": { "local": 2, "visitante": 0 }
+    }
+  ],
+  "resultado_final": { "ganador": null, "marcador_partidos": { "local": 2, "visitante": 0 }, "marcador_juegos": null },
+  "acta_protestada": false
+}

@@ -1,0 +1,42 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mvn -q -T1 compile)",
+      "Bash(mvn -q compile)",
+      "Bash(mvn -q -pl tt-data-league-core-domain,tt-data-league-core-repository-jpa compile)",
+      "Read(//c/git/**)",
+      "Bash(mkdir -p \"/c/git/tt-data-league-import/tt-data-league-import-rfetm-json-adapter/src/main/java/org/cttelsamicsterrassa/data/load/traverse\")",
+      "Bash(mkdir -p \"/c/git/tt-data-league-import/tt-data-league-import-rfetm-json-adapter/src/main/java/org/cttelsamicsterrassa/data/load/process\")",
+      "Bash(mkdir -p \"/c/git/tt-data-league-import/tt-data-league-import-rfetm-json-adapter/src/test/java/org/cttelsamicsterrassa/data/load/traverse\")",
+      "Bash(mvn -q -pl tt-data-league-import-rfetm-json-adapter -am test)",
+      "Bash(mvn -q clean install)",
+      "Bash(echo \"EXIT:$?\")",
+      "Read(//c/Users/asanso/AppData/Local/Temp/claude/**)",
+      "Bash(git checkout *)",
+      "Bash(mvn -q -pl tt-data-league-import -am test)",
+      "Bash(python -c ' *)",
+      "Bash(python \"C:/Users/asanso/AppData/Local/Temp/claude/C--dev-local-tt-tt-league-2/17e59846-402a-4421-a281-1bbb49b5440d/scratchpad/idcheck.py\")",
+      "Bash(python *)",
+      "Bash(javap -p org/cttelsamicsterrassa/data/load/process/MatchReportContext.class org/cttelsamicsterrassa/data/load/process/MatchReportProcessor.class org/cttelsamicsterrassa/data/load/traverse/RfetmActasDirectoryNavigator.class)",
+      "Bash(mvn -q -o clean install -DskipTests)",
+      "Bash(cp \"/c/git/rfetm-extract-2/resources/actas-json/2023-2024/super-divisio/1/masculino/acta_193_23.json\" \"/c/dev/local-tt/tt-league-2/tt-data-league-import/src/test/resources/actas/acta_singles.json\")",
+      "Bash(cp \"/c/git/rfetm-extract-2/resources/actas-json/2023-2024/divisio-honor/1/femenino/acta_16207_2017543.json\" \"/c/dev/local-tt/tt-league-2/tt-data-league-import/src/test/resources/actas/acta_doubles.json\")",
+      "Bash(mvn -o -q -pl tt-data-league-import -am test)",
+      "Bash(mvn -o -q clean install -DskipTests)",
+      "Bash(mvn -o clean install)",
+      "Bash(mvn -o -pl tt-data-league-core-repository-jpa -am test)",
+      "Bash(mvn -q -pl tt-data-league-core-domain,tt-data-league-core-repository-jpa -am compile)",
+      "Bash(mvn -q -pl tt-data-league-core-domain,tt-data-league-core-repository-jpa,tt-data-league-import -am test)",
+      "Bash(mvn -pl tt-data-league-core-domain,tt-data-league-core-repository-jpa,tt-data-league-import -am test)",
+      "Bash(echo \"MVN_EXIT:$?\")",
+      "Read(//tmp/**)",
+      "Bash(mvn -pl tt-data-league-import -am test -Dtest=BcnesaMatchdaySplitterTest,BcnesaClubIndexTest)",
+      "Bash(mvn -pl tt-data-league-import -am test -Dtest=BcnesaMatchdaySplitterTest,BcnesaClubIndexTest -Dsurefire.failIfNoSpecifiedTests=false)",
+      "Bash(mvn -pl . -am test -Dtest=DebugScratchTest -Dsurefire.failIfNoSpecifiedTests=false)",
+      "Bash(mvn -pl tt-data-league-core-domain,tt-data-league-core-repository-jpa,tt-data-league-import -am test -Dtest=DebugScratchTest -Dsurefire.failIfNoSpecifiedTests=false)",
+      "PowerShell(mvn *)",
+      "PowerShell(python \"C:\\\\Users\\\\asanso\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--dev-local-tt-tt-league-2\\\\1b399686-ad67-4b32-b197-2b9ae4218024\\\\scratchpad\\\\scan_ids.py\")"
+    ],
+    "defaultMode": "acceptEdits"
+  }
+}
