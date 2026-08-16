@@ -19,7 +19,7 @@ import java.util.UUID;
                 @Index(name = "idx_doubles_pair_game_id", columnList = "game_id"),
                 @Index(name = "idx_doubles_pair_player_id", columnList = "player_id")
         },
-        uniqueConstraints = @UniqueConstraint(name = "uk_doubles_pair_game_side_player", columnNames = {"game_id", "side", "player_id"}))
+        uniqueConstraints = @UniqueConstraint(name = "uk_doubles_pair_game_side_player_source", columnNames = {"game_id", "side", "player_id", "source"}))
 @Getter
 @Setter
 @NoArgsConstructor

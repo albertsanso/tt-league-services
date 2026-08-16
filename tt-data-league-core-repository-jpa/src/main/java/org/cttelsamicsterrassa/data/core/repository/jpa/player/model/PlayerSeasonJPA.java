@@ -32,23 +32,14 @@ import java.util.UUID;
                 @Index(name = "idx_player_season_player_id", columnList = "player_id")
         },
         uniqueConstraints = {
-                // Scoped by source: RFETM and BCNESA number licences independently, so the same
-                // licence value in each names a different player. NOTE: on a database created before
-                // this column existed, ddl-auto=update will add the column but will not widen this
-                // constraint automatically - the old (season, license) constraint must be dropped and
-                // this one created manually as part of that migration.
                 @UniqueConstraint(name = "uk_player_season_source_season_license",
-                        columnNames = {"source", "season", "license"})
+                        columnNames = {"source", "season", "name", "license"})
         }
 )
 public class PlayerSeasonJPA {
     @Id
     private UUID id;
 
-    /**
-     * Which federation this registration was imported from; part of the natural key together with
-     * {@code season} and {@code license}.
-     */
     @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false, length = 20)
     private Source source;

@@ -438,7 +438,7 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
     // --- clubs -----------------------------------------------------------------------------
 
     private Optional<ClubSeason> resolveClubSeason(RfetmClubKey key, Season season, MatchReportContext context) {
-        Optional<Club> club = clubRepository.findClubByName(key.name());
+        Optional<Club> club = clubRepository.findClubBySourceAndName(ImportSource.RFETM, key.name());
         if (club.isEmpty()) {
             LOGGER.warn("No club for {} in {}; match not stored", key, context.matchReportFile());
             return Optional.empty();

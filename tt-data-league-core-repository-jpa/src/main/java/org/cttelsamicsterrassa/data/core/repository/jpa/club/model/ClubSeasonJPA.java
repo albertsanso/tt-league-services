@@ -31,9 +31,7 @@ import java.util.UUID;
                 @Index(name = "idx_club_season_club_id", columnList = "club_id")
         },
         uniqueConstraints = {
-                // Keyed by club rather than by name: within a single season several distinct teams
-                // share a display name, so (name, season) is ambiguous and rejects valid rows.
-                @UniqueConstraint(name = "uk_club_season_club_season", columnNames = {"club_id", "season"})
+                @UniqueConstraint(name = "uk_club_season_name_season_source", columnNames = {"name", "season", "source"})
         }
 )
 public class ClubSeasonJPA {

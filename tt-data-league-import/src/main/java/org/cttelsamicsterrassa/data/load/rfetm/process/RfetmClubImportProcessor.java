@@ -55,7 +55,7 @@ public class RfetmClubImportProcessor implements MatchReportProcessor {
     private void importClub(RfetmClubKey key, ActaTeam team, Season season) {
         String name = team != null ? team.name() : key.name();
 
-        Club club = clubRepository.findClubByName(name)
+        Club club = clubRepository.findClubBySourceAndName(ImportSource.RFETM, name)
                 .orElseGet(() -> {
                     Club created = Club.createNew(ImportSource.RFETM, name);
                     clubRepository.saveClub(created);
