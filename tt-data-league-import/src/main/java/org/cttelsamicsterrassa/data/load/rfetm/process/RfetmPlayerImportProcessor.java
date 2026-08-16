@@ -1,11 +1,11 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
-import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaLineupPlayer;
@@ -79,7 +79,7 @@ public class RfetmPlayerImportProcessor implements MatchReportProcessor {
 
         playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, license, season)
                 .orElseGet(() -> {
-                    PlayerSeason created = PlayerSeason.createNew(name, license, player, season);
+                    PlayerSeason created = PlayerSeason.createNew(ImportSource.RFETM, name, license, player, season);
                     playerSeasonRepository.savePlayerSeason(created);
                     LOGGER.debug("Created player season {} {} ({})", name, season, license);
                     return created;

@@ -27,10 +27,6 @@ public class Club extends Entity {
         return of(UUID.randomUUID(), source, name);
     }
 
-    public static Club of(UUID id, String name) {
-        return of(id, ImportSource.RFETM, name);
-    }
-
     public static Club of(UUID id, ImportSource source, String name) {
         return new Club(id, source, name);
     }

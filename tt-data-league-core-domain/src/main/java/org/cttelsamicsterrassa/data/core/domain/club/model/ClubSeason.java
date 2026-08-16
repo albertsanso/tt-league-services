@@ -1,8 +1,8 @@
 package org.cttelsamicsterrassa.data.core.domain.club.model;
 
 import org.albertsanso.commons.model.Entity;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.util.UUID;
 

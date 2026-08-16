@@ -16,16 +16,8 @@ public class Player extends Entity {
         this.name = name;
     }
 
-    public static Player createNew(String name) {
-        return createNew(ImportSource.RFETM, name);
-    }
-
     public static Player createNew(ImportSource source, String name) {
         return of(UUID.randomUUID(), source, name);
-    }
-
-    public static Player of(UUID id, String name) {
-        return of(id, ImportSource.RFETM, name);
     }
 
     public static Player of(UUID id, ImportSource source, String name) {

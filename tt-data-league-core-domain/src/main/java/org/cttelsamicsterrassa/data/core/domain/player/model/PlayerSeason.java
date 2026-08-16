@@ -30,16 +30,8 @@ public class PlayerSeason extends Entity {
         this.season = season;
     }
 
-    public static PlayerSeason createNew(String name, String license, Player player, Season season) {
-        return createNew(ImportSource.RFETM, name, license, player, season);
-    }
-
     public static PlayerSeason createNew(ImportSource source, String name, String license, Player player, Season season) {
         return new PlayerSeason(UUID.randomUUID(), source, name, license, season, player);
-    }
-
-    public static PlayerSeason of(UUID id, String name, String license, Player player, Season season) {
-        return of(id, ImportSource.RFETM, name, license, player, season);
     }
 
     public static PlayerSeason of(UUID id, ImportSource source, String name, String license, Player player, Season season) {
