@@ -34,6 +34,6 @@ public class LineupJPAToLineupMapper implements Function<LineupJPA, Lineup> {
                 .player(playerSeasonJPAToPlayerSeasonMapper.apply(lineupJPA.getPlayer()))
                 .match(matchJPAToMatchMapper.apply(lineupJPA.getMatch()))
                 .clubSeason(clubJPAToClubMapper.apply(lineupJPA.getClubSeason()))
-                .build();
+                .createExisting();
     }
 }

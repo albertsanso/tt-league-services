@@ -151,7 +151,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
                 .homeSetsWon(setsWon == null ? null : setsWon.home())
                 .awaySetsWon(setsWon == null ? null : setsWon.away())
                 .protested(acta.wasProtested())
-                .build();
+                .createNew();
     }
 
     private static ZonedDateTime toDateTime(Acta acta) {
@@ -239,7 +239,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
                     .position(position)
                     .player(player)
                     .ranking(ranking == null ? null : ranking.floatValue())
-                    .build());
+                    .createNew());
         });
     }
 
@@ -288,7 +288,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
                 .cumulativeAwaySetsWon(cumulative == null || cumulative.away() == null ? 0 : cumulative.away())
                 .notPlayed(actaGame.wasNotPlayed())
                 .reason(actaGame.reason())
-                .build();
+                .createNew();
     }
 
     private static String toSide(String winner) {

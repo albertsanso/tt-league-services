@@ -14,7 +14,7 @@ public class PlayerJPAToPlayerMapper implements Function<PlayerJPA, Player> {
         if (playerJPA == null) {
             return null;
         }
-        return Player.of(
+        return Player.createExisting(
                 playerJPA.getId(),
                 playerJPA.getSource() != null ? ImportSource.valueOf(playerJPA.getSource().name()) : null,
                 playerJPA.getName()

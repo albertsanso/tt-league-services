@@ -42,7 +42,7 @@ public class GameJPAToGameMapper implements Function<GameJPA, Game> {
                 .cumulativeAwaySetsWon(gameJPA.getCumulativeAway())
                 .notPlayed(gameJPA.isNotPlayed())
                 .reason(gameJPA.getReason())
-                .build();
+                .createExisting();
     }
 
     private PlayerSeason toPlayer(

@@ -1,4 +1,4 @@
-package org.cttelsamicsterrassa.data.core.application.club.create;
+package org.cttelsamicsterrassa.data.core.application.club.update;
 
 import org.albertsanso.commons.command.DomainCommand;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -6,12 +6,12 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
-public class CreateClubCommand extends DomainCommand {
+public class ModifyClubNameCommand extends DomainCommand {
     private final UUID clubId;
     private final String clubName;
     private final ImportSource source;
 
-    public CreateClubCommand(ZonedDateTime occurredOn, String uuid, UUID clubId, String clubName, ImportSource source) {
+    public ModifyClubNameCommand(ZonedDateTime occurredOn, String uuid, UUID clubId, String clubName, ImportSource source) {
         super(occurredOn, uuid);
         this.clubId = clubId;
         this.clubName = clubName;

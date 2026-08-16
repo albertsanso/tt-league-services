@@ -20,7 +20,7 @@ public class ClubSeasonJPAToClubSeasonMapper implements Function<ClubSeasonJPA, 
         if (clubSeasonJPA == null) {
             return null;
         }
-        return ClubSeason.of(
+        return ClubSeason.createExisting(
                 clubSeasonJPA.getId(),
                 clubSeasonJPA.getSource() == null ? null : ImportSource.valueOf(clubSeasonJPA.getSource().name()),
                 clubSeasonJPA.getName(),

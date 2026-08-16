@@ -165,7 +165,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
                 .homeSetsWon(context.homeSetsWon())
                 .awaySetsWon(context.awaySetsWon())
                 .protested(acta.wasProtested())
-                .build();
+                .createNew();
     }
 
     private static ZonedDateTime toDateTime(Acta acta) {
@@ -256,7 +256,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
                     .position(position)
                     .player(player)
                     .ranking(null)
-                    .build());
+                    .createNew());
         });
     }
 
@@ -308,7 +308,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
                 .cumulativeAwaySetsWon(cumulative != null && cumulative.away() != null ? cumulative.away() : 0)
                 .notPlayed(actaGame.wasNotPlayed())
                 .reason(actaGame.reason())
-                .build();
+                .createNew();
     }
 
     private static String toSide(String actaWinner) {

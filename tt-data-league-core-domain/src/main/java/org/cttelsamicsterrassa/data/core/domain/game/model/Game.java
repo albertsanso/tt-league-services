@@ -1,6 +1,8 @@
 package org.cttelsamicsterrassa.data.core.domain.game.model;
 
 import org.albertsanso.commons.model.Entity;
+import org.cttelsamicsterrassa.data.core.domain.game.event.GameCreatedEvent;
+import org.cttelsamicsterrassa.data.core.domain.game.event.GameDeletedEvent;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -44,13 +46,55 @@ public class Game extends Entity {
         this.reason = reason;
     }
 
-    public static final GameBuilder builder() {
+    public static GameBuilder builder() {
         return new GameBuilder();
+    }
+
+    private static Game of(GameBuilder builder) {
+        return new Game(
+                builder.id,
+                builder.source,
+                builder.match,
+                builder.gameNumber,
+                builder.type,
+                builder.crossover,
+                builder.homePlayer,
+                builder.awayPlayer,
+                builder.homeSetsWon,
+                builder.awaySetsWon,
+                builder.winner,
+                builder.winnerSide,
+                builder.cumulativeHomeSetsWon,
+                builder.cumulativeAwaySetsWon,
+                builder.notPlayed,
+                builder.reason);
+    }
+
+    private static Game createNew(GameBuilder gameBuilder) {
+        Game game = of(gameBuilder);
+        game.publishGameCreatedEvent();
+        return game;
+    }
+
+    private static Game createExisting(GameBuilder gameBuilder) {
+        return of(gameBuilder);
+    }
+
+    public void delete() {
+        publishGameDeletedEvent();
+    }
+
+    private void publishGameCreatedEvent() {
+        publishEvent(GameCreatedEvent.of(this.id));
+    }
+
+    private void publishGameDeletedEvent() {
+        publishEvent(GameDeletedEvent.of(this.id));
     }
 
     public static final class GameBuilder {
         private UUID id;
-        private ImportSource source = ImportSource.RFETM;
+        private ImportSource source;
         private Match match;
         private int gameNumber;
         private String type;
@@ -146,8 +190,12 @@ public class Game extends Entity {
             return this;
         }
 
-        public Game build() {
-            return new Game(id, source, match, gameNumber, type, crossover, homePlayer, awayPlayer, homeSetsWon, awaySetsWon, winner, winnerSide, cumulativeHomeSetsWon, cumulativeAwaySetsWon, notPlayed, reason);
+        public Game createNew() {
+            return Game.createNew(this);
+        }
+
+        public Game createExisting() {
+            return Game.createExisting(this);
         }
     }
 

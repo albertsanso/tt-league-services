@@ -15,6 +15,6 @@ public class ClubJPAToClubMapper implements Function<ClubJPA, Club> {
             return null;
         }
         ImportSource source = clubJPA.getSource() != null ? ImportSource.valueOf(clubJPA.getSource().name()) : null;
-        return Club.of(clubJPA.getId(), source, clubJPA.getName());
+        return Club.createExisting(clubJPA.getId(), source, clubJPA.getName());
     }
 }

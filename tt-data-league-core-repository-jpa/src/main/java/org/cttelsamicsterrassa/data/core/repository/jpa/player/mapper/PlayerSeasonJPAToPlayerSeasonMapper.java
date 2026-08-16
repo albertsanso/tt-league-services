@@ -23,7 +23,7 @@ public class PlayerSeasonJPAToPlayerSeasonMapper implements Function<PlayerSeaso
         ImportSource source = playerSeasonJPA.getSource() != null
                 ? ImportSource.valueOf(playerSeasonJPA.getSource().name())
                 : null;
-        return PlayerSeason.of(
+        return PlayerSeason.createExisting(
                 playerSeasonJPA.getId(),
                 source,
                 playerSeasonJPA.getName(),

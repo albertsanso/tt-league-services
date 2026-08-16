@@ -65,7 +65,7 @@ public class RfetmClubImportProcessor implements MatchReportProcessor {
 
         clubSeasonRepository.findClubSeasonByClubAndSeason(club.getId(), season)
                 .orElseGet(() -> {
-                    ClubSeason created = ClubSeason.of(UUID.randomUUID(), ImportSource.RFETM, name, season, club);
+                    ClubSeason created = ClubSeason.createNew(ImportSource.RFETM, name, season, club);
                     clubSeasonRepository.saveClubSeason(created);
                     LOGGER.debug("Created club season {} {} ({})", name, season, key);
                     return created;

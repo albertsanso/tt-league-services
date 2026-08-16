@@ -1,6 +1,9 @@
 package org.cttelsamicsterrassa.data.core.domain.player.model;
 
 import org.albertsanso.commons.model.Entity;
+import org.cttelsamicsterrassa.data.core.domain.player.event.PlayerSeasonCreatedEvent;
+import org.cttelsamicsterrassa.data.core.domain.player.event.PlayerSeasonDeletedEvent;
+import org.cttelsamicsterrassa.data.core.domain.player.event.PlayerSeasonNameModifiedEvent;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
@@ -16,7 +19,7 @@ import java.util.UUID;
 public class PlayerSeason extends Entity {
     private final UUID id;
     private final ImportSource source;
-    private final String name;
+    private String name;
     private final String license;
     private final Player player;
     private final Season season;
@@ -31,11 +34,38 @@ public class PlayerSeason extends Entity {
     }
 
     public static PlayerSeason createNew(ImportSource source, String name, String license, Player player, Season season) {
-        return new PlayerSeason(UUID.randomUUID(), source, name, license, season, player);
+        PlayerSeason playerSeason = new PlayerSeason(UUID.randomUUID(), source, name, license, season, player);
+        playerSeason.publishPlayerSeasonCreatedEvent();
+        return playerSeason;
     }
 
-    public static PlayerSeason of(UUID id, ImportSource source, String name, String license, Player player, Season season) {
+    public static PlayerSeason createExisting(UUID id, ImportSource source, String name, String license, Player player, Season season) {
+        return of(id, source, name, license, player, season);
+    }
+
+    private static PlayerSeason of(UUID id, ImportSource source, String name, String license, Player player, Season season) {
         return new PlayerSeason(id, source, name, license, season, player);
+    }
+
+    public void modifyName(String name) {
+        this.name = name;
+        publishPlayerSeasonNameModifiedEvent(name);
+    }
+
+    public void delete() {
+        publishPlayerSeasonDeletedEvent();
+    }
+
+    private void publishPlayerSeasonCreatedEvent() {
+        publishEvent(PlayerSeasonCreatedEvent.of(this.id, this.name, this.season, this.license, this.source, this.player));
+    }
+
+    private void publishPlayerSeasonNameModifiedEvent(String name) {
+        publishEvent(PlayerSeasonNameModifiedEvent.of(this.id, name));
+    }
+
+    private void publishPlayerSeasonDeletedEvent() {
+        publishEvent(PlayerSeasonDeletedEvent.of(this.id));
     }
 
     public UUID getId() {

@@ -174,7 +174,7 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
                 .homeSetsWon(setsWon != null ? setsWon.home() : null)
                 .awaySetsWon(setsWon != null ? setsWon.away() : null)
                 .protested(acta.wasProtested())
-                .build();
+                .createNew();
     }
 
     private static ZonedDateTime toDateTime(Acta acta) {
@@ -287,7 +287,7 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
                     .position(position)
                     .player(player)
                     .ranking(ranking != null ? ranking.floatValue() : null)
-                    .build());
+                    .createNew());
         });
     }
 
@@ -346,7 +346,7 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
                 .cumulativeAwaySetsWon(cumulative != null && cumulative.away() != null ? cumulative.away() : 0)
                 .notPlayed(actaGame.wasNotPlayed())
                 .reason(actaGame.reason())
-                .build();
+                .createNew();
     }
 
     private static String toSide(String actaWinner) {

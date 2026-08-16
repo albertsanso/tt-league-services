@@ -61,7 +61,7 @@ public class BcnesaClubImportProcessor implements BcnesaMatchReportProcessor {
 
         clubSeasonRepository.findClubSeasonByClubAndSeason(club.getId(), season)
                 .orElseGet(() -> {
-                    ClubSeason created = ClubSeason.of(UUID.randomUUID(), ImportSource.BCNESA, name, season, club);
+                    ClubSeason created = ClubSeason.createNew(ImportSource.BCNESA, name, season, club);
                     clubSeasonRepository.saveClubSeason(created);
                     LOGGER.debug("Created BCNESA club season {} {}", name, season);
                     return created;

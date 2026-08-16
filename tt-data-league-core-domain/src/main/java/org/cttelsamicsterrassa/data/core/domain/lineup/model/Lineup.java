@@ -2,6 +2,8 @@ package org.cttelsamicsterrassa.data.core.domain.lineup.model;
 
 import org.albertsanso.commons.model.Entity;
 import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
+import org.cttelsamicsterrassa.data.core.domain.lineup.event.LineupCreatedEvent;
+import org.cttelsamicsterrassa.data.core.domain.lineup.event.LineupDeletedEvent;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -38,6 +40,31 @@ public class Lineup extends Entity {
 
     public static LineupBuilder builder() {
         return new LineupBuilder();
+    }
+
+    private static Lineup of(UUID id, ImportSource source, Match match, ClubSeason clubSeason, String letter, int position, PlayerSeason player, Float ranking) {
+        return new Lineup(id, source, match, clubSeason, letter, position, player, ranking);
+    }
+
+    private static Lineup createNew(LineupBuilder builder) {
+        Lineup lineup = of(UUID.randomUUID(), builder.source, builder.match, builder.clubSeason, builder.letter, builder.position, builder.player, builder.ranking);
+        lineup.publishLineupCreatedEvent();
+        return lineup;
+    }
+
+    private static Lineup createExisting(LineupBuilder builder) {
+        return of(builder.id, builder.source, builder.match, builder.clubSeason, builder.letter, builder.position, builder.player, builder.ranking);
+    }
+
+    public void delete() {
+        publishLineupDeletedEvent();
+    }
+
+    private void publishLineupCreatedEvent() {
+        publishEvent(LineupCreatedEvent.of(id));}
+
+    private void publishLineupDeletedEvent() {
+        publishEvent(LineupDeletedEvent.of(id));
     }
 
     public static final class LineupBuilder {
@@ -90,8 +117,12 @@ public class Lineup extends Entity {
             return this;
         }
 
-        public Lineup build() {
-            return new Lineup(id, source, match, clubSeason, letter, position, player, ranking);
+        public Lineup createNew() {
+            return Lineup.createNew(this);
+        }
+
+        public Lineup createExisting() {
+            return Lineup.createExisting(this);
         }
     }
 

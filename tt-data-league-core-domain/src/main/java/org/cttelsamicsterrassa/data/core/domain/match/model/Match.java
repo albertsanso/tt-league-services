@@ -2,6 +2,8 @@ package org.cttelsamicsterrassa.data.core.domain.match.model;
 
 import org.albertsanso.commons.model.Entity;
 import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
+import org.cttelsamicsterrassa.data.core.domain.match.event.MatchCreatedEvent;
+import org.cttelsamicsterrassa.data.core.domain.match.event.MatchDeletedEvent;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
@@ -60,8 +62,53 @@ public class Match extends Entity {
         this.protested = protested;
     }
 
-    public static final MatchBuilder builder() {
+    public static MatchBuilder builder() {
         return new MatchBuilder();
+    }
+
+    private static Match of(MatchBuilder builder) {
+        return new Match(
+                builder.id,
+                builder.source,
+                builder.externalId,
+                builder.competition,
+                builder.season,
+                builder.groupNumber,
+                builder.round,
+                builder.dateTime,
+                builder.city,
+                builder.venue,
+                builder.homeClub,
+                builder.awayClub,
+                builder.winnerClub,
+                builder.refereeName,
+                builder.homeGamesWon,
+                builder.awayGamesWon,
+                builder.homeSetsWon,
+                builder.awaySetsWon,
+                builder.protested
+        );
+    }
+    private static Match createNew(MatchBuilder matchBuilder) {
+        Match match = of(matchBuilder);
+        match.publishMatchCreatedEvent();
+        return match;
+    }
+
+    private static Match createExisting(MatchBuilder matchBuilder) {
+        return of(matchBuilder);
+    }
+
+    public void delete() {
+        publishMatchDeletedEvent();
+    }
+
+    private void publishMatchCreatedEvent() {
+        publishEvent(MatchCreatedEvent.of(this.id));
+    }
+
+    private void publishMatchDeletedEvent() {
+        publishEvent(MatchDeletedEvent.of(this.id));
     }
 
     public static final class MatchBuilder {
@@ -180,28 +227,12 @@ public class Match extends Entity {
             return this;
         }
 
-        public Match build() {
-            return new Match(
-                    id,
-                    source,
-                    externalId,
-                    competition,
-                    season,
-                    groupNumber,
-                    round,
-                    dateTime,
-                    city,
-                    venue,
-                    homeClub,
-                    awayClub,
-                    winnerClub,
-                    refereeName,
-                    homeGamesWon,
-                    awayGamesWon,
-                    homeSetsWon,
-                    awaySetsWon,
-                    protested
-            );
+        public Match createNew() {
+            return Match.createNew(this);
+        }
+
+        public Match createExisting() {
+            return Match.createExisting(this);
         }
     }
 

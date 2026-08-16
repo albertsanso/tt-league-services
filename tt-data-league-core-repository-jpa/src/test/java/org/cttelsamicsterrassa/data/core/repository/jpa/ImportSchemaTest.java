@@ -138,7 +138,7 @@ class ImportSchemaTest {
                 .homeSetsWon(13)
                 .awaySetsWon(8)
                 .protested(true)
-                .build();
+                .createNew();
         matchRepository.saveMatch(saved);
 
         Match found = matchRepository.findMatchById(saved.getId()).orElseThrow();
@@ -175,6 +175,6 @@ class ImportSchemaTest {
                 .round(1)
                 .homeClub(home)
                 .awayClub(away)
-                .build();
+                .createNew();
     }
 }

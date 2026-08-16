@@ -1,8 +1,12 @@
 package org.cttelsamicsterrassa.data.core.domain.club.model;
 
 import org.albertsanso.commons.model.Entity;
+import org.cttelsamicsterrassa.data.core.domain.club.event.ClubCreatedEvent;
+import org.cttelsamicsterrassa.data.core.domain.club.event.ClubDeletedEvent;
+import org.cttelsamicsterrassa.data.core.domain.club.event.ClubNameModifiedEvent;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 
+import java.time.ZonedDateTime;
 import java.util.UUID;
 
 /**
@@ -15,7 +19,7 @@ import java.util.UUID;
 public class Club extends Entity {
     private final UUID id;
     private final ImportSource source;
-    private final String name;
+    private String name;
 
     private Club(UUID id, ImportSource source, String name) {
         this.id = id;
@@ -24,11 +28,40 @@ public class Club extends Entity {
     }
 
     public static Club createNew(ImportSource source, String name) {
-        return of(UUID.randomUUID(), source, name);
+        Club club = of(UUID.randomUUID(), source, name);
+        club.publishClubCreatedEvent();
+        return club;
     }
 
-    public static Club of(UUID id, ImportSource source, String name) {
+    public static Club createExisting(UUID id, ImportSource source, String name) {
+        return of(id, source, name);
+    }
+
+    private static Club of(UUID id, ImportSource source, String name) {
         return new Club(id, source, name);
+    }
+
+    public void modifyName(String newName) {
+        if (!this.name.equals(newName)) {
+            this.name = newName;
+            publishClubNameModifiedEvent();
+        }
+    }
+
+    public void delete() {
+        publishClubDeletedEvent();
+    }
+
+    private void publishClubCreatedEvent() {
+        publishEvent(ClubCreatedEvent.of(id, name));
+    }
+
+    private void publishClubNameModifiedEvent() {
+        publishEvent(ClubNameModifiedEvent.of(id, name));
+    }
+
+    private void publishClubDeletedEvent() {
+        publishEvent(ClubDeletedEvent.of(id, name));
     }
 
     public UUID getId() {

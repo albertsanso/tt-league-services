@@ -43,7 +43,7 @@ public class MatchJPAToMatchMapper implements Function<MatchJPA, Match> {
                 .awaySetsWon(matchJpa.getAwaySetsWon())
                 .homeGamesWon(matchJpa.getHomeGamesWon())
                 .awayGamesWon(matchJpa.getAwayGamesWon())
-                .build();
+                .createExisting();
     }
 
     private ZonedDateTime toDateTime(MatchJPA matchJpa) {
