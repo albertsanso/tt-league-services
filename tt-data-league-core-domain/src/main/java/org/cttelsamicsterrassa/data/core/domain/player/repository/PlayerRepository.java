@@ -14,4 +14,5 @@ public interface PlayerRepository {
     Optional<Player> findPlayerByName(String name);
     Optional<Player> findPlayerBySourceAndName(ImportSource source, String name);
     void savePlayer(Player player);
+    void deletePlayerById(UUID id);
 }

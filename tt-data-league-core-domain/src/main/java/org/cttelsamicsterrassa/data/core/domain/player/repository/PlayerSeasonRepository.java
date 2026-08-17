@@ -16,4 +16,5 @@ public interface PlayerSeasonRepository {
     Optional<PlayerSeason> findPlayerSeasonById(UUID id);
     Optional<PlayerSeason> findPlayerSeasonByLicenseAndSeason(ImportSource source, String license, Season season);
     void savePlayerSeason(PlayerSeason playerSeason);
+    void deletePlayerSeasonById(UUID id);
 }

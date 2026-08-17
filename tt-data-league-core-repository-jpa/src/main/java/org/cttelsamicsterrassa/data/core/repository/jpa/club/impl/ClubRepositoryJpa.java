@@ -45,27 +45,8 @@ public class ClubRepositoryJpa implements ClubRepository {
     }
 
     @Override
-    public void updateClub(Club club) {
-        clubRepositoryHelper.save(clubToClubJPAMapper.apply(club));
-    }
-
-    @Override
     public void deleteClubById(UUID id) {
         clubRepositoryHelper.deleteById(id);
-    }
-
-    @Override
-    public void deleteClubByName(String name) {
-        clubRepositoryHelper.findByName(name)
-                .ifPresent(clubRepositoryHelper::delete);
-    }
-
-    @Override
-    public List<Club> findAllClubs() {
-        return clubRepositoryHelper.findAll()
-                .stream()
-                .map(clubJPAToClubMapper)
-                .toList();
     }
 
     @Override
@@ -74,5 +55,14 @@ public class ClubRepositoryJpa implements ClubRepository {
                 .stream()
                 .map(clubJPAToClubMapper)
                 .toList();
+    }
+
+    @Override
+    public List<Club> findAllClubsBySimilarNameAndSource(String name, String source) {
+        return clubRepositoryHelper.findAllByNameContainingIgnoreCaseAndSource(name, source)
+                .stream()
+                .map(clubJPAToClubMapper)
+                .toList();
+
     }
 }

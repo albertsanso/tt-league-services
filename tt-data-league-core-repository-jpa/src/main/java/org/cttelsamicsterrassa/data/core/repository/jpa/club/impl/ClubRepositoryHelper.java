@@ -12,4 +12,5 @@ public interface ClubRepositoryHelper extends JpaRepository<ClubJPA, UUID> {
     Optional<ClubJPA> findByName(String name);
     Optional<ClubJPA> findFirstBySourceAndName(Source source, String name);
     List<ClubJPA> findAllByNameContainingIgnoreCase(String name);
+    List<ClubJPA> findAllByNameContainingIgnoreCaseAndSource(String name, String source);
 }

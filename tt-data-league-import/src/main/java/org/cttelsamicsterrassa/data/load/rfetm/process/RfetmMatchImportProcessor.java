@@ -443,7 +443,7 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
             LOGGER.warn("No club for {} in {}; match not stored", key, context.matchReportFile());
             return Optional.empty();
         }
-        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeason(club.get().getId(), season);
+        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.get().getId(), season, ImportSource.RFETM.name());
         if (clubSeason.isEmpty()) {
             LOGGER.warn("Club {} has no entry for season {}; {} not stored",
                     key, season, context.matchReportFile());

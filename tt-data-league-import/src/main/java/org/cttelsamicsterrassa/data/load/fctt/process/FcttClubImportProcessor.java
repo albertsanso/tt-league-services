@@ -63,7 +63,7 @@ public class FcttClubImportProcessor implements FcttMatchReportProcessor {
                     return created;
                 });
 
-        clubSeasonRepository.findClubSeasonByClubAndSeason(club.getId(), season)
+        clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.getId(), season, ImportSource.FCTT.name())
                 .orElseGet(() -> {
                     ClubSeason created = ClubSeason.createNew(ImportSource.FCTT, team.name(), season, club);
                     clubSeasonRepository.saveClubSeason(created);

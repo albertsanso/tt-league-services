@@ -6,16 +6,16 @@ import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
-import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
-import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.DoublesPairRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.GameRepository;
+import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
+import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaLineupPlayer;
@@ -389,7 +389,8 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             LOGGER.warn("No BCNESA club named {} for {}; fixture not stored", name, context.matchReportFile());
             return Optional.empty();
         }
-        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeason(club.get().getId(), season);
+
+        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.get().getId(), season, ImportSource.BCNESA.name());
         if (clubSeason.isEmpty()) {
             LOGGER.warn("BCNESA club {} has no entry for season {}; {} not stored", name, season, context.matchReportFile());
         }

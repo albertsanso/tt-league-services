@@ -64,23 +64,8 @@ final class InMemoryRepositories {
         }
 
         @Override
-        public void updateClub(Club club) {
-            saveClub(club);
-        }
-
-        @Override
         public void deleteClubById(UUID id) {
             byId.remove(id);
-        }
-
-        @Override
-        public void deleteClubByName(String name) {
-            findClubByName(name).ifPresent(club -> byId.remove(club.getId()));
-        }
-
-        @Override
-        public List<Club> findAllClubs() {
-            return List.copyOf(byId.values());
         }
 
         @Override
@@ -89,6 +74,16 @@ final class InMemoryRepositories {
                     .filter(club -> club.getName() != null && club.getName().contains(name))
                     .toList();
         }
+
+        @Override
+        public List<Club> findAllClubsBySimilarNameAndSource(String name, String source) {
+            return byId.values().stream()
+                    .filter(club -> club.getSource() != null && club.getSource().toString().equals(source))
+                    .filter(club -> club.getName() != null && club.getName().contains(name))
+                    .toList();
+        }
+
+
     }
 
     static final class ClubSeasons implements ClubSeasonRepository {
@@ -100,10 +95,8 @@ final class InMemoryRepositories {
         }
 
         @Override
-        public Optional<ClubSeason> findClubSeasonByNameAndSeason(String name, Season season) {
-            return byId.values().stream()
-                    .filter(cs -> Objects.equals(cs.getName(), name) && season.equals(cs.getSeason()))
-                    .findFirst();
+        public Optional<ClubSeason> findClubSeasonByNameAndSeasonAndSource(String name, Season season, ImportSource source) {
+            return Optional.empty();
         }
 
         @Override
@@ -115,28 +108,18 @@ final class InMemoryRepositories {
         }
 
         @Override
+        public Optional<ClubSeason> findClubSeasonByClubAndSeasonAndSource(UUID clubId, Season season, String source) {
+            return Optional.empty();
+        }
+
+        @Override
         public void saveClubSeason(ClubSeason clubSeason) {
             byId.put(clubSeason.getId(), clubSeason);
         }
 
         @Override
-        public void updateClubSeason(ClubSeason clubSeason) {
-            saveClubSeason(clubSeason);
-        }
-
-        @Override
         public void deleteClubSeasonById(UUID id) {
             byId.remove(id);
-        }
-
-        @Override
-        public void deleteClubSeasonByNameAndSeason(String name, Season season) {
-            findClubSeasonByNameAndSeason(name, season).ifPresent(cs -> byId.remove(cs.getId()));
-        }
-
-        @Override
-        public List<ClubSeason> findAllClubSeasons() {
-            return List.copyOf(byId.values());
         }
 
         @Override
@@ -151,6 +134,11 @@ final class InMemoryRepositories {
             return findAllClubSeasonsBySimilarName(name).stream()
                     .filter(cs -> season.equals(cs.getSeason()))
                     .toList();
+        }
+
+        @Override
+        public List<ClubSeason> findAllClubSeasonsBySimilarNameAndSeasonAndSoure(String name, Season season, String source) {
+            return List.of();
         }
     }
 

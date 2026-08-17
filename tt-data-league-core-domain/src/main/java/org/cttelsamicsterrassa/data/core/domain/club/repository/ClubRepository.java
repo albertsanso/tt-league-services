@@ -11,11 +11,10 @@ public interface ClubRepository {
     Optional<Club> findClubById(UUID id);
     Optional<Club> findClubByName(String name);
     Optional<Club> findClubBySourceAndName(ImportSource source, String name);
-    List<Club> findAllClubs();
+
     List<Club> findAllClubsBySimilarName(String name);
+    List<Club> findAllClubsBySimilarNameAndSource(String name, String source);
 
     void saveClub(Club club);
-    void updateClub(Club club);
     void deleteClubById(UUID id);
-    void deleteClubByName(String name);
 }

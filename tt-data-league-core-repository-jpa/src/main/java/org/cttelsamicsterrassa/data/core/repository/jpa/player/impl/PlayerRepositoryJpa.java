@@ -42,4 +42,9 @@ public class PlayerRepositoryJpa implements PlayerRepository {
     public void savePlayer(Player player) {
         playerRepositoryHelper.save(playerToPlayerJPAMapper.apply(player));
     }
+
+    @Override
+    public void deletePlayerById(UUID id) {
+        playerRepositoryHelper.deleteById(id);
+    }
 }

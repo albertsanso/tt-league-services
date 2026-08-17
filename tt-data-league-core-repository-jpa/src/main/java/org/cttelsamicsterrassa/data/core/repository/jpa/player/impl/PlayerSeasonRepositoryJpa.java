@@ -39,4 +39,9 @@ public class PlayerSeasonRepositoryJpa implements PlayerSeasonRepository {
     public void savePlayerSeason(PlayerSeason playerSeason) {
         playerSeasonRepositoryHelper.save(playerSeasonToPlayerSeasonJPAMapper.apply(playerSeason));
     }
+
+    @Override
+    public void deletePlayerSeasonById(UUID id) {
+        playerSeasonRepositoryHelper.deleteById(id);
+    }
 }
