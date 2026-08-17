@@ -1,0 +1,3 @@
+package org.cttelsamicsterrassa.data.core.application.player.find;
+import org.albertsanso.commons.query.*; import org.cttelsamicsterrassa.data.core.domain.player.model.Player; import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository; import javax.inject.*;
+@Named public class FindPlayerByIdQueryHandler extends DomainQueryHandler<FindPlayerByIdQuery,Player>{private final PlayerRepository r;@Inject public FindPlayerByIdQueryHandler(PlayerRepository r){this.r=r;}public DomainQueryResponse<Player> handle(FindPlayerByIdQuery q){return r.findPlayerById(q.getPlayerId()).map(DomainQueryResponse::sucessResponse).orElseGet(()->DomainQueryResponse.failResponse(null));}}

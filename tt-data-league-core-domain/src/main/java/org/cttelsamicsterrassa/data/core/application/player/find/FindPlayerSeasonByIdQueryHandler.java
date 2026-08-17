@@ -1,0 +1,3 @@
+package org.cttelsamicsterrassa.data.core.application.player.find;
+import org.albertsanso.commons.query.*; import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason; import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository; import javax.inject.*;
+@Named public class FindPlayerSeasonByIdQueryHandler extends DomainQueryHandler<FindPlayerSeasonByIdQuery,PlayerSeason>{private final PlayerSeasonRepository r;@Inject public FindPlayerSeasonByIdQueryHandler(PlayerSeasonRepository r){this.r=r;}public DomainQueryResponse<PlayerSeason> handle(FindPlayerSeasonByIdQuery q){return r.findPlayerSeasonById(q.getPlayerSeasonId()).map(DomainQueryResponse::sucessResponse).orElseGet(()->DomainQueryResponse.failResponse(null));}}

@@ -1,0 +1,3 @@
+package org.cttelsamicsterrassa.data.core.application.player.find;
+import org.albertsanso.commons.query.DomainQuery; import org.cttelsamicsterrassa.data.core.domain.shared.model.*; import java.time.ZonedDateTime; import java.util.UUID;
+public class FindPlayerSeasonByLicenseAndSeasonQuery extends DomainQuery{private final ImportSource source;private final String license;private final Season season;public FindPlayerSeasonByLicenseAndSeasonQuery(ImportSource s,String l,Season se){super(ZonedDateTime.now(),UUID.randomUUID().toString());source=s;license=l;season=se;}public ImportSource getSource(){return source;}public String getLicense(){return license;}public Season getSeason(){return season;}}

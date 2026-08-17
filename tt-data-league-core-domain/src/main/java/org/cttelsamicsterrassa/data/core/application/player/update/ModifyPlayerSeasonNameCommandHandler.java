@@ -1,0 +1,4 @@
+package org.cttelsamicsterrassa.data.core.application.player.update;
+import org.albertsanso.commons.command.*; import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository; import javax.inject.*;
+@Named public class ModifyPlayerSeasonNameCommandHandler extends DomainCommandHandler<ModifyPlayerSeasonNameCommand>{private final PlayerSeasonRepository r; @Inject public ModifyPlayerSeasonNameCommandHandler(PlayerSeasonRepository r){this.r=r;}
+ public DomainCommandResponse handle(ModifyPlayerSeasonNameCommand c){return r.findPlayerSeasonById(c.getPlayerSeasonId()).map(p->{p.modifyName(c.getName());r.savePlayerSeason(p);return DomainCommandResponse.successResponse(p);}).orElseGet(()->DomainCommandResponse.successResponse("Player season not found: "+c.getPlayerSeasonId()));}}
