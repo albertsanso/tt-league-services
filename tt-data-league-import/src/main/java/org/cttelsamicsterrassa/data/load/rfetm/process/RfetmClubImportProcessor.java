@@ -55,22 +55,30 @@ public class RfetmClubImportProcessor implements MatchReportProcessor {
     private void importClub(RfetmClubKey key, ActaTeam team, Season season) {
         String name = team != null ? team.name() : key.name();
 
+        /*
         Club club = clubRepository.findClubBySourceAndName(ImportSource.RFETM, name)
                 .orElseGet(() -> {
                     Club created = Club.createNew(ImportSource.RFETM, name);
                     clubRepository.saveClub(created);
                     LOGGER.debug("Created club {} ({})", name, key);
                     return created;
-                });
+                });*/
 
-        clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.RFETM);
-        clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.getId(), season, ImportSource.RFETM.name())
+        clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.RFETM)
                 .orElseGet(() -> {
-                    ClubSeason created = ClubSeason.createNew(ImportSource.RFETM, name, season, club);
+                    ClubSeason created = ClubSeason.createNew(ImportSource.RFETM, name, season, null);
                     clubSeasonRepository.saveClubSeason(created);
                     LOGGER.debug("Created club season {} {} ({})", name, season, key);
                     return created;
                 });
+        /*
+        clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(null, season, ImportSource.RFETM.name())
+                .orElseGet(() -> {
+                    ClubSeason created = ClubSeason.createNew(ImportSource.RFETM, name, season, null);
+                    clubSeasonRepository.saveClubSeason(created);
+                    LOGGER.debug("Created club season {} {} ({})", name, season, key);
+                    return created;
+                });*/
     }
 
     private static ActaTeam homeTeam(MatchReportContext context) {

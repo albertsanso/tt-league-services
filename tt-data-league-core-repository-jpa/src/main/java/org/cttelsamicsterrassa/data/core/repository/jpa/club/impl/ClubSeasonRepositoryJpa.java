@@ -8,6 +8,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.ClubSeasonJPAToClubSeasonMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.ClubSeasonToClubSeasonJPAMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -29,27 +30,9 @@ public class ClubSeasonRepositoryJpa implements ClubSeasonRepository {
     }
 
     @Override
-    public List<ClubSeason> findClubSeasonByClubAndSeason(UUID clubId, Season season) {
-        return clubSeasonRepositoryHelper.findByClub_IdAndSeason(clubId, season.toString())
-                .stream()
-                .map(clubSeasonJPAToClubSeasonMapper)
-                .toList();
-    }
-
-    @Override
     public Optional<ClubSeason> findClubSeasonByNameAndSeasonAndSource(String name, Season season, ImportSource source) {
-        return clubSeasonRepositoryHelper.findClubSeasonByNameAndSeasonAndSource(name, season.toString(), source.toString())
+        return clubSeasonRepositoryHelper.findClubSeasonByNameAndSeasonAndSource(name, season.toString(), mapFromImportSourceToSource(source))
                 .map(clubSeasonJPAToClubSeasonMapper);
-    }
-
-    @Override
-    public Optional<ClubSeason> findClubSeasonByClubAndSeasonAndSource(UUID clubId, Season season, String source) {
-        return Optional.empty();
-    }
-
-    @Override
-    public Optional<ClubSeason> findClubSeasonByClubAndNameAndSeasonAndSource(UUID clubId, String name, Season season, String source) {
-        return Optional.empty();
     }
 
     @Override
@@ -79,7 +62,17 @@ public class ClubSeasonRepositoryJpa implements ClubSeasonRepository {
     }
 
     @Override
-    public List<ClubSeason> findAllClubSeasonsBySimilarNameAndSeasonAndSoure(String name, Season season, String source) {
-        return List.of();
+    public List<ClubSeason> findAllClubSeasonsBySimilarNameAndSeasonAndSource(String name, Season season, ImportSource source) {
+        return clubSeasonRepositoryHelper.findAllByNameContainingIgnoreCaseAndSeasonAndSource(name, season.toString(), mapFromImportSourceToSource(source))
+                .stream()
+                .map(clubSeasonJPAToClubSeasonMapper)
+                .toList();
+    }
+
+    private static Source mapFromImportSourceToSource(ImportSource source) {
+        if (source == null) {
+            return null;
+        }
+        return Source.valueOf(source.name());
     }
 }

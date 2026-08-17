@@ -438,16 +438,25 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
     // --- clubs -----------------------------------------------------------------------------
 
     private Optional<ClubSeason> resolveClubSeason(RfetmClubKey key, Season season, MatchReportContext context) {
+        /*
         Optional<Club> club = clubRepository.findClubBySourceAndName(ImportSource.RFETM, key.name());
         if (club.isEmpty()) {
             LOGGER.warn("No club for {} in {}; match not stored", key, context.matchReportFile());
             return Optional.empty();
-        }
-        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.get().getId(), season, ImportSource.RFETM.name());
+        }*/
+
+        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(key.name(), season, ImportSource.RFETM);
         if (clubSeason.isEmpty()) {
             LOGGER.warn("Club {} has no entry for season {}; {} not stored",
                     key, season, context.matchReportFile());
         }
+
+        /*
+        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.get().getId(), season, ImportSource.RFETM.name());
+        if (clubSeason.isEmpty()) {
+            LOGGER.warn("Club {} has no entry for season {}; {} not stored",
+                    key, season, context.matchReportFile());
+        }*/
         return clubSeason;
     }
 

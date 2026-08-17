@@ -102,13 +102,13 @@ final class InMemoryRepositories {
         @Override
         public Optional<ClubSeason> findClubSeasonByClubAndSeason(UUID clubId, Season season) {
             return byId.values().stream()
-                    .filter(cs -> cs.getClub() != null && clubId.equals(cs.getClub().getId()))
+                    .filter(cs -> cs.getClub().map(club -> clubId.equals(club.getId())).orElse(false))
                     .filter(cs -> season.equals(cs.getSeason()))
                     .findFirst();
         }
 
         @Override
-        public Optional<ClubSeason> findClubSeasonByClubAndSeasonAndSource(UUID clubId, Season season, String source) {
+        public Optional<ClubSeason> findClubSeasonByClubAndSeasonAndSource(UUID clubId, Season season, ImportSource source) {
             return Optional.empty();
         }
 
@@ -137,7 +137,7 @@ final class InMemoryRepositories {
         }
 
         @Override
-        public List<ClubSeason> findAllClubSeasonsBySimilarNameAndSeasonAndSoure(String name, Season season, String source) {
+        public List<ClubSeason> findAllClubSeasonsBySimilarNameAndSeasonAndSource(String name, Season season, ImportSource source) {
             return List.of();
         }
     }

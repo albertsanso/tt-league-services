@@ -51,14 +51,23 @@ public class BcnesaClubImportProcessor implements BcnesaMatchReportProcessor {
             return;
         }
 
+        /*
         Club club = clubRepository.findClubBySourceAndName(ImportSource.BCNESA, name)
                 .orElseGet(() -> {
                     Club created = Club.createNew(ImportSource.BCNESA, name);
                     clubRepository.saveClub(created);
                     LOGGER.debug("Created BCNESA club {}", name);
                     return created;
-                });
+                });*/
 
+        clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.BCNESA)
+                .orElseGet(() -> {
+                    ClubSeason created = ClubSeason.createNew(ImportSource.BCNESA, name, season, null);
+                    clubSeasonRepository.saveClubSeason(created);
+                    LOGGER.debug("Created BCNESA club season {} {}", name, season);
+                    return created;
+                });
+        /*
         clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.getId(), season, ImportSource.BCNESA.name())
                 .orElseGet(() -> {
                     ClubSeason created = ClubSeason.createNew(ImportSource.BCNESA, name, season, club);
@@ -66,5 +75,6 @@ public class BcnesaClubImportProcessor implements BcnesaMatchReportProcessor {
                     LOGGER.debug("Created BCNESA club season {} {}", name, season);
                     return created;
                 });
+        */
     }
 }

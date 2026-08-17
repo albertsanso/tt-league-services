@@ -384,13 +384,17 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         if (name == null) {
             return Optional.empty();
         }
+
+        /*
         Optional<Club> club = clubRepository.findClubBySourceAndName(ImportSource.BCNESA, name);
         if (club.isEmpty()) {
             LOGGER.warn("No BCNESA club named {} for {}; fixture not stored", name, context.matchReportFile());
             return Optional.empty();
         }
+        */
 
-        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.get().getId(), season, ImportSource.BCNESA.name());
+        //Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.get().getId(), season, ImportSource.BCNESA);
+        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.BCNESA);
         if (clubSeason.isEmpty()) {
             LOGGER.warn("BCNESA club {} has no entry for season {}; {} not stored", name, season, context.matchReportFile());
         }

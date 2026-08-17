@@ -8,6 +8,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.time.ZonedDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 public class ClubSeason extends Entity {
@@ -15,14 +16,14 @@ public class ClubSeason extends Entity {
     private final ImportSource source;
     private String name;
     private final Season season;
-    private final Club club;
+    private final Optional<Club> club;
 
     private ClubSeason(UUID id, ImportSource source, String name, Season season, Club club) {
         this.id = id;
         this.source = source;
         this.name = name;
         this.season = season;
-        this.club = club;
+        this.club = Optional.ofNullable(club);
     }
 
     private static ClubSeason of(UUID id, ImportSource source, String name, Season season, Club club) {
@@ -51,7 +52,7 @@ public class ClubSeason extends Entity {
     }
 
     private void publishClubSeasonCreatedEvent() {
-        publishEvent(ClubSeasonCreatedEvent.of(id, name, source, club));
+        publishEvent(ClubSeasonCreatedEvent.of(id, name, source, club.orElse(null)));
     }
     private void publishClubSeasonNameModifiedEvent() {
         publishEvent(ClubSeasonNameModifiedEvent.of(id, name));
@@ -76,7 +77,7 @@ public class ClubSeason extends Entity {
         return season;
     }
 
-    public Club getClub() {
+    public Optional<Club> getClub() {
         return club;
     }
 }

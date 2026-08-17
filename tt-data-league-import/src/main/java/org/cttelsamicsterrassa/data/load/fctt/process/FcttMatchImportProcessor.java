@@ -369,15 +369,25 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
             LOGGER.warn("FCTT report {} has a team without a name; match not stored", context.matchReportFile());
             return Optional.empty();
         }
+
+        /*
         Optional<Club> club = clubRepository.findClubBySourceAndName(ImportSource.FCTT, team.name());
         if (club.isEmpty()) {
             LOGGER.warn("No FCTT club named {} for {}; match not stored", team.name(), context.matchReportFile());
             return Optional.empty();
-        }
-        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.get().getId(), season, ImportSource.FCTT.name());
+        }*/
+
+        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(team.name(), season, ImportSource.FCTT);
         if (clubSeason.isEmpty()) {
             LOGGER.warn("FCTT club {} has no entry for season {}; match not stored", team.name(), season);
         }
+
+        /*
+        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.get().getId(), season, ImportSource.FCTT);
+        if (clubSeason.isEmpty()) {
+            LOGGER.warn("FCTT club {} has no entry for season {}; match not stored", team.name(), season);
+        }
+        */
         return clubSeason;
     }
 

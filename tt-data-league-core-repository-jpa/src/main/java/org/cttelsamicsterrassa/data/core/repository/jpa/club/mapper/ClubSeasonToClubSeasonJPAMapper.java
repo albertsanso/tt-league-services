@@ -24,7 +24,7 @@ public class ClubSeasonToClubSeasonJPAMapper implements Function<ClubSeason, Clu
         result.setSource(clubSeason.getSource() == null ? null : Source.valueOf(clubSeason.getSource().name()));
         result.setName(clubSeason.getName());
         result.setSeason(clubSeason.getSeason().toString());
-        result.setClub(clubToClubJPAMapper.apply(clubSeason.getClub()));
+        result.setClub(clubSeason.getClub().map(clubToClubJPAMapper).orElse(null));
         return result;
     }
 }
