@@ -3,6 +3,8 @@ package org.cttelsamicsterrassa.data.load.shared.club;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
@@ -73,5 +75,33 @@ class ClubNameNormalizerTest {
                 normalizer.exactKey(ImportSource.BCNESA, "CTT COLÒNIA GÜELL A"));
         assertEquals("ctt colonia guell",
                 normalizer.exactKey(ImportSource.BCNESA, "CTT COLÒNIA GÜELL B"));
+    }
+
+    @Test
+    void infersAContextualRootForPreviouslyUnknownSuffixes() {
+        List<String> names = List.of("CTT CLUB", "CTT CLUB NORTH", "CTT CLUB EAST");
+        assertEquals("ctt club", normalizer.contextualKey(ImportSource.BCNESA, names.get(1), names));
+        assertEquals("CTT CLUB", normalizer.preferredDisplayName(ImportSource.BCNESA, names));
+    }
+
+    @Test
+    void infersTheRootWhenARegisteredCategoryContainsAnUnknownIntermediateToken() {
+        List<String> names = List.of(
+                "CTT SANT QUIRZE DEL VALLÈS - Sen A",
+                "CTT ST QUIRZE DEL VALLÈS - Vet D A",
+                "CTT ST QUIRZE DEL VALLÈS - Vet A");
+        assertEquals("ctt sant quirze del valles",
+                normalizer.contextualKey(ImportSource.BCNESA, names.get(1), names));
+        assertEquals("CTT SANT QUIRZE DEL VALLÈS", normalizer.preferredDisplayName(ImportSource.BCNESA, names));
+    }
+
+    @Test
+    void handlesQuotedTerminalTeamLettersAndAccentVariants() {
+        assertEquals("tennis taula cassa",
+                normalizer.exactKey(ImportSource.BCNESA, "TENNIS TAULA CASSÀ"));
+        assertEquals("oberena",
+                normalizer.exactKey(ImportSource.BCNESA, "OBERENA 'A'"));
+        assertEquals("OBERENA",
+                normalizer.preferredDisplayName(ImportSource.BCNESA, List.of("OBERENA 'A'", "OBERENA \"A\"")));
     }
 }

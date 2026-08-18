@@ -32,7 +32,7 @@ public class ClubSeasonConsolidationProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClubSeasonConsolidationProcessor.class);
 
-    private static final Set<ImportSource> AUTOMATIC_SOURCES = EnumSet.of(ImportSource.FCTT, ImportSource.BCNESA);
+    private static final Set<ImportSource> AUTOMATIC_SOURCES = EnumSet.of(ImportSource.FCTT, ImportSource.BCNESA, ImportSource.RFETM);
 
     private final ClubRepository clubRepository;
     private final ClubSeasonRepository clubSeasonRepository;
@@ -66,6 +66,10 @@ public class ClubSeasonConsolidationProcessor {
         }
 
         List<ClubSeason> registrations = clubSeasonRepository.findAllClubSeasonsBySource(source);
+        List<String> inventoryNames = registrations.stream()
+                .map(ClubSeason::getName)
+                .filter(Objects::nonNull)
+                .toList();
         ClubConsolidationSummary.Builder summary = ClubConsolidationSummary.builder(source)
                 .scannedRegistrations(registrations.size());
 
@@ -76,7 +80,9 @@ public class ClubSeasonConsolidationProcessor {
                         List.of(registration.getId()), List.of(String.valueOf(registration.getName()))));
                 continue;
             }
-            exactGroups.computeIfAbsent(matcher.exactKey(source, registration.getName()), key -> new ArrayList<>())
+            exactGroups.computeIfAbsent(
+                            new ClubNameNormalizer().contextualKey(source, registration.getName(), inventoryNames),
+                            key -> new ArrayList<>())
                     .add(registration);
         }
 

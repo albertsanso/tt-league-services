@@ -52,9 +52,9 @@ class FcttImportProcessorsTest {
         setScores = new InMemoryRepositories.SetScores();
         doublesPairs = new InMemoryRepositories.DoublesPairs();
         processors = List.of(
-                new FcttClubImportProcessor(clubs, clubSeasons),
+                new FcttClubImportProcessor(clubSeasons),
                 new FcttPlayerImportProcessor(players, playerSeasons),
-                new FcttMatchImportProcessor(clubs, clubSeasons, playerSeasons, matches, lineups, games,
+                new FcttMatchImportProcessor(clubSeasons, playerSeasons, matches, lineups, games,
                         setScores, doublesPairs));
     }
 

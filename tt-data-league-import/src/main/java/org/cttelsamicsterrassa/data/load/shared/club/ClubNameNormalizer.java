@@ -34,6 +34,37 @@ public final class ClubNameNormalizer {
         return parts(source, name).identityKey();
     }
 
+    public String contextualKey(ImportSource source, String name, List<String> inventoryNames) {
+        String key = exactKey(source, name);
+        List<String> tokens = List.of(key.split(" "));
+        if (tokens.size() < 2) {
+            return key;
+        }
+        for (String candidate : inventoryNames) {
+            if (candidate == null || candidate.equals(name)) {
+                continue;
+            }
+            List<String> candidateTokens = List.of(exactKey(source, candidate).split(" "));
+            if (candidateTokens.size() > tokens.size() && startsWith(candidateTokens, tokens)) {
+                return key;
+            }
+            if (tokens.size() > candidateTokens.size() && startsWith(tokens, candidateTokens)) {
+                return String.join(" ", candidateTokens);
+            }
+        }
+        for (String candidate : inventoryNames) {
+            if (candidate == null || candidate.equals(name)) {
+                continue;
+            }
+            List<String> candidateTokens = List.of(exactKey(source, candidate).split(" "));
+            int common = commonPrefixLength(tokens, candidateTokens);
+            if (common >= 3 && common < tokens.size() && common < candidateTokens.size()) {
+                return String.join(" ", tokens.subList(0, common));
+            }
+        }
+        return key;
+    }
+
     public List<String> significantTokens(ImportSource source, String name) {
         return parts(source, name).identityTokens();
     }
@@ -76,12 +107,25 @@ public final class ClubNameNormalizer {
 
     public String preferredDisplayName(ImportSource source, List<String> names) {
         List<ClubNameParts> parts = names.stream().map(name -> parts(source, name)).toList();
+        List<String> keys = names.stream().map(name -> exactKey(source, name)).toList();
+        for (int i = 0; i < names.size(); i++) {
+            String key = keys.get(i);
+            if (keys.stream().anyMatch(other -> !other.equals(key)
+                    && other.startsWith(key + " "))) {
+                if (parts.get(i).appliedRules().contains(ClubNameRule.TEAM_LETTER)
+                        || parts.get(i).appliedRules().contains(ClubNameRule.CATEGORY)) {
+                    return removeTerminalQualifierSuffix(names.get(i));
+                }
+                return names.get(i);
+            }
+        }
         if (source == ImportSource.BCNESA
                 && parts.stream().map(ClubNameParts::identityKey).distinct().count() == 1
                 && parts.stream().flatMap(part -> part.appliedRules().stream())
                 .anyMatch(rule -> rule == ClubNameRule.SPONSOR_PREFIX || rule == ClubNameRule.CURATED_ALIAS)) {
             return parts.getFirst().identityTokens().stream().map(String::toUpperCase).collect(java.util.stream.Collectors.joining(" "));
         }
+
         if (!names.isEmpty()
                 && parts.stream().allMatch(part -> part.appliedRules().contains(ClubNameRule.TEAM_LETTER))) {
             return removeTerminalQualifierSuffix(names.getFirst());
@@ -98,8 +142,22 @@ public final class ClubNameNormalizer {
                 .orElseThrow();
     }
 
+    private static boolean startsWith(List<String> tokens, List<String> prefix) {
+        return tokens.size() >= prefix.size() && tokens.subList(0, prefix.size()).equals(prefix);
+    }
+
+    private static int commonPrefixLength(List<String> left, List<String> right) {
+        int length = 0;
+        while (length < left.size() && length < right.size()
+                && left.get(length).equals(right.get(length))) {
+            length++;
+        }
+        return length;
+    }
+
     private static String removeTerminalQualifierSuffix(String name) {
         return name
+                .replaceFirst("\\s*(?:[-'\"]\\s*)+(?:(?:Sen|Vet)\\s+[A-C]|[A-C])(?:\\s*[-'\"])*\\s*$", "")
                 .replaceFirst("\\s*-\\s*(?:(?:Sen|Vet)\\s+[A-C]|[A-C])\\s*-?\\s*$", "")
                 .replaceFirst("\\s*(?:Sen|Vet)\\s+[A-C]\\s*$", "")
                 .replaceFirst("\\s+[A-C]\\s*$", "")

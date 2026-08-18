@@ -193,6 +193,32 @@ class ClubSeasonConsolidationProcessorTest {
                 "CTT SANT QUIRZE DEL VALLÈS - Vet B");
         assertCanonicalName("TT SANT ANDREU",
                 "TT SANT ANDREU -A-", "TT SANT ANDREU -B-");
+        assertCanonicalName("CTT SANT QUIRZE DEL VALLÈS",
+                "CTT SANT QUIRZE DEL VALLÈS - Sen A",
+                "CTT ST QUIRZE DEL VALLÈS - Sen C",
+                "CTT SANT QUIRZE DEL VALLÈS - Vet A",
+                "CTT SANT QUIRZE DEL VALLÈS - Sen B",
+                "CTT ST QUIRZE DEL VALLÈS - Vet D A",
+                "CTT ST QUIRZE DEL VALLÈS - Vet C",
+                "CTT ST QUIRZE DEL VALLÈS - Vet B",
+                "CTT ST QUIRZE DEL VALLÈS - Vet A",
+                "CTT ST QUIRZE DEL VALLÈS - Sen B",
+                "CTT ST QUIRZE DEL VALLÈS - Vet E B",
+                "CTT SANT QUIRZE DEL VALLÈS - Vet B",
+                "CTT SANT QUIRZE DEL VALLÈS - Vet C",
+                "CTT ST QUIRZE DEL VALLÈS - Sen D");
+        assertCanonicalName("MANUFACTURAS DEPORTIVAS",
+                "MANUFACTURAS DEPORTIVAS", "MANUFACTURAS DEPORTIVAS",
+                "MANUFACTURAS DEPORTIVAS 'A'", "MANUFACTURAS DEPORTIVAS 'B'");
+        assertCanonicalName("TENNIS TAULA CASSA",
+                "TENNIS TAULA CASSA", "TENNIS TAULA CASSA",
+                "TENNIS TAULA CASSÀ");
+        assertCanonicalName("OBERENA",
+                "OBERENA 'A'", "OBERENA \"A\"");
+        assertCanonicalName("CLUB TENNIS TAULA TRAMUNTANA FIGUERES",
+                "CLUB TENNIS TAULA TRAMUNTANA FIGUERES",
+                "CLUB TENNIS TAULA TRAMUNTANA FIGUERES 'A'",
+                "CLUB TENNIS TAULA TRAMUNTANA FIGUERES 'B'");
     }
 
     @Test

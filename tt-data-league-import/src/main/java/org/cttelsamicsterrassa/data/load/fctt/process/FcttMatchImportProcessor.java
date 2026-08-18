@@ -1,8 +1,6 @@
 package org.cttelsamicsterrassa.data.load.fctt.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
@@ -62,7 +60,6 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
             "A", 1, "B", 2, "C", 3,
             "X", 1, "Y", 2, "Z", 3);
 
-    private final ClubRepository clubRepository;
     private final ClubSeasonRepository clubSeasonRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
     private final MatchRepository matchRepository;
@@ -71,15 +68,13 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
     private final SetScoreRepository setScoreRepository;
     private final DoublesPairRepository doublesPairRepository;
 
-    public FcttMatchImportProcessor(ClubRepository clubRepository,
-                                    ClubSeasonRepository clubSeasonRepository,
+    public FcttMatchImportProcessor(ClubSeasonRepository clubSeasonRepository,
                                     PlayerSeasonRepository playerSeasonRepository,
                                     MatchRepository matchRepository,
                                     LineupRepository lineupRepository,
                                     GameRepository gameRepository,
                                     SetScoreRepository setScoreRepository,
                                     DoublesPairRepository doublesPairRepository) {
-        this.clubRepository = clubRepository;
         this.clubSeasonRepository = clubSeasonRepository;
         this.playerSeasonRepository = playerSeasonRepository;
         this.matchRepository = matchRepository;
@@ -370,24 +365,11 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
             return Optional.empty();
         }
 
-        /*
-        Optional<Club> club = clubRepository.findClubBySourceAndName(ImportSource.FCTT, team.name());
-        if (club.isEmpty()) {
-            LOGGER.warn("No FCTT club named {} for {}; match not stored", team.name(), context.matchReportFile());
-            return Optional.empty();
-        }*/
-
         Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(team.name(), season, ImportSource.FCTT);
         if (clubSeason.isEmpty()) {
             LOGGER.warn("FCTT club {} has no entry for season {}; match not stored", team.name(), season);
         }
 
-        /*
-        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.get().getId(), season, ImportSource.FCTT);
-        if (clubSeason.isEmpty()) {
-            LOGGER.warn("FCTT club {} has no entry for season {}; match not stored", team.name(), season);
-        }
-        */
         return clubSeason;
     }
 

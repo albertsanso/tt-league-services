@@ -79,7 +79,6 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
             "A", 1, "B", 2, "C", 3,
             "X", 1, "Y", 2, "Z", 3);
 
-    private final ClubRepository clubRepository;
     private final ClubSeasonRepository clubSeasonRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
     private final MatchRepository matchRepository;
@@ -88,15 +87,13 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
     private final SetScoreRepository setScoreRepository;
     private final DoublesPairRepository doublesPairRepository;
 
-    public RfetmMatchImportProcessor(ClubRepository clubRepository,
-                                ClubSeasonRepository clubSeasonRepository,
+    public RfetmMatchImportProcessor(ClubSeasonRepository clubSeasonRepository,
                                 PlayerSeasonRepository playerSeasonRepository,
                                 MatchRepository matchRepository,
                                 LineupRepository lineupRepository,
                                 GameRepository gameRepository,
                                 SetScoreRepository setScoreRepository,
                                 DoublesPairRepository doublesPairRepository) {
-        this.clubRepository = clubRepository;
         this.clubSeasonRepository = clubSeasonRepository;
         this.playerSeasonRepository = playerSeasonRepository;
         this.matchRepository = matchRepository;

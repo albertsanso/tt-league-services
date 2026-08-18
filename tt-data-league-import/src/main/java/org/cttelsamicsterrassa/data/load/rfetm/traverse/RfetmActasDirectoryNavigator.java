@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.rfetm.traverse;
 
+import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubKey;
 import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaParseException;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaParser;
@@ -7,7 +8,6 @@ import org.cttelsamicsterrassa.data.load.shared.parse.ActaTeam;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaTeams;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportProcessor;
-import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubKey;
 import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

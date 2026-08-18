@@ -1,8 +1,6 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
@@ -80,7 +78,6 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             "A", 1, "B", 2, "C", 3,
             "X", 1, "Y", 2, "Z", 3);
 
-    private final ClubRepository clubRepository;
     private final ClubSeasonRepository clubSeasonRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
     private final MatchRepository matchRepository;
@@ -88,14 +85,12 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
     private final GameRepository gameRepository;
     private final DoublesPairRepository doublesPairRepository;
 
-    public BcnesaMatchImportProcessor(ClubRepository clubRepository,
-                                      ClubSeasonRepository clubSeasonRepository,
+    public BcnesaMatchImportProcessor(ClubSeasonRepository clubSeasonRepository,
                                       PlayerSeasonRepository playerSeasonRepository,
                                       MatchRepository matchRepository,
                                       LineupRepository lineupRepository,
                                       GameRepository gameRepository,
                                       DoublesPairRepository doublesPairRepository) {
-        this.clubRepository = clubRepository;
         this.clubSeasonRepository = clubSeasonRepository;
         this.playerSeasonRepository = playerSeasonRepository;
         this.matchRepository = matchRepository;
@@ -376,8 +371,6 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         }
     }
 
-    // --- clubs -----------------------------------------------------------------------------
-
     private Optional<ClubSeason> resolveClubSeason(String rawClubName, Season season,
                                                     BcnesaMatchReportContext context) {
         String name = BcnesaClubNames.normalize(rawClubName);
@@ -385,15 +378,6 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             return Optional.empty();
         }
 
-        /*
-        Optional<Club> club = clubRepository.findClubBySourceAndName(ImportSource.BCNESA, name);
-        if (club.isEmpty()) {
-            LOGGER.warn("No BCNESA club named {} for {}; fixture not stored", name, context.matchReportFile());
-            return Optional.empty();
-        }
-        */
-
-        //Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.get().getId(), season, ImportSource.BCNESA);
         Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.BCNESA);
         if (clubSeason.isEmpty()) {
             LOGGER.warn("BCNESA club {} has no entry for season {}; {} not stored", name, season, context.matchReportFile());

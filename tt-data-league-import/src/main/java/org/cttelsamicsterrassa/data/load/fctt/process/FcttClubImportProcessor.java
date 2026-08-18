@@ -1,8 +1,6 @@
 package org.cttelsamicsterrassa.data.load.fctt.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -27,11 +25,9 @@ public class FcttClubImportProcessor implements FcttMatchReportProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FcttClubImportProcessor.class);
 
-    private final ClubRepository clubRepository;
     private final ClubSeasonRepository clubSeasonRepository;
 
-    public FcttClubImportProcessor(ClubRepository clubRepository, ClubSeasonRepository clubSeasonRepository) {
-        this.clubRepository = clubRepository;
+    public FcttClubImportProcessor(ClubSeasonRepository clubSeasonRepository) {
         this.clubSeasonRepository = clubSeasonRepository;
     }
 
@@ -52,18 +48,9 @@ public class FcttClubImportProcessor implements FcttMatchReportProcessor {
             LOGGER.warn("Skipping FCTT team without a name in {}", context.matchReportFile());
             return;
         }
-
-        Club club = clubRepository.findClubBySourceAndName(ImportSource.FCTT, team.name())
-                .orElseGet(() -> {
-                    Club created = Club.createNew(ImportSource.FCTT, team.name());
-                    clubRepository.saveClub(created);
-                    LOGGER.debug("Created FCTT club {}", team.name());
-                    return created;
-                });
-
         clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(team.name(), season, ImportSource.FCTT)
                 .orElseGet(() -> {
-                    ClubSeason created = ClubSeason.createNew(ImportSource.FCTT, team.name(), season, club);
+                    ClubSeason created = ClubSeason.createNew(ImportSource.FCTT, team.name(), season, null);
                     clubSeasonRepository.saveClubSeason(created);
                     LOGGER.debug("Created FCTT club season {} {}", team.name(), season);
                     return created;

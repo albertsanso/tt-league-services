@@ -1,8 +1,6 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -28,11 +26,9 @@ public class BcnesaClubImportProcessor implements BcnesaMatchReportProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BcnesaClubImportProcessor.class);
 
-    private final ClubRepository clubRepository;
     private final ClubSeasonRepository clubSeasonRepository;
 
-    public BcnesaClubImportProcessor(ClubRepository clubRepository, ClubSeasonRepository clubSeasonRepository) {
-        this.clubRepository = clubRepository;
+    public BcnesaClubImportProcessor(ClubSeasonRepository clubSeasonRepository) {
         this.clubSeasonRepository = clubSeasonRepository;
     }
 
@@ -49,15 +45,6 @@ public class BcnesaClubImportProcessor implements BcnesaMatchReportProcessor {
             return;
         }
 
-        /*
-        Club club = clubRepository.findClubBySourceAndName(ImportSource.BCNESA, name)
-                .orElseGet(() -> {
-                    Club created = Club.createNew(ImportSource.BCNESA, name);
-                    clubRepository.saveClub(created);
-                    LOGGER.debug("Created BCNESA club {}", name);
-                    return created;
-                });
-         */
         clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.BCNESA)
                 .orElseGet(() -> {
                     ClubSeason created = ClubSeason.createNew(ImportSource.BCNESA, name, season, null);

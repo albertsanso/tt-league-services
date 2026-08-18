@@ -3,19 +3,19 @@ package org.cttelsamicsterrassa.data.load.process;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubImportProcessor;
+import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubKey;
+import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmMatchImportProcessor;
+import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmPlayerImportProcessor;
 import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaLineupPlayer;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaParser;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaParticipant;
-import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubImportProcessor;
-import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubKey;
-import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmMatchImportProcessor;
-import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmPlayerImportProcessor;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportProcessor;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,10 +28,7 @@ import java.time.LocalDate;
 import java.util.Comparator;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Runs the three processors in their declared order over real match reports, the way the navigator
@@ -64,9 +61,9 @@ class ImportProcessorsTest {
         doublesPairs = new InMemoryRepositories.DoublesPairs();
 
         processors = List.of(
-                new RfetmClubImportProcessor(clubs, clubSeasons),
+                new RfetmClubImportProcessor(clubSeasons),
                 new RfetmPlayerImportProcessor(players, playerSeasons),
-                new RfetmMatchImportProcessor(clubs, clubSeasons, playerSeasons, matches, lineups, games,
+                new RfetmMatchImportProcessor(clubSeasons, playerSeasons, matches, lineups, games,
                         setScores, doublesPairs));
     }
 
@@ -190,7 +187,7 @@ class ImportProcessorsTest {
     void skipsTheMatchWhenItsClubsWereNeverImported() {
         MatchReportContext context = singlesContext();
 
-        new RfetmMatchImportProcessor(clubs, clubSeasons, playerSeasons, matches, lineups, games,
+        new RfetmMatchImportProcessor(clubSeasons, playerSeasons, matches, lineups, games,
                 setScores, doublesPairs).process(context);
 
         assertTrue(matches.saved.isEmpty());

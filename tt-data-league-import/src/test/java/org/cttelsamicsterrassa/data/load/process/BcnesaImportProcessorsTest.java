@@ -3,8 +3,8 @@ package org.cttelsamicsterrassa.data.load.process;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaClubImportProcessor;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchImportProcessor;
@@ -22,10 +22,7 @@ import java.net.URL;
 import java.nio.file.Path;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Runs the three BCNESA processors in their declared order over a real two-fixture matchday report,
@@ -57,9 +54,9 @@ class BcnesaImportProcessorsTest {
         doublesPairs = new InMemoryRepositories.DoublesPairs();
 
         processors = List.of(
-                new BcnesaClubImportProcessor(clubs, clubSeasons),
+                new BcnesaClubImportProcessor(clubSeasons),
                 new BcnesaPlayerImportProcessor(players, playerSeasons),
-                new BcnesaMatchImportProcessor(clubs, clubSeasons, playerSeasons, matches, lineups, games,
+                new BcnesaMatchImportProcessor(clubSeasons, playerSeasons, matches, lineups, games,
                         doublesPairs));
 
         acta = new ActaParser().parse(fixture("acta_matchday.json"));
@@ -164,7 +161,7 @@ class BcnesaImportProcessorsTest {
     void skipsAFixtureWhoseClubWasNeverImported() {
         BcnesaMatchReportContext context = firstFixture();
 
-        new BcnesaMatchImportProcessor(clubs, clubSeasons, playerSeasons, matches, lineups, games, doublesPairs)
+        new BcnesaMatchImportProcessor(clubSeasons, playerSeasons, matches, lineups, games, doublesPairs)
                 .process(context);
 
         assertTrue(matches.saved.isEmpty());
