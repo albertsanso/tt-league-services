@@ -1,6 +1,5 @@
 package org.cttelsamicsterrassa.data.load.fctt.process;
 
-import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
@@ -52,18 +51,10 @@ public class FcttPlayerImportProcessor implements FcttMatchReportProcessor {
             return;
         }
 
-        Player player = playerRepository.findPlayerBySourceAndName(ImportSource.FCTT, lineupPlayer.name())
-                .orElseGet(() -> {
-                    Player created = Player.createNew(ImportSource.FCTT, lineupPlayer.name());
-                    playerRepository.savePlayer(created);
-                    LOGGER.debug("Created FCTT player {}", lineupPlayer.name());
-                    return created;
-                });
-
         playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(ImportSource.FCTT, lineupPlayer.license(), season)
                 .orElseGet(() -> {
                     PlayerSeason created = PlayerSeason.createNew(
-                            ImportSource.FCTT, lineupPlayer.name(), lineupPlayer.license(), player, season);
+                            ImportSource.FCTT, lineupPlayer.name(), lineupPlayer.license(), null, season);
                     playerSeasonRepository.savePlayerSeason(created);
                     LOGGER.debug("Created FCTT player season {} {} ({})",
                             lineupPlayer.name(), season, lineupPlayer.license());

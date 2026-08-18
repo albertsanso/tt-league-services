@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.core.domain.player.event.PlayerSeasonNameMod
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -21,7 +22,7 @@ public class PlayerSeason extends Entity {
     private final ImportSource source;
     private String name;
     private final String license;
-    private final Player player;
+    private final Optional<Player> player;
     private final Season season;
 
     private PlayerSeason(UUID id, ImportSource source, String name, String license, Season season, Player player) {
@@ -29,7 +30,7 @@ public class PlayerSeason extends Entity {
         this.source = source;
         this.name = name;
         this.license = license;
-        this.player = player;
+        this.player = Optional.ofNullable(player);
         this.season = season;
     }
 
@@ -52,12 +53,24 @@ public class PlayerSeason extends Entity {
         publishPlayerSeasonNameModifiedEvent(name);
     }
 
+    public PlayerSeason withPlayer(Player player) {
+        if (samePlayer(player)) {
+            return this;
+        }
+        return of(id, source, name, license, player, season);
+    }
+
+    private boolean samePlayer(Player other) {
+        return player.map(current -> other != null && current.getId().equals(other.getId()))
+                .orElse(other == null);
+    }
+
     public void delete() {
         publishPlayerSeasonDeletedEvent();
     }
 
     private void publishPlayerSeasonCreatedEvent() {
-        publishEvent(PlayerSeasonCreatedEvent.of(this.id, this.name, this.season, this.license, this.source, this.player));
+        publishEvent(PlayerSeasonCreatedEvent.of(this.id, this.name, this.season, this.license, this.source, player.orElse(null)));
     }
 
     private void publishPlayerSeasonNameModifiedEvent(String name) {
@@ -80,7 +93,7 @@ public class PlayerSeason extends Entity {
         return name;
     }
 
-    public Player getPlayer() {
+    public Optional<Player> getPlayer() {
         return player;
     }
 

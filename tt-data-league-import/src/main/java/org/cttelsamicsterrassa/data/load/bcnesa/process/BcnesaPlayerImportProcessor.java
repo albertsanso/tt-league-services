@@ -1,11 +1,10 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
-import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaLineupPlayer;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaParticipant;
@@ -85,17 +84,9 @@ public class BcnesaPlayerImportProcessor implements BcnesaMatchReportProcessor {
             return;
         }
 
-        Player player = playerRepository.findPlayerBySourceAndName(ImportSource.BCNESA, name)
-                .orElseGet(() -> {
-                    Player created = Player.createNew(ImportSource.BCNESA, name);
-                    playerRepository.savePlayer(created);
-                    LOGGER.debug("Created BCNESA player {}", name);
-                    return created;
-                });
-
         playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(ImportSource.BCNESA, license, season)
                 .orElseGet(() -> {
-                    PlayerSeason created = PlayerSeason.createNew(ImportSource.BCNESA, name, license, player, season);
+                    PlayerSeason created = PlayerSeason.createNew(ImportSource.BCNESA, name, license, null, season);
                     playerSeasonRepository.savePlayerSeason(created);
                     LOGGER.debug("Created BCNESA player season {} {} ({})", name, season, license);
                     return created;

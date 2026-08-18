@@ -154,8 +154,8 @@ public final class InMemoryRepositories {
         }
     }
 
-    static final class Players implements PlayerRepository {
-        final Map<UUID, Player> byId = new LinkedHashMap<>();
+    public static final class Players implements PlayerRepository {
+        public final Map<UUID, Player> byId = new LinkedHashMap<>();
 
         @Override
         public Optional<Player> findPlayerById(UUID id) {
@@ -185,7 +185,7 @@ public final class InMemoryRepositories {
         }
     }
 
-    static final class PlayerSeasons implements PlayerSeasonRepository {
+    public static final class PlayerSeasons implements PlayerSeasonRepository {
         final Map<UUID, PlayerSeason> byId = new LinkedHashMap<>();
 
         @Override
@@ -200,6 +200,13 @@ public final class InMemoryRepositories {
                             && Objects.equals(ps.getLicense(), license)
                             && season.equals(ps.getSeason()))
                     .findFirst();
+        }
+
+        @Override
+        public List<PlayerSeason> findAllPlayerSeasonsBySource(ImportSource source) {
+            return byId.values().stream()
+                    .filter(ps -> Objects.equals(ps.getSource(), source))
+                    .toList();
         }
 
         @Override

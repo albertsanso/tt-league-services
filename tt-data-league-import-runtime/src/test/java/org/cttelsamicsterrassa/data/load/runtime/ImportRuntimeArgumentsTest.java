@@ -39,4 +39,14 @@ class ImportRuntimeArgumentsTest {
         assertEquals(ConsolidationMode.REPORT, arguments.consolidationMode());
         assertEquals("rfetm", arguments.source());
     }
+
+    @Test
+    void enablesPlayerConsolidationIndependently() {
+        ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
+                "--base-folder=C:\\data", "--consolidate-players=report");
+
+        assertTrue(arguments.consolidatePlayers());
+        assertEquals(ConsolidationMode.REPORT, arguments.playerConsolidationMode());
+        assertFalse(arguments.consolidateClubs());
+    }
 }

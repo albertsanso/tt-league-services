@@ -5,8 +5,10 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.player.model.PlayerSeaso
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 public interface PlayerSeasonRepositoryHelper extends JpaRepository<PlayerSeasonJPA, UUID> {
     Optional<PlayerSeasonJPA> findBySourceAndLicenseAndSeason(Source source, String license, String season);
+    List<PlayerSeasonJPA> findAllBySource(Source source);
 }

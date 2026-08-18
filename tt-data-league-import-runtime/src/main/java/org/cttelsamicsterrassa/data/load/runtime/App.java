@@ -5,6 +5,7 @@ import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaActasDirectoryNav
 import org.cttelsamicsterrassa.data.load.fctt.traverse.FcttActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.rfetm.traverse.RfetmActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.shared.club.ClubConsolidationSummary;
+import org.cttelsamicsterrassa.data.load.shared.player.PlayerConsolidationSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
@@ -25,6 +26,9 @@ import java.nio.file.Path;
  * --consolidate-clubs       after a successful traversal, repair source-scoped club associations
  * --consolidate-clubs=report
  *                           same matching path with no writes
+ * --consolidate-players    after a successful traversal, repair source-scoped player associations
+ * --consolidate-players=report
+ *                           same player matching path with no writes
  * </pre>
  *
  * <p>This module only wires and sequences: parsing lives in the parser, mapping in the processors,
@@ -50,13 +54,16 @@ public class App implements CommandLineRunner {
     private final BcnesaActasDirectoryNavigator bcnesaNavigator;
     private final FcttActasDirectoryNavigator fcttNavigator;
     private final ClubConsolidationRunner clubConsolidationRunner;
+    private final PlayerConsolidationRunner playerConsolidationRunner;
 
     public App(RfetmActasDirectoryNavigator rfetmNavigator, BcnesaActasDirectoryNavigator bcnesaNavigator,
-               FcttActasDirectoryNavigator fcttNavigator, ClubConsolidationRunner clubConsolidationRunner) {
+               FcttActasDirectoryNavigator fcttNavigator, ClubConsolidationRunner clubConsolidationRunner,
+               PlayerConsolidationRunner playerConsolidationRunner) {
         this.rfetmNavigator = rfetmNavigator;
         this.bcnesaNavigator = bcnesaNavigator;
         this.fcttNavigator = fcttNavigator;
         this.clubConsolidationRunner = clubConsolidationRunner;
+        this.playerConsolidationRunner = playerConsolidationRunner;
     }
 
     public static void main(String[] args) {
@@ -71,7 +78,7 @@ public class App implements CommandLineRunner {
         String baseFolder = arguments.baseFolder();
         if (baseFolder == null) {
             LOGGER.error("Missing required argument {}<path>", BASE_FOLDER_ARGUMENT);
-            LOGGER.error("Usage: --source=rfetm|bcnesa|fctt --base-folder=<path> [--season=<YYYY-YYYY>] [--consolidate-clubs[=report]]");
+            LOGGER.error("Usage: --source=rfetm|bcnesa|fctt --base-folder=<path> [--season=<YYYY-YYYY>] [--consolidate-clubs[=report]] [--consolidate-players[=report]]");
             throw new IllegalArgumentException("Missing required argument " + BASE_FOLDER_ARGUMENT + "<path>");
         }
 
@@ -105,6 +112,10 @@ public class App implements CommandLineRunner {
         if (arguments.consolidateClubs()) {
             ClubConsolidationSummary consolidation = clubConsolidationRunner.run(importSource, arguments.consolidationMode());
             LOGGER.info("Club consolidation finished: {}", consolidation);
+        }
+        if (arguments.consolidatePlayers()) {
+            PlayerConsolidationSummary consolidation = playerConsolidationRunner.run(importSource, arguments.playerConsolidationMode());
+            LOGGER.info("Player consolidation finished: {}", consolidation);
         }
     }
 }

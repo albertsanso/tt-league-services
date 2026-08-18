@@ -26,7 +26,7 @@ public class PlayerSeasonToPlayerSeasonJPAMapper implements Function<PlayerSeaso
                 playerSeason.getName(),
                 playerSeason.getLicense(),
                 playerSeason.getSeason().toString(),
-                playerToPlayerJPAMapper.apply(playerSeason.getPlayer())
+                playerSeason.getPlayer().map(playerToPlayerJPAMapper).orElse(null)
         );
     }
 }

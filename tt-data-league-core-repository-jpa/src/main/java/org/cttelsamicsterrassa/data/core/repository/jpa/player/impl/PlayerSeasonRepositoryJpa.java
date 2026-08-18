@@ -12,6 +12,7 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.player.mapper.PlayerSeas
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 @Transactional
@@ -30,9 +31,17 @@ public class PlayerSeasonRepositoryJpa implements PlayerSeasonRepository {
 
     @Override
     public Optional<PlayerSeason> findPlayerSeasonByLicenseAndSeason(ImportSource source, String license, Season season) {
-        Source jpaSource = source != null ? Source.valueOf(source.name()) : null;
+        Source jpaSource = mapFromImportSourceToSource(source);
         return playerSeasonRepositoryHelper.findBySourceAndLicenseAndSeason(jpaSource, license, season.toString())
                 .map(playerSeasonJPAToPlayerSeasonMapper);
+    }
+
+    @Override
+    public List<PlayerSeason> findAllPlayerSeasonsBySource(ImportSource source) {
+        return playerSeasonRepositoryHelper.findAllBySource(mapFromImportSourceToSource(source))
+                .stream()
+                .map(playerSeasonJPAToPlayerSeasonMapper)
+                .toList();
     }
 
     @Override
@@ -43,5 +52,12 @@ public class PlayerSeasonRepositoryJpa implements PlayerSeasonRepository {
     @Override
     public void deletePlayerSeasonById(UUID id) {
         playerSeasonRepositoryHelper.deleteById(id);
+    }
+
+    private static Source mapFromImportSourceToSource(ImportSource source) {
+        if (source == null) {
+            return null;
+        }
+        return Source.valueOf(source.name());
     }
 }

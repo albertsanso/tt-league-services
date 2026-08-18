@@ -5,6 +5,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 
 import java.util.Optional;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -15,6 +16,7 @@ import java.util.UUID;
 public interface PlayerSeasonRepository {
     Optional<PlayerSeason> findPlayerSeasonById(UUID id);
     Optional<PlayerSeason> findPlayerSeasonByLicenseAndSeason(ImportSource source, String license, Season season);
+    List<PlayerSeason> findAllPlayerSeasonsBySource(ImportSource source);
     void savePlayerSeason(PlayerSeason playerSeason);
     void deletePlayerSeasonById(UUID id);
 }

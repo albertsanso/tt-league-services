@@ -6,6 +6,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.time.ZonedDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 public class PlayerSeasonCreatedEvent extends DomainEvent {
@@ -15,7 +16,7 @@ public class PlayerSeasonCreatedEvent extends DomainEvent {
     private final Season season;
     private final String license;
     private final ImportSource source;
-    private final Player player;
+    private final Optional<Player> player;
 
     private PlayerSeasonCreatedEvent(UUID playerSeasonId, String name, Season season, String license, ImportSource source, Player player) {
         super(ZonedDateTime.now(), playerSeasonId.toString());
@@ -24,7 +25,7 @@ public class PlayerSeasonCreatedEvent extends DomainEvent {
         this.season = season;
         this.license = license;
         this.source = source;
-        this.player = player;
+        this.player = Optional.ofNullable(player);
     }
 
     public static PlayerSeasonCreatedEvent of(UUID playerSeasonId, String name, Season season, String license, ImportSource source, Player player) {
@@ -51,7 +52,7 @@ public class PlayerSeasonCreatedEvent extends DomainEvent {
         return name;
     }
 
-    public Player getPlayer() {
+    public Optional<Player> getPlayer() {
         return player;
     }
 }

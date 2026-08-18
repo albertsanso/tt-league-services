@@ -191,6 +191,33 @@ class ImportSchemaTest {
     }
 
     @Test
+    void roundTripsPlayerSeasonWithAndWithoutPlayerAssociation() {
+        PlayerSeason unassigned = PlayerSeason.createExisting(
+                UUID.randomUUID(), ImportSource.RFETM, "UNASSIGNED PLAYER", "unassigned", null, SEASON);
+        playerSeasonRepository.savePlayerSeason(unassigned);
+
+        Player player = Player.createNew(ImportSource.RFETM, "ASSIGNED PLAYER");
+        playerRepository.savePlayer(player);
+        PlayerSeason assigned = PlayerSeason.createExisting(
+                UUID.randomUUID(), ImportSource.RFETM, "ASSIGNED PLAYER", "assigned", player, SEASON);
+        playerSeasonRepository.savePlayerSeason(assigned);
+
+        PlayerSeason reloadedUnassigned = playerSeasonRepository
+                .findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, "unassigned", SEASON)
+                .orElseThrow();
+        PlayerSeason reloadedAssigned = playerSeasonRepository
+                .findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, "assigned", SEASON)
+                .orElseThrow();
+
+        assertTrue(reloadedUnassigned.getPlayer().isEmpty());
+        assertEquals(unassigned.getId(), reloadedUnassigned.getId());
+        assertEquals(assigned.getId(), reloadedAssigned.getId());
+        assertEquals(player.getId(), reloadedAssigned.getPlayer().orElseThrow().getId());
+        assertEquals("assigned", reloadedAssigned.getLicense());
+        assertEquals(SEASON, reloadedAssigned.getSeason());
+    }
+
+    @Test
     void reassociatingAClubSeasonKeepsMatchAndLineupReferences() {
         Club original = storedClub("1", "ORIGINAL CLUB");
         Club canonical = storedClub("2", "CANONICAL CLUB");
