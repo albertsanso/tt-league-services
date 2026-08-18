@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: tt-data-league-api-runtime
+
+  datasource:
+    url: ${DB_TTLEAGUEDATA_JDBC_URL:jdbc:postgresql://localhost:5432/ttleaguedata}
+    username: ${DB_TTLEAGUEDATA_CREDENTIAL_USERNAME:postgres}
+    password: ${DB_TTLEAGUEDATA_CREDENTIAL_PASSWORD:admin}
+    driver-class-name: org.postgresql.Driver
+
+    type: com.zaxxer.hikari.HikariDataSource
+
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 30000
+      max-lifetime: 1800000
+      connection-timeout: 20000
+      pool-name: MyHikariCP
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 50
+        order_inserts: true
+        order_updates: true
+
+logging:
+  level:
+    org.hibernate.engine.jdbc.spi.SqlExceptionHelper: ERROR
+
+management:
+  server:
+    port: 9090
+
+  endpoints:
+    web:
+      exposure:
+        include: "*"
+
+  metrics:
+    tags:
+      application: tt-data-league-api-runtime
+
+  endpoint:
+    health:
+      show-details: always
+
