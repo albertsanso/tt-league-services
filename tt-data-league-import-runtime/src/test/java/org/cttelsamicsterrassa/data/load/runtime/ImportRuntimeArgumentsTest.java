@@ -1,6 +1,6 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
-import org.cttelsamicsterrassa.data.load.shared.club.ConsolidationMode;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

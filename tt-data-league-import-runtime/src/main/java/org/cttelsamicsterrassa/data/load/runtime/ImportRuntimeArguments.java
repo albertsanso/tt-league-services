@@ -1,6 +1,6 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
-import org.cttelsamicsterrassa.data.load.shared.club.ConsolidationMode;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 
 import java.util.Locale;
 import java.util.Optional;

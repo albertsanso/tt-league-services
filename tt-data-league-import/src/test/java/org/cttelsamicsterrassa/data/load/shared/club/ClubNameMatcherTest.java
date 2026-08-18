@@ -1,6 +1,10 @@
 package org.cttelsamicsterrassa.data.load.shared.club;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubNameComparison;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubNameMatchClass;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubNameMatcher;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubNameNormalizer;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

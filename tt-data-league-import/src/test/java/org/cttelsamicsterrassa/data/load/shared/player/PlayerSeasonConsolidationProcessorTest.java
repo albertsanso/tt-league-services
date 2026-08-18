@@ -5,7 +5,9 @@ import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.process.InMemoryRepositories;
-import org.cttelsamicsterrassa.data.load.shared.club.ConsolidationMode;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
+import org.cttelsamicsterrassa.data.load.shared.player.consolidate.PlayerConsolidationSummary;
+import org.cttelsamicsterrassa.data.load.shared.player.consolidate.PlayerSeasonConsolidationProcessor;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;

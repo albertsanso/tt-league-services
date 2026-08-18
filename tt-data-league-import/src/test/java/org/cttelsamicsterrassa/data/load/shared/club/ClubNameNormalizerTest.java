@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.load.shared.club;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubNameNormalizer;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

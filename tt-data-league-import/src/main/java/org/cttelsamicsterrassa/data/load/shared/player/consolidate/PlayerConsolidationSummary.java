@@ -1,4 +1,4 @@
-package org.cttelsamicsterrassa.data.load.shared.player;
+package org.cttelsamicsterrassa.data.load.shared.player.consolidate;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 

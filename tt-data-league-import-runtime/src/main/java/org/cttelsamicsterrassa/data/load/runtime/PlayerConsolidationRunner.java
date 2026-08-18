@@ -1,9 +1,9 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.load.shared.club.ConsolidationMode;
-import org.cttelsamicsterrassa.data.load.shared.player.PlayerConsolidationSummary;
-import org.cttelsamicsterrassa.data.load.shared.player.PlayerSeasonConsolidationProcessor;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
+import org.cttelsamicsterrassa.data.load.shared.player.consolidate.PlayerConsolidationSummary;
+import org.cttelsamicsterrassa.data.load.shared.player.consolidate.PlayerSeasonConsolidationProcessor;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 

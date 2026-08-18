@@ -1,11 +1,11 @@
-package org.cttelsamicsterrassa.data.load.shared.player;
+package org.cttelsamicsterrassa.data.load.shared.player.consolidate;
 
 import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.load.shared.club.ConsolidationMode;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;

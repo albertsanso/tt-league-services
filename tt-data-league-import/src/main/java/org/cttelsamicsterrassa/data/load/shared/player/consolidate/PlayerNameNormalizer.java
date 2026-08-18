@@ -1,4 +1,4 @@
-package org.cttelsamicsterrassa.data.load.shared.player;
+package org.cttelsamicsterrassa.data.load.shared.player.consolidate;
 
 import java.text.Normalizer;
 import java.util.Arrays;

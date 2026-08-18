@@ -5,6 +5,10 @@ import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.process.InMemoryRepositories;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidationSummary;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubSeasonConsolidationProcessor;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidatedClub;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
