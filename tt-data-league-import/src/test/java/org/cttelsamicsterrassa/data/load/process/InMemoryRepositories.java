@@ -33,12 +33,12 @@ import java.util.UUID;
  * In-memory stand-ins for the persistence ports, enforcing the same natural keys as the schema so
  * that the idempotency the processors rely on is actually exercised.
  */
-final class InMemoryRepositories {
+public final class InMemoryRepositories {
 
     private InMemoryRepositories() {
     }
 
-    static final class Clubs implements ClubRepository {
+    public static final class Clubs implements ClubRepository {
         final Map<UUID, Club> byId = new LinkedHashMap<>();
 
         @Override
@@ -68,6 +68,10 @@ final class InMemoryRepositories {
             byId.remove(id);
         }
 
+        public int size() {
+            return byId.size();
+        }
+
         @Override
         public List<Club> findAllClubsBySimilarName(String name) {
             return byId.values().stream()
@@ -86,7 +90,7 @@ final class InMemoryRepositories {
 
     }
 
-    static final class ClubSeasons implements ClubSeasonRepository {
+    public static final class ClubSeasons implements ClubSeasonRepository {
         final Map<UUID, ClubSeason> byId = new LinkedHashMap<>();
 
         @Override
@@ -96,7 +100,11 @@ final class InMemoryRepositories {
 
         @Override
         public Optional<ClubSeason> findClubSeasonByNameAndSeasonAndSource(String name, Season season, ImportSource source) {
-            return Optional.empty();
+            return byId.values().stream()
+                    .filter(cs -> Objects.equals(cs.getName(), name))
+                    .filter(cs -> season.equals(cs.getSeason()))
+                    .filter(cs -> Objects.equals(cs.getSource(), source))
+                    .findFirst();
         }
 
         @Override
@@ -108,8 +116,10 @@ final class InMemoryRepositories {
         }
 
         @Override
-        public Optional<ClubSeason> findClubSeasonByClubAndSeasonAndSource(UUID clubId, Season season, ImportSource source) {
-            return Optional.empty();
+        public List<ClubSeason> findAllClubSeasonsBySource(ImportSource source) {
+            return byId.values().stream()
+                    .filter(cs -> Objects.equals(cs.getSource(), source))
+                    .toList();
         }
 
         @Override
@@ -138,7 +148,9 @@ final class InMemoryRepositories {
 
         @Override
         public List<ClubSeason> findAllClubSeasonsBySimilarNameAndSeasonAndSource(String name, Season season, ImportSource source) {
-            return List.of();
+            return findAllClubSeasonsBySimilarNameAndSeason(name, season).stream()
+                    .filter(cs -> Objects.equals(cs.getSource(), source))
+                    .toList();
         }
     }
 
@@ -166,6 +178,11 @@ final class InMemoryRepositories {
         public void savePlayer(Player player) {
             byId.put(player.getId(), player);
         }
+
+        @Override
+        public void deletePlayerById(UUID id) {
+            byId.remove(id);
+        }
     }
 
     static final class PlayerSeasons implements PlayerSeasonRepository {
@@ -188,6 +205,11 @@ final class InMemoryRepositories {
         @Override
         public void savePlayerSeason(PlayerSeason playerSeason) {
             byId.put(playerSeason.getId(), playerSeason);
+        }
+
+        @Override
+        public void deletePlayerSeasonById(UUID id) {
+            byId.remove(id);
         }
     }
 

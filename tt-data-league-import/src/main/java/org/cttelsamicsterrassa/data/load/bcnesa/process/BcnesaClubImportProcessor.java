@@ -11,8 +11,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-
 /**
  * Stores the two clubs of a BCNESA fixture, and their entry for that season.
  *
@@ -58,8 +56,8 @@ public class BcnesaClubImportProcessor implements BcnesaMatchReportProcessor {
                     clubRepository.saveClub(created);
                     LOGGER.debug("Created BCNESA club {}", name);
                     return created;
-                });*/
-
+                });
+         */
         clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.BCNESA)
                 .orElseGet(() -> {
                     ClubSeason created = ClubSeason.createNew(ImportSource.BCNESA, name, season, null);
@@ -67,14 +65,5 @@ public class BcnesaClubImportProcessor implements BcnesaMatchReportProcessor {
                     LOGGER.debug("Created BCNESA club season {} {}", name, season);
                     return created;
                 });
-        /*
-        clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.getId(), season, ImportSource.BCNESA.name())
-                .orElseGet(() -> {
-                    ClubSeason created = ClubSeason.createNew(ImportSource.BCNESA, name, season, club);
-                    clubSeasonRepository.saveClubSeason(created);
-                    LOGGER.debug("Created BCNESA club season {} {}", name, season);
-                    return created;
-                });
-        */
     }
 }

@@ -40,6 +40,17 @@ public class ClubSeason extends Entity {
         return of(id, source, name, season, club);
     }
 
+    /**
+     * Returns an otherwise identical registration associated with {@code club}.
+     * The original id, source, season-specific name, and season are retained.
+     */
+    public ClubSeason withClub(Club club) {
+        if (club != null && this.club.isPresent() && club.getId().equals(this.club.get().getId())) {
+            return this;
+        }
+        return of(id, source, name, season, club);
+    }
+
     public void modifyName(String newName) {
         if (!this.name.equals(newName)) {
             this.name = newName;

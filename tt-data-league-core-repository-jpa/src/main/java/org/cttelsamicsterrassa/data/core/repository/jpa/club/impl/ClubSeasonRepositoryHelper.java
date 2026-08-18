@@ -12,6 +12,10 @@ public interface ClubSeasonRepositoryHelper extends JpaRepository<ClubSeasonJPA,
 
     Optional<ClubSeasonJPA> findClubSeasonByNameAndSeasonAndSource(String name, String season, Source source);
 
+    Optional<ClubSeasonJPA> findFirstByClub_IdAndSeason(UUID clubId, String season);
+
+    List<ClubSeasonJPA> findAllBySource(Source source);
+
     List<ClubSeasonJPA> findAllByNameContainingIgnoreCase(String name);
     List<ClubSeasonJPA> findAllByNameContainingIgnoreCaseAndSeason(String name, String season);
     List<ClubSeasonJPA> findAllByNameContainingIgnoreCaseAndSeasonAndSource(String name, String season, Source source);

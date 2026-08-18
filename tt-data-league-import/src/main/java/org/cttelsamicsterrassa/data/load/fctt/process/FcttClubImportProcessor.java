@@ -12,8 +12,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
-import java.util.UUID;
-
 /**
  * Stores the FCTT report's two clubs and their season entries.
  *
@@ -55,18 +53,17 @@ public class FcttClubImportProcessor implements FcttMatchReportProcessor {
             return;
         }
 
-        /*
         Club club = clubRepository.findClubBySourceAndName(ImportSource.FCTT, team.name())
                 .orElseGet(() -> {
                     Club created = Club.createNew(ImportSource.FCTT, team.name());
                     clubRepository.saveClub(created);
                     LOGGER.debug("Created FCTT club {}", team.name());
                     return created;
-                });*/
+                });
 
         clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(team.name(), season, ImportSource.FCTT)
                 .orElseGet(() -> {
-                    ClubSeason created = ClubSeason.createNew(ImportSource.FCTT, team.name(), season, null);
+                    ClubSeason created = ClubSeason.createNew(ImportSource.FCTT, team.name(), season, club);
                     clubSeasonRepository.saveClubSeason(created);
                     LOGGER.debug("Created FCTT club season {} {}", team.name(), season);
                     return created;

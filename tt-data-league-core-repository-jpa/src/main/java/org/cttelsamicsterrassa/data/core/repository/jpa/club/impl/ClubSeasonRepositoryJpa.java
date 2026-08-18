@@ -36,6 +36,20 @@ public class ClubSeasonRepositoryJpa implements ClubSeasonRepository {
     }
 
     @Override
+    public Optional<ClubSeason> findClubSeasonByClubAndSeason(UUID clubId, Season season) {
+        return clubSeasonRepositoryHelper.findFirstByClub_IdAndSeason(clubId, season.toString())
+                .map(clubSeasonJPAToClubSeasonMapper);
+    }
+
+    @Override
+    public List<ClubSeason> findAllClubSeasonsBySource(ImportSource source) {
+        return clubSeasonRepositoryHelper.findAllBySource(mapFromImportSourceToSource(source))
+                .stream()
+                .map(clubSeasonJPAToClubSeasonMapper)
+                .toList();
+    }
+
+    @Override
     public void saveClubSeason(ClubSeason clubSeason) {
         clubSeasonRepositoryHelper.save(clubSeasonToClubSeasonJPAMapper.apply(clubSeason));
     }

@@ -11,7 +11,9 @@ import java.util.UUID;
 public interface ClubSeasonRepository {
     Optional<ClubSeason> findClubSeasonById(UUID id);
     Optional<ClubSeason> findClubSeasonByNameAndSeasonAndSource(String name, Season season, ImportSource source);
+    Optional<ClubSeason> findClubSeasonByClubAndSeason(UUID clubId, Season season);
 
+    List<ClubSeason> findAllClubSeasonsBySource(ImportSource source);
     List<ClubSeason> findAllClubSeasonsBySimilarName(String name);
     List<ClubSeason> findAllClubSeasonsBySimilarNameAndSeason(String name, Season season);
     List<ClubSeason> findAllClubSeasonsBySimilarNameAndSeasonAndSource(String name, Season season, ImportSource source);

@@ -4,18 +4,23 @@ import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
+import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
+import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZonedDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -44,6 +49,12 @@ class ImportSchemaTest {
     @Autowired
     private PlayerRepository playerRepository;
 
+    @Autowired
+    private PlayerSeasonRepository playerSeasonRepository;
+
+    @Autowired
+    private LineupRepository lineupRepository;
+
     @Test
     void findsAClubByItsFederationId() {
         Club club = Club.createNew(ImportSource.RFETM,"HORTITEC ALZIRA TT");
@@ -57,15 +68,16 @@ class ImportSchemaTest {
     }
 
     @Test
-    void keepsTwoTeamsThatShareADisplayNameApart() {
-        // One club fields several teams under one name; they are distinct rows keyed by team id.
+    void keepsSameDisplayNameApartWhenTheSourceDiffers() {
         clubRepository.saveClub(Club.createNew(ImportSource.RFETM, "UNIVERSIDAD DE BURGOS - TPF"));
-        clubRepository.saveClub(Club.createNew(ImportSource.RFETM, "UNIVERSIDAD DE BURGOS - TPF"));
+        clubRepository.saveClub(Club.createNew(ImportSource.FCTT, "UNIVERSIDAD DE BURGOS - TPF"));
 
-        UUID first = clubRepository.findAllClubsBySimilarName("UNIVERSIDAD").get(0).getId();
-        UUID second = clubRepository.findAllClubsBySimilarName("UNIVERSIDAD").get(1).getId();
+        UUID rfetm = clubRepository.findClubBySourceAndName(ImportSource.RFETM, "UNIVERSIDAD DE BURGOS - TPF")
+                .orElseThrow().getId();
+        UUID fctt = clubRepository.findClubBySourceAndName(ImportSource.FCTT, "UNIVERSIDAD DE BURGOS - TPF")
+                .orElseThrow().getId();
 
-        assertNotEquals(first, second);
+        assertNotEquals(rfetm, fctt);
     }
 
     @Test
@@ -83,10 +95,10 @@ class ImportSchemaTest {
 
     @Test
     void keepsASeasonEntryPerClubEvenWhenTheNamesCollide() {
-        Club a = storedClub("790", "UNIVERSIDAD DE BURGOS - TPF");
-        Club b = storedClub("1056", "UNIVERSIDAD DE BURGOS - TPF");
-        clubSeasonRepository.saveClubSeason(ClubSeason.of(UUID.randomUUID(), ImportSource.RFETM, a.getName(), SEASON, a));
-        clubSeasonRepository.saveClubSeason(ClubSeason.of(UUID.randomUUID(), ImportSource.RFETM, b.getName(), SEASON, b));
+        Club a = storedClub("790", "UNIVERSIDAD DE BURGOS - TPF A");
+        Club b = storedClub("1056", "UNIVERSIDAD DE BURGOS - TPF B");
+        clubSeasonRepository.saveClubSeason(ClubSeason.createExisting(UUID.randomUUID(), ImportSource.RFETM, a.getName(), SEASON, a));
+        clubSeasonRepository.saveClubSeason(ClubSeason.createExisting(UUID.randomUUID(), ImportSource.RFETM, b.getName(), SEASON, b));
 
         ClubSeason forA = clubSeasonRepository.findClubSeasonByClubAndSeason(a.getId(), SEASON).orElseThrow();
         ClubSeason forB = clubSeasonRepository.findClubSeasonByClubAndSeason(b.getId(), SEASON).orElseThrow();
@@ -161,7 +173,57 @@ class ImportSchemaTest {
 
     private ClubSeason storedClubSeason(String externalId, String name) {
         Club club = storedClub(externalId, name);
-        ClubSeason clubSeason = ClubSeason.of(UUID.randomUUID(), ImportSource.RFETM, name, SEASON, club);
+        ClubSeason clubSeason = ClubSeason.createExisting(UUID.randomUUID(), ImportSource.RFETM, name, SEASON, club);
+        clubSeasonRepository.saveClubSeason(clubSeason);
+        return clubSeason;
+    }
+
+    @Test
+    void inventoriesClubSeasonsBySource() {
+        storedClubSeason("1", "CLUB A");
+        Club fcttClub = Club.createNew(ImportSource.FCTT, "CLUB A FCTT");
+        clubRepository.saveClub(fcttClub);
+        clubSeasonRepository.saveClubSeason(ClubSeason.createExisting(
+                UUID.randomUUID(), ImportSource.FCTT, "CLUB A", SEASON, fcttClub));
+
+        assertEquals(1, clubSeasonRepository.findAllClubSeasonsBySource(ImportSource.FCTT).size());
+        assertEquals(1, clubSeasonRepository.findAllClubSeasonsBySource(ImportSource.RFETM).size());
+    }
+
+    @Test
+    void reassociatingAClubSeasonKeepsMatchAndLineupReferences() {
+        Club original = storedClub("1", "ORIGINAL CLUB");
+        Club canonical = storedClub("2", "CANONICAL CLUB");
+        ClubSeason home = storedClubSeason(original, "HOME CLUB");
+        ClubSeason away = storedClubSeason("3", "AWAY CLUB");
+        Match saved = match(home, away);
+        matchRepository.saveMatch(saved);
+
+        Player player = Player.createNew(ImportSource.RFETM, "PLAYER, ONE");
+        playerRepository.savePlayer(player);
+        PlayerSeason playerSeason = PlayerSeason.createNew(ImportSource.RFETM, "PLAYER, ONE", "1", player, SEASON);
+        playerSeasonRepository.savePlayerSeason(playerSeason);
+        lineupRepository.saveLineups(List.of(Lineup.builder()
+                .id(UUID.randomUUID())
+                .source(ImportSource.RFETM)
+                .match(saved)
+                .clubSeason(home)
+                .letter("A")
+                .position(1)
+                .player(playerSeason)
+                .createNew()));
+
+        UUID homeId = home.getId();
+        clubSeasonRepository.saveClubSeason(home.withClub(canonical));
+
+        ClubSeason reloaded = clubSeasonRepository.findClubSeasonById(homeId).orElseThrow();
+        assertEquals(canonical.getId(), reloaded.getClub().orElseThrow().getId());
+        assertEquals(homeId, matchRepository.findMatchById(saved.getId()).orElseThrow().getHomeClub().getId());
+        assertEquals(homeId, lineupRepository.findLineupsByMatchId(saved.getId()).getFirst().getClubSeason().getId());
+    }
+
+    private ClubSeason storedClubSeason(Club club, String name) {
+        ClubSeason clubSeason = ClubSeason.createExisting(UUID.randomUUID(), ImportSource.RFETM, name, SEASON, club);
         clubSeasonRepository.saveClubSeason(clubSeason);
         return clubSeason;
     }

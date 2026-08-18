@@ -115,8 +115,8 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
         }
 
         Season season = context.toSeason();
-        Optional<ClubSeason> homeClub = resolveClubSeason(context.homeClub(), season, context);
-        Optional<ClubSeason> awayClub = resolveClubSeason(context.awayClub(), season, context);
+        Optional<ClubSeason> homeClub = resolveClubSeason(context.homeClub(), homeTeam(context), season, context);
+        Optional<ClubSeason> awayClub = resolveClubSeason(context.awayClub(), awayTeam(context), season, context);
         if (homeClub.isEmpty() || awayClub.isEmpty()) {
             return;
         }
@@ -437,27 +437,22 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
 
     // --- clubs -----------------------------------------------------------------------------
 
-    private Optional<ClubSeason> resolveClubSeason(RfetmClubKey key, Season season, MatchReportContext context) {
-        /*
-        Optional<Club> club = clubRepository.findClubBySourceAndName(ImportSource.RFETM, key.name());
-        if (club.isEmpty()) {
-            LOGGER.warn("No club for {} in {}; match not stored", key, context.matchReportFile());
-            return Optional.empty();
-        }*/
-
-        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(key.name(), season, ImportSource.RFETM);
+    private Optional<ClubSeason> resolveClubSeason(RfetmClubKey key, ActaTeam team, Season season, MatchReportContext context) {
+        String name = team != null && team.name() != null && !team.name().isBlank() ? team.name() : key.name();
+        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.RFETM);
         if (clubSeason.isEmpty()) {
             LOGGER.warn("Club {} has no entry for season {}; {} not stored",
                     key, season, context.matchReportFile());
         }
-
-        /*
-        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByClubAndSeasonAndSource(club.get().getId(), season, ImportSource.RFETM.name());
-        if (clubSeason.isEmpty()) {
-            LOGGER.warn("Club {} has no entry for season {}; {} not stored",
-                    key, season, context.matchReportFile());
-        }*/
         return clubSeason;
+    }
+
+    private static ActaTeam homeTeam(MatchReportContext context) {
+        return context.acta() == null || context.acta().teams() == null ? null : context.acta().teams().home();
+    }
+
+    private static ActaTeam awayTeam(MatchReportContext context) {
+        return context.acta() == null || context.acta().teams() == null ? null : context.acta().teams().away();
     }
 
     /**
