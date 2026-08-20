@@ -34,37 +34,6 @@ public final class ClubNameNormalizer {
         return parts(source, name).identityKey();
     }
 
-    public String contextualKey(ImportSource source, String name, List<String> inventoryNames) {
-        String key = exactKey(source, name);
-        List<String> tokens = List.of(key.split(" "));
-        if (tokens.size() < 2) {
-            return key;
-        }
-        for (String candidate : inventoryNames) {
-            if (candidate == null || candidate.equals(name)) {
-                continue;
-            }
-            List<String> candidateTokens = List.of(exactKey(source, candidate).split(" "));
-            if (candidateTokens.size() > tokens.size() && startsWith(candidateTokens, tokens)) {
-                return key;
-            }
-            if (tokens.size() > candidateTokens.size() && startsWith(tokens, candidateTokens)) {
-                return String.join(" ", candidateTokens);
-            }
-        }
-        for (String candidate : inventoryNames) {
-            if (candidate == null || candidate.equals(name)) {
-                continue;
-            }
-            List<String> candidateTokens = List.of(exactKey(source, candidate).split(" "));
-            int common = commonPrefixLength(tokens, candidateTokens);
-            if (common >= 3 && common < tokens.size() && common < candidateTokens.size()) {
-                return String.join(" ", tokens.subList(0, common));
-            }
-        }
-        return key;
-    }
-
     public List<String> significantTokens(ImportSource source, String name) {
         return parts(source, name).identityTokens();
     }
@@ -142,24 +111,11 @@ public final class ClubNameNormalizer {
                 .orElseThrow();
     }
 
-    private static boolean startsWith(List<String> tokens, List<String> prefix) {
-        return tokens.size() >= prefix.size() && tokens.subList(0, prefix.size()).equals(prefix);
-    }
-
-    private static int commonPrefixLength(List<String> left, List<String> right) {
-        int length = 0;
-        while (length < left.size() && length < right.size()
-                && left.get(length).equals(right.get(length))) {
-            length++;
-        }
-        return length;
-    }
-
     private static String removeTerminalQualifierSuffix(String name) {
         return name
-                .replaceFirst("\\s*(?:[-'\"]\\s*)+(?:(?:Sen|Vet)\\s+[A-C]|[A-C])(?:\\s*[-'\"])*\\s*$", "")
-                .replaceFirst("\\s*-\\s*(?:(?:Sen|Vet)\\s+[A-C]|[A-C])\\s*-?\\s*$", "")
-                .replaceFirst("\\s*(?:Sen|Vet)\\s+[A-C]\\s*$", "")
+                .replaceFirst("\\s*(?:[-'\"]\\s*)+(?:(?:Sen|Vet)\\s+[A-Z]|[A-C])(?:\\s*[-'\"])*\\s*$", "")
+                .replaceFirst("\\s*-\\s*(?:(?:Sen|Vet)\\s+[A-Z]|[A-C])\\s*-?\\s*$", "")
+                .replaceFirst("\\s*(?:Sen|Vet)\\s+[A-Z]\\s*$", "")
                 .replaceFirst("\\s+[A-C]\\s*$", "")
                 .stripTrailing();
     }
@@ -188,6 +144,17 @@ public final class ClubNameNormalizer {
                 removed = true;
             }
         } while (removed);
+        removeSingleLetterCategorySuffix(tokens, rules);
+    }
+
+    private static void removeSingleLetterCategorySuffix(List<String> tokens, List<ClubNameRule> rules) {
+        if (tokens.size() >= 2
+                && BCNESA_CATEGORIES.contains(tokens.get(tokens.size() - 2))
+                && tokens.getLast().length() == 1) {
+            tokens.subList(tokens.size() - 2, tokens.size()).clear();
+            rules.add(ClubNameRule.CATEGORY);
+            rules.add(ClubNameRule.TEAM_LETTER);
+        }
     }
 
     private static void removeKnownVenueSuffix(List<String> tokens, List<ClubNameRule> rules) {

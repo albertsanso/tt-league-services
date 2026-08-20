@@ -226,6 +226,67 @@ class TeamConsolidationProcessorTest {
     }
 
     @Test
+    void keepsDistinctClubsWithTheSameNamePrefixSeparate() {
+        String[] names = {
+                "CLUB TENNIS TAULA BARCELONA",
+                "CLUB TENNIS TAULA TRAMUNTANA FIGUERES",
+                "CLUB TENNIS TAULA TORELLÓ",
+                "CLUB TENNIS TAULA LA BISBAL",
+                "CLUB TENNIS TAULA TRAMUNTANA FIGUERES 'A'",
+                "CLUB TENNIS TAULA TRAMUNTANA FIGUERES 'B'",
+                "CLUB TENNIS TAULA ALTEA",
+                "CLUB TENNIS TAULA SANTISIMO SALVADOR",
+                "CLUB TENNIS TAULA OLESA"
+        };
+
+        saveNames(ImportSource.BCNESA, names);
+
+        ClubConsolidationSummary summary = processor.consolidate(ImportSource.BCNESA);
+
+        assertEquals(7, summary.consolidations().size());
+        assertEquals(7, clubs.size());
+        assertEquals(7, teams.findAllTeamsBySource(ImportSource.BCNESA).stream()
+                .map(team -> team.getClub().orElseThrow().getId())
+                .distinct()
+                .count());
+        assertEquals(
+                1,
+                teams.findAllTeamsBySource(ImportSource.BCNESA).stream()
+                        .filter(team -> team.getName().contains("TRAMUNTANA FIGUERES"))
+                        .map(team -> team.getClub().orElseThrow().getId())
+                        .distinct()
+                        .count());
+    }
+
+    @Test
+    void keepsDistinctSpanishClubsWithTheSameNamePrefixSeparate() {
+        String[] names = {
+                "CLUB TENIS DE MESA SALUD Y DEPORTE",
+                "CLUB TENIS DE MESA TABOR AÑAVINGO",
+                "CLUB TENIS DE MESA COSLADA",
+                "CLUB TENIS DE MESA VILLA DE VALDEMORO",
+                "CLUB TENIS DE MESA MOS Dismac",
+                "CLUB TENIS DE MESA MAZDA JEREZ",
+                "CLUB TENIS DE MESA TECNIK '87",
+                "CLUB TENIS DE MESA VIGO",
+                "CLUB TENIS DE MESA VICAR",
+                "CLUB TENIS DE MESA ALCAZAR",
+                "CLUB TENIS DE MESA BASAURI"
+        };
+
+        saveNames(ImportSource.BCNESA, names);
+
+        ClubConsolidationSummary summary = processor.consolidate(ImportSource.BCNESA);
+
+        assertEquals(names.length, summary.consolidations().size());
+        assertEquals(names.length, clubs.size());
+        assertEquals(names.length, teams.findAllTeamsBySource(ImportSource.BCNESA).stream()
+                .map(team -> team.getClub().orElseThrow().getId())
+                .distinct()
+                .count());
+    }
+
+    @Test
     void renamesAnAgreedCanonicalClubToTheBetterDisplayName() {
         Club club = Club.createNew(ImportSource.BCNESA, "CETT ST ANDREU DE LA BARCA");
         clubs.saveClub(club);
@@ -255,6 +316,12 @@ class TeamConsolidationProcessorTest {
         Team created = Team.createNew(source, name, season, club);
         teams.saveTeam(created);
         return created;
+    }
+
+    private void saveNames(ImportSource source, String... names) {
+        for (int i = 0; i < names.length; i++) {
+            saveSeason(source, names[i], Season.of(2020 + i), null);
+        }
     }
 
     private UUID sameClub(UUID teamId) {

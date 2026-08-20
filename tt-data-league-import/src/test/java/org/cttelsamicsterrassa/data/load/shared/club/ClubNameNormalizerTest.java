@@ -79,20 +79,23 @@ class ClubNameNormalizerTest {
     }
 
     @Test
-    void infersAContextualRootForPreviouslyUnknownSuffixes() {
+    void doesNotInferAContextualRootForPreviouslyUnknownSuffixes() {
         List<String> names = List.of("CTT CLUB", "CTT CLUB NORTH", "CTT CLUB EAST");
-        assertEquals("ctt club", normalizer.contextualKey(ImportSource.BCNESA, names.get(1), names));
-        assertEquals("CTT CLUB", normalizer.preferredDisplayName(ImportSource.BCNESA, names));
+        assertEquals("ctt club north", normalizer.exactKey(ImportSource.BCNESA, names.get(1)));
+        assertEquals("ctt club east", normalizer.exactKey(ImportSource.BCNESA, names.get(2)));
+        assertNotEquals(
+                normalizer.exactKey(ImportSource.BCNESA, names.get(1)),
+                normalizer.exactKey(ImportSource.BCNESA, names.get(2)));
     }
 
     @Test
-    void infersTheRootWhenARegisteredCategoryContainsAnUnknownIntermediateToken() {
+    void normalizesRegisteredCategoriesAndApprovedAbbreviations() {
         List<String> names = List.of(
                 "CTT SANT QUIRZE DEL VALLÈS - Sen A",
                 "CTT ST QUIRZE DEL VALLÈS - Vet D A",
                 "CTT ST QUIRZE DEL VALLÈS - Vet A");
         assertEquals("ctt sant quirze del valles",
-                normalizer.contextualKey(ImportSource.BCNESA, names.get(1), names));
+                normalizer.exactKey(ImportSource.BCNESA, names.get(1)));
         assertEquals("CTT SANT QUIRZE DEL VALLÈS", normalizer.preferredDisplayName(ImportSource.BCNESA, names));
     }
 

@@ -77,7 +77,7 @@ Output: [
 ]
 Comments: Normalize the club name by removing quotes and ensuring consistent naming for the club.
 
-** Example 6 - PENDING
+** Example 6 - DONE
 Input: [
 "CLUB TENNIS TAULA BARCELONA",
 "CLUB TENNIS TAULA TRAMUNTANA FIGUERES",
@@ -91,7 +91,49 @@ Input: [
 ]
 Those are all different clubs, so the output should be the same as the input, with no consolidation.
 But the consolidation is currently applied and resolves to a single club name, which is incorrect. The expected output should be the same as the input list, with no consolidation applied.
+
 The wrong unique club name is:
 Output: [
 "CLUB TENNIS TAULA ALTEA"
 ]
+
+The correct output should be:
+
+Club "CLUB TENNIS TAULA BARCELONA", for Team "CLUB TENNIS TAULA BARCELONA"
+Club "CLUB TENNIS TAULA TRAMUNTANA FIGUERES", for Teams "CLUB TENNIS TAULA TRAMUNTANA FIGUERES", "CLUB TENNIS TAULA TRAMUNTANA FIGUERES 'A'", "CLUB TENNIS TAULA TRAMUNTANA FIGUERES 'B'"
+Club "CLUB TENNIS TAULA TORELLÓ", for Team "CLUB TENNIS TAULA TORELLÓ"
+Club "CLUB TENNIS TAULA LA BISBAL", for Team "CLUB TENNIS TAULA LA BISBAL"
+Club "CLUB TENNIS TAULA ALTEA", for Team "CLUB TENNIS TAULA ALTEA"
+Club "CLUB TENNIS TAULA SANTISIMO SALVADOR", for Team "CLUB TENNIS TAULA SANTISIMO SALVADOR"
+Club "CLUB TENNIS TAULA OLESA", for Team "CLUB TENNIS TAULA OLESA"
+
+And another example of a wrong consolidation is:
+Input: [
+"CLUB TENIS DE MESA SALUD Y DEPORTE",
+"CLUB TENIS DE MESA TABOR AÑAVINGO",
+"CLUB TENIS DE MESA COSLADA",
+"CLUB TENIS DE MESA VILLA DE VALDEMORO",
+"CLUB TENIS DE MESA MOS Dismac",
+"CLUB TENIS DE MESA MAZDA JEREZ",
+"CLUB TENIS DE MESA TECNIK '87",
+"CLUB TENIS DE MESA VIGO",
+"CLUB TENIS DE MESA VICAR",
+"CLUB TENIS DE MESA ALCAZAR",
+"CLUB TENIS DE MESA BASAURI"
+]
+The wrong unique club name is:
+Output: [
+"CLUB TENIS DE MESA ALCAZAR"
+]
+The correct output should be:
+Club "CLUB TENIS DE MESA SALUD Y DEPORTE", for Team "CLUB TENIS DE MESA SALUD Y DEPORTE"
+Club "CLUB TENIS DE MESA TABOR AÑAVINGO", for Team "CLUB TENIS DE MESA TABOR AÑAVINGO"
+Club "CLUB TENIS DE MESA COSLADA", for Team "CLUB TENIS DE MESA COSLADA"
+Club "CLUB TENIS DE MESA VILLA DE VALDEMORO", for Team "CLUB TENIS DE MESA VILLA DE VALDEMORO"
+Club "CLUB TENIS DE MESA MOS Dismac", for Team "CLUB TENIS DE MESA MOS Dismac"
+Club "CLUB TENIS DE MESA MAZDA JEREZ", for Team "CLUB TENIS DE MESA MAZDA JEREZ"
+Club "CLUB TENIS DE MESA TECNIK '87", for Team "CLUB TENIS DE MESA TECNIK '87"
+Club "CLUB TENIS DE MESA VIGO", for Team "CLUB TENIS DE MESA VIGO"
+Club "CLUB TENIS DE MESA VICAR", for Team "CLUB TENIS DE MESA VICAR"
+Club "CLUB TENIS DE MESA ALCAZAR", for Team "CLUB TENIS DE MESA ALCAZAR"
+Club "CLUB TENIS DE MESA BASAURI", for Team "CLUB TENIS DE MESA BASAURI"
