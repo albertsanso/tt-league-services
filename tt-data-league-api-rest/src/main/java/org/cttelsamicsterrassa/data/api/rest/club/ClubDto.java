@@ -4,11 +4,12 @@ import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 
 import java.util.UUID;
 
-public record ClubDto(UUID id, String name) {
+public record ClubDto(UUID id, String name, String source) {
     public static ClubDto fromObject(Club club) {
         return new ClubDto(
                 club.getId(),
-                club.getName()
+                club.getName(),
+                club.getSource().name()
         );
     }
 }

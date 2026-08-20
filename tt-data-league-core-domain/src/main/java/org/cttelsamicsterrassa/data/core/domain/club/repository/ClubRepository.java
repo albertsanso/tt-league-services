@@ -12,8 +12,8 @@ public interface ClubRepository {
     Optional<Club> findClubByName(String name);
     Optional<Club> findClubBySourceAndName(ImportSource source, String name);
 
-    List<Club> findAllClubsBySimilarName(String name);
-    List<Club> findAllClubsBySimilarNameAndSource(String name, String source);
+    List<Club> findAllClubsByFragmentsInName(List<String> fragments);
+    List<Club> findAllClubsBySourceAndFragmentsInName(ImportSource source, List<String> fragments);
 
     void saveClub(Club club);
     void deleteClubById(UUID id);

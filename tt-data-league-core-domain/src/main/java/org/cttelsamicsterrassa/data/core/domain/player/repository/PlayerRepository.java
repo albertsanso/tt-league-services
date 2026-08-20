@@ -3,6 +3,8 @@ package org.cttelsamicsterrassa.data.core.domain.player.repository;
 import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -15,4 +17,6 @@ public interface PlayerRepository {
     Optional<Player> findPlayerBySourceAndName(ImportSource source, String name);
     void savePlayer(Player player);
     void deletePlayerById(UUID id);
+
+    List<Player> findAllPlayersByFragmentsInName(List<String> split);
 }
