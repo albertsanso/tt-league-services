@@ -47,9 +47,9 @@ class RfetmActasDirectoryNavigatorTest {
         assertEquals("super-divisio", context.leagueCompetition());
         assertEquals("3", context.day());
         assertEquals("masculino", context.sex());
-        assertEquals("193", context.homeClub().value());
-        assertEquals("23", context.awayClub().value());
-        assertTrue(context.homeClub().isFederationId());
+        assertEquals("193", context.homeTeam().value());
+        assertEquals("23", context.awayTeam().value());
+        assertTrue(context.homeTeam().isFederationId());
         assertNotNull(context.acta());
         assertEquals("HORTITEC ALZIRA TT", context.acta().teams().home().name());
     }
@@ -80,7 +80,7 @@ class RfetmActasDirectoryNavigatorTest {
 
         assertEquals(new TraversalSummary(4, 4, 0, 0), summary);
         assertEquals(List.of("10", "30", "50", "70"),
-                injected.contexts.stream().map(c -> c.homeClub().value()).sorted().toList());
+                injected.contexts.stream().map(c -> c.homeTeam().value()).sorted().toList());
     }
 
     @Test
@@ -92,10 +92,10 @@ class RfetmActasDirectoryNavigatorTest {
 
         assertEquals(new TraversalSummary(1, 1, 0, 0), summary);
         MatchReportContext context = injected.single();
-        assertFalse(context.homeClub().isFederationId());
-        assertTrue(context.homeClub().value().startsWith("nm:"));
-        assertEquals("HORTITEC ALZIRA TT", context.homeClub().name());
-        assertNotEquals(context.homeClub().value(), context.awayClub().value());
+        assertFalse(context.homeTeam().isFederationId());
+        assertTrue(context.homeTeam().value().startsWith("nm:"));
+        assertEquals("HORTITEC ALZIRA TT", context.homeTeam().name());
+        assertNotEquals(context.homeTeam().value(), context.awayTeam().value());
     }
 
     @Test
@@ -105,8 +105,8 @@ class RfetmActasDirectoryNavigatorTest {
         navigatorWith(injected).traverse(baseFolder);
 
         MatchReportContext context = injected.single();
-        assertEquals("5", context.homeClub().value());
-        assertFalse(context.awayClub().isFederationId());
+        assertEquals("5", context.homeTeam().value());
+        assertFalse(context.awayTeam().isFederationId());
     }
 
     @Test
@@ -124,10 +124,10 @@ class RfetmActasDirectoryNavigatorTest {
 
         List<String> superDivisio = injected.contexts.stream()
                 .filter(c -> "super-divisio".equals(c.leagueCompetition()))
-                .map(c -> c.homeClub().value()).distinct().toList();
+                .map(c -> c.homeTeam().value()).distinct().toList();
         List<String> primera = injected.contexts.stream()
                 .filter(c -> "primera-divisio".equals(c.leagueCompetition()))
-                .map(c -> c.homeClub().value()).distinct().toList();
+                .map(c -> c.homeTeam().value()).distinct().toList();
 
         assertEquals(1, superDivisio.size(), "one key for the team across its own competition");
         assertNotEquals(superDivisio.getFirst(), primera.getFirst(), "different competition, different team");
@@ -142,7 +142,7 @@ class RfetmActasDirectoryNavigatorTest {
         TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
 
         assertEquals(new TraversalSummary(2, 1, 1, 0), summary);
-        assertEquals("10", injected.single().homeClub().value());
+        assertEquals("10", injected.single().homeTeam().value());
     }
 
     @Test
@@ -154,7 +154,7 @@ class RfetmActasDirectoryNavigatorTest {
         TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
 
         assertEquals(new TraversalSummary(2, 1, 1, 0), summary);
-        assertEquals("3", injected.single().homeClub().value());
+        assertEquals("3", injected.single().homeTeam().value());
     }
 
     @Test
@@ -167,7 +167,7 @@ class RfetmActasDirectoryNavigatorTest {
         TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
 
         assertEquals(new TraversalSummary(1, 1, 0, 0), summary);
-        assertEquals("1", injected.single().homeClub().value());
+        assertEquals("1", injected.single().homeTeam().value());
     }
 
     @Test
@@ -204,7 +204,7 @@ class RfetmActasDirectoryNavigatorTest {
         TraversalSummary summary = navigatorWith(injected).traverseSeason(baseFolder, "2024-2025");
 
         assertEquals(new TraversalSummary(1, 1, 0, 0), summary);
-        assertEquals("3", injected.single().homeClub().value());
+        assertEquals("3", injected.single().homeTeam().value());
     }
 
     @Test

@@ -2,7 +2,7 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.lineup.mapper;
 
 import lombok.AllArgsConstructor;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
-import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.ClubSeasonToClubSeasonJPAMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.TeamToTeamJPAMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.lineup.model.LineupJPA;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.mapper.MatchToMatchJPAMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.player.mapper.PlayerSeasonToPlayerSeasonJPAMapper;
@@ -16,7 +16,7 @@ import java.util.function.Function;
 @Component
 public class LineupToLineupJPAMapper implements Function<Lineup, LineupJPA> {
 
-    ClubSeasonToClubSeasonJPAMapper clubSeasonToClubSeasonJPAMapper;
+    TeamToTeamJPAMapper teamToTeamJPAMapper;
     PlayerSeasonToPlayerSeasonJPAMapper playerSeasonToPlayerSeasonJPAMapper;
     MatchToMatchJPAMapper matchToMatchJPAMapper;
 
@@ -29,7 +29,7 @@ public class LineupToLineupJPAMapper implements Function<Lineup, LineupJPA> {
         lineupJPA.setId(lineup.getId());
         lineupJPA.setSource(lineup.getSource() == null ? null : Source.valueOf(lineup.getSource().name()));
         lineupJPA.setPlayer(playerSeasonToPlayerSeasonJPAMapper.apply(lineup.getPlayer()));
-        lineupJPA.setClubSeason(clubSeasonToClubSeasonJPAMapper.apply(lineup.getClubSeason()));
+        lineupJPA.setTeam(teamToTeamJPAMapper.apply(lineup.getTeam()));
         lineupJPA.setMatch(matchToMatchJPAMapper.apply(lineup.getMatch()));
         lineupJPA.setLetter(lineup.getLetter());
         lineupJPA.setPosition(lineup.getPosition());

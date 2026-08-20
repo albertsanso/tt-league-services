@@ -10,11 +10,11 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
 
     Optional<MatchJPA> findByExternalId(String externalId);
 
-    Optional<MatchJPA> findByCompetitionAndSeasonAndGroupNumberAndRoundAndHomeClub_IdAndAwayClub_Id(
+    Optional<MatchJPA> findByCompetitionAndSeasonAndGroupNumberAndRoundAndHomeTeam_IdAndAwayTeam_Id(
             String competition,
             String season,
             Integer groupNumber,
             Integer round,
-            UUID homeClubId,
-            UUID awayClubId);
+            UUID homeTeamId,
+            UUID awayTeamId);
 }

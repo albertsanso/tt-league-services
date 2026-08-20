@@ -20,7 +20,7 @@ import java.util.Objects;
  * context per fixture, so {@link #acta()} is the whole file's parsed payload (shared by every
  * fixture in it) while {@link #games()} is this fixture's own slice.</p>
  *
- * <p>{@code homeClubName}/{@code awayClubName} come from {@code equipos} for the file's first fixture
+ * <p>{@code homeTeamName}/{@code awayTeamName} come from {@code equipos} for the file's first fixture
  * and are inferred from the fixture's own players for every other one; they are never guessed, so a
  * fixture whose clubs could not be attributed carries {@code null} here and must be skipped by
  * processors rather than stored under a wrong club.</p>
@@ -37,8 +37,8 @@ import java.util.Objects;
  *                          one matchday, and the {@code MATCH} natural key's two club columns are
  *                          what tells them apart
  * @param fixtureIndex      0-based position of this fixture within the file
- * @param homeClubName      home club name, or {@code null} if it could not be attributed
- * @param awayClubName      away club name, or {@code null} if it could not be attributed
+ * @param homeTeamName      home club name, or {@code null} if it could not be attributed
+ * @param awayTeamName      away club name, or {@code null} if it could not be attributed
  * @param matchReportFile   the report file itself (shared by every fixture split from it)
  * @param acta              the parsed report payload (shared by every fixture split from it)
  * @param games             this fixture's own games, a sub-list of {@code acta.games()}
@@ -50,8 +50,8 @@ public record BcnesaMatchReportContext(
         String phase,
         int round,
         int fixtureIndex,
-        String homeClubName,
-        String awayClubName,
+        String homeTeamName,
+        String awayTeamName,
         Path matchReportFile,
         Acta acta,
         List<ActaGame> games) {
@@ -70,7 +70,7 @@ public record BcnesaMatchReportContext(
      * rather than store it under a guessed club.
      */
     public boolean isResolved() {
-        return homeClubName != null && awayClubName != null;
+        return homeTeamName != null && awayTeamName != null;
     }
 
     /**

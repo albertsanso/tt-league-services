@@ -36,7 +36,7 @@ The list of components that process the information must be a parameter for the 
 FCTT JSON reports are persisted by three Spring-discovered, source-specific processors in
 `org.cttelsamicsterrassa.data.load.fctt.process`:
 
-1. `FcttClubImportProcessor` (`@Order(10)`) stores source-scoped clubs and club-season registrations.
+1. `FcttClubImportProcessor` (`@Order(10)`) stores source-scoped clubs and team registrations.
 2. `FcttPlayerImportProcessor` (`@Order(20)`) stores source-scoped players and player-season
    registrations from lineups and doubles participants.
 3. `FcttMatchImportProcessor` (`@Order(30)`) stores idempotent matches, lineups, games, set scores,
@@ -79,5 +79,4 @@ Create an implementation plan file named `fctt-actas-directory-navigator-impleme
 - Implementation Steps: A step-by-step guide on how to implement the traverse/navigation component and the processing components, including any necessary setup or configuration.
 - Testing: A description of the testing strategy for the traverse/navigation component and the processing components, including any test cases or scenarios that should be covered.
 - Conclusion: A summary of the implementation plan and any final thoughts or considerations for the implementation.
-
 

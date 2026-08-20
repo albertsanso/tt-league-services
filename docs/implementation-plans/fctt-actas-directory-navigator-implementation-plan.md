@@ -100,7 +100,7 @@ Do not reuse `shared.process.MatchReportContext` or `MatchReportProcessor`: they
 Concrete FCTT persistence processors are implemented as stateless, idempotent Spring beans using
 domain repository ports:
 
-1. `FcttClubImportProcessor` is `@Order(10)` and stores FCTT-scoped clubs plus club-season
+1. `FcttClubImportProcessor` is `@Order(10)` and stores FCTT-scoped clubs plus team
    registrations from payload teams.
 2. `FcttPlayerImportProcessor` is `@Order(20)` and stores FCTT-scoped players plus player-season
    registrations from lineups and doubles participants.

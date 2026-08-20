@@ -5,13 +5,13 @@ import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
-public class CreateClubSeasonCommand extends DomainCommand {
+public class CreateTeamCommand extends DomainCommand {
     private final String clubName;
     private final Season season;
     private final ImportSource source;
     private final Club club;
 
-    public CreateClubSeasonCommand(String clubName, Season season, ImportSource source, Club club) {
+    public CreateTeamCommand(String clubName, Season season, ImportSource source, Club club) {
         super(java.time.ZonedDateTime.now(), java.util.UUID.randomUUID().toString());
         this.clubName = clubName;
         this.season = season;

@@ -37,7 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ImportProcessorsTest {
 
     private InMemoryRepositories.Clubs clubs;
-    private InMemoryRepositories.ClubSeasons clubSeasons;
+    private InMemoryRepositories.Teams teams;
     private InMemoryRepositories.Players players;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
     private InMemoryRepositories.Matches matches;
@@ -51,7 +51,7 @@ class ImportProcessorsTest {
     @BeforeEach
     void setUp() {
         clubs = new InMemoryRepositories.Clubs();
-        clubSeasons = new InMemoryRepositories.ClubSeasons();
+        teams = new InMemoryRepositories.Teams();
         players = new InMemoryRepositories.Players();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
         matches = new InMemoryRepositories.Matches();
@@ -61,9 +61,9 @@ class ImportProcessorsTest {
         doublesPairs = new InMemoryRepositories.DoublesPairs();
 
         processors = List.of(
-                new RfetmClubImportProcessor(clubSeasons),
+                new RfetmClubImportProcessor(teams),
                 new RfetmPlayerImportProcessor(players, playerSeasons),
-                new RfetmMatchImportProcessor(clubSeasons, playerSeasons, matches, lineups, games,
+                new RfetmMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         setScores, doublesPairs));
     }
 
@@ -74,8 +74,8 @@ class ImportProcessorsTest {
         assertEquals(2, clubs.byId.size());
         Club home = clubs.findClubByName("HORTITEC ALZIRA TT").orElseThrow();
         assertEquals("HORTITEC ALZIRA TT", home.getName());
-        assertEquals(2, clubSeasons.byId.size());
-        assertTrue(clubSeasons.findClubSeasonByClubAndSeason(home.getId(), Season.of(2023)).isPresent());
+        assertEquals(2, teams.byId.size());
+        assertTrue(teams.findTeamByClubAndSeason(home.getId(), Season.of(2023)).isPresent());
     }
 
     @Test
@@ -103,7 +103,7 @@ class ImportProcessorsTest {
         assertEquals(3, match.getHomeGamesWon());
         assertEquals(9, match.getAwaySetsWon());
         // The report is a 3-3 draw, so no club won it.
-        assertNull(match.getWinnerClub());
+        assertNull(match.getWinnerTeam());
     }
 
     @Test
@@ -174,7 +174,7 @@ class ImportProcessorsTest {
         run(context);
 
         assertEquals(2, clubs.byId.size());
-        assertEquals(2, clubSeasons.byId.size());
+        assertEquals(2, teams.byId.size());
         assertEquals(6, players.byId.size());
         assertEquals(6, playerSeasons.byId.size());
         assertEquals(1, matches.saved.size());
@@ -187,7 +187,7 @@ class ImportProcessorsTest {
     void skipsTheMatchWhenItsClubsWereNeverImported() {
         MatchReportContext context = singlesContext();
 
-        new RfetmMatchImportProcessor(clubSeasons, playerSeasons, matches, lineups, games,
+        new RfetmMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                 setScores, doublesPairs).process(context);
 
         assertTrue(matches.saved.isEmpty());

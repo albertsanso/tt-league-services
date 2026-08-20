@@ -134,7 +134,7 @@ For the requested source:
 Update the JPA module only where required by the new source-scoped inventory
 and reassociation:
 
-1. Follow the existing `ClubSeasonRepositoryJpa` source mapping pattern. Add a
+1. Follow the existing `TeamRepositoryJpa` source mapping pattern. Add a
    private `mapFromImportSourceToSource(ImportSource source)` helper that
    returns `null` for a null input and otherwise calls
    `Source.valueOf(source.name())`. Use it for every source-scoped

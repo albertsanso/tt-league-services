@@ -4,7 +4,7 @@ import lombok.AllArgsConstructor;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.ClubSeasonJPAToClubSeasonMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.TeamJPAToTeamMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.model.MatchJPA;
 import org.springframework.stereotype.Component;
 
@@ -16,7 +16,7 @@ import java.util.function.Function;
 @Component
 public class MatchJPAToMatchMapper implements Function<MatchJPA, Match> {
 
-    ClubSeasonJPAToClubSeasonMapper clubSeasonJPAToClubSeasonMapper;
+    TeamJPAToTeamMapper teamJPAToTeamMapper;
 
     @Override
     public Match apply(MatchJPA matchJpa) {
@@ -36,9 +36,9 @@ public class MatchJPAToMatchMapper implements Function<MatchJPA, Match> {
                 .venue(matchJpa.getVenue())
                 .refereeName(matchJpa.getRefereeName())
                 .protested(matchJpa.isProtested())
-                .homeClub(clubSeasonJPAToClubSeasonMapper.apply(matchJpa.getHomeClub()))
-                .awayClub(clubSeasonJPAToClubSeasonMapper.apply(matchJpa.getAwayClub()))
-                .winnerClub(clubSeasonJPAToClubSeasonMapper.apply(matchJpa.getWinnerClub()))
+                .homeTeam(teamJPAToTeamMapper.apply(matchJpa.getHomeTeam()))
+                .awayTeam(teamJPAToTeamMapper.apply(matchJpa.getAwayTeam()))
+                .winnerTeam(teamJPAToTeamMapper.apply(matchJpa.getWinnerTeam()))
                 .homeSetsWon(matchJpa.getHomeSetsWon())
                 .awaySetsWon(matchJpa.getAwaySetsWon())
                 .homeGamesWon(matchJpa.getHomeGamesWon())

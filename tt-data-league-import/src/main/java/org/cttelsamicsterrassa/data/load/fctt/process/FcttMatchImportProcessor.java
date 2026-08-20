@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.load.fctt.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.game.model.SetScore;
@@ -41,7 +41,7 @@ import java.util.UUID;
  * Stores an FCTT report's match, lineups, games, set scores, and doubles-pair members.
  *
  * <p>The match natural key comes from the directory competition and group, the payload round, and
- * the two source-scoped club seasons. An existing match is deliberately left unchanged so a
+ * the two source-scoped teams. An existing match is deliberately left unchanged so a
  * traversal can be safely re-run.</p>
  */
 @Component
@@ -60,7 +60,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
             "A", 1, "B", 2, "C", 3,
             "X", 1, "Y", 2, "Z", 3);
 
-    private final ClubSeasonRepository clubSeasonRepository;
+    private final TeamRepository teamRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
     private final MatchRepository matchRepository;
     private final LineupRepository lineupRepository;
@@ -68,14 +68,14 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
     private final SetScoreRepository setScoreRepository;
     private final DoublesPairRepository doublesPairRepository;
 
-    public FcttMatchImportProcessor(ClubSeasonRepository clubSeasonRepository,
+    public FcttMatchImportProcessor(TeamRepository teamRepository,
                                     PlayerSeasonRepository playerSeasonRepository,
                                     MatchRepository matchRepository,
                                     LineupRepository lineupRepository,
                                     GameRepository gameRepository,
                                     SetScoreRepository setScoreRepository,
                                     DoublesPairRepository doublesPairRepository) {
-        this.clubSeasonRepository = clubSeasonRepository;
+        this.teamRepository = teamRepository;
         this.playerSeasonRepository = playerSeasonRepository;
         this.matchRepository = matchRepository;
         this.lineupRepository = lineupRepository;
@@ -98,32 +98,32 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         }
 
         Season season = context.toSeason();
-        Optional<ClubSeason> homeClub = resolveClubSeason(context.acta().teams().home(), season, context);
-        Optional<ClubSeason> awayClub = resolveClubSeason(context.acta().teams().away(), season, context);
-        if (homeClub.isEmpty() || awayClub.isEmpty()) {
+        Optional<Team> homeTeam = resolveTeam(context.acta().teams().home(), season, context);
+        Optional<Team> awayTeam = resolveTeam(context.acta().teams().away(), season, context);
+        if (homeTeam.isEmpty() || awayTeam.isEmpty()) {
             return;
         }
 
         int groupNumber = context.groupNumber().orElseThrow();
         if (matchRepository.findMatchByNaturalKey(context.competition(), season, groupNumber, context.round(),
-                homeClub.get().getId(), awayClub.get().getId()).isPresent()) {
+                homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
             LOGGER.debug("FCTT match already stored for {}; skipping", context.matchReportFile());
             return;
         }
 
-        Match match = buildMatch(context, season, groupNumber, homeClub.get(), awayClub.get());
+        Match match = buildMatch(context, season, groupNumber, homeTeam.get(), awayTeam.get());
         matchRepository.saveMatch(match);
 
         SideLineup home = resolveLineup(context.acta().lineups() == null
                 ? Map.of() : context.acta().lineups().home(), season, context);
         SideLineup away = resolveLineup(context.acta().lineups() == null
                 ? Map.of() : context.acta().lineups().away(), season, context);
-        lineupRepository.saveLineups(buildLineups(match, homeClub.get(), home, awayClub.get(), away));
+        lineupRepository.saveLineups(buildLineups(match, homeTeam.get(), home, awayTeam.get(), away));
         storeGames(context, match, home, away);
     }
 
     private Match buildMatch(FcttMatchReportContext context, Season season, int groupNumber,
-                             ClubSeason homeClub, ClubSeason awayClub) {
+                             Team homeTeam, Team awayTeam) {
         Acta acta = context.acta();
         ActaScore gamesWon = acta.finalResult() == null ? null : acta.finalResult().gamesWon();
         ActaScore setsWon = acta.finalResult() == null ? null : acta.finalResult().setsWon();
@@ -137,9 +137,9 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
                 .dateTime(toDateTime(acta))
                 .city(acta.venue() == null ? null : acta.venue().city())
                 .venue(acta.venue() == null ? null : acta.venue().venue())
-                .homeClub(homeClub)
-                .awayClub(awayClub)
-                .winnerClub(resolveWinnerClub(acta, homeClub, awayClub, context))
+                .homeTeam(homeTeam)
+                .awayTeam(awayTeam)
+                .winnerTeam(resolveWinnerTeam(acta, homeTeam, awayTeam, context))
                 .refereeName(refereeName(acta))
                 .homeGamesWon(gamesWon == null ? null : gamesWon.home())
                 .awayGamesWon(gamesWon == null ? null : gamesWon.away())
@@ -162,7 +162,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
                 ? null : acta.officials().head().name();
     }
 
-    private ClubSeason resolveWinnerClub(Acta acta, ClubSeason homeClub, ClubSeason awayClub,
+    private Team resolveWinnerTeam(Acta acta, Team homeTeam, Team awayTeam,
                                          FcttMatchReportContext context) {
         if (acta.finalResult() == null) {
             return null;
@@ -170,10 +170,10 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         String winnerName = acta.finalResult().winnerName();
         if (winnerName != null) {
             if (winnerName.equals(acta.teams().home().name())) {
-                return homeClub;
+                return homeTeam;
             }
             if (winnerName.equals(acta.teams().away().name())) {
-                return awayClub;
+                return awayTeam;
             }
             LOGGER.debug("FCTT winner \"{}\" matches neither team in {}; falling back to score",
                     winnerName, context.matchReportFile());
@@ -182,8 +182,8 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         if (gamesWon == null || gamesWon.home() == null || gamesWon.away() == null) {
             return null;
         }
-        return gamesWon.home() > gamesWon.away() ? homeClub
-                : gamesWon.away() > gamesWon.home() ? awayClub : null;
+        return gamesWon.home() > gamesWon.away() ? homeTeam
+                : gamesWon.away() > gamesWon.home() ? awayTeam : null;
     }
 
     private SideLineup resolveLineup(Map<String, ActaLineupPlayer> letters, Season season,
@@ -209,15 +209,15 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         return new SideLineup(byLetter, byName, rankingByLetter);
     }
 
-    private List<Lineup> buildLineups(Match match, ClubSeason homeClub, SideLineup home,
-                                      ClubSeason awayClub, SideLineup away) {
+    private List<Lineup> buildLineups(Match match, Team homeTeam, SideLineup home,
+                                      Team awayTeam, SideLineup away) {
         List<Lineup> lineups = new ArrayList<>();
-        addLineups(lineups, match, homeClub, home);
-        addLineups(lineups, match, awayClub, away);
+        addLineups(lineups, match, homeTeam, home);
+        addLineups(lineups, match, awayTeam, away);
         return lineups;
     }
 
-    private void addLineups(List<Lineup> lineups, Match match, ClubSeason clubSeason, SideLineup side) {
+    private void addLineups(List<Lineup> lineups, Match match, Team team, SideLineup side) {
         side.byLetter().forEach((letter, player) -> {
             Integer position = POSITION_BY_LETTER.get(letter);
             if (position == null) {
@@ -229,7 +229,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
                     .id(UUID.randomUUID())
                     .source(ImportSource.FCTT)
                     .match(match)
-                    .clubSeason(clubSeason)
+                    .team(team)
                     .letter(letter)
                     .position(position)
                     .player(player)
@@ -359,18 +359,18 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
                 .orElse(null);
     }
 
-    private Optional<ClubSeason> resolveClubSeason(ActaTeam team, Season season, FcttMatchReportContext context) {
+    private Optional<Team> resolveTeam(ActaTeam team, Season season, FcttMatchReportContext context) {
         if (team.name() == null || team.name().isBlank()) {
             LOGGER.warn("FCTT report {} has a team without a name; match not stored", context.matchReportFile());
             return Optional.empty();
         }
 
-        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(team.name(), season, ImportSource.FCTT);
-        if (clubSeason.isEmpty()) {
+        Optional<Team> resolvedTeam = teamRepository.findTeamByNameAndSeasonAndSource(team.name(), season, ImportSource.FCTT);
+        if (resolvedTeam.isEmpty()) {
             LOGGER.warn("FCTT club {} has no entry for season {}; match not stored", team.name(), season);
         }
 
-        return clubSeason;
+        return resolvedTeam;
     }
 
     private record SideLineup(Map<String, PlayerSeason> byLetter,

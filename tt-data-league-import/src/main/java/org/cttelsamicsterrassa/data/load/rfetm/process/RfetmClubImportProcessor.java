@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaTeam;
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Component;
  * keeps them distinct; see {@link RfetmClubKey} for the measurement behind that choice.</p>
  *
  * <p>A club keeps the name it was first seen under; the name as written in a given season is
- * recorded on that season's {@code CLUB_SEASON} row instead.</p>
+ * recorded on that season's {@code TEAM} row instead.</p>
  */
 @Component
 @Order(RfetmClubImportProcessor.ORDER)
@@ -33,27 +33,27 @@ public class RfetmClubImportProcessor implements MatchReportProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RfetmClubImportProcessor.class);
 
-    private final ClubSeasonRepository clubSeasonRepository;
+    private final TeamRepository teamRepository;
 
-    public RfetmClubImportProcessor(ClubSeasonRepository clubSeasonRepository) {
-        this.clubSeasonRepository = clubSeasonRepository;
+    public RfetmClubImportProcessor(TeamRepository teamRepository) {
+        this.teamRepository = teamRepository;
     }
 
     @Override
     public void process(MatchReportContext context) {
         Season season = context.toSeason();
-        importClub(context.homeClub(), homeTeam(context), season);
-        importClub(context.awayClub(), awayTeam(context), season);
+        importClub(context.homeTeam(), homeTeam(context), season);
+        importClub(context.awayTeam(), awayTeam(context), season);
     }
 
     private void importClub(RfetmClubKey key, ActaTeam team, Season season) {
         String name = team != null ? team.name() : key.name();
 
-        clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.RFETM)
+        teamRepository.findTeamByNameAndSeasonAndSource(name, season, ImportSource.RFETM)
                 .orElseGet(() -> {
-                    ClubSeason created = ClubSeason.createNew(ImportSource.RFETM, name, season, null);
-                    clubSeasonRepository.saveClubSeason(created);
-                    LOGGER.debug("Created club season {} {} ({})", name, season, key);
+                    Team created = Team.createNew(ImportSource.RFETM, name, season, null);
+                    teamRepository.saveTeam(created);
+                    LOGGER.debug("Created team {} {} ({})", name, season, key);
                     return created;
                 });
     }

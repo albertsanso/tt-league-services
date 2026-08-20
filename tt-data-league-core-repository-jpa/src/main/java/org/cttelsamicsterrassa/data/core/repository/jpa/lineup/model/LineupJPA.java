@@ -13,7 +13,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
-import org.cttelsamicsterrassa.data.core.repository.jpa.club.model.ClubSeasonJPA;
+import org.cttelsamicsterrassa.data.core.repository.jpa.club.model.TeamJPA;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.model.MatchJPA;
 import org.cttelsamicsterrassa.data.core.repository.jpa.player.model.PlayerSeasonJPA;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
@@ -26,11 +26,11 @@ import java.util.UUID;
         name = "lineup",
         indexes = {
                 @Index(name = "idx_lineup_match_id", columnList = "match_id"),
-                @Index(name = "idx_lineup_club_id", columnList = "club_id"),
+                @Index(name = "idx_lineup_team_id", columnList = "team_id"),
                 @Index(name = "idx_lineup_player_id", columnList = "player_id")
         },
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_match_club_letter_position", columnNames = {"match_id", "club_id", "letter", "position"})
+                @UniqueConstraint(name = "uk_match_team_letter_position", columnNames = {"match_id", "team_id", "letter", "position"})
 })
 @Getter
 @Setter
@@ -49,8 +49,8 @@ public class LineupJPA {
     private MatchJPA match;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "club_id", nullable = false)
-    private ClubSeasonJPA clubSeason;
+    @JoinColumn(name = "team_id", nullable = false)
+    private TeamJPA team;
 
     @Column(name = "letter", nullable = false, length = 2)
     private String letter;

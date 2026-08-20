@@ -1,9 +1,9 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
-import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -79,7 +79,7 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
             "A", 1, "B", 2, "C", 3,
             "X", 1, "Y", 2, "Z", 3);
 
-    private final ClubSeasonRepository clubSeasonRepository;
+    private final TeamRepository teamRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
     private final MatchRepository matchRepository;
     private final LineupRepository lineupRepository;
@@ -87,14 +87,14 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
     private final SetScoreRepository setScoreRepository;
     private final DoublesPairRepository doublesPairRepository;
 
-    public RfetmMatchImportProcessor(ClubSeasonRepository clubSeasonRepository,
+    public RfetmMatchImportProcessor(TeamRepository teamRepository,
                                 PlayerSeasonRepository playerSeasonRepository,
                                 MatchRepository matchRepository,
                                 LineupRepository lineupRepository,
                                 GameRepository gameRepository,
                                 SetScoreRepository setScoreRepository,
                                 DoublesPairRepository doublesPairRepository) {
-        this.clubSeasonRepository = clubSeasonRepository;
+        this.teamRepository = teamRepository;
         this.playerSeasonRepository = playerSeasonRepository;
         this.matchRepository = matchRepository;
         this.lineupRepository = lineupRepository;
@@ -112,9 +112,9 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
         }
 
         Season season = context.toSeason();
-        Optional<ClubSeason> homeClub = resolveClubSeason(context.homeClub(), homeTeam(context), season, context);
-        Optional<ClubSeason> awayClub = resolveClubSeason(context.awayClub(), awayTeam(context), season, context);
-        if (homeClub.isEmpty() || awayClub.isEmpty()) {
+        Optional<Team> homeTeam = resolveTeam(context.homeTeam(), homeTeam(context), season, context);
+        Optional<Team> awayTeam = resolveTeam(context.awayTeam(), awayTeam(context), season, context);
+        if (homeTeam.isEmpty() || awayTeam.isEmpty()) {
             return;
         }
 
@@ -123,19 +123,19 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
         int round = context.round();
 
         if (matchRepository.findMatchByNaturalKey(competition, season, groupNumber, round,
-                homeClub.get().getId(), awayClub.get().getId()).isPresent()) {
+                homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
             LOGGER.debug("Match already stored for {}; skipping", context.matchReportFile());
             return;
         }
 
         Match match = buildMatch(context, acta, season, competition, groupNumber, round,
-                homeClub.get(), awayClub.get());
+                homeTeam.get(), awayTeam.get());
         matchRepository.saveMatch(match);
 
         SideLineup home = resolveLineup(acta.lineups() != null ? acta.lineups().home() : Map.of(), season, context);
         SideLineup away = resolveLineup(acta.lineups() != null ? acta.lineups().away() : Map.of(), season, context);
 
-        lineupRepository.saveLineups(buildLineups(match, homeClub.get(), home, awayClub.get(), away));
+        lineupRepository.saveLineups(buildLineups(match, homeTeam.get(), home, awayTeam.get(), away));
         storeGames(context, acta, match, home, away);
     }
 
@@ -147,8 +147,8 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
                              String competition,
                              int groupNumber,
                              int round,
-                             ClubSeason homeClub,
-                             ClubSeason awayClub) {
+                             Team homeTeam,
+                             Team awayTeam) {
         ActaScore gamesWon = acta.finalResult() != null ? acta.finalResult().gamesWon() : null;
         ActaScore setsWon = acta.finalResult() != null ? acta.finalResult().setsWon() : null;
 
@@ -162,9 +162,9 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
                 .dateTime(toDateTime(acta))
                 .city(acta.venue() != null ? acta.venue().city() : null)
                 .venue(acta.venue() != null ? acta.venue().venue() : null)
-                .homeClub(homeClub)
-                .awayClub(awayClub)
-                .winnerClub(resolveWinnerClub(acta, homeClub, awayClub, context))
+                .homeTeam(homeTeam)
+                .awayTeam(awayTeam)
+                .winnerTeam(resolveWinnerTeam(acta, homeTeam, awayTeam, context))
                 .refereeName(refereeName(acta))
                 .homeGamesWon(gamesWon != null ? gamesWon.home() : null)
                 .awayGamesWon(gamesWon != null ? gamesWon.away() : null)
@@ -194,9 +194,9 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
      * when it matches one of this report's two team names; otherwise the games score decides, and a
      * draw leaves the winner unset.
      */
-    private ClubSeason resolveWinnerClub(Acta acta,
-                                         ClubSeason homeClub,
-                                         ClubSeason awayClub,
+    private Team resolveWinnerTeam(Acta acta,
+                                         Team homeTeam,
+                                         Team awayTeam,
                                          MatchReportContext context) {
         if (acta.finalResult() == null) {
             return null;
@@ -207,10 +207,10 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
             ActaTeam home = acta.teams().home();
             ActaTeam away = acta.teams().away();
             if (home != null && winnerName.equals(home.name())) {
-                return homeClub;
+                return homeTeam;
             }
             if (away != null && winnerName.equals(away.name())) {
-                return awayClub;
+                return awayTeam;
             }
             LOGGER.debug("Winner \"{}\" matches neither team in {}; falling back to the score",
                     winnerName, context.matchReportFile());
@@ -221,9 +221,9 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
             return null;
         }
         if (gamesWon.home() > gamesWon.away()) {
-            return homeClub;
+            return homeTeam;
         }
-        return gamesWon.away() > gamesWon.home() ? awayClub : null;
+        return gamesWon.away() > gamesWon.home() ? awayTeam : null;
     }
 
     // --- lineups ---------------------------------------------------------------------------
@@ -258,17 +258,17 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
     }
 
     private List<Lineup> buildLineups(Match match,
-                                      ClubSeason homeClub,
+                                      Team homeTeam,
                                       SideLineup home,
-                                      ClubSeason awayClub,
+                                      Team awayTeam,
                                       SideLineup away) {
         List<Lineup> lineups = new ArrayList<>();
-        addLineups(lineups, match, homeClub, home);
-        addLineups(lineups, match, awayClub, away);
+        addLineups(lineups, match, homeTeam, home);
+        addLineups(lineups, match, awayTeam, away);
         return lineups;
     }
 
-    private void addLineups(List<Lineup> lineups, Match match, ClubSeason clubSeason, SideLineup side) {
+    private void addLineups(List<Lineup> lineups, Match match, Team team, SideLineup side) {
         side.byLetter().forEach((letter, player) -> {
             Integer position = POSITION_BY_LETTER.get(letter);
             if (position == null) {
@@ -279,7 +279,7 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
             lineups.add(Lineup.builder()
                     .id(UUID.randomUUID())
                     .match(match)
-                    .clubSeason(clubSeason)
+                    .team(team)
                     .letter(letter)
                     .position(position)
                     .player(player)
@@ -434,14 +434,14 @@ public class RfetmMatchImportProcessor implements MatchReportProcessor {
 
     // --- clubs -----------------------------------------------------------------------------
 
-    private Optional<ClubSeason> resolveClubSeason(RfetmClubKey key, ActaTeam team, Season season, MatchReportContext context) {
+    private Optional<Team> resolveTeam(RfetmClubKey key, ActaTeam team, Season season, MatchReportContext context) {
         String name = team != null && team.name() != null && !team.name().isBlank() ? team.name() : key.name();
-        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.RFETM);
-        if (clubSeason.isEmpty()) {
+        Optional<Team> resolvedTeam = teamRepository.findTeamByNameAndSeasonAndSource(name, season, ImportSource.RFETM);
+        if (resolvedTeam.isEmpty()) {
             LOGGER.warn("Club {} has no entry for season {}; {} not stored",
                     key, season, context.matchReportFile());
         }
-        return clubSeason;
+        return resolvedTeam;
     }
 
     private static ActaTeam homeTeam(MatchReportContext context) {

@@ -6,19 +6,19 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
-public class FindClubSeasonByNameAndSeasonQuery extends DomainQuery {
+public class FindTeamByNameAndSeasonQuery extends DomainQuery {
 
-    private final String clubSeasonName;
+    private final String teamName;
     private final Season season;
 
-    public FindClubSeasonByNameAndSeasonQuery(String clubSeasonName, Season season) {
+    public FindTeamByNameAndSeasonQuery(String teamName, Season season) {
         super(ZonedDateTime.now(), UUID.randomUUID().toString());
-        this.clubSeasonName = clubSeasonName;
+        this.teamName = teamName;
         this.season = season;
     }
 
-    public String getClubSeasonName() {
-        return clubSeasonName;
+    public String getTeamName() {
+        return teamName;
     }
 
     public Season getSeason() {

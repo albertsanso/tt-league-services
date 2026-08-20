@@ -28,14 +28,14 @@ public final class BcnesaMatchdaySplitter {
     /**
      * One fixture's games and its (possibly unresolved) clubs.
      */
-    public record Fixture(String homeClubName, String awayClubName, List<ActaGame> games) {
+    public record Fixture(String homeTeamName, String awayTeamName, List<ActaGame> games) {
 
         public Fixture {
             games = List.copyOf(games);
         }
 
         public boolean isResolved() {
-            return homeClubName != null && awayClubName != null;
+            return homeTeamName != null && awayTeamName != null;
         }
     }
 

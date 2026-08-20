@@ -1,23 +1,23 @@
 # Summary
 
-ClubSeason entities are created for each unique club in the system. 
-However, there are instances where multiple ClubSeason entities exist for the same club, leading to redundancy and potential confusion. 
-This prompt aims to consolidate these duplicate ClubSeason entities into a single entity per unique club, ensuring data integrity and simplifying management.
+Team entities are created for each unique club in the system.
+However, there are instances where multiple Team entities exist for the same club, leading to redundancy and potential confusion.
+This prompt aims to consolidate these duplicate Team entities into a single entity per unique club, ensuring data integrity and simplifying management.
 
 # Description
 
-In module `tt-data-league-import`, the `ClubSeason` entity is designed to represent a club's participation in a specific season.
-However, due to various data import processes or manual entries, there can be multiple `ClubSeason` entities for the same club, which can lead to inconsistencies and difficulties in managing club data.
+In module `tt-data-league-import`, the `Team` entity is designed to represent a club's participation in a specific season.
+However, due to various data import processes or manual entries, there can be multiple `Team` entities for the same club, which can lead to inconsistencies and difficulties in managing club data.
 
-Create a new processor that identifies and consolidates duplicate `ClubSeason` entities for the same club. The processor should:
-1. Identify all `ClubSeason` entities associated with the same club.
-2. Create a new Club instance that consolidates the data from the duplicate `ClubSeason` entities.
-3. The matching criteria is based in the ClubSeason's name. Apply an algorithm to determine if two ClubSeason names refer to the same club (e.g., ignoring case, whitespace, and common abbreviations).
-4. Update all references to the old `ClubSeason` entities to point to the new consolidated `Club` instance.
+Create a new processor that identifies and consolidates duplicate `Team` entities for the same club. The processor should:
+1. Identify all `Team` entities associated with the same club.
+2. Create a new Club instance that consolidates the data from the duplicate `Team` entities.
+3. The matching criteria is based in the Team's name. Apply an algorithm to determine if two Team names refer to the same club (e.g., ignoring case, whitespace, and common abbreviations).
+4. Update all references to the old `Team` entities to point to the new consolidated `Club` instance.
 
 # Matching algorithm
 
-The matching algorithm should consider the following factors to determine if two `ClubSeason` names refer to the same club:
+The matching algorithm should consider the following factors to determine if two `Team` names refer to the same club:
 1. Case Insensitivity: The comparison should ignore case differences (e.g., "Club A" and "club a" should be considered the same).
 2. Whitespace Normalization: Leading and trailing whitespace should be ignored, and multiple consecutive spaces should be treated as a single space (e.g., "Club A" and "Club   A" should be considered the same).
 3. Common Abbreviations: Recognize and normalize common abbreviations (e.g., "FC" for "Football Club", "SC" for "Sports Club", etc.) to ensure that variations in naming conventions do not lead to false negatives in identifying duplicates.
@@ -25,22 +25,22 @@ The matching algorithm should consider the following factors to determine if two
 5. Fuzzy Matching: Implement a fuzzy matching algorithm to account for minor typographical errors or variations in spelling (e.g., "Club A" and "Clb A" should be considered the same).
 
 # Acceptance Criteria
-1. The processor should successfully identify duplicate `ClubSeason` entities based on the defined matching criteria.
+1. The processor should successfully identify duplicate `Team` entities based on the defined matching criteria.
 2. A new consolidated `Club` instance should be created for each unique club identified.
-3. All references to the old `ClubSeason` entities should be updated to point to the new consolidated `Club` instance.
+3. All associations from the `Team` entities should be updated to the canonical `Club` instance.
 4. The processor should handle edge cases, such as clubs with similar names but different identities, ensuring that only true duplicates are consolidated.
 5. The processor should log its actions, including the number of duplicates found, the names of the consolidated clubs, and any issues encountered during the process.
 6. The processor should be idempotent, meaning that running it multiple times should not create additional duplicates or alter the data incorrectly after the first run.
 7. The processor should be tested with a variety of scenarios, including clubs with different naming conventions, to ensure robustness and accuracy in identifying duplicates.
 8. The processor should provide a summary report of the consolidation process, including the number of duplicates consolidated, the names of the new consolidated clubs, and any errors or warnings encountered.
-9. The processor should be designed to be easily extendable for future enhancements, such as adding new matching criteria or handling additional data fields in the `ClubSeason` entity.
+9. The processor should be designed to be easily extendable for future enhancements, such as adding new matching criteria or handling additional data fields in the `Team` entity.
 10. The processor should be implemented in a way that it can be easily integrated into the existing `tt-data-league-import` module, following the module's coding standards and practices.
 
 # Canonicalization requirements
 
-The processor must consume source-scoped `ClubSeason.name` values and choose
-one deterministic canonical `Club.name`. Preserve every ClubSeason row and
-UUID, update associations only through `ClubSeason.withClub`, and never
+The processor must consume source-scoped `Team.name` values and choose
+one deterministic canonical `Club.name`. Preserve every Team row and
+UUID, update associations only through `Team.withClub`, and never
 retarget MATCH or LINEUP references.
 
 Use explicit source-aware rules. Standalone terminal `A`, `B`, and `C` are

@@ -30,7 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class FcttImportProcessorsTest {
 
     private InMemoryRepositories.Clubs clubs;
-    private InMemoryRepositories.ClubSeasons clubSeasons;
+    private InMemoryRepositories.Teams teams;
     private InMemoryRepositories.Players players;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
     private InMemoryRepositories.Matches matches;
@@ -43,7 +43,7 @@ class FcttImportProcessorsTest {
     @BeforeEach
     void setUp() {
         clubs = new InMemoryRepositories.Clubs();
-        clubSeasons = new InMemoryRepositories.ClubSeasons();
+        teams = new InMemoryRepositories.Teams();
         players = new InMemoryRepositories.Players();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
         matches = new InMemoryRepositories.Matches();
@@ -52,9 +52,9 @@ class FcttImportProcessorsTest {
         setScores = new InMemoryRepositories.SetScores();
         doublesPairs = new InMemoryRepositories.DoublesPairs();
         processors = List.of(
-                new FcttClubImportProcessor(clubSeasons),
+                new FcttClubImportProcessor(teams),
                 new FcttPlayerImportProcessor(players, playerSeasons),
-                new FcttMatchImportProcessor(clubSeasons, playerSeasons, matches, lineups, games,
+                new FcttMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         setScores, doublesPairs));
     }
 
@@ -65,7 +65,7 @@ class FcttImportProcessorsTest {
         assertEquals(2, clubs.byId.size());
         Club home = clubs.findClubBySourceAndName(ImportSource.FCTT, "HORTITEC ALZIRA TT").orElseThrow();
         assertEquals(ImportSource.FCTT, home.getSource());
-        assertTrue(clubSeasons.findClubSeasonByClubAndSeason(home.getId(), Season.of(2023)).isPresent());
+        assertTrue(teams.findTeamByClubAndSeason(home.getId(), Season.of(2023)).isPresent());
         assertEquals(6, players.byId.size());
         assertTrue(playerSeasons.findPlayerSeasonByLicenseAndSeason(ImportSource.FCTT, "29194", Season.of(2023))
                 .isPresent());

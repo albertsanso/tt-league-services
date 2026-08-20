@@ -21,9 +21,9 @@ import java.util.Objects;
  * @param leagueCompetition league or competition folder (for example {@code super-divisio})
  * @param day               match day folder, a positive integer as text
  * @param sex               {@code masculino} or {@code femenino}
- * @param homeClub          how the home side is matched to a stored club: its federation id when the
+ * @param homeTeam          how the home side is matched to a stored club: its federation id when the
  *                          payload carries one, its scoped name otherwise
- * @param awayClub          the same for the away side
+ * @param awayTeam          the same for the away side
  * @param matchReportFile   the report file itself
  * @param acta              the parsed report payload
  */
@@ -32,8 +32,8 @@ public record MatchReportContext(
         String leagueCompetition,
         String day,
         String sex,
-        RfetmClubKey homeClub,
-        RfetmClubKey awayClub,
+        RfetmClubKey homeTeam,
+        RfetmClubKey awayTeam,
         Path matchReportFile,
         Acta acta) {
 
@@ -42,8 +42,8 @@ public record MatchReportContext(
         Objects.requireNonNull(leagueCompetition, "leagueCompetition");
         Objects.requireNonNull(day, "day");
         Objects.requireNonNull(sex, "sex");
-        Objects.requireNonNull(homeClub, "homeClub");
-        Objects.requireNonNull(awayClub, "awayClub");
+        Objects.requireNonNull(homeTeam, "homeTeam");
+        Objects.requireNonNull(awayTeam, "awayTeam");
         Objects.requireNonNull(matchReportFile, "matchReportFile");
     }
 

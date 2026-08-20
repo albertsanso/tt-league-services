@@ -25,16 +25,16 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Table(
-        name = "club_season",
+        name = "team",
         indexes = {
-                @Index(name = "idx_club_season_name_season", columnList = "name,season"),
-                @Index(name = "idx_club_season_club_id", columnList = "club_id")
+                @Index(name = "idx_team_name_season", columnList = "name,season"),
+                @Index(name = "idx_team_club_id", columnList = "club_id")
         },
         uniqueConstraints = {
-                @UniqueConstraint(name = "uk_club_season_name_season_source", columnNames = {"name", "season", "source"})
+                @UniqueConstraint(name = "uk_team_name_season_source", columnNames = {"name", "season", "source"})
         }
 )
-public class ClubSeasonJPA {
+public class TeamJPA {
     @Id
     private UUID id;
 

@@ -189,16 +189,16 @@ public class RfetmActasDirectoryNavigator {
             }
 
             String competition = MatchReportContext.competitionOf(leagueCompetition, sex);
-            RfetmClubKey homeClub = clubKey(acta, true, season, competition);
-            RfetmClubKey awayClub = clubKey(acta, false, season, competition);
-            if (homeClub == null || awayClub == null) {
+            RfetmClubKey homeTeam = clubKey(acta, true, season, competition);
+            RfetmClubKey awayTeam = clubKey(acta, false, season, competition);
+            if (homeTeam == null || awayTeam == null) {
                 counters.skipped++;
                 LOGGER.warn("Skipping {}: payload identifies its teams by neither id nor name", reportFile);
                 continue;
             }
 
             MatchReportContext context = new MatchReportContext(
-                    season, leagueCompetition, day, sex, homeClub, awayClub, reportFile, acta);
+                    season, leagueCompetition, day, sex, homeTeam, awayTeam, reportFile, acta);
             dispatch(context, processors, counters);
         }
     }

@@ -51,8 +51,8 @@ class BcnesaActasDirectoryNavigatorTest {
                 .filter(c -> "acta_1.json".equals(c.matchReportFile().getFileName().toString()))
                 .filter(c -> c.fixtureIndex() == 1)
                 .findFirst().orElseThrow();
-        assertEquals("HOME 2", second.homeClubName());
-        assertEquals("AWAY 2", second.awayClubName());
+        assertEquals("HOME 2", second.homeTeamName());
+        assertEquals("AWAY 2", second.awayTeamName());
     }
 
     @Test
@@ -67,8 +67,8 @@ class BcnesaActasDirectoryNavigatorTest {
         assertEquals(7, context.round());
         assertEquals(1, context.groupNumber());
         assertEquals("Preferent", context.competition());
-        assertEquals("HOME CLUB", context.homeClubName());
-        assertEquals("AWAY CLUB", context.awayClubName());
+        assertEquals("HOME CLUB", context.homeTeamName());
+        assertEquals("AWAY CLUB", context.awayTeamName());
     }
 
     @Test
@@ -125,7 +125,7 @@ class BcnesaActasDirectoryNavigatorTest {
         assertEquals(2, summary.fixturesSeen());
         assertEquals(1, summary.fixturesDispatched());
         assertEquals(1, summary.fixturesUnresolved());
-        assertEquals("HOME 1", injected.single().homeClubName());
+        assertEquals("HOME 1", injected.single().homeTeamName());
     }
 
     @Test
@@ -196,7 +196,7 @@ class BcnesaActasDirectoryNavigatorTest {
         navigatorWith(injected).traverseSeason(baseFolder, "2021-2022");
 
         assertEquals(1, injected.contexts.size());
-        assertEquals("HOME CLUB 2", injected.single().homeClubName());
+        assertEquals("HOME CLUB 2", injected.single().homeTeamName());
     }
 
     @Test

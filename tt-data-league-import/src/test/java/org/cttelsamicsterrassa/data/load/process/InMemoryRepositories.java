@@ -1,9 +1,9 @@
 package org.cttelsamicsterrassa.data.load.process;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
-import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -68,38 +68,42 @@ public final class InMemoryRepositories {
             byId.remove(id);
         }
 
+        @Override
+        public List<Club> findAllClubsByFragmentsInName(List<String> fragments) {
+            return byId.values().stream()
+                    .filter(club -> containsAllFragments(club.getName(), fragments))
+                    .toList();
+        }
+
+        @Override
+        public List<Club> findAllClubsBySourceAndFragmentsInName(ImportSource source, List<String> fragments) {
+            return byId.values().stream()
+                    .filter(club -> Objects.equals(club.getSource(), source))
+                    .filter(club -> containsAllFragments(club.getName(), fragments))
+                    .toList();
+        }
+
         public int size() {
             return byId.size();
         }
 
-        @Override
-        public List<Club> findAllClubsBySimilarName(String name) {
-            return byId.values().stream()
-                    .filter(club -> club.getName() != null && club.getName().contains(name))
-                    .toList();
+        private static boolean containsAllFragments(String name, List<String> fragments) {
+            return name != null && fragments != null && !fragments.isEmpty()
+                    && fragments.stream().allMatch(fragment ->
+                    fragment != null && name.toLowerCase().contains(fragment.toLowerCase()));
         }
-
-        @Override
-        public List<Club> findAllClubsBySimilarNameAndSource(String name, String source) {
-            return byId.values().stream()
-                    .filter(club -> club.getSource() != null && club.getSource().toString().equals(source))
-                    .filter(club -> club.getName() != null && club.getName().contains(name))
-                    .toList();
-        }
-
-
     }
 
-    public static final class ClubSeasons implements ClubSeasonRepository {
-        final Map<UUID, ClubSeason> byId = new LinkedHashMap<>();
+    public static final class Teams implements TeamRepository {
+        final Map<UUID, Team> byId = new LinkedHashMap<>();
 
         @Override
-        public Optional<ClubSeason> findClubSeasonById(UUID id) {
+        public Optional<Team> findTeamById(UUID id) {
             return Optional.ofNullable(byId.get(id));
         }
 
         @Override
-        public Optional<ClubSeason> findClubSeasonByNameAndSeasonAndSource(String name, Season season, ImportSource source) {
+        public Optional<Team> findTeamByNameAndSeasonAndSource(String name, Season season, ImportSource source) {
             return byId.values().stream()
                     .filter(cs -> Objects.equals(cs.getName(), name))
                     .filter(cs -> season.equals(cs.getSeason()))
@@ -108,7 +112,7 @@ public final class InMemoryRepositories {
         }
 
         @Override
-        public Optional<ClubSeason> findClubSeasonByClubAndSeason(UUID clubId, Season season) {
+        public Optional<Team> findTeamByClubAndSeason(UUID clubId, Season season) {
             return byId.values().stream()
                     .filter(cs -> cs.getClub().map(club -> clubId.equals(club.getId())).orElse(false))
                     .filter(cs -> season.equals(cs.getSeason()))
@@ -116,39 +120,39 @@ public final class InMemoryRepositories {
         }
 
         @Override
-        public List<ClubSeason> findAllClubSeasonsBySource(ImportSource source) {
+        public List<Team> findAllTeamsBySource(ImportSource source) {
             return byId.values().stream()
                     .filter(cs -> Objects.equals(cs.getSource(), source))
                     .toList();
         }
 
         @Override
-        public void saveClubSeason(ClubSeason clubSeason) {
-            byId.put(clubSeason.getId(), clubSeason);
+        public void saveTeam(Team team) {
+            byId.put(team.getId(), team);
         }
 
         @Override
-        public void deleteClubSeasonById(UUID id) {
+        public void deleteTeamById(UUID id) {
             byId.remove(id);
         }
 
         @Override
-        public List<ClubSeason> findAllClubSeasonsBySimilarName(String name) {
+        public List<Team> findAllTeamsBySimilarName(String name) {
             return byId.values().stream()
                     .filter(cs -> cs.getName() != null && cs.getName().contains(name))
                     .toList();
         }
 
         @Override
-        public List<ClubSeason> findAllClubSeasonsBySimilarNameAndSeason(String name, Season season) {
-            return findAllClubSeasonsBySimilarName(name).stream()
+        public List<Team> findAllTeamsBySimilarNameAndSeason(String name, Season season) {
+            return findAllTeamsBySimilarName(name).stream()
                     .filter(cs -> season.equals(cs.getSeason()))
                     .toList();
         }
 
         @Override
-        public List<ClubSeason> findAllClubSeasonsBySimilarNameAndSeasonAndSource(String name, Season season, ImportSource source) {
-            return findAllClubSeasonsBySimilarNameAndSeason(name, season).stream()
+        public List<Team> findAllTeamsBySimilarNameAndSeasonAndSource(String name, Season season, ImportSource source) {
+            return findAllTeamsBySimilarNameAndSeason(name, season).stream()
                     .filter(cs -> Objects.equals(cs.getSource(), source))
                     .toList();
         }
@@ -182,6 +186,15 @@ public final class InMemoryRepositories {
         @Override
         public void deletePlayerById(UUID id) {
             byId.remove(id);
+        }
+
+        @Override
+        public List<Player> findAllPlayersByFragmentsInName(List<String> fragments) {
+            return byId.values().stream()
+                    .filter(player -> player.getName() != null && fragments != null && !fragments.isEmpty()
+                            && fragments.stream().allMatch(fragment ->
+                            fragment != null && player.getName().toLowerCase().contains(fragment.toLowerCase())))
+                    .toList();
         }
     }
 
@@ -238,14 +251,14 @@ public final class InMemoryRepositories {
                                                      Season season,
                                                      int groupNumber,
                                                      int round,
-                                                     UUID homeClubSeasonId,
-                                                     UUID awayClubSeasonId) {
+                                                     UUID homeTeamId,
+                                                     UUID awayTeamId) {
             return saved.stream()
                     .filter(m -> competition.equals(m.getCompetition()))
                     .filter(m -> season.equals(m.getSeason()))
                     .filter(m -> m.getGroupNumber() == groupNumber && m.getRound() == round)
-                    .filter(m -> homeClubSeasonId.equals(m.getHomeClub().getId()))
-                    .filter(m -> awayClubSeasonId.equals(m.getAwayClub().getId()))
+                    .filter(m -> homeTeamId.equals(m.getHomeTeam().getId()))
+                    .filter(m -> awayTeamId.equals(m.getAwayTeam().getId()))
                     .findFirst();
         }
 

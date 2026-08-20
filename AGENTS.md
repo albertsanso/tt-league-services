@@ -46,7 +46,7 @@ problems.
 
 Keep federation/source scoping explicit for every import lookup. Never resolve
 clubs or players by an unscoped name when source identity matters. Preserve
-season-specific `ClubSeason` and `PlayerSeason` identity, match history, and
+season-specific `Team` and `PlayerSeason` identity, match history, and
 lineup references when consolidating records.
 
 Club consolidation is opt-in and source-scoped. It runs after a successful

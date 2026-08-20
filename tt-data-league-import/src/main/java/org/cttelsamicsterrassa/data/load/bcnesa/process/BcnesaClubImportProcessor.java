@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.slf4j.Logger;
@@ -26,17 +26,17 @@ public class BcnesaClubImportProcessor implements BcnesaMatchReportProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BcnesaClubImportProcessor.class);
 
-    private final ClubSeasonRepository clubSeasonRepository;
+    private final TeamRepository teamRepository;
 
-    public BcnesaClubImportProcessor(ClubSeasonRepository clubSeasonRepository) {
-        this.clubSeasonRepository = clubSeasonRepository;
+    public BcnesaClubImportProcessor(TeamRepository teamRepository) {
+        this.teamRepository = teamRepository;
     }
 
     @Override
     public void process(BcnesaMatchReportContext context) {
         Season season = context.toSeason();
-        importClub(context.homeClubName(), season);
-        importClub(context.awayClubName(), season);
+        importClub(context.homeTeamName(), season);
+        importClub(context.awayTeamName(), season);
     }
 
     private void importClub(String rawName, Season season) {
@@ -45,11 +45,11 @@ public class BcnesaClubImportProcessor implements BcnesaMatchReportProcessor {
             return;
         }
 
-        clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.BCNESA)
+        teamRepository.findTeamByNameAndSeasonAndSource(name, season, ImportSource.BCNESA)
                 .orElseGet(() -> {
-                    ClubSeason created = ClubSeason.createNew(ImportSource.BCNESA, name, season, null);
-                    clubSeasonRepository.saveClubSeason(created);
-                    LOGGER.debug("Created BCNESA club season {} {}", name, season);
+                    Team created = Team.createNew(ImportSource.BCNESA, name, season, null);
+                    teamRepository.saveTeam(created);
+                    LOGGER.debug("Created BCNESA team {} {}", name, season);
                     return created;
                 });
     }

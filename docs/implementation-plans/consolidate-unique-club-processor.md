@@ -3,26 +3,26 @@
 ## Goal and corrected consolidation boundary
 
 Add an import-layer reconciliation processor that attaches equivalent
-`ClubSeason` registrations to one canonical, source-scoped `Club`. It must
+`Team` registrations to one canonical, source-scoped `Club`. It must
 repair registrations created by the current import processors without merging
-or deleting `ClubSeason` rows.
+or deleting `Team` rows.
 
 This distinction is required by the existing model:
 
-- `ClubSeason` is the season-specific team/registration record and owns an
+- `Team` is the season-specific team/registration record and owns an
   optional `Club` association.
-- `MATCH.home_club_id`, `MATCH.away_club_id`, `MATCH.winner_club_id`, and
-  `LINEUP.club_id` all reference `CLUB_SEASON`, not `CLUB`.
+- `MATCH.home_team_id`, `MATCH.away_team_id`, `MATCH.winner_team_id`, and
+  `LINEUP.team_id` references `TEAM`, while `TEAM.club_id` references `CLUB`.
 
 Therefore, the prompt's instruction to redirect references from old
-`ClubSeason` records to a new `Club` is not type-compatible and would destroy
+`Team` records to a new `Club` is not type-compatible and would destroy
 the match natural key, lineup history, and the ability to retain different
 teams from one club in a season. The processor must leave those foreign keys
 unchanged, create or reuse one canonical `Club`, and save replacement
-`ClubSeason` domain objects with the same IDs, source, names, and seasons but
+`Team` domain objects with the same IDs, source, names, and seasons but
 with the canonical `Club` assigned.
 
-No `externalId` field is added to `Club` or `ClubSeason`. Federation keys stay
+No `externalId` field is added to `Club` or `Team`. Federation keys stay
 in source-specific import identity logic.
 
 ## Scope and safety policy
@@ -60,7 +60,7 @@ BCNESA uses its narrow quoted-team-letter normalization; RFETM must continue
 to use its source-specific key policy rather than replacing it with a
 name-only upsert; FCTT must not interpret RFETM-shaped payload IDs as FCTT
 club identity. Update the corresponding match processors only where their
-club-season resolution must follow the restored source-specific registration
+team resolution must follow the restored source-specific registration
 identity.
 
 The reconciliation processor is historical-data repair and a guard against
@@ -79,8 +79,8 @@ Create the feature in a source-neutral package under
   abbreviation registry. Keep the registry source-aware and include only
   abbreviations demonstrated by fixtures; do not introduce generic
   football-club expansion rules for table-tennis data.
-- `ClubSeasonConsolidationProcessor`: constructor-injected `ClubRepository`
-  and `ClubSeasonRepository`; exposes
+- `TeamConsolidationProcessor`: constructor-injected `ClubRepository`
+  and `TeamRepository`; exposes
   `consolidate(ImportSource source)` and returns a
   `ClubConsolidationSummary`.
 - `ClubConsolidationSummary`: immutable result containing scanned
@@ -99,22 +99,22 @@ dedicated repair command; it must never run independently once per report.
 
 ## Repository and domain changes
 
-1. Extend `ClubSeasonRepository` with an explicit source-scoped inventory
-   method, for example `findAllClubSeasonsBySource(ImportSource source)`.
-   Implement it in `ClubSeasonRepositoryJpa`, its Spring Data helper, and all
+1. Extend `TeamRepository` with an explicit source-scoped inventory
+   method, for example `findAllTeamsBySource(ImportSource source)`.
+   Implement it in `TeamRepositoryJpa`, its Spring Data helper, and all
    in-memory test implementations. Avoid repeatedly querying
    `findAll...SimilarName`, which cannot discover arbitrary duplicate groups
    and is unsuitable for a complete reconciliation.
 2. Add a domain factory or intent-revealing method that creates an otherwise
-   identical existing `ClubSeason` with a supplied `Club` association. The
+   identical existing `Team` with a supplied `Club` association. The
    current association is final, so do not add a public mutable setter. The
-   processor uses this API and `saveClubSeason` to update `club_id`.
+   processor uses this API and `saveTeam` to update `team.club_id`.
 3. Add only the source-scoped club lookups needed to choose/create a canonical
    club. If a complete source inventory becomes necessary to resolve legacy
    duplicate `Club` records, add it explicitly to the port and adapter rather
    than falling back to name-only lookup.
-4. In the JPA adapter, save the reassociated `ClubSeason` using the existing
-   mappers. Keep `club_season.club_id` nullable for legacy data until the
+4. In the JPA adapter, save the reassociated `Team` using the existing
+   mappers. Keep `team.club_id` nullable for legacy data until the
    migration has been performed; do not change column nullability in this
    feature unless an audited data migration is included.
 5. Do not alter match or lineup foreign keys, their natural/unique
@@ -127,7 +127,7 @@ dedicated repair command; it must never run independently once per report.
 
 For each requested source:
 
-1. Read all `ClubSeason` records for that source, reject and report null or
+1. Read all `Team` records for that source, reject and report null or
    blank names, and group the remaining entries by the exact normalized key.
 2. For every exact group with more than one distinct registration, choose its
    canonical club deterministically:
@@ -173,7 +173,7 @@ performing no saves.
 ### Import module unit tests
 
 Add focused JUnit 5 tests for `ClubNameNormalizer`, `ClubNameMatcher`, and
-`ClubSeasonConsolidationProcessor`, updating `InMemoryRepositories` to honor
+`TeamConsolidationProcessor`, updating `InMemoryRepositories` to honor
 the new source-scoped inventory and existing exact lookup contracts.
 
 Cover:
@@ -193,7 +193,7 @@ Cover:
 7. A second run has zero creations/reassignments and reports the entries as
    already correct.
 8. Repaired import processors create a source-scoped club and a linked
-   club-season registration on first import, then remain idempotent on repeat
+   team registration on first import, then remain idempotent on repeat
    import.
 9. Runtime argument parsing invokes consolidation only when explicitly
    requested and logs/returns the source summary after traversal.
@@ -201,10 +201,10 @@ Cover:
 ### JPA integration tests
 
 Extend `ImportSchemaTest` or add a focused repository test to persist a
-canonical `Club`, multiple `ClubSeason` rows, a match, and lineups; then
-reassociate the club seasons and reload them. Assert the `club_id` changes
+canonical `Club`, multiple `Team` rows, a match, and lineups; then
+reassociate the teams and reload them. Assert the `team.club_id` changes
 while match and lineup references continue to target the same
-`ClubSeason.id`. Also test the source-scoped inventory query.
+`Team.id`. Also test the source-scoped inventory query.
 
 ## Validation
 

@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.DoublesPairRepository;
@@ -78,20 +78,20 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             "A", 1, "B", 2, "C", 3,
             "X", 1, "Y", 2, "Z", 3);
 
-    private final ClubSeasonRepository clubSeasonRepository;
+    private final TeamRepository teamRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
     private final MatchRepository matchRepository;
     private final LineupRepository lineupRepository;
     private final GameRepository gameRepository;
     private final DoublesPairRepository doublesPairRepository;
 
-    public BcnesaMatchImportProcessor(ClubSeasonRepository clubSeasonRepository,
+    public BcnesaMatchImportProcessor(TeamRepository teamRepository,
                                       PlayerSeasonRepository playerSeasonRepository,
                                       MatchRepository matchRepository,
                                       LineupRepository lineupRepository,
                                       GameRepository gameRepository,
                                       DoublesPairRepository doublesPairRepository) {
-        this.clubSeasonRepository = clubSeasonRepository;
+        this.teamRepository = teamRepository;
         this.playerSeasonRepository = playerSeasonRepository;
         this.matchRepository = matchRepository;
         this.lineupRepository = lineupRepository;
@@ -102,9 +102,9 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
     @Override
     public void process(BcnesaMatchReportContext context) {
         Season season = context.toSeason();
-        Optional<ClubSeason> homeClub = resolveClubSeason(context.homeClubName(), season, context);
-        Optional<ClubSeason> awayClub = resolveClubSeason(context.awayClubName(), season, context);
-        if (homeClub.isEmpty() || awayClub.isEmpty()) {
+        Optional<Team> homeTeam = resolveTeam(context.homeTeamName(), season, context);
+        Optional<Team> awayTeam = resolveTeam(context.awayTeamName(), season, context);
+        if (homeTeam.isEmpty() || awayTeam.isEmpty()) {
             return;
         }
 
@@ -113,18 +113,18 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         int round = context.round();
 
         if (matchRepository.findMatchByNaturalKey(competition, season, groupNumber, round,
-                homeClub.get().getId(), awayClub.get().getId()).isPresent()) {
+                homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
             LOGGER.debug("Fixture already stored for {} #{}; skipping", context.matchReportFile(), context.fixtureIndex());
             return;
         }
 
-        Match match = buildMatch(context, season, competition, groupNumber, round, homeClub.get(), awayClub.get());
+        Match match = buildMatch(context, season, competition, groupNumber, round, homeTeam.get(), awayTeam.get());
         matchRepository.saveMatch(match);
 
         SideLineup home = resolveLineup(context.games(), true, season, context);
         SideLineup away = resolveLineup(context.games(), false, season, context);
 
-        lineupRepository.saveLineups(buildLineups(match, homeClub.get(), home, awayClub.get(), away));
+        lineupRepository.saveLineups(buildLineups(match, homeTeam.get(), home, awayTeam.get(), away));
         storeGames(context, match, home, away);
     }
 
@@ -135,8 +135,8 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
                              String competition,
                              int groupNumber,
                              int round,
-                             ClubSeason homeClub,
-                             ClubSeason awayClub) {
+                             Team homeTeam,
+                             Team awayTeam) {
         Acta acta = context.acta();
         int homeGamesWon = context.homeGamesWon();
         int awayGamesWon = context.awayGamesWon();
@@ -151,9 +151,9 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
                 .dateTime(toDateTime(acta))
                 .city(acta.venue() != null ? acta.venue().city() : null)
                 .venue(acta.venue() != null ? acta.venue().venue() : null)
-                .homeClub(homeClub)
-                .awayClub(awayClub)
-                .winnerClub(resolveWinnerClub(homeGamesWon, awayGamesWon, homeClub, awayClub))
+                .homeTeam(homeTeam)
+                .awayTeam(awayTeam)
+                .winnerTeam(resolveWinnerTeam(homeGamesWon, awayGamesWon, homeTeam, awayTeam))
                 .refereeName(refereeName(acta))
                 .homeGamesWon(homeGamesWon)
                 .awayGamesWon(awayGamesWon)
@@ -183,12 +183,12 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
      * every fixture of the matchday, not this one - so the winner is always the games-won comparison,
      * with a draw left unset.
      */
-    private static ClubSeason resolveWinnerClub(int homeGamesWon, int awayGamesWon,
-                                                ClubSeason homeClub, ClubSeason awayClub) {
+    private static Team resolveWinnerTeam(int homeGamesWon, int awayGamesWon,
+                                                Team homeTeam, Team awayTeam) {
         if (homeGamesWon > awayGamesWon) {
-            return homeClub;
+            return homeTeam;
         }
-        return awayGamesWon > homeGamesWon ? awayClub : null;
+        return awayGamesWon > homeGamesWon ? awayTeam : null;
     }
 
     // --- lineups ---------------------------------------------------------------------------
@@ -228,15 +228,15 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         return new SideLineup(byLetter, byName);
     }
 
-    private List<Lineup> buildLineups(Match match, ClubSeason homeClub, SideLineup home,
-                                      ClubSeason awayClub, SideLineup away) {
+    private List<Lineup> buildLineups(Match match, Team homeTeam, SideLineup home,
+                                      Team awayTeam, SideLineup away) {
         List<Lineup> lineups = new ArrayList<>();
-        addLineups(lineups, match, homeClub, home);
-        addLineups(lineups, match, awayClub, away);
+        addLineups(lineups, match, homeTeam, home);
+        addLineups(lineups, match, awayTeam, away);
         return lineups;
     }
 
-    private void addLineups(List<Lineup> lineups, Match match, ClubSeason clubSeason, SideLineup side) {
+    private void addLineups(List<Lineup> lineups, Match match, Team team, SideLineup side) {
         side.byLetter().forEach((letter, player) -> {
             Integer position = POSITION_BY_LETTER.get(letter);
             if (position == null) {
@@ -246,7 +246,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             lineups.add(Lineup.builder()
                     .id(UUID.randomUUID())
                     .match(match)
-                    .clubSeason(clubSeason)
+                    .team(team)
                     .letter(letter)
                     .position(position)
                     .player(player)
@@ -371,18 +371,18 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         }
     }
 
-    private Optional<ClubSeason> resolveClubSeason(String rawClubName, Season season,
+    private Optional<Team> resolveTeam(String rawClubName, Season season,
                                                     BcnesaMatchReportContext context) {
         String name = BcnesaClubNames.normalize(rawClubName);
         if (name == null) {
             return Optional.empty();
         }
 
-        Optional<ClubSeason> clubSeason = clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(name, season, ImportSource.BCNESA);
-        if (clubSeason.isEmpty()) {
+        Optional<Team> team = teamRepository.findTeamByNameAndSeasonAndSource(name, season, ImportSource.BCNESA);
+        if (team.isEmpty()) {
             LOGGER.warn("BCNESA club {} has no entry for season {}; {} not stored", name, season, context.matchReportFile());
         }
-        return clubSeason;
+        return team;
     }
 
     /**

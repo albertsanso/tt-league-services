@@ -38,6 +38,11 @@ and JDBC batching with a batch size of 50. The configuration is in
 http://localhost:9090/actuator/health
 ```
 
+`ddl-auto: update` does not migrate the previous season-registration table or
+its foreign-key columns to the `TEAM` schema. Existing databases require the
+reviewed migration described in
+`tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` before launch.
+
 ## Build
 
 Run the module tests and build all required reactor dependencies from the
@@ -113,7 +118,7 @@ java -jar tt-data-league-import-runtime\target\tt-data-league-import-runtime-0.0
 ### Import and write club consolidation
 
 After the source traversal succeeds, consolidates the complete source-scoped
-club-season inventory and persists canonical club associations:
+team inventory and persists canonical club associations:
 
 ```powershell
 java -jar tt-data-league-import-runtime\target\tt-data-league-import-runtime-0.0.1-SNAPSHOT.jar `

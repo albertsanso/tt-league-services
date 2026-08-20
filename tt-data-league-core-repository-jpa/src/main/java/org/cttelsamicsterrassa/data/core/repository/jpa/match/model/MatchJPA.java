@@ -8,7 +8,7 @@ import lombok.Setter;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.UUID;
-import org.cttelsamicsterrassa.data.core.repository.jpa.club.model.ClubSeasonJPA;
+import org.cttelsamicsterrassa.data.core.repository.jpa.club.model.TeamJPA;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
 
 @Entity
@@ -20,16 +20,16 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
         indexes = {
                 @Index(name = "idx_match_competition_season_group_round", columnList = "competition,season,group_num,round"),
                 @Index(name = "idx_match_external_id", columnList = "external_id"),
-                @Index(name="idx_match_home_club_id", columnList="home_club_id"),
-                @Index(name="idx_match_away_club_id", columnList="away_club_id"),
-                @Index(name="idx_match_winner_club_id", columnList="winner_club_id")
+                @Index(name="idx_match_home_team_id", columnList="home_team_id"),
+                @Index(name="idx_match_away_team_id", columnList="away_team_id"),
+                @Index(name="idx_match_winner_team_id", columnList="winner_team_id")
         },
         uniqueConstraints = {
-                // A round holds one match per pair of clubs, so the two clubs are part of the key.
+                // A round holds one match per pair of teams, so the two teams are part of the key.
                 // Without them a whole matchday would collapse into a single row.
                 @UniqueConstraint(
-                        name = "uk_competition_season_group_round_clubs",
-                        columnNames = {"competition", "season", "group_num", "round", "home_club_id", "away_club_id"}),
+                        name = "uk_competition_season_group_round_teams",
+                        columnNames = {"competition", "season", "group_num", "round", "home_team_id", "away_team_id"}),
                 @UniqueConstraint(name = "uk_match_external_id", columnNames = {"external_id"})
         }
 )
@@ -69,12 +69,12 @@ public class MatchJPA {
     private String venue;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "home_club_id", nullable = false)
-    private ClubSeasonJPA homeClub;
+    @JoinColumn(name = "home_team_id", nullable = false)
+    private TeamJPA homeTeam;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "away_club_id", nullable = false)
-    private ClubSeasonJPA awayClub;
+    @JoinColumn(name = "away_team_id", nullable = false)
+    private TeamJPA awayTeam;
 
     @Column(name = "referee_name", nullable = true, length = 255)
     private String refereeName;
@@ -95,8 +95,8 @@ public class MatchJPA {
     private Integer awaySetsWon;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "winner_club_id", nullable = true)
-    private ClubSeasonJPA winnerClub;
+    @JoinColumn(name = "winner_team_id", nullable = true)
+    private TeamJPA winnerTeam;
 
     @Column(name = "protested", nullable = false, columnDefinition = "boolean default false")
     private boolean protested;

@@ -5,19 +5,19 @@ import org.albertsanso.commons.command.DomainCommand;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
-public class ModifyClubSeasonNameCommand extends DomainCommand {
+public class ModifyTeamNameCommand extends DomainCommand {
 
-    private final UUID clubSeasonId;
+    private final UUID teamId;
     private final String name;
 
-    public ModifyClubSeasonNameCommand(ZonedDateTime occurredOn, String uuid, UUID clubSeasonId, String name) {
+    public ModifyTeamNameCommand(ZonedDateTime occurredOn, String uuid, UUID teamId, String name) {
         super(occurredOn, uuid);
-        this.clubSeasonId = clubSeasonId;
+        this.teamId = teamId;
         this.name = name;
     }
 
-    public UUID getClubSeasonId() {
-        return clubSeasonId;
+    public UUID getTeamId() {
+        return teamId;
     }
 
     public String getName() {

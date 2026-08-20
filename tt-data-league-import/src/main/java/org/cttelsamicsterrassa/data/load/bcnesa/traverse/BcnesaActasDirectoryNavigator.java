@@ -218,7 +218,7 @@ public class BcnesaActasDirectoryNavigator {
 
         BcnesaMatchReportContext context = new BcnesaMatchReportContext(
                 season, leagueCompetition, group, phase, round, fixtureIndex,
-                fixture.homeClubName(), fixture.awayClubName(), reportFile, acta, fixture.games());
+                fixture.homeTeamName(), fixture.awayTeamName(), reportFile, acta, fixture.games());
         dispatch(context, processors, counters);
     }
 

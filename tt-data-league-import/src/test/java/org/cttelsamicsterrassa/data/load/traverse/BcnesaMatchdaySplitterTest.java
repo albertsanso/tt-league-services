@@ -41,8 +41,8 @@ class BcnesaMatchdaySplitterTest {
 
         BcnesaMatchdaySplitter.Fixture fixture = splitter.split(acta, BcnesaClubIndex.of(Map.of())).get(0);
 
-        assertEquals("HOME CLUB", fixture.homeClubName());
-        assertEquals("AWAY CLUB", fixture.awayClubName());
+        assertEquals("HOME CLUB", fixture.homeTeamName());
+        assertEquals("AWAY CLUB", fixture.awayTeamName());
         assertTrue(fixture.isResolved());
     }
 
@@ -54,8 +54,8 @@ class BcnesaMatchdaySplitterTest {
 
         BcnesaMatchdaySplitter.Fixture second = splitter.split(acta, index).get(1);
 
-        assertEquals("SECOND HOME", second.homeClubName());
-        assertEquals("SECOND AWAY", second.awayClubName());
+        assertEquals("SECOND HOME", second.homeTeamName());
+        assertEquals("SECOND AWAY", second.awayTeamName());
         assertTrue(second.isResolved());
     }
 
@@ -65,8 +65,8 @@ class BcnesaMatchdaySplitterTest {
 
         BcnesaMatchdaySplitter.Fixture second = splitter.split(acta, BcnesaClubIndex.of(Map.of())).get(1);
 
-        assertNull(second.homeClubName());
-        assertNull(second.awayClubName());
+        assertNull(second.homeTeamName());
+        assertNull(second.awayTeamName());
         assertFalse(second.isResolved());
     }
 

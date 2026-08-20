@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.core.domain.lineup.model;
 
 import org.albertsanso.commons.model.Entity;
-import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.lineup.event.LineupCreatedEvent;
 import org.cttelsamicsterrassa.data.core.domain.lineup.event.LineupDeletedEvent;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
@@ -21,17 +21,17 @@ public class Lineup extends Entity {
     private final UUID id;
     private final ImportSource source;
     private final Match match;
-    private final ClubSeason clubSeason;
+    private final Team team;
     private final String letter;
     private final int position;
     private final PlayerSeason player;
     private final Float ranking;
 
-    private Lineup(UUID id, ImportSource source, Match match, ClubSeason clubSeason, String letter, int position, PlayerSeason player, Float ranking) {
+    private Lineup(UUID id, ImportSource source, Match match, Team team, String letter, int position, PlayerSeason player, Float ranking) {
         this.id = id;
         this.source = source;
         this.match = match;
-        this.clubSeason = clubSeason;
+        this.team = team;
         this.letter = letter;
         this.position = position;
         this.player = player;
@@ -42,18 +42,18 @@ public class Lineup extends Entity {
         return new LineupBuilder();
     }
 
-    private static Lineup of(UUID id, ImportSource source, Match match, ClubSeason clubSeason, String letter, int position, PlayerSeason player, Float ranking) {
-        return new Lineup(id, source, match, clubSeason, letter, position, player, ranking);
+    private static Lineup of(UUID id, ImportSource source, Match match, Team team, String letter, int position, PlayerSeason player, Float ranking) {
+        return new Lineup(id, source, match, team, letter, position, player, ranking);
     }
 
     private static Lineup createNew(LineupBuilder builder) {
-        Lineup lineup = of(UUID.randomUUID(), builder.source, builder.match, builder.clubSeason, builder.letter, builder.position, builder.player, builder.ranking);
+        Lineup lineup = of(UUID.randomUUID(), builder.source, builder.match, builder.team, builder.letter, builder.position, builder.player, builder.ranking);
         lineup.publishLineupCreatedEvent();
         return lineup;
     }
 
     private static Lineup createExisting(LineupBuilder builder) {
-        return of(builder.id, builder.source, builder.match, builder.clubSeason, builder.letter, builder.position, builder.player, builder.ranking);
+        return of(builder.id, builder.source, builder.match, builder.team, builder.letter, builder.position, builder.player, builder.ranking);
     }
 
     public void delete() {
@@ -71,7 +71,7 @@ public class Lineup extends Entity {
         private UUID id;
         private ImportSource source;
         private Match match;
-        private ClubSeason clubSeason;
+        private Team team;
         private String letter;
         private int position;
         private PlayerSeason player;
@@ -92,8 +92,8 @@ public class Lineup extends Entity {
             return this;
         }
 
-        public LineupBuilder clubSeason(ClubSeason clubSeason) {
-            this.clubSeason = clubSeason;
+        public LineupBuilder team(Team team) {
+            this.team = team;
             return this;
         }
 
@@ -138,8 +138,8 @@ public class Lineup extends Entity {
         return match;
     }
 
-    public ClubSeason getClubSeason() {
-        return clubSeason;
+    public Team getTeam() {
+        return team;
     }
 
     public String getLetter() {

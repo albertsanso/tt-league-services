@@ -3,7 +3,7 @@
 ## Goal
 
 Make the `PlayerSeason.player` association optional in the domain API, matching
-the existing `ClubSeason.club` design, and migrate all related logic without
+the existing `Team.club` design, and migrate all related logic without
 changing registration identity or the nullable JPA `player_id` relationship.
 
 ## Confirmed behavior

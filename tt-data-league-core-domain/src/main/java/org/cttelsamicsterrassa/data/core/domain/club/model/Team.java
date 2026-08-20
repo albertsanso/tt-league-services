@@ -1,9 +1,9 @@
 package org.cttelsamicsterrassa.data.core.domain.club.model;
 
 import org.albertsanso.commons.model.Entity;
-import org.cttelsamicsterrassa.data.core.domain.club.event.ClubSeasonCreatedEvent;
-import org.cttelsamicsterrassa.data.core.domain.club.event.ClubSeasonDeletedEvent;
-import org.cttelsamicsterrassa.data.core.domain.club.event.ClubSeasonNameModifiedEvent;
+import org.cttelsamicsterrassa.data.core.domain.club.event.TeamCreatedEvent;
+import org.cttelsamicsterrassa.data.core.domain.club.event.TeamDeletedEvent;
+import org.cttelsamicsterrassa.data.core.domain.club.event.TeamNameModifiedEvent;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
@@ -11,14 +11,14 @@ import java.time.ZonedDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
-public class ClubSeason extends Entity {
+public class Team extends Entity {
     private final UUID id;
     private final ImportSource source;
     private String name;
     private final Season season;
     private final Optional<Club> club;
 
-    private ClubSeason(UUID id, ImportSource source, String name, Season season, Club club) {
+    private Team(UUID id, ImportSource source, String name, Season season, Club club) {
         this.id = id;
         this.source = source;
         this.name = name;
@@ -26,17 +26,17 @@ public class ClubSeason extends Entity {
         this.club = Optional.ofNullable(club);
     }
 
-    private static ClubSeason of(UUID id, ImportSource source, String name, Season season, Club club) {
-        return new ClubSeason(id, source, name, season, club);
+    private static Team of(UUID id, ImportSource source, String name, Season season, Club club) {
+        return new Team(id, source, name, season, club);
     }
 
-    public static ClubSeason createNew(ImportSource source, String name, Season season, Club club) {
-        ClubSeason clubSeason = of(UUID.randomUUID(), source, name, season, club);
-        clubSeason.publishClubSeasonCreatedEvent();
-        return clubSeason;
+    public static Team createNew(ImportSource source, String name, Season season, Club club) {
+        Team team = of(UUID.randomUUID(), source, name, season, club);
+        team.publishTeamCreatedEvent();
+        return team;
     }
 
-    public static ClubSeason createExisting(UUID id, ImportSource source, String name, Season season, Club club) {
+    public static Team createExisting(UUID id, ImportSource source, String name, Season season, Club club) {
         return of(id, source, name, season, club);
     }
 
@@ -44,7 +44,7 @@ public class ClubSeason extends Entity {
      * Returns an otherwise identical registration associated with {@code club}.
      * The original id, source, season-specific name, and season are retained.
      */
-    public ClubSeason withClub(Club club) {
+    public Team withClub(Club club) {
         if (club != null && this.club.isPresent() && club.getId().equals(this.club.get().getId())) {
             return this;
         }
@@ -54,22 +54,22 @@ public class ClubSeason extends Entity {
     public void modifyName(String newName) {
         if (!this.name.equals(newName)) {
             this.name = newName;
-            publishClubSeasonNameModifiedEvent();
+            publishTeamNameModifiedEvent();
         }
     }
 
     public void delete() {
-        publishClubSeasonDeletedEvent();
+        publishTeamDeletedEvent();
     }
 
-    private void publishClubSeasonCreatedEvent() {
-        publishEvent(ClubSeasonCreatedEvent.of(id, name, source, club.orElse(null)));
+    private void publishTeamCreatedEvent() {
+        publishEvent(TeamCreatedEvent.of(id, name, source, club.orElse(null)));
     }
-    private void publishClubSeasonNameModifiedEvent() {
-        publishEvent(ClubSeasonNameModifiedEvent.of(id, name));
+    private void publishTeamNameModifiedEvent() {
+        publishEvent(TeamNameModifiedEvent.of(id, name));
     }
-    private void publishClubSeasonDeletedEvent() {
-        publishEvent(ClubSeasonDeletedEvent.of(id));
+    private void publishTeamDeletedEvent() {
+        publishEvent(TeamDeletedEvent.of(id));
     }
 
     public UUID getId() {

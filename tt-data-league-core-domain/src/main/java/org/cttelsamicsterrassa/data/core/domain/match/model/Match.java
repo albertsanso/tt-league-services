@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.core.domain.match.model;
 
 import org.albertsanso.commons.model.Entity;
-import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.match.event.MatchCreatedEvent;
 import org.cttelsamicsterrassa.data.core.domain.match.event.MatchDeletedEvent;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -30,9 +30,9 @@ public class Match extends Entity {
     private final ZonedDateTime dateTime;
     private final String city;
     private final String venue;
-    private final ClubSeason homeClub;
-    private final ClubSeason awayClub;
-    private final ClubSeason winnerClub;
+    private final Team homeTeam;
+    private final Team awayTeam;
+    private final Team winnerTeam;
     private final String refereeName;
     private final Integer homeGamesWon;
     private final Integer awayGamesWon;
@@ -40,7 +40,7 @@ public class Match extends Entity {
     private final Integer awaySetsWon;
     private final boolean protested;
 
-    private Match(UUID id, ImportSource source, String externalId, String competition, Season season, int groupNumber, int round, ZonedDateTime dateTime, String city, String venue, ClubSeason homeClub, ClubSeason awayClub, ClubSeason winnerClub, String refereeName, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested) {
+    private Match(UUID id, ImportSource source, String externalId, String competition, Season season, int groupNumber, int round, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested) {
         this.id = id;
         this.source = source;
         this.externalId = externalId;
@@ -51,9 +51,9 @@ public class Match extends Entity {
         this.dateTime = dateTime;
         this.city = city;
         this.venue = venue;
-        this.homeClub = homeClub;
-        this.awayClub = awayClub;
-        this.winnerClub = winnerClub;
+        this.homeTeam = homeTeam;
+        this.awayTeam = awayTeam;
+        this.winnerTeam = winnerTeam;
         this.refereeName = refereeName;
         this.homeGamesWon = homeGamesWon;
         this.awayGamesWon = awayGamesWon;
@@ -78,9 +78,9 @@ public class Match extends Entity {
                 builder.dateTime,
                 builder.city,
                 builder.venue,
-                builder.homeClub,
-                builder.awayClub,
-                builder.winnerClub,
+                builder.homeTeam,
+                builder.awayTeam,
+                builder.winnerTeam,
                 builder.refereeName,
                 builder.homeGamesWon,
                 builder.awayGamesWon,
@@ -122,9 +122,9 @@ public class Match extends Entity {
         private ZonedDateTime dateTime;
         private String city;
         private String venue;
-        private ClubSeason homeClub;
-        private ClubSeason awayClub;
-        private ClubSeason winnerClub;
+        private Team homeTeam;
+        private Team awayTeam;
+        private Team winnerTeam;
         private String refereeName;
         private Integer homeGamesWon;
         private Integer awayGamesWon;
@@ -182,13 +182,13 @@ public class Match extends Entity {
             return this;
         }
 
-        public MatchBuilder homeClub(ClubSeason homeClub) {
-            this.homeClub = homeClub;
+        public MatchBuilder homeTeam(Team homeTeam) {
+            this.homeTeam = homeTeam;
             return this;
         }
 
-        public MatchBuilder awayClub(ClubSeason awayClub) {
-            this.awayClub = awayClub;
+        public MatchBuilder awayTeam(Team awayTeam) {
+            this.awayTeam = awayTeam;
             return this;
         }
 
@@ -222,8 +222,8 @@ public class Match extends Entity {
             return this;
         }
 
-        public MatchBuilder winnerClub(ClubSeason winnerClub) {
-            this.winnerClub = winnerClub;
+        public MatchBuilder winnerTeam(Team winnerTeam) {
+            this.winnerTeam = winnerTeam;
             return this;
         }
 
@@ -276,12 +276,12 @@ public class Match extends Entity {
         return venue;
     }
 
-    public ClubSeason getHomeClub() {
-        return homeClub;
+    public Team getHomeTeam() {
+        return homeTeam;
     }
 
-    public ClubSeason getAwayClub() {
-        return awayClub;
+    public Team getAwayTeam() {
+        return awayTeam;
     }
 
     public String getRefereeName() {
@@ -308,7 +308,7 @@ public class Match extends Entity {
         return protested;
     }
 
-    public ClubSeason getWinnerClub() {
-        return winnerClub;
+    public Team getWinnerTeam() {
+        return winnerTeam;
     }
 }

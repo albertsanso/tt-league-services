@@ -80,7 +80,7 @@ Finally run the repository-required full build:
 
 ## Open design decision before implementation
 
-The Club reference has no ClubSeason command/update/delete handlers and its
+The Club reference has no Team command/update/delete handlers and its
 name queries are not source-scoped, while PlayerSeason has a source-scoped
 licence natural key and no delete repository operation. Implementation should
 confirm whether to:

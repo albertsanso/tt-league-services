@@ -24,7 +24,7 @@ Use this specification to generate **Java JPA entity classes** with the followin
   `@Getter`, `@Setter`, `@NoArgsConstructor`, and `@AllArgsConstructor`; `GameJPA`, `MatchJPA`, and
   `PlayerJPA` currently use `@RequiredArgsConstructor`.
 - Use `org.cttelsamicsterrassa.data.core.repository.jpa` as the base package.
-- Place each entity in its own subpackage named after the entity (for example, `ClubSeasonJPA` is in `org.cttelsamicsterrassa.data.core.repository.jpa.club`).
+- Place each entity in its own subpackage named after the entity (for example, `TeamJPA` is in `org.cttelsamicsterrassa.data.core.repository.jpa.club`).
 - Name each JPA entity after the table name in PascalCase with the `JPA` suffix.
 - Place entity-specific enums in the corresponding entity package (for example, `GameType` and `MatchResult` are in `org.cttelsamicsterrassa.data.core.repository.jpa.game`).
 
@@ -80,6 +80,20 @@ source-specific matching.
 
 ---
 
+## Existing database migration requirement
+
+This terminology change is not a database migration. Existing deployments must
+run a reviewed, versioned migration before starting the renamed application. The
+migration must rename `club_season` to `team`, rename match foreign-key columns
+`home_club_id`, `away_club_id`, and `winner_club_id` to their `*_team_id`
+forms, and rename the lineup `club_id` column to `team_id`. It must also rename
+the affected indexes and constraints where supported, while preserving UUIDs,
+row data, row counts, and all foreign-key references. This repository has no
+versioned migration mechanism, so deployment tooling must provide and verify
+that migration explicitly.
+
+---
+
 ### `PLAYER`
 
 Represents an individual player. A player is identified by its UUID and source; federation licences
@@ -96,9 +110,31 @@ The `name` column is not unique. Federation licence identity is represented by t
 
 ---
 
+### `TEAM`
+
+Represents a club's season-specific registration. A team keeps its own UUID and
+season data and may reference the season-independent `CLUB` row through
+`club_id`.
+
+| Column   | Type           | PK  | Nullable | Unique | FK Target | Description |
+| -------- | -------------- | --- | -------- | ------ | --------- | ----------- |
+| `id`     | `UUID`         | Yes | No       | Yes    |           | Caller-provided UUID v4. |
+| `source` | `VARCHAR(20)`  | No  | Yes      | No     |           | Federation that supplied the team row. |
+| `name`   | `VARCHAR(255)` | No  | Yes      | No     |           | Team name for the season. |
+| `season` | `VARCHAR(10)`  | No  | Yes      | No     |           | Season label. |
+| `club_id` | `UUID`        | No  | Yes      | No     | `CLUB.id` | Optional canonical club association. |
+
+**Constraints:**
+
+- `uk_team_name_season_source` is unique on `(name, season, source)`.
+- `idx_team_name_season` indexes `(name, season)`.
+- `idx_team_club_id` indexes `club_id`.
+
+---
+
 ### `MATCH`
 
-Represents a team match event. This is the top-level aggregate: an encounter between a home club and an away club within a competition round. A match typically contains 5–7 individual games.
+Represents a team match event. This is the top-level aggregate: an encounter between a home team and an away team within a competition round. A match typically contains 5–7 individual games.
 
 | Column            | Type           | PK  | Nullable | Unique | FK Target  | Description                                                                |
 | ----------------- | -------------- | --- | -------- | ------ | ---------- | -------------------------------------------------------------------------- |
@@ -113,42 +149,42 @@ Represents a team match event. This is the top-level aggregate: an encounter bet
 | `match_time`      | `TIME`         | No  | Yes      | No     |            | Scheduled start time (24h format).                                         |
 | `city`            | `VARCHAR(255)` | No  | Yes      | No     |            | City (and province) where the match was played.                            |
 | `venue`           | `VARCHAR(255)` | No  | Yes      | No     |            | Name of the sports hall or facility.                                       |
-| `home_club_id`    | `UUID`         | No  | No       | No     | `CLUB_SEASON.id` | Club-season row playing as home.                                      |
-| `away_club_id`    | `UUID`         | No  | No       | No     | `CLUB_SEASON.id` | Club-season row playing as away.                                      |
+| `home_team_id`    | `UUID`         | No  | No       | No     | `TEAM.id` | Team row playing as home.                                      |
+| `away_team_id`    | `UUID`         | No  | No       | No     | `TEAM.id` | Team row playing as away.                                      |
 | `referee_name`    | `VARCHAR(255)` | No  | Yes      | No     |            | Full name of the head referee.                                             |
 | `referee_license` | `VARCHAR(20)`  | No  | Yes      | No     |            | License number of the head referee (nullable).                             |
 | `home_games_won`  | `INTEGER`      | No  | Yes      | No     |            | Total games won by the home side.                                          |
 | `away_games_won`  | `INTEGER`      | No  | Yes      | No     |            | Total games won by the away side.                                          |
 | `home_sets_won`   | `INTEGER`      | No  | Yes      | No     |            | Total sets won by the home side across all games.                          |
 | `away_sets_won`   | `INTEGER`      | No  | Yes      | No     |            | Total sets won by the away side across all games.                          |
-| `winner_club_id`  | `UUID`         | No  | Yes      | No     | `CLUB_SEASON.id` | Club-season row that won the match. Null if not determined.            |
+| `winner_team_id`  | `UUID`         | No  | Yes      | No     | `TEAM.id` | Team row that won the match. Null if not determined.            |
 | `protested`       | `BOOLEAN`      | No  | No       | No     |            | Whether the match record was formally protested.                           |
 
 **Constraints:**
 
-- `@UniqueConstraint(columnNames = {"competition", "season", "group_num", "round", "home_club_id", "away_club_id"})`
-  — the natural key of a match. A round holds one match per pair of clubs, so the two clubs are part
+- `@UniqueConstraint(columnNames = {"competition", "season", "group_num", "round", "home_team_id", "away_team_id"})`
+  — the natural key of a match. A round holds one match per pair of teams, so the two teams are part
   of the key; without them a whole matchday would collapse into a single row. This is the key an
   importer looks up to stay idempotent.
 
 **Relationships (JPA):**
 
-- `@ManyToOne(fetch = LAZY)` → `CLUB_SEASON` via `home_club_id` (field name: `homeClub`).
-- `@ManyToOne(fetch = LAZY)` → `CLUB_SEASON` via `away_club_id` (field name: `awayClub`).
-- `@ManyToOne(fetch = LAZY)` → `CLUB_SEASON` via `winner_club_id` (field name: `winnerClub`).
+- `@ManyToOne(fetch = LAZY)` → `TEAM` via `home_team_id` (field name: `homeTeam`).
+- `@ManyToOne(fetch = LAZY)` → `TEAM` via `away_team_id` (field name: `awayTeam`).
+- `@ManyToOne(fetch = LAZY)` → `TEAM` via `winner_team_id` (field name: `winnerTeam`).
 
 ---
 
 ### `LINEUP`
 
 Represents one player's assignment in a match lineup. The import data normally produces six entries
-(three per side). This table bridges `MATCH`, `CLUB_SEASON`, and `PLAYER_SEASON`.
+(three per side). This table bridges `MATCH`, `TEAM`, and `PLAYER_SEASON`.
 
 | Column      | Type            | PK  | Nullable | Unique | FK Target    | Description                                                     |
 | ----------- | --------------- | --- | -------- | ------ | ------------ | --------------------------------------------------------------- |
 | `id`        | `UUID`          | Yes | No       | Yes    |              | Surrogate primary key (caller-provided UUID v4).                |
 | `match_id`  | `UUID`          | No  | No       | No     | `MATCH.id`   | The match this lineup entry belongs to.                         |
-| `club_id`   | `UUID`          | No  | No       | No     | `CLUB_SEASON.id` | The club-season row this player is representing.              |
+| `team_id`   | `UUID`          | No  | No       | No     | `TEAM.id` | The team row this player is representing.              |
 | `letter`    | `VARCHAR(2)`    | No  | No       | No     |              | Lineup letter: A, B, C, X, Y, or Z.                            |
 | `position`  | `INTEGER`       | No  | No       | No     |              | Resolved positional order (1, 2, or 3) within the team.         |
 | `player_id` | `UUID`          | No  | No       | No     | `PLAYER_SEASON.id` | The player-season row assigned to this position.             |
@@ -156,14 +192,14 @@ Represents one player's assignment in a match lineup. The import data normally p
 
 **Constraints:**
 
-- `@UniqueConstraint(columnNames = {"match_id", "club_id", "letter", "position"})` — the current JPA
+- `@UniqueConstraint(columnNames = {"match_id", "team_id", "letter", "position"})` — the current JPA
   model prevents duplicate four-column lineup assignments. It does not separately constrain letter
   or position.
 
 **Relationships (JPA):**
 
 - `@ManyToOne(fetch = LAZY)` → `MATCH` via `match_id` (field name: `match`).
-- `@ManyToOne(fetch = LAZY)` → `CLUB_SEASON` via `club_id` (field name: `clubSeason`).
+- `@ManyToOne(fetch = LAZY)` → `TEAM` via `team_id` (field name: `team`).
 - `@ManyToOne(fetch = LAZY)` → `PLAYER_SEASON` via `player_id` (field name: `player`).
 
 ---
@@ -258,11 +294,11 @@ from the child side.
 
 ```mermaid
 erDiagram
-    CLUB ||--o{ CLUB_SEASON : has
-    CLUB_SEASON ||--o{ MATCH : home_club
-    CLUB_SEASON ||--o{ MATCH : away_club
-    CLUB_SEASON o|--o{ MATCH : winner_club
-    CLUB_SEASON ||--o{ LINEUP : represents
+    CLUB ||--o{ TEAM : has
+    TEAM ||--o{ MATCH : home_team
+    TEAM ||--o{ MATCH : away_team
+    TEAM o|--o{ MATCH : winner_team
+    TEAM ||--o{ LINEUP : represents
     PLAYER ||--o{ PLAYER_SEASON : registers
     PLAYER_SEASON ||--o{ LINEUP : assigned
     PLAYER_SEASON o|--o{ GAME : home_player
@@ -278,11 +314,11 @@ erDiagram
         VARCHAR source
         VARCHAR name
     }
-    CLUB_SEASON {
+    TEAM {
         UUID id PK
         VARCHAR name
         VARCHAR season
-        UUID club_id FK
+        UUID team_id FK
     }
     PLAYER {
         UUID id PK
@@ -305,9 +341,9 @@ erDiagram
         VARCHAR season
         INTEGER group_num
         INTEGER round
-        UUID home_club_id FK
-        UUID away_club_id FK
-        UUID winner_club_id FK
+        UUID home_team_id FK
+        UUID away_team_id FK
+        UUID winner_team_id FK
         BOOLEAN protested
     }
     LINEUP {
@@ -355,14 +391,13 @@ erDiagram
 The implementation splits club and player identity from their per-season registration, which this
 specification predates. Two tables carry that split:
 
-### `CLUB_SEASON`
+### `TEAM`
 
 A club's entry for one season: `id`, `name` (the name as written that season), `season`, and
 `club_id` → `CLUB.id`. The current JPA columns allow `name`, `season`, and `club_id` to be null.
 
-- `@UniqueConstraint(columnNames = {"club_id", "season"})` — one entry per club per season. It is
-  keyed by club rather than by name because within a single season several distinct teams share a
-  display name, which makes `(name, season)` both ambiguous and too strict.
+- `@UniqueConstraint(columnNames = {"name", "season", "source"})` — a source-scoped team name is
+  unique within a season.
 
 ### `PLAYER_SEASON`
 

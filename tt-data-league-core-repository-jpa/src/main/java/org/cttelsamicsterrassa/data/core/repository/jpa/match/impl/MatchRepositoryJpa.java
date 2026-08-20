@@ -36,11 +36,11 @@ public class MatchRepositoryJpa implements MatchRepository {
                                                  Season season,
                                                  int groupNumber,
                                                  int round,
-                                                 UUID homeClubSeasonId,
-                                                 UUID awayClubSeasonId) {
+                                                 UUID homeTeamId,
+                                                 UUID awayTeamId) {
         return matchRepositoryHelper
-                .findByCompetitionAndSeasonAndGroupNumberAndRoundAndHomeClub_IdAndAwayClub_Id(
-                        competition, season.toString(), groupNumber, round, homeClubSeasonId, awayClubSeasonId)
+                .findByCompetitionAndSeasonAndGroupNumberAndRoundAndHomeTeam_IdAndAwayTeam_Id(
+                        competition, season.toString(), groupNumber, round, homeTeamId, awayTeamId)
                 .map(matchJPAToMatchMapper);
     }
 

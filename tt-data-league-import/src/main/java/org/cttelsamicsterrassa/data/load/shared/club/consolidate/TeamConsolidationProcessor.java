@@ -1,9 +1,9 @@
 package org.cttelsamicsterrassa.data.load.shared.club.consolidate;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
-import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.slf4j.Logger;
@@ -24,30 +24,30 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 /**
- * Source-scoped historical repair: attach equivalent {@link ClubSeason} registrations to one
+ * Source-scoped historical repair: attach equivalent {@link Team} registrations to one
  * canonical {@link Club} without merging or deleting season rows.
  */
 @Component
-public class ClubSeasonConsolidationProcessor {
+public class TeamConsolidationProcessor {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClubSeasonConsolidationProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(TeamConsolidationProcessor.class);
 
     private static final Set<ImportSource> AUTOMATIC_SOURCES = EnumSet.of(ImportSource.FCTT, ImportSource.BCNESA, ImportSource.RFETM);
 
     private final ClubRepository clubRepository;
-    private final ClubSeasonRepository clubSeasonRepository;
+    private final TeamRepository teamRepository;
     private final ClubNameMatcher matcher;
 
     @Inject
-    public ClubSeasonConsolidationProcessor(ClubRepository clubRepository, ClubSeasonRepository clubSeasonRepository) {
-        this(clubRepository, clubSeasonRepository, new ClubNameMatcher(new ClubNameNormalizer()));
+    public TeamConsolidationProcessor(ClubRepository clubRepository, TeamRepository teamRepository) {
+        this(clubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()));
     }
 
-    ClubSeasonConsolidationProcessor(ClubRepository clubRepository,
-                                     ClubSeasonRepository clubSeasonRepository,
+    TeamConsolidationProcessor(ClubRepository clubRepository,
+                                     TeamRepository teamRepository,
                                      ClubNameMatcher matcher) {
         this.clubRepository = Objects.requireNonNull(clubRepository, "clubRepository");
-        this.clubSeasonRepository = Objects.requireNonNull(clubSeasonRepository, "clubSeasonRepository");
+        this.teamRepository = Objects.requireNonNull(teamRepository, "teamRepository");
         this.matcher = Objects.requireNonNull(matcher, "matcher");
     }
 
@@ -65,18 +65,18 @@ public class ClubSeasonConsolidationProcessor {
                             + " unless a source-specific identity policy is supplied");
         }
 
-        List<ClubSeason> registrations = clubSeasonRepository.findAllClubSeasonsBySource(source);
+        List<Team> registrations = teamRepository.findAllTeamsBySource(source);
         List<String> inventoryNames = registrations.stream()
-                .map(ClubSeason::getName)
+                .map(Team::getName)
                 .filter(Objects::nonNull)
                 .toList();
         ClubConsolidationSummary.Builder summary = ClubConsolidationSummary.builder(source)
                 .scannedRegistrations(registrations.size());
 
-        Map<String, List<ClubSeason>> exactGroups = new LinkedHashMap<>();
-        for (ClubSeason registration : registrations) {
+        Map<String, List<Team>> exactGroups = new LinkedHashMap<>();
+        for (Team registration : registrations) {
             if (registration.getName() == null || registration.getName().isBlank()) {
-                summary.warning(new ConsolidationWarning(source, "Blank club-season name",
+                summary.warning(new ConsolidationWarning(source, "Blank team name",
                         List.of(registration.getId()), List.of(String.valueOf(registration.getName()))));
                 continue;
             }
@@ -88,7 +88,7 @@ public class ClubSeasonConsolidationProcessor {
 
         int multiMemberExactGroups = 0;
         List<NameGroup> groups = new ArrayList<>();
-        for (Map.Entry<String, List<ClubSeason>> entry : exactGroups.entrySet()) {
+        for (Map.Entry<String, List<Team>> entry : exactGroups.entrySet()) {
             if (entry.getKey().isEmpty()) {
                 summary.warning(new ConsolidationWarning(source, "Name collapsed to an empty exact key",
                         ids(entry.getValue()), names(entry.getValue())));
@@ -114,7 +114,7 @@ public class ClubSeasonConsolidationProcessor {
             }
         }
         for (FuzzyPair pair : pairs) {
-            List<ClubSeason> combined = concat(pair.left().members(), pair.right().members());
+            List<Team> combined = concat(pair.left().members(), pair.right().members());
             applyCanonicalClub(source, combined, canonicalDisplayName(combined), MatchingMode.FUZZY, mode, summary);
         }
         ClubConsolidationSummary result = summary.build();
@@ -194,7 +194,7 @@ public class ClubSeasonConsolidationProcessor {
     }
 
     private void applyCanonicalClub(ImportSource source,
-                                    List<ClubSeason> members,
+                                    List<Team> members,
                                     String representativeName,
                                     MatchingMode matchingMode,
                                     ConsolidationMode mode,
@@ -235,18 +235,18 @@ public class ClubSeasonConsolidationProcessor {
         }
 
         int reassociatedHere = 0;
-        for (ClubSeason member : members) {
+        for (Team member : members) {
             if (member.getClub().map(club -> club.getId().equals(canonical.getId())).orElse(false)) {
                 summary.incrementAlreadyCorrect();
                 continue;
             }
             if (mode == ConsolidationMode.WRITE) {
-                ClubSeason updated = member.withClub(canonical);
-                clubSeasonRepository.saveClubSeason(updated);
+                Team updated = member.withClub(canonical);
+                teamRepository.saveTeam(updated);
             }
             summary.incrementReassociated();
             reassociatedHere++;
-            LOGGER.info("Reassociated club-season {} ({}) to club {} ({})",
+            LOGGER.info("Reassociated team {} ({}) to club {} ({})",
                     member.getId(), member.getName(), canonical.getId(), canonical.getName());
         }
 
@@ -273,13 +273,13 @@ public class ClubSeasonConsolidationProcessor {
         };
     }
 
-    private static boolean hasConflictingClubs(List<ClubSeason> members) {
+    private static boolean hasConflictingClubs(List<Team> members) {
         return associatedClubIds(members).size() > 1;
     }
 
-    private static Optional<Club> uniqueAssociatedClub(List<ClubSeason> members) {
+    private static Optional<Club> uniqueAssociatedClub(List<Team> members) {
         List<Club> clubs = members.stream()
-                .map(ClubSeason::getClub)
+                .map(Team::getClub)
                 .flatMap(Optional::stream)
                 .toList();
         if (clubs.isEmpty()) {
@@ -292,7 +292,7 @@ public class ClubSeasonConsolidationProcessor {
         return Optional.empty();
     }
 
-    private static Club selectAssociatedClub(List<ClubSeason> members) {
+    private static Club selectAssociatedClub(List<Team> members) {
         return members.stream()
                 .filter(member -> member.getClub().isPresent())
                 .sorted(registrationOrder())
@@ -301,57 +301,57 @@ public class ClubSeasonConsolidationProcessor {
                 .orElseThrow();
     }
 
-    private static String representativeName(List<ClubSeason> members) {
+    private static String representativeName(List<Team> members) {
         return members.stream()
                 .sorted(registrationOrder())
-                .map(ClubSeason::getName)
+                .map(Team::getName)
                 .findFirst()
                 .orElseThrow();
     }
 
-    private String canonicalDisplayName(List<ClubSeason> members) {
+    private String canonicalDisplayName(List<Team> members) {
         return matcher.preferredDisplayName(members.getFirst().getSource(), names(members));
     }
 
-    private MatchingMode matchingMode(ImportSource source, List<ClubSeason> members) {
+    private MatchingMode matchingMode(ImportSource source, List<Team> members) {
         return members.stream()
-                .map(ClubSeason::getName)
+                .map(Team::getName)
                 .map(name -> matcher.parts(source, name).appliedRules())
                 .anyMatch(rules -> !rules.isEmpty()) ? MatchingMode.RULED_VARIANT : MatchingMode.EXACT;
     }
 
-    private static Comparator<ClubSeason> registrationOrder() {
-        return Comparator.comparing((ClubSeason member) -> Optional.ofNullable(member.getSeason())
+    private static Comparator<Team> registrationOrder() {
+        return Comparator.comparing((Team member) -> Optional.ofNullable(member.getSeason())
                         .map(Season::toString)
                         .orElse(""))
                 .thenComparing(member -> Optional.ofNullable(member.getName()).orElse(""))
-                .thenComparing(ClubSeason::getId);
+                .thenComparing(Team::getId);
     }
 
-    private static Set<UUID> associatedClubIds(List<ClubSeason> members) {
+    private static Set<UUID> associatedClubIds(List<Team> members) {
         return members.stream()
-                .map(ClubSeason::getClub)
+                .map(Team::getClub)
                 .flatMap(Optional::stream)
                 .map(Club::getId)
                 .collect(Collectors.toSet());
     }
 
-    private static List<UUID> ids(List<ClubSeason> members) {
-        return members.stream().map(ClubSeason::getId).toList();
+    private static List<UUID> ids(List<Team> members) {
+        return members.stream().map(Team::getId).toList();
     }
 
-    private static List<String> names(List<ClubSeason> members) {
-        return members.stream().map(ClubSeason::getName).toList();
+    private static List<String> names(List<Team> members) {
+        return members.stream().map(Team::getName).toList();
     }
 
-    private static List<ClubSeason> concat(List<ClubSeason> left, List<ClubSeason> right) {
-        List<ClubSeason> combined = new ArrayList<>(left.size() + right.size());
+    private static List<Team> concat(List<Team> left, List<Team> right) {
+        List<Team> combined = new ArrayList<>(left.size() + right.size());
         combined.addAll(left);
         combined.addAll(right);
         return combined;
     }
 
-    private record NameGroup(String exactKey, String representativeName, List<ClubSeason> members) {
+    private record NameGroup(String exactKey, String representativeName, List<Team> members) {
     }
 
     private record FuzzyPair(NameGroup left, NameGroup right) {

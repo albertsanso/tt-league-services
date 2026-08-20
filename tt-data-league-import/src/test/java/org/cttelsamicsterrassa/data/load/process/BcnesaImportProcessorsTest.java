@@ -31,7 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BcnesaImportProcessorsTest {
 
     private InMemoryRepositories.Clubs clubs;
-    private InMemoryRepositories.ClubSeasons clubSeasons;
+    private InMemoryRepositories.Teams teams;
     private InMemoryRepositories.Players players;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
     private InMemoryRepositories.Matches matches;
@@ -45,7 +45,7 @@ class BcnesaImportProcessorsTest {
     @BeforeEach
     void setUp() {
         clubs = new InMemoryRepositories.Clubs();
-        clubSeasons = new InMemoryRepositories.ClubSeasons();
+        teams = new InMemoryRepositories.Teams();
         players = new InMemoryRepositories.Players();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
         matches = new InMemoryRepositories.Matches();
@@ -54,9 +54,9 @@ class BcnesaImportProcessorsTest {
         doublesPairs = new InMemoryRepositories.DoublesPairs();
 
         processors = List.of(
-                new BcnesaClubImportProcessor(clubSeasons),
+                new BcnesaClubImportProcessor(teams),
                 new BcnesaPlayerImportProcessor(players, playerSeasons),
-                new BcnesaMatchImportProcessor(clubSeasons, playerSeasons, matches, lineups, games,
+                new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         doublesPairs));
 
         acta = new ActaParser().parse(fixture("acta_matchday.json"));
@@ -70,8 +70,8 @@ class BcnesaImportProcessorsTest {
         assertEquals(4, clubs.byId.size());
         Club home1 = clubs.findClubBySourceAndName(ImportSource.BCNESA, "FALCONS DE SABADELL").orElseThrow();
         Club home2 = clubs.findClubBySourceAndName(ImportSource.BCNESA, "CTT ATENEU").orElseThrow();
-        assertTrue(clubSeasons.findClubSeasonByClubAndSeason(home1.getId(), Season.of(2020)).isPresent());
-        assertTrue(clubSeasons.findClubSeasonByClubAndSeason(home2.getId(), Season.of(2020)).isPresent());
+        assertTrue(teams.findTeamByClubAndSeason(home1.getId(), Season.of(2020)).isPresent());
+        assertTrue(teams.findTeamByClubAndSeason(home2.getId(), Season.of(2020)).isPresent());
     }
 
     @Test
@@ -115,14 +115,14 @@ class BcnesaImportProcessorsTest {
         assertEquals(1, first.getHomeGamesWon());
         assertEquals(1, first.getAwayGamesWon());
         // Tied on games, so no club won this fixture.
-        assertNull(first.getWinnerClub());
+        assertNull(first.getWinnerTeam());
 
         Match second = matches.saved.stream()
                 .filter(m -> "CTT ATENEU".equals(homeName(m)))
                 .findFirst().orElseThrow();
         assertEquals(2, second.getHomeGamesWon());
         assertEquals(0, second.getAwayGamesWon());
-        assertEquals(second.getHomeClub(), second.getWinnerClub());
+        assertEquals(second.getHomeTeam(), second.getWinnerTeam());
     }
 
     @Test
@@ -161,7 +161,7 @@ class BcnesaImportProcessorsTest {
     void skipsAFixtureWhoseClubWasNeverImported() {
         BcnesaMatchReportContext context = firstFixture();
 
-        new BcnesaMatchImportProcessor(clubSeasons, playerSeasons, matches, lineups, games, doublesPairs)
+        new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games, doublesPairs)
                 .process(context);
 
         assertTrue(matches.saved.isEmpty());
@@ -172,7 +172,7 @@ class BcnesaImportProcessorsTest {
     }
 
     private static String homeName(Match match) {
-        return match.getHomeClub().getName();
+        return match.getHomeTeam().getName();
     }
 
     private BcnesaMatchReportContext firstFixture() {
@@ -190,13 +190,13 @@ class BcnesaImportProcessorsTest {
                 doublesActa.games());
     }
 
-    private BcnesaMatchReportContext fixtureContext(int fixtureIndex, String homeClub, String awayClub) {
+    private BcnesaMatchReportContext fixtureContext(int fixtureIndex, String homeTeam, String awayTeam) {
         List<ActaGame> allGames = acta.games();
         int gamesPerFixture = allGames.size() / 2;
         List<ActaGame> fixtureGames = allGames.subList(fixtureIndex * gamesPerFixture,
                 (fixtureIndex + 1) * gamesPerFixture);
         return new BcnesaMatchReportContext("2020-2021", "Preferent", "G1", "1a Fase", 7,fixtureIndex,
-                homeClub, awayClub, fixture("acta_matchday.json"), acta, fixtureGames);
+                homeTeam, awayTeam, fixture("acta_matchday.json"), acta, fixtureGames);
     }
 
     private static Path fixture(String name) {

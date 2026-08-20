@@ -1,12 +1,12 @@
 package org.cttelsamicsterrassa.data.load.shared.club;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
-import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.process.InMemoryRepositories;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidationSummary;
-import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubSeasonConsolidationProcessor;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.TeamConsolidationProcessor;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidatedClub;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,23 +17,23 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class ClubSeasonConsolidationProcessorTest {
+class TeamConsolidationProcessorTest {
 
     private InMemoryRepositories.Clubs clubs;
-    private InMemoryRepositories.ClubSeasons clubSeasons;
-    private ClubSeasonConsolidationProcessor processor;
+    private InMemoryRepositories.Teams teams;
+    private TeamConsolidationProcessor processor;
 
     @BeforeEach
     void setUp() {
         clubs = new InMemoryRepositories.Clubs();
-        clubSeasons = new InMemoryRepositories.ClubSeasons();
-        processor = new ClubSeasonConsolidationProcessor(clubs, clubSeasons);
+        teams = new InMemoryRepositories.Teams();
+        processor = new TeamConsolidationProcessor(clubs, teams);
     }
 
     @Test
     void groupsNormalizedSpellingsAndVerifiedAbbreviations() {
-        ClubSeason first = saveSeason(ImportSource.FCTT, "HORTITEC ALZIRA TT", Season.of(2023), null);
-        ClubSeason second = saveSeason(ImportSource.FCTT, "hortitec   alzira", Season.of(2024), null);
+        Team first = saveSeason(ImportSource.FCTT, "HORTITEC ALZIRA TT", Season.of(2023), null);
+        Team second = saveSeason(ImportSource.FCTT, "hortitec   alzira", Season.of(2024), null);
 
         ClubConsolidationSummary summary = processor.consolidate(ImportSource.FCTT);
 
@@ -45,8 +45,8 @@ class ClubSeasonConsolidationProcessorTest {
 
     @Test
     void reassociatesAPermittedTypoAndWarnsOnRejectedFuzzyCases() {
-        ClubSeason typoLeft = saveSeason(ImportSource.BCNESA, "FALCONS DE SABADELL", Season.of(2020), null);
-        ClubSeason typoRight = saveSeason(ImportSource.BCNESA, "FALCONS DE SABDELL", Season.of(2021), null);
+        Team typoLeft = saveSeason(ImportSource.BCNESA, "FALCONS DE SABADELL", Season.of(2020), null);
+        Team typoRight = saveSeason(ImportSource.BCNESA, "FALCONS DE SABDELL", Season.of(2021), null);
         saveSeason(ImportSource.BCNESA, "GIRONA", Season.of(2020), null);
         saveSeason(ImportSource.BCNESA, "REUS", Season.of(2021), null);
         saveSeason(ImportSource.BCNESA, "CTT ATENEU", Season.of(2020), null);
@@ -70,8 +70,8 @@ class ClubSeasonConsolidationProcessorTest {
         processor.consolidate(ImportSource.FCTT);
         processor.consolidate(ImportSource.BCNESA);
 
-        Club fctt = clubSeasons.findAllClubSeasonsBySource(ImportSource.FCTT).getFirst().getClub().orElseThrow();
-        Club bcnesa = clubSeasons.findAllClubSeasonsBySource(ImportSource.BCNESA).getFirst().getClub().orElseThrow();
+        Club fctt = teams.findAllTeamsBySource(ImportSource.FCTT).getFirst().getClub().orElseThrow();
+        Club bcnesa = teams.findAllTeamsBySource(ImportSource.BCNESA).getFirst().getClub().orElseThrow();
         assertEquals(ImportSource.FCTT, fctt.getSource());
         assertEquals(ImportSource.BCNESA, bcnesa.getSource());
         assertTrue(!fctt.getId().equals(bcnesa.getId()));
@@ -81,15 +81,15 @@ class ClubSeasonConsolidationProcessorTest {
     void retainsSeasonSpecificIdentityWhileSharingOneClub() {
         UUID firstId = UUID.fromString("00000000-0000-0000-0000-000000000001");
         UUID secondId = UUID.fromString("00000000-0000-0000-0000-000000000002");
-        clubSeasons.saveClubSeason(ClubSeason.createExisting(
+        teams.saveTeam(Team.createExisting(
                 firstId, ImportSource.FCTT, "HORTITEC ALZIRA TT", Season.of(2023), null));
-        clubSeasons.saveClubSeason(ClubSeason.createExisting(
+        teams.saveTeam(Team.createExisting(
                 secondId, ImportSource.FCTT, "HORTITEC ALZIRA TT", Season.of(2024), null));
 
         processor.consolidate(ImportSource.FCTT);
 
-        ClubSeason first = clubSeasons.findClubSeasonById(firstId).orElseThrow();
-        ClubSeason second = clubSeasons.findClubSeasonById(secondId).orElseThrow();
+        Team first = teams.findTeamById(firstId).orElseThrow();
+        Team second = teams.findTeamById(secondId).orElseThrow();
         assertEquals(firstId, first.getId());
         assertEquals(secondId, second.getId());
         assertEquals("HORTITEC ALZIRA TT", first.getName());
@@ -124,7 +124,7 @@ class ClubSeasonConsolidationProcessorTest {
         ClubConsolidationSummary conflict = processor.consolidate(ImportSource.FCTT);
         assertTrue(conflict.warnings().stream().anyMatch(warning -> warning.reason().contains("Conflicting")));
         assertEquals(clubsBeforeConflict, clubs.size());
-        assertEquals(left.getId(), clubSeasons.findAllClubSeasonsBySource(ImportSource.FCTT).stream()
+        assertEquals(left.getId(), teams.findAllTeamsBySource(ImportSource.FCTT).stream()
                 .filter(cs -> "CLUB NORD".equals(cs.getName()))
                 .findFirst().orElseThrow().getClub().orElseThrow().getId());
     }
@@ -151,7 +151,7 @@ class ClubSeasonConsolidationProcessorTest {
         assertEquals(0, summary.clubsCreated());
         assertEquals(0, summary.registrationsReassociated());
         assertEquals(1, summary.errors().size());
-        assertTrue(clubSeasons.findAllClubSeasonsBySource(ImportSource.RFETM).getFirst().getClub().isEmpty());
+        assertTrue(teams.findAllTeamsBySource(ImportSource.RFETM).getFirst().getClub().isEmpty());
     }
 
     @Test
@@ -164,7 +164,7 @@ class ClubSeasonConsolidationProcessorTest {
         assertEquals(1, report.clubsCreated());
         assertEquals(2, report.registrationsReassociated());
         assertEquals(0, clubs.size());
-        assertTrue(clubSeasons.findAllClubSeasonsBySource(ImportSource.FCTT).stream()
+        assertTrue(teams.findAllTeamsBySource(ImportSource.FCTT).stream()
                 .allMatch(cs -> cs.getClub().isEmpty()));
     }
 
@@ -251,13 +251,13 @@ class ClubSeasonConsolidationProcessorTest {
         assertEquals(names.length, consolidation.registrationIds().size());
     }
 
-    private ClubSeason saveSeason(ImportSource source, String name, Season season, Club club) {
-        ClubSeason created = ClubSeason.createNew(source, name, season, club);
-        clubSeasons.saveClubSeason(created);
+    private Team saveSeason(ImportSource source, String name, Season season, Club club) {
+        Team created = Team.createNew(source, name, season, club);
+        teams.saveTeam(created);
         return created;
     }
 
-    private UUID sameClub(UUID clubSeasonId) {
-        return clubSeasons.findClubSeasonById(clubSeasonId).orElseThrow().getClub().orElseThrow().getId();
+    private UUID sameClub(UUID teamId) {
+        return teams.findTeamById(teamId).orElseThrow().getClub().orElseThrow().getId();
     }
 }

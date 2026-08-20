@@ -33,7 +33,7 @@ Create a new processor that identifies and consolidates duplicate `PlayerSeason`
 
 # Architecture
 
-Take ClubSeasonConsolidationProcessor as a reference for the architecture of the PlayerSeasonConsolidationProcessor. 
+Take TeamConsolidationProcessor as a reference for the architecture of the PlayerSeasonConsolidationProcessor.
 The processor should be designed to efficiently handle large datasets and ensure that the consolidation process is performed in a timely manner.
 
 # Matching algorithm

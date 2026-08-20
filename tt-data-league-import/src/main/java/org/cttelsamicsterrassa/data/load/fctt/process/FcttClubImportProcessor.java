@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.load.fctt.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.ClubSeason;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.ActaTeam;
@@ -25,10 +25,10 @@ public class FcttClubImportProcessor implements FcttMatchReportProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FcttClubImportProcessor.class);
 
-    private final ClubSeasonRepository clubSeasonRepository;
+    private final TeamRepository teamRepository;
 
-    public FcttClubImportProcessor(ClubSeasonRepository clubSeasonRepository) {
-        this.clubSeasonRepository = clubSeasonRepository;
+    public FcttClubImportProcessor(TeamRepository teamRepository) {
+        this.teamRepository = teamRepository;
     }
 
     @Override
@@ -48,11 +48,11 @@ public class FcttClubImportProcessor implements FcttMatchReportProcessor {
             LOGGER.warn("Skipping FCTT team without a name in {}", context.matchReportFile());
             return;
         }
-        clubSeasonRepository.findClubSeasonByNameAndSeasonAndSource(team.name(), season, ImportSource.FCTT)
+        teamRepository.findTeamByNameAndSeasonAndSource(team.name(), season, ImportSource.FCTT)
                 .orElseGet(() -> {
-                    ClubSeason created = ClubSeason.createNew(ImportSource.FCTT, team.name(), season, null);
-                    clubSeasonRepository.saveClubSeason(created);
-                    LOGGER.debug("Created FCTT club season {} {}", team.name(), season);
+                    Team created = Team.createNew(ImportSource.FCTT, team.name(), season, null);
+                    teamRepository.saveTeam(created);
+                    LOGGER.debug("Created FCTT team {} {}", team.name(), season);
                     return created;
                 });
     }

@@ -2,7 +2,7 @@
 
 ## Goal
 
-Make source-scoped club consolidation consume `ClubSeason.name` values and
+Make source-scoped club consolidation consume `Team.name` values and
 produce one deterministic canonical `Club.name` without merging registrations
 or changing match and lineup references.
 
@@ -21,8 +21,8 @@ The canonical results must cover the ten examples in
 ## Safety constraints
 
 1. Consolidation is scoped by `ImportSource`; never match by unscoped name.
-2. Preserve every `ClubSeason` row and UUID.
-3. Update only `ClubSeason.club` using `ClubSeason.withClub`.
+2. Preserve every `Team` row and UUID.
+3. Update only `Team.club` using `Team.withClub`.
 4. Never retarget or rewrite `MATCH` or `LINEUP` foreign keys.
 5. RFETM automatic consolidation remains disabled until a key-aware policy
    distinguishes federation teams and competition registrations.
@@ -75,16 +75,16 @@ Choose the display name separately from matching. Rank candidates by:
 2. fewest removed qualifiers;
 3. expanded approved spellings and meaningful particles;
 4. frequency in the source inventory;
-5. earliest season, normalized lexical order, and ClubSeason UUID.
+5. earliest season, normalized lexical order, and Team UUID.
 
-Never modify `ClubSeason.name`. Rename an existing Club only when all
+Never modify `Team.name`. Rename an existing Club only when all
 registrations agree on the entity and the selected canonical name is
 unambiguous; otherwise report the conflict.
 
 ### Import integration
 
 Ensure RFETM, BCNESA, and FCTT import processors create source-scoped Clubs
-and linked ClubSeasons before dependent match, lineup, and player processors.
+and linked Teams before dependent match, lineup, and player processors.
 RFETM match resolution must use the same `ActaTeam.name()` used during club
 creation, falling back to `RfetmClubKey.name()` only when the payload has no
 usable team name.
@@ -104,7 +104,7 @@ letters embedded in meaningful club names.
    and matcher without persistence dependencies.
 3. Update consolidation grouping, canonical-name ranking, warnings, summaries,
    and deterministic/idempotent writes.
-4. Restore and verify source-scoped Club/ClubSeason import wiring and align
+4. Restore and verify source-scoped Club/Team import wiring and align
    RFETM match lookup with imported team names.
 5. Keep runtime flags opt-in and preserve report-mode write isolation.
 6. Add focused unit and integration tests for all ten examples, safety cases,

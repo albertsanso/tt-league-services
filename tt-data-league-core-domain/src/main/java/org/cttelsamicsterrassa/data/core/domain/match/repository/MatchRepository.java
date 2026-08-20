@@ -23,8 +23,8 @@ public interface MatchRepository {
                                           Season season,
                                           int groupNumber,
                                           int round,
-                                          UUID homeClubSeasonId,
-                                          UUID awayClubSeasonId);
+                                          UUID homeTeamId,
+                                          UUID awayTeamId);
 
     void saveMatch(Match match);
 }
