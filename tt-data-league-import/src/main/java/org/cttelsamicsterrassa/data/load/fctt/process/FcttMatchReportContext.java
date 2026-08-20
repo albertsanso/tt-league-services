@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.load.fctt.process;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 
 import java.nio.file.Path;
 import java.util.Objects;

@@ -21,7 +21,7 @@ import java.nio.file.Path;
  *
  * <pre>
  * --source=rfetm|bcnesa|fctt which export to read (optional; defaults to rfetm)
- * --base-folder=&lt;path&gt;      root of the actas-json export (required)
+ * --actas-folder=&lt;path&gt;      root of the actas-json export (required)
  * --season=&lt;YYYY-YYYY&gt;      import a single season (optional; all seasons when omitted)
  * --consolidate-clubs       after a successful traversal, repair source-scoped club associations
  * --consolidate-clubs=report
@@ -45,7 +45,7 @@ public class App implements CommandLineRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
 
     private static final String SOURCE_ARGUMENT = "--source=";
-    private static final String BASE_FOLDER_ARGUMENT = "--base-folder=";
+    private static final String ACTAS_FOLDER_ARGUMENT = "--actas-folder=";
     private static final String SOURCE_RFETM = "rfetm";
     private static final String SOURCE_BCNESA = "bcnesa";
     private static final String SOURCE_FCTT = "fctt";
@@ -75,30 +75,30 @@ public class App implements CommandLineRunner {
         ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(args);
         String source = arguments.source();
 
-        String baseFolder = arguments.baseFolder();
-        if (baseFolder == null) {
-            LOGGER.error("Missing required argument {}<path>", BASE_FOLDER_ARGUMENT);
-            LOGGER.error("Usage: --source=rfetm|bcnesa|fctt --base-folder=<path> [--season=<YYYY-YYYY>] [--consolidate-clubs[=report]] [--consolidate-players[=report]]");
-            throw new IllegalArgumentException("Missing required argument " + BASE_FOLDER_ARGUMENT + "<path>");
+        String actasFolder = arguments.actasFolder();
+        if (actasFolder == null) {
+            LOGGER.error("Missing required argument {}<path>", ACTAS_FOLDER_ARGUMENT);
+            LOGGER.error("Usage: --source=rfetm|bcnesa|fctt --actas-folder=<path> [--season=<YYYY-YYYY>] [--consolidate-clubs[=report]] [--consolidate-players[=report]]");
+            throw new IllegalArgumentException("Missing required argument " + ACTAS_FOLDER_ARGUMENT + "<path>");
         }
 
         String season = arguments.optionalSeason().orElse(null);
-        Path base = Path.of(baseFolder);
+        Path actasFolderPath = Path.of(actasFolder);
         ImportSource importSource;
 
         switch (source) {
             case SOURCE_RFETM -> {
-                var summary = season == null ? rfetmNavigator.traverse(base) : rfetmNavigator.traverseSeason(base, season);
+                var summary = season == null ? rfetmNavigator.traverse(actasFolderPath) : rfetmNavigator.traverseSeason(actasFolderPath, season);
                 LOGGER.info("RFETM import finished: {}", summary);
                 importSource = ImportSource.RFETM;
             }
             case SOURCE_BCNESA -> {
-                var summary = season == null ? bcnesaNavigator.traverse(base) : bcnesaNavigator.traverseSeason(base, season);
+                var summary = season == null ? bcnesaNavigator.traverse(actasFolderPath) : bcnesaNavigator.traverseSeason(actasFolderPath, season);
                 LOGGER.info("BCNESA import finished: {}", summary);
                 importSource = ImportSource.BCNESA;
             }
             case SOURCE_FCTT -> {
-                var summary = season == null ? fcttNavigator.traverse(base) : fcttNavigator.traverseSeason(base, season);
+                var summary = season == null ? fcttNavigator.traverse(actasFolderPath) : fcttNavigator.traverseSeason(actasFolderPath, season);
                 LOGGER.info("FCTT import finished: {}", summary);
                 importSource = ImportSource.FCTT;
             }

@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.load.traverse;
 
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaClubIndex;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParser;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

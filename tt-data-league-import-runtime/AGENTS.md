@@ -26,7 +26,7 @@ The module README is the operational reference for setup and launch examples:
 - Use Java 21 and UTF-8.
 - Supported sources are `rfetm`, `bcnesa`, and `fctt`; the default source is
   `rfetm`.
-- `--base-folder=<path>` is required. Fail clearly when it is missing or
+- `--actas-folder=<path>` is required. Fail clearly when it is missing or
   invalid; do not silently select another folder or source.
 - `--season=<YYYY-YYYY>` limits traversal to one season. Without it, traverse
   all available seasons.

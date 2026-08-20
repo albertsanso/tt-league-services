@@ -1,4 +1,6 @@
-package org.cttelsamicsterrassa.data.load.shared.process;
+package org.cttelsamicsterrassa.data.load.rfetm.process;
+
+import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
 
 /**
  * Processes one match report.

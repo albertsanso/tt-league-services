@@ -2,9 +2,9 @@ package org.cttelsamicsterrassa.data.load.fctt.traverse;
 
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportContext;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportProcessor;
-import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParseException;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParser;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParseException;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

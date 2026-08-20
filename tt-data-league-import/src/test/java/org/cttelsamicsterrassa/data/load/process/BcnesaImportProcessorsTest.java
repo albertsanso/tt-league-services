@@ -11,9 +11,9 @@ import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchImportProcess
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportContext;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaPlayerImportProcessor;
-import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaGame;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParser;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

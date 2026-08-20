@@ -1,4 +1,4 @@
-package org.cttelsamicsterrassa.data.load.shared.parse;
+package org.cttelsamicsterrassa.data.load.shared.parse.acta;
 
 import java.nio.file.Path;
 

@@ -12,10 +12,10 @@ class ImportRuntimeArgumentsTest {
     @Test
     void doesNotRequestConsolidationByDefault() {
         ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
-                "--source=fctt", "--base-folder=C:\\data", "--season=2023-2024");
+                "--source=fctt", "--actas-folder=C:\\data", "--season=2023-2024");
 
         assertEquals("fctt", arguments.source());
-        assertEquals("C:\\data", arguments.baseFolder());
+        assertEquals("C:\\data", arguments.actasFolder());
         assertEquals("2023-2024", arguments.optionalSeason().orElseThrow());
         assertFalse(arguments.consolidateClubs());
         assertEquals(ConsolidationMode.WRITE, arguments.consolidationMode());
@@ -24,7 +24,7 @@ class ImportRuntimeArgumentsTest {
     @Test
     void enablesWriteConsolidationOnlyWhenTheFlagIsPresent() {
         ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
-                "--source=bcnesa", "--base-folder=C:\\data", "--consolidate-clubs");
+                "--source=bcnesa", "--actas-folder=C:\\data", "--consolidate-clubs");
 
         assertTrue(arguments.consolidateClubs());
         assertEquals(ConsolidationMode.WRITE, arguments.consolidationMode());
@@ -33,7 +33,7 @@ class ImportRuntimeArgumentsTest {
     @Test
     void enablesADryRunReportWithoutWrites() {
         ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
-                "--base-folder=C:\\data", "--consolidate-clubs=report");
+                "--actas-folder=C:\\data", "--consolidate-clubs=report");
 
         assertTrue(arguments.consolidateClubs());
         assertEquals(ConsolidationMode.REPORT, arguments.consolidationMode());
@@ -43,7 +43,7 @@ class ImportRuntimeArgumentsTest {
     @Test
     void enablesPlayerConsolidationIndependently() {
         ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
-                "--base-folder=C:\\data", "--consolidate-players=report");
+                "--actas-folder=C:\\data", "--consolidate-players=report");
 
         assertTrue(arguments.consolidatePlayers());
         assertEquals(ConsolidationMode.REPORT, arguments.playerConsolidationMode());

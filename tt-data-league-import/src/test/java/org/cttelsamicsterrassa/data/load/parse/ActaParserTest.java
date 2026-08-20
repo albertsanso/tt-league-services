@@ -1,9 +1,9 @@
 package org.cttelsamicsterrassa.data.load.parse;
 
-import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaGame;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParseException;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParser;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParseException;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 

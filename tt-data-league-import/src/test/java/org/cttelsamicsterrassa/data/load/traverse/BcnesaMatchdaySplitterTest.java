@@ -2,12 +2,12 @@ package org.cttelsamicsterrassa.data.load.traverse;
 
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaClubIndex;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaMatchdaySplitter;
-import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaGame;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaLineups;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParticipant;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaTeam;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaTeams;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineups;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParticipant;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeam;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeams;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;

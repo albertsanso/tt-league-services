@@ -5,9 +5,9 @@ import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerReposito
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaGame;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaLineupPlayer;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParticipant;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParticipant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;

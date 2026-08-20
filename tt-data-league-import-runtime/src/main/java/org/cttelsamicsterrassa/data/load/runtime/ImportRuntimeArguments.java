@@ -10,7 +10,7 @@ import java.util.Optional;
  */
 public record ImportRuntimeArguments(
         String source,
-        String baseFolder,
+        String actasFolder,
         String season,
         boolean consolidateClubs,
         ConsolidationMode consolidationMode,
@@ -18,16 +18,16 @@ public record ImportRuntimeArguments(
         ConsolidationMode playerConsolidationMode
 ) {
     private static final String SOURCE_ARGUMENT = "--source=";
-    private static final String BASE_FOLDER_ARGUMENT = "--base-folder=";
+    private static final String ACTAS_FOLDER_ARGUMENT = "--actas-folder=";
     private static final String SEASON_ARGUMENT = "--season=";
     private static final String CONSOLIDATE_CLUBS_FLAG = "--consolidate-clubs";
     private static final String CONSOLIDATE_CLUBS_ARGUMENT = "--consolidate-clubs=";
     private static final String CONSOLIDATE_PLAYERS_FLAG = "--consolidate-players";
     private static final String CONSOLIDATE_PLAYERS_ARGUMENT = "--consolidate-players=";
 
-    public ImportRuntimeArguments(String source, String baseFolder, String season,
+    public ImportRuntimeArguments(String source, String actasFolder, String season,
                                   boolean consolidateClubs, ConsolidationMode consolidationMode) {
-        this(source, baseFolder, season, consolidateClubs, consolidationMode, false, ConsolidationMode.WRITE);
+        this(source, actasFolder, season, consolidateClubs, consolidationMode, false, ConsolidationMode.WRITE);
     }
 
     public static ImportRuntimeArguments parse(String... args) {
@@ -64,7 +64,7 @@ public record ImportRuntimeArguments(
         }
         return new ImportRuntimeArguments(
                 source,
-                valueOf(args, BASE_FOLDER_ARGUMENT),
+                valueOf(args, ACTAS_FOLDER_ARGUMENT),
                 valueOf(args, SEASON_ARGUMENT),
                 consolidate,
                 mode,

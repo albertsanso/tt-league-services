@@ -1,4 +1,4 @@
-package org.cttelsamicsterrassa.data.load.shared.parse;
+package org.cttelsamicsterrassa.data.load.shared.parse.acta;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;

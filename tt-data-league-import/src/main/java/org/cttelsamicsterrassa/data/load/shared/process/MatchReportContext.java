@@ -1,7 +1,8 @@
 package org.cttelsamicsterrassa.data.load.shared.process;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
+import org.cttelsamicsterrassa.data.load.rfetm.process.MatchReportProcessor;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubKey;
 
 import java.nio.file.Path;

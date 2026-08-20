@@ -2,9 +2,9 @@ package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaMatchdaySplitter;
-import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaGame;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaScore;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaScore;
 
 import java.nio.file.Path;
 import java.util.List;

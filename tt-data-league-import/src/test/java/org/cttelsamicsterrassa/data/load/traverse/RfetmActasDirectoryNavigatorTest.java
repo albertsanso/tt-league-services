@@ -1,9 +1,9 @@
 package org.cttelsamicsterrassa.data.load.traverse;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParser;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
-import org.cttelsamicsterrassa.data.load.shared.process.MatchReportProcessor;
+import org.cttelsamicsterrassa.data.load.rfetm.process.MatchReportProcessor;
 import org.cttelsamicsterrassa.data.load.rfetm.traverse.RfetmActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
 import org.junit.jupiter.api.BeforeEach;

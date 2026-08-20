@@ -75,16 +75,16 @@ mvn test
 
 The application is launched with `--key=value` parameters:
 
-| Parameter | Required | Values / behavior |
-| --- | --- | --- |
-| `--source=<source>` | No | `rfetm`, `bcnesa`, or `fctt`; defaults to `rfetm`. |
-| `--base-folder=<path>` | Yes | Root directory containing the source `actas-json` export. |
-| `--season=<YYYY-YYYY>` | No | Imports only the specified season. When omitted, imports all available seasons. |
-| `--consolidate-clubs` | No | Runs club consolidation in write mode after import. |
-| `--consolidate-clubs=write` | No | Explicitly runs club consolidation in write mode. |
-| `--consolidate-clubs=report` | No | Runs the same club matching path without saving changes. |
-| `--consolidate-players` | No | Runs player consolidation in write mode after import. |
-| `--consolidate-players=write` | No | Explicitly runs player consolidation in write mode. |
+| Parameter                      | Required | Values / behavior |
+|--------------------------------| --- | --- |
+| `--source=<source>`            | No | `rfetm`, `bcnesa`, or `fctt`; defaults to `rfetm`. |
+| `--actas-folder=<path>`        | Yes | Root directory containing the source `actas-json` export. |
+| `--season=<YYYY-YYYY>`         | No | Imports only the specified season. When omitted, imports all available seasons. |
+| `--consolidate-clubs`          | No | Runs club consolidation in write mode after import. |
+| `--consolidate-clubs=write`    | No | Explicitly runs club consolidation in write mode. |
+| `--consolidate-clubs=report`   | No | Runs the same club matching path without saving changes. |
+| `--consolidate-players`        | No | Runs player consolidation in write mode after import. |
+| `--consolidate-players=write`  | No | Explicitly runs player consolidation in write mode. |
 | `--consolidate-players=report` | No | Runs the same player matching path without saving changes. |
 
 The source value is case-insensitive. Consolidation flags are opt-in and can
@@ -101,7 +101,7 @@ Imports every available season for FCTT without running consolidation:
 ```powershell
 java -jar tt-data-league-import-runtime\target\tt-data-league-import-runtime-0.0.1-SNAPSHOT.jar `
   --source=fctt `
-  --base-folder=C:\data\fctt
+  --actas-folder=C:\data\fctt
 ```
 
 ### Import one season
@@ -111,7 +111,7 @@ Imports only the selected season:
 ```powershell
 java -jar tt-data-league-import-runtime\target\tt-data-league-import-runtime-0.0.1-SNAPSHOT.jar `
   --source=bcnesa `
-  --base-folder=C:\data\bcnesa `
+  --actas-folder=C:\data\bcnesa `
   --season=2023-2024
 ```
 
@@ -123,7 +123,7 @@ team inventory and persists canonical club associations:
 ```powershell
 java -jar tt-data-league-import-runtime\target\tt-data-league-import-runtime-0.0.1-SNAPSHOT.jar `
   --source=fctt `
-  --base-folder=C:\data\fctt `
+  --actas-folder=C:\data\fctt `
   --consolidate-clubs
 ```
 
@@ -139,7 +139,7 @@ or reassociating database records:
 ```powershell
 java -jar tt-data-league-import-runtime\target\tt-data-league-import-runtime-0.0.1-SNAPSHOT.jar `
   --source=bcnesa `
-  --base-folder=C:\data\bcnesa `
+  --actas-folder=C:\data\bcnesa `
   --consolidate-clubs=report
 ```
 
@@ -153,7 +153,7 @@ Runs club consolidation first and player consolidation second:
 ```powershell
 java -jar tt-data-league-import-runtime\target\tt-data-league-import-runtime-0.0.1-SNAPSHOT.jar `
   --source=fctt `
-  --base-folder=C:\data\fctt `
+  --actas-folder=C:\data\fctt `
   --consolidate-clubs=write `
   --consolidate-players=write
 ```
@@ -165,7 +165,7 @@ Club and player consolidation modes are independent:
 ```powershell
 java -jar tt-data-league-import-runtime\target\tt-data-league-import-runtime-0.0.1-SNAPSHOT.jar `
   --source=rfetm `
-  --base-folder=C:\data\rfetm `
+  --actas-folder=C:\data\rfetm `
   --consolidate-clubs=report `
   --consolidate-players=report
 ```
@@ -180,7 +180,7 @@ The runtime:
 4. Runs requested player consolidation after club consolidation.
 5. Logs the import and consolidation summaries.
 
-The required `--base-folder` argument, unknown sources, invalid consolidation
+The required `--actas-folder` argument, unknown sources, invalid consolidation
 modes, and traversal failures stop the run with an error. Consolidation is not
 run after an unsuccessful source traversal.
 

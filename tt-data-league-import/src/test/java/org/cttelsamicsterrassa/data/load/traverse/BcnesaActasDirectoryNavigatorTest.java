@@ -3,7 +3,7 @@ package org.cttelsamicsterrassa.data.load.traverse;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaTraversalSummary;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParser;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportContext;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
 import org.junit.jupiter.api.BeforeEach;

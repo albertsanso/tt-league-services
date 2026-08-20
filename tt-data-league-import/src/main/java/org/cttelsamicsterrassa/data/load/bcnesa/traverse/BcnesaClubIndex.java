@@ -1,11 +1,11 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.traverse;
 
-import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaLineupPlayer;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaLineups;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParseException;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParser;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaTeams;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineups;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParseException;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeams;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

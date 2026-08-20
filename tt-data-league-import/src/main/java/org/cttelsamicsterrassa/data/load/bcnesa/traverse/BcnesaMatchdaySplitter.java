@@ -1,10 +1,10 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.traverse;
 
-import org.cttelsamicsterrassa.data.load.shared.parse.Acta;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaGame;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaParticipant;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaTeam;
-import org.cttelsamicsterrassa.data.load.shared.parse.ActaTeams;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParticipant;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeam;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeams;
 
 import java.util.ArrayList;
 import java.util.List;
