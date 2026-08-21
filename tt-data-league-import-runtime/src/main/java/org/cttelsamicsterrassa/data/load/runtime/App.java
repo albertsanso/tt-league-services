@@ -8,28 +8,22 @@ import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidati
 import org.cttelsamicsterrassa.data.load.shared.player.consolidate.PlayerConsolidationSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
+import java.io.IOException;
 import java.nio.file.Path;
+import java.util.Map;
 
 /**
  * Entry point of the league import.
  *
- * <pre>
- * --source=rfetm|bcnesa|fctt which export to read (optional; defaults to rfetm)
- * --actas-folder=&lt;path&gt;      root of the actas-json export (required)
- * --season=&lt;YYYY-YYYY&gt;      import a single season (optional; all seasons when omitted)
- * --consolidate-clubs       after a successful traversal, repair source-scoped club associations
- * --consolidate-clubs=report
- *                           same matching path with no writes
- * --consolidate-players    after a successful traversal, repair source-scoped player associations
- * --consolidate-players=report
- *                           same player matching path with no writes
- * </pre>
+ * <p>Command-line options are defined by {@link ImportRuntimeCliContract} and
+ * documented in the runtime README.</p>
  *
  * <p>This module only wires and sequences: parsing lives in the parser, mapping in the processors,
  * and the walk in the navigator for the selected source. Club consolidation is opt-in and runs once
@@ -44,26 +38,42 @@ public class App implements CommandLineRunner {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
 
-    private static final String SOURCE_ARGUMENT = "--source=";
-    private static final String ACTAS_FOLDER_ARGUMENT = "--actas-folder=";
-    private static final String SOURCE_RFETM = "rfetm";
-    private static final String SOURCE_BCNESA = "bcnesa";
-    private static final String SOURCE_FCTT = "fctt";
-
-    private final RfetmActasDirectoryNavigator rfetmNavigator;
-    private final BcnesaActasDirectoryNavigator bcnesaNavigator;
-    private final FcttActasDirectoryNavigator fcttNavigator;
     private final ClubConsolidationRunner clubConsolidationRunner;
     private final PlayerConsolidationRunner playerConsolidationRunner;
+    private final Map<String, SourceDefinition> sourceDefinitions;
+    private final RfetmClubConsolidationRunner rfetmClubConsolidationRunner;
 
     public App(RfetmActasDirectoryNavigator rfetmNavigator, BcnesaActasDirectoryNavigator bcnesaNavigator,
                FcttActasDirectoryNavigator fcttNavigator, ClubConsolidationRunner clubConsolidationRunner,
                PlayerConsolidationRunner playerConsolidationRunner) {
-        this.rfetmNavigator = rfetmNavigator;
-        this.bcnesaNavigator = bcnesaNavigator;
-        this.fcttNavigator = fcttNavigator;
+        this(rfetmNavigator, bcnesaNavigator, fcttNavigator, clubConsolidationRunner,
+                playerConsolidationRunner, null);
+    }
+
+    @Autowired
+    public App(RfetmActasDirectoryNavigator rfetmNavigator, BcnesaActasDirectoryNavigator bcnesaNavigator,
+               FcttActasDirectoryNavigator fcttNavigator, ClubConsolidationRunner clubConsolidationRunner,
+               PlayerConsolidationRunner playerConsolidationRunner,
+               RfetmClubConsolidationRunner rfetmClubConsolidationRunner) {
         this.clubConsolidationRunner = clubConsolidationRunner;
         this.playerConsolidationRunner = playerConsolidationRunner;
+        this.rfetmClubConsolidationRunner = rfetmClubConsolidationRunner;
+        this.sourceDefinitions = Map.of(
+                ImportRuntimeCliContract.SOURCE_RFETM,
+                new SourceDefinition(ImportSource.RFETM,
+                        (path, season) -> season == null
+                                ? rfetmNavigator.traverse(path)
+                                : rfetmNavigator.traverseSeason(path, season)),
+                ImportRuntimeCliContract.SOURCE_BCNESA,
+                new SourceDefinition(ImportSource.BCNESA,
+                        (path, season) -> season == null
+                                ? bcnesaNavigator.traverse(path)
+                                : bcnesaNavigator.traverseSeason(path, season)),
+                ImportRuntimeCliContract.SOURCE_FCTT,
+                new SourceDefinition(ImportSource.FCTT,
+                        (path, season) -> season == null
+                                ? fcttNavigator.traverse(path)
+                                : fcttNavigator.traverseSeason(path, season)));
     }
 
     public static void main(String[] args) {
@@ -77,37 +87,15 @@ public class App implements CommandLineRunner {
 
         String actasFolder = arguments.actasFolder();
         if (actasFolder == null) {
-            LOGGER.error("Missing required argument {}<path>", ACTAS_FOLDER_ARGUMENT);
-            LOGGER.error("Usage: --source=rfetm|bcnesa|fctt --actas-folder=<path> [--season=<YYYY-YYYY>] [--consolidate-clubs[=report]] [--consolidate-players[=report]]");
-            throw new IllegalArgumentException("Missing required argument " + ACTAS_FOLDER_ARGUMENT + "<path>");
+            LOGGER.error("Missing required argument {}<path>", ImportRuntimeCliContract.ACTAS_FOLDER_ARGUMENT);
+            LOGGER.error("Usage: {}", ImportRuntimeCliContract.usage());
+            throw new IllegalArgumentException("Missing required argument "
+                    + ImportRuntimeCliContract.ACTAS_FOLDER_ARGUMENT + "<path>");
         }
 
         String season = arguments.optionalSeason().orElse(null);
         Path actasFolderPath = Path.of(actasFolder);
-        ImportSource importSource;
-
-        switch (source) {
-            case SOURCE_RFETM -> {
-                var summary = season == null ? rfetmNavigator.traverse(actasFolderPath) : rfetmNavigator.traverseSeason(actasFolderPath, season);
-                LOGGER.info("RFETM import finished: {}", summary);
-                importSource = ImportSource.RFETM;
-            }
-            case SOURCE_BCNESA -> {
-                var summary = season == null ? bcnesaNavigator.traverse(actasFolderPath) : bcnesaNavigator.traverseSeason(actasFolderPath, season);
-                LOGGER.info("BCNESA import finished: {}", summary);
-                importSource = ImportSource.BCNESA;
-            }
-            case SOURCE_FCTT -> {
-                var summary = season == null ? fcttNavigator.traverse(actasFolderPath) : fcttNavigator.traverseSeason(actasFolderPath, season);
-                LOGGER.info("FCTT import finished: {}", summary);
-                importSource = ImportSource.FCTT;
-            }
-            default -> {
-                LOGGER.error("Unknown {}{}; expected \"{}\", \"{}\", or \"{}\"",
-                        SOURCE_ARGUMENT, source, SOURCE_RFETM, SOURCE_BCNESA, SOURCE_FCTT);
-                throw new IllegalArgumentException("Unknown source: " + source);
-            }
-        }
+        ImportSource importSource = traverseSelectedSource(source, actasFolderPath, season);
 
         if (arguments.consolidateClubs()) {
             ClubConsolidationSummary consolidation = clubConsolidationRunner.run(importSource, arguments.consolidationMode());
@@ -117,5 +105,36 @@ public class App implements CommandLineRunner {
             PlayerConsolidationSummary consolidation = playerConsolidationRunner.run(importSource, arguments.playerConsolidationMode());
             LOGGER.info("Player consolidation finished: {}", consolidation);
         }
+        if (arguments.consolidateRfetmClubs()) {
+            String rfetmTeamsFolder = arguments.rfetmTeamsFolder();
+            Path teamsFolderPath = Path.of(rfetmTeamsFolder);
+            ClubConsolidationSummary consolidation = rfetmClubConsolidationRunner.run(
+                    teamsFolderPath, season, arguments.rfetmClubConsolidationMode());
+            LOGGER.info("RFETM club consolidation finished: {}", consolidation);
+        }
+    }
+
+    private ImportSource traverseSelectedSource(String source, Path actasFolderPath, String season)
+            throws IOException {
+        SourceDefinition definition = sourceDefinitions.get(source);
+        if (definition == null) {
+            LOGGER.error("Unknown {}{}; expected {}",
+                    ImportRuntimeCliContract.SOURCE_ARGUMENT,
+                    source,
+                    ImportRuntimeCliContract.supportedSourcesForMessage());
+            throw new IllegalArgumentException("Unknown source: " + source);
+        }
+
+        Object summary = definition.traversal().traverse(actasFolderPath, season);
+        LOGGER.info("{} import finished: {}", definition.source().name(), summary);
+        return definition.source();
+    }
+
+    @FunctionalInterface
+    private interface SourceTraversal {
+        Object traverse(Path path, String season) throws IOException;
+    }
+
+    private record SourceDefinition(ImportSource source, SourceTraversal traversal) {
     }
 }

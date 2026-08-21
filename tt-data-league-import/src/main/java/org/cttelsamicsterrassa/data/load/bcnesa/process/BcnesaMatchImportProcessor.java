@@ -39,7 +39,7 @@ import java.util.UUID;
  * Stores the match aggregate of one BCNESA fixture: the match itself, its lineups, its games and the
  * members of each doubles pair.
  *
- * <p>Runs after {@link BcnesaClubImportProcessor} and {@link BcnesaPlayerImportProcessor}, whose rows
+ * <p>Runs after {@link BcnesaTeamImportProcessor} and {@link BcnesaPlayerImportProcessor}, whose rows
  * it looks up rather than creates. It is idempotent through the match natural key: if the fixture is
  * already stored, the report is left alone, so re-running a season neither duplicates nor rewrites.</p>
  *
@@ -371,9 +371,9 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         }
     }
 
-    private Optional<Team> resolveTeam(String rawClubName, Season season,
+    private Optional<Team> resolveTeam(String rawTeamName, Season season,
                                                     BcnesaMatchReportContext context) {
-        String name = BcnesaClubNames.normalize(rawClubName);
+        String name = BcnesaTeamNames.normalize(rawTeamName);
         if (name == null) {
             return Optional.empty();
         }

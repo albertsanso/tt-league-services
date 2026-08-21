@@ -29,7 +29,7 @@ import java.util.stream.Stream;
  */
 @Component
 @Order(RfetmPlayerImportProcessor.ORDER)
-public class RfetmPlayerImportProcessor implements MatchReportProcessor {
+public class RfetmPlayerImportProcessor implements MatchContextProcessor {
 
     /** Players come after clubs and before matches, which reference both. */
     public static final int ORDER = 20;

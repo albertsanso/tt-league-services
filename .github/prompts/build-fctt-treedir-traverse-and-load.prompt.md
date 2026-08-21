@@ -36,7 +36,7 @@ The list of components that process the information must be a parameter for the 
 FCTT JSON reports are persisted by three Spring-discovered, source-specific processors in
 `org.cttelsamicsterrassa.data.load.fctt.process`:
 
-1. `FcttClubImportProcessor` (`@Order(10)`) stores source-scoped clubs and team registrations.
+1. `FcttTeamImportProcessor` (`@Order(10)`) stores source-scoped clubs and team registrations.
 2. `FcttPlayerImportProcessor` (`@Order(20)`) stores source-scoped players and player-season
    registrations from lineups and doubles participants.
 3. `FcttMatchImportProcessor` (`@Order(30)`) stores idempotent matches, lineups, games, set scores,

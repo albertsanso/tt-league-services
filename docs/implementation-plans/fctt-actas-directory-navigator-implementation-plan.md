@@ -95,12 +95,12 @@ parsed report payload
 
 The context should validate required path values and file path, expose `toSeason()` through the existing domain `Season` factory, and expose the competition identity derived from the authoritative directory context. Team, player, and any source-system identifiers must come from the parsed payload and be scoped by FCTT, season, competition, and group where required.
 
-Do not reuse `shared.process.MatchReportContext` or `MatchReportProcessor`: they currently encode the RFETM day/sex hierarchy and `RfetmClubKey`. FCTT needs its own processor contract and context to avoid coupling FCTT imports to RFETM identity rules.
+Do not reuse `shared.process.MatchReportContext` or `MatchContextProcessor`: they currently encode the RFETM day/sex hierarchy and `RfetmClubKey`. FCTT needs its own processor contract and context to avoid coupling FCTT imports to RFETM identity rules.
 
 Concrete FCTT persistence processors are implemented as stateless, idempotent Spring beans using
 domain repository ports:
 
-1. `FcttClubImportProcessor` is `@Order(10)` and stores FCTT-scoped clubs plus team
+1. `FcttTeamImportProcessor` is `@Order(10)` and stores FCTT-scoped clubs plus team
    registrations from payload teams.
 2. `FcttPlayerImportProcessor` is `@Order(20)` and stores FCTT-scoped players plus player-season
    registrations from lineups and doubles participants.

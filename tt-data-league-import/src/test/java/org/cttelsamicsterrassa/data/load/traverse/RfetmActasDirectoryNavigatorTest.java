@@ -3,7 +3,7 @@ package org.cttelsamicsterrassa.data.load.traverse;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
-import org.cttelsamicsterrassa.data.load.rfetm.process.MatchReportProcessor;
+import org.cttelsamicsterrassa.data.load.rfetm.process.MatchContextProcessor;
 import org.cttelsamicsterrassa.data.load.rfetm.traverse.RfetmActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
 import org.junit.jupiter.api.BeforeEach;
@@ -174,7 +174,7 @@ class RfetmActasDirectoryNavigatorTest {
     void oneFailingProcessorNeitherStopsTheRunNorBlocksItsPeers() throws IOException {
         writeReport("2023-2024", "super-divisio", "1", "masculino", "acta.json", acta("1", "2"));
         writeReport("2023-2024", "super-divisio", "2", "masculino", "acta.json", acta("3", "4"));
-        MatchReportProcessor failing = context -> {
+        MatchContextProcessor failing = context -> {
             throw new IllegalStateException("boom");
         };
         RecordingProcessor peer = new RecordingProcessor();
@@ -214,7 +214,7 @@ class RfetmActasDirectoryNavigatorTest {
         assertThrows(IOException.class, () -> navigatorWith(injected).traverse(missing));
     }
 
-    private RfetmActasDirectoryNavigator navigatorWith(MatchReportProcessor... processors) {
+    private RfetmActasDirectoryNavigator navigatorWith(MatchContextProcessor... processors) {
         return new RfetmActasDirectoryNavigator(List.of(processors), new ActaParser());
     }
 
@@ -278,7 +278,7 @@ class RfetmActasDirectoryNavigatorTest {
         return value == null ? "null" : "\"" + value + "\"";
     }
 
-    private static final class RecordingProcessor implements MatchReportProcessor {
+    private static final class RecordingProcessor implements MatchContextProcessor {
 
         private final List<MatchReportContext> contexts = new ArrayList<>();
 

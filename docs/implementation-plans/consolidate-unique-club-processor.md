@@ -79,7 +79,7 @@ Create the feature in a source-neutral package under
   abbreviation registry. Keep the registry source-aware and include only
   abbreviations demonstrated by fixtures; do not introduce generic
   football-club expansion rules for table-tennis data.
-- `TeamConsolidationProcessor`: constructor-injected `ClubRepository`
+- `TeamToClubConsolidationProcessor`: constructor-injected `ClubRepository`
   and `TeamRepository`; exposes
   `consolidate(ImportSource source)` and returns a
   `ClubConsolidationSummary`.
@@ -173,7 +173,7 @@ performing no saves.
 ### Import module unit tests
 
 Add focused JUnit 5 tests for `ClubNameNormalizer`, `ClubNameMatcher`, and
-`TeamConsolidationProcessor`, updating `InMemoryRepositories` to honor
+`TeamToClubConsolidationProcessor`, updating `InMemoryRepositories` to honor
 the new source-scoped inventory and existing exact lookup contracts.
 
 Cover:

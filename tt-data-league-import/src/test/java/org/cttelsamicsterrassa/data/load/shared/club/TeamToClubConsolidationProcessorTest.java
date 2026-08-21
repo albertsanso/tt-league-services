@@ -6,7 +6,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.process.InMemoryRepositories;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidationSummary;
-import org.cttelsamicsterrassa.data.load.shared.club.consolidate.TeamConsolidationProcessor;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.TeamToClubConsolidationProcessor;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidatedClub;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.junit.jupiter.api.BeforeEach;
@@ -17,17 +17,17 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class TeamConsolidationProcessorTest {
+class TeamToClubConsolidationProcessorTest {
 
     private InMemoryRepositories.Clubs clubs;
     private InMemoryRepositories.Teams teams;
-    private TeamConsolidationProcessor processor;
+    private TeamToClubConsolidationProcessor processor;
 
     @BeforeEach
     void setUp() {
         clubs = new InMemoryRepositories.Clubs();
         teams = new InMemoryRepositories.Teams();
-        processor = new TeamConsolidationProcessor(clubs, teams);
+        processor = new TeamToClubConsolidationProcessor(clubs, teams);
     }
 
     @Test

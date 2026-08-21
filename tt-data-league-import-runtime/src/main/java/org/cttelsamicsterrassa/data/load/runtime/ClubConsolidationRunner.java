@@ -2,7 +2,7 @@ package org.cttelsamicsterrassa.data.load.runtime;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidationSummary;
-import org.cttelsamicsterrassa.data.load.shared.club.consolidate.TeamConsolidationProcessor;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.TeamToClubConsolidationProcessor;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -10,9 +10,9 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class ClubConsolidationRunner {
 
-    private final TeamConsolidationProcessor processor;
+    private final TeamToClubConsolidationProcessor processor;
 
-    public ClubConsolidationRunner(TeamConsolidationProcessor processor) {
+    public ClubConsolidationRunner(TeamToClubConsolidationProcessor processor) {
         this.processor = processor;
     }
 

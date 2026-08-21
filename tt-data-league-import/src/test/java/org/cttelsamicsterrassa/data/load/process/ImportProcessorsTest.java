@@ -7,7 +7,7 @@ import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubImportProcessor;
+import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmTeamImportProcessor;
 import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubKey;
 import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmMatchImportProcessor;
 import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmPlayerImportProcessor;
@@ -17,7 +17,7 @@ import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParticipant;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
-import org.cttelsamicsterrassa.data.load.rfetm.process.MatchReportProcessor;
+import org.cttelsamicsterrassa.data.load.rfetm.process.MatchContextProcessor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -46,7 +46,7 @@ class ImportProcessorsTest {
     private InMemoryRepositories.SetScores setScores;
     private InMemoryRepositories.DoublesPairs doublesPairs;
 
-    private List<MatchReportProcessor> processors;
+    private List<MatchContextProcessor> processors;
 
     @BeforeEach
     void setUp() {
@@ -61,7 +61,7 @@ class ImportProcessorsTest {
         doublesPairs = new InMemoryRepositories.DoublesPairs();
 
         processors = List.of(
-                new RfetmClubImportProcessor(teams),
+                new RfetmTeamImportProcessor(teams),
                 new RfetmPlayerImportProcessor(players, playerSeasons),
                 new RfetmMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         setScores, doublesPairs));

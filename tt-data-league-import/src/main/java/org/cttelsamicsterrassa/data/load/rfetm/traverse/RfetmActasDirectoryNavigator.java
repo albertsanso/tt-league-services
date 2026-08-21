@@ -7,7 +7,7 @@ import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeam;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeams;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
-import org.cttelsamicsterrassa.data.load.rfetm.process.MatchReportProcessor;
+import org.cttelsamicsterrassa.data.load.rfetm.process.MatchContextProcessor;
 import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
 
 /**
  * Walks an RFETM {@code actas-json} export and hands one {@link MatchReportContext} per match report
- * to a list of {@link MatchReportProcessor}s.
+ * to a list of {@link MatchContextProcessor}s.
  *
  * <p>The expected layout is</p>
  *
@@ -66,10 +66,10 @@ public class RfetmActasDirectoryNavigator {
     private static final Pattern DAY_FOLDER_PATTERN = Pattern.compile("\\d+");
     private static final Set<String> SEX_FOLDERS = Set.of("masculino", "femenino");
 
-    private final List<MatchReportProcessor> processors;
+    private final List<MatchContextProcessor> processors;
     private final ActaParser actaParser;
 
-    public RfetmActasDirectoryNavigator(List<MatchReportProcessor> processors, ActaParser actaParser) {
+    public RfetmActasDirectoryNavigator(List<MatchContextProcessor> processors, ActaParser actaParser) {
         this.processors = processors == null ? List.of() : List.copyOf(processors);
         this.actaParser = actaParser;
     }
@@ -79,7 +79,7 @@ public class RfetmActasDirectoryNavigator {
      * This is the primary entry point: the processor list is explicit, and the injected list is
      * ignored.
      */
-    public TraversalSummary traverse(Path baseFolder, List<MatchReportProcessor> processors) throws IOException {
+    public TraversalSummary traverse(Path baseFolder, List<MatchContextProcessor> processors) throws IOException {
         return traverse(baseFolder, season -> true, processors);
     }
 
@@ -102,7 +102,7 @@ public class RfetmActasDirectoryNavigator {
      *
      * @param season season folder name, in {@code YYYY-YYYY} form
      */
-    public TraversalSummary traverseSeason(Path baseFolder, String season, List<MatchReportProcessor> processors)
+    public TraversalSummary traverseSeason(Path baseFolder, String season, List<MatchContextProcessor> processors)
             throws IOException {
         return traverse(baseFolder, season::equals, processors);
     }
@@ -116,7 +116,7 @@ public class RfetmActasDirectoryNavigator {
 
     private TraversalSummary traverse(Path baseFolder,
                                       Predicate<String> seasonFilter,
-                                      List<MatchReportProcessor> processors) throws IOException {
+                                      List<MatchContextProcessor> processors) throws IOException {
         if (!Files.isDirectory(baseFolder)) {
             throw new IOException("Base folder is not a directory: " + baseFolder);
         }
@@ -147,7 +147,7 @@ public class RfetmActasDirectoryNavigator {
 
     private void traverseSeasonFolder(Path seasonFolder,
                                       String season,
-                                      List<MatchReportProcessor> processors,
+                                      List<MatchContextProcessor> processors,
                                       Counters counters) throws IOException {
         for (Path competitionFolder : listDirectories(seasonFolder)) {
             String leagueCompetition = competitionFolder.getFileName().toString();
@@ -174,7 +174,7 @@ public class RfetmActasDirectoryNavigator {
                                       String leagueCompetition,
                                       String day,
                                       String sex,
-                                      List<MatchReportProcessor> processors,
+                                      List<MatchContextProcessor> processors,
                                       Counters counters) throws IOException {
         for (Path reportFile : listJsonFiles(reportFolder)) {
             counters.filesSeen++;
@@ -220,9 +220,9 @@ public class RfetmActasDirectoryNavigator {
         return RfetmClubKey.of(team.rfetmId(), team.name(), season, competition);
     }
 
-    private void dispatch(MatchReportContext context, List<MatchReportProcessor> processors, Counters counters) {
+    private void dispatch(MatchReportContext context, List<MatchContextProcessor> processors, Counters counters) {
         counters.dispatched++;
-        for (MatchReportProcessor processor : processors) {
+        for (MatchContextProcessor processor : processors) {
             try {
                 processor.process(context);
             } catch (RuntimeException e) {

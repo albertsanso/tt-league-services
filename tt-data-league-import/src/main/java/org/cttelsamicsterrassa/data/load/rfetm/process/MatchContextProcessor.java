@@ -15,7 +15,7 @@ import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
  * re-running a season after fixing a failure is safe.</p>
  */
 @FunctionalInterface
-public interface MatchReportProcessor {
+public interface MatchContextProcessor {
 
     void process(MatchReportContext context);
 }

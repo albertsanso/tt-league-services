@@ -17,17 +17,17 @@ import org.springframework.stereotype.Component;
  * payload are RFETM-shaped fields and therefore are not used as FCTT club identity.</p>
  */
 @Component
-@Order(FcttClubImportProcessor.ORDER)
-public class FcttClubImportProcessor implements FcttMatchReportProcessor {
+@Order(FcttTeamImportProcessor.ORDER)
+public class FcttTeamImportProcessor implements FcttMatchReportProcessor {
 
     /** Clubs must exist before player and match processors run. */
     public static final int ORDER = 10;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(FcttClubImportProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(FcttTeamImportProcessor.class);
 
     private final TeamRepository teamRepository;
 
-    public FcttClubImportProcessor(TeamRepository teamRepository) {
+    public FcttTeamImportProcessor(TeamRepository teamRepository) {
         this.teamRepository = teamRepository;
     }
 

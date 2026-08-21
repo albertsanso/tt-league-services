@@ -24,17 +24,17 @@ import org.springframework.stereotype.Component;
  * recorded on that season's {@code TEAM} row instead.</p>
  */
 @Component
-@Order(RfetmClubImportProcessor.ORDER)
-public class RfetmClubImportProcessor implements MatchReportProcessor {
+@Order(RfetmTeamImportProcessor.ORDER)
+public class RfetmTeamImportProcessor implements MatchContextProcessor {
 
     /** Clubs come first: players and matches both reference them. */
     public static final int ORDER = 10;
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(RfetmClubImportProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RfetmTeamImportProcessor.class);
 
     private final TeamRepository teamRepository;
 
-    public RfetmClubImportProcessor(TeamRepository teamRepository) {
+    public RfetmTeamImportProcessor(TeamRepository teamRepository) {
         this.teamRepository = teamRepository;
     }
 

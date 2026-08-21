@@ -90,7 +90,8 @@ The application is launched with `--key=value` parameters:
 The source value is case-insensitive. Consolidation flags are opt-in and can
 be used independently or together. Unknown consolidation modes fail with an
 error; valid modes are `write`, `true`, or an empty value for write mode, and
-`report`.
+`report`. Only the parameters listed above are recognized; `--base-folder` is
+not an alias for `--actas-folder`.
 
 ## Launch modes
 

@@ -6,7 +6,7 @@ import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaClubImportProcessor;
+import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaTeamImportProcessor;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchImportProcessor;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportContext;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
@@ -54,7 +54,7 @@ class BcnesaImportProcessorsTest {
         doublesPairs = new InMemoryRepositories.DoublesPairs();
 
         processors = List.of(
-                new BcnesaClubImportProcessor(teams),
+                new BcnesaTeamImportProcessor(teams),
                 new BcnesaPlayerImportProcessor(players, playerSeasons),
                 new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         doublesPairs));

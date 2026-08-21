@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ImportRuntimeArgumentsTest {
@@ -48,5 +50,37 @@ class ImportRuntimeArgumentsTest {
         assertTrue(arguments.consolidatePlayers());
         assertEquals(ConsolidationMode.REPORT, arguments.playerConsolidationMode());
         assertFalse(arguments.consolidateClubs());
+    }
+
+    @Test
+    void normalizesSourceWithoutAcceptingTheFormerBaseFolderAlias() {
+        ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
+                "--source=FCTT", "--base-folder=C:\\data");
+
+        assertEquals("fctt", arguments.source());
+        assertNull(arguments.actasFolder());
+    }
+
+    @Test
+    void acceptsAllWriteModeFormsForEachConsolidationOption() {
+        ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
+                "--actas-folder=C:\\data",
+                "--consolidate-clubs=true",
+                "--consolidate-players=",
+                "--consolidate-clubs=write");
+
+        assertTrue(arguments.consolidateClubs());
+        assertEquals(ConsolidationMode.WRITE, arguments.consolidationMode());
+        assertTrue(arguments.consolidatePlayers());
+        assertEquals(ConsolidationMode.WRITE, arguments.playerConsolidationMode());
+    }
+
+    @Test
+    void identifiesTheConsolidationOptionWithAnInvalidMode() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> ImportRuntimeArguments.parse("--consolidate-players=preview"));
+
+        assertTrue(exception.getMessage().contains("--consolidate-players=preview"));
     }
 }

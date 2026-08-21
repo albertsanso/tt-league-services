@@ -42,7 +42,7 @@ import java.util.UUID;
  * Stores the match aggregate of a report: the match itself, its lineups, its games, the set scores
  * of each game and the members of each doubles pair.
  *
- * <p>Runs after {@link RfetmClubImportProcessor} and {@link RfetmPlayerImportProcessor}, whose rows it looks
+ * <p>Runs after {@link RfetmTeamImportProcessor} and {@link RfetmPlayerImportProcessor}, whose rows it looks
  * up rather than creates. It is idempotent through the match natural key: if the match is already
  * stored, the report is left alone, so re-running a season neither duplicates nor rewrites.</p>
  *
@@ -59,7 +59,7 @@ import java.util.UUID;
  */
 @Component
 @Order(RfetmMatchImportProcessor.ORDER)
-public class RfetmMatchImportProcessor implements MatchReportProcessor {
+public class RfetmMatchImportProcessor implements MatchContextProcessor {
 
     /** Matches come last: they reference clubs and players. */
     public static final int ORDER = 30;

@@ -5,7 +5,7 @@ import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.load.fctt.process.FcttClubImportProcessor;
+import org.cttelsamicsterrassa.data.load.fctt.process.FcttTeamImportProcessor;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchImportProcessor;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportContext;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportProcessor;
@@ -52,7 +52,7 @@ class FcttImportProcessorsTest {
         setScores = new InMemoryRepositories.SetScores();
         doublesPairs = new InMemoryRepositories.DoublesPairs();
         processors = List.of(
-                new FcttClubImportProcessor(teams),
+                new FcttTeamImportProcessor(teams),
                 new FcttPlayerImportProcessor(players, playerSeasons),
                 new FcttMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         setScores, doublesPairs));

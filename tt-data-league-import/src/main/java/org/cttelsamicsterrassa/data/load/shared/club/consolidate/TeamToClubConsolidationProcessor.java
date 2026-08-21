@@ -28,9 +28,9 @@ import java.util.stream.Collectors;
  * canonical {@link Club} without merging or deleting season rows.
  */
 @Component
-public class TeamConsolidationProcessor {
+public class TeamToClubConsolidationProcessor {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(TeamConsolidationProcessor.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(TeamToClubConsolidationProcessor.class);
 
     private static final Set<ImportSource> AUTOMATIC_SOURCES = EnumSet.of(ImportSource.FCTT, ImportSource.BCNESA);
 
@@ -39,11 +39,11 @@ public class TeamConsolidationProcessor {
     private final ClubNameMatcher matcher;
 
     @Inject
-    public TeamConsolidationProcessor(ClubRepository clubRepository, TeamRepository teamRepository) {
+    public TeamToClubConsolidationProcessor(ClubRepository clubRepository, TeamRepository teamRepository) {
         this(clubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()));
     }
 
-    TeamConsolidationProcessor(ClubRepository clubRepository,
+    TeamToClubConsolidationProcessor(ClubRepository clubRepository,
                                      TeamRepository teamRepository,
                                      ClubNameMatcher matcher) {
         this.clubRepository = Objects.requireNonNull(clubRepository, "clubRepository");

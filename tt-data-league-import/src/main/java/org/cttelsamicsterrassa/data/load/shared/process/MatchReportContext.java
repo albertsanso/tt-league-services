@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.load.shared.process;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.load.rfetm.process.MatchReportProcessor;
+import org.cttelsamicsterrassa.data.load.rfetm.process.MatchContextProcessor;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubKey;
 
@@ -9,7 +9,7 @@ import java.nio.file.Path;
 import java.util.Objects;
 
 /**
- * Everything a {@link MatchReportProcessor} needs about one match report.
+ * Everything a {@link MatchContextProcessor} needs about one match report.
  *
  * <p>Competition identity comes from the directory path
  * ({@code [season]/[league-competition]/[day]/[sex]/acta.json}), the two sides come from the payload

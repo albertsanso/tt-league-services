@@ -4,7 +4,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Normalises BCNESA club names for lookup, shared by {@link BcnesaClubImportProcessor} and
+ * Normalises BCNESA club names for lookup, shared by {@link BcnesaTeamImportProcessor} and
  * {@link BcnesaMatchImportProcessor} so both resolve the same row.
  *
  * <p>BCNESA carries no team id, so clubs resolve by name, and the export spells the same team's name
@@ -16,11 +16,11 @@ import java.util.regex.Pattern;
  * ({@code CLUB ARIEL A} vs {@code CLUB ARIEL B}) are never merged - only the quoting around one
  * letter is.</p>
  */
-final class BcnesaClubNames {
+final class BcnesaTeamNames {
 
     private static final Pattern TEAM_LETTER_SUFFIX = Pattern.compile("[\"']{1,2}\\s*([A-Za-z])\\s*[\"']{1,2}$");
 
-    private BcnesaClubNames() {
+    private BcnesaTeamNames() {
     }
 
     static String normalize(String name) {
