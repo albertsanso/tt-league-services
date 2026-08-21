@@ -20,6 +20,7 @@
         <module>tt-data-league-api-rest</module>
         <module>tt-data-league-api-runtime</module>
         <module>tt-data-league-api-graphql</module>
+        <module>tt-data-league-frontend</module>
     </modules>
 
 

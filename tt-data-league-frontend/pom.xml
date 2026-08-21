@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.cttelsamicsterrassa</groupId>
+        <artifactId>tt-data-league-services</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>tt-data-league-frontend</artifactId>
+    <packaging>pom</packaging>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>1.12.0</version>
+
+                <configuration>
+                    <!-- Node/npm versions pinned for reproducibility -->
+                    <nodeVersion>v20.11.1</nodeVersion>
+                    <npmVersion>10.2.4</npmVersion>
+                    <workingDirectory>${project.basedir}</workingDirectory>
+                    <installDirectory>${project.build.directory}/node</installDirectory>
+                </configuration>
+
+                <executions>
+                    <!-- 1. Install Node + npm locally (no global dependency) -->
+                    <execution>
+                        <id>install-node-and-npm</id>
+                        <goals><goal>install-node-and-npm</goal></goals>
+                    </execution>
+
+                    <!-- 2. npm ci (clean install from lockfile) -->
+                    <execution>
+                        <id>npm-install</id>
+                        <goals><goal>npm</goal></goals>
+                        <configuration>
+                            <arguments>ci</arguments>
+                        </configuration>
+                    </execution>
+
+                    <!-- 3. Run linter (optional) -->
+                    <execution>
+                        <id>npm-lint</id>
+                        <goals><goal>npm</goal></goals>
+                        <phase>test</phase>
+                        <configuration>
+                            <arguments>run lint</arguments>
+                        </configuration>
+                    </execution>
+
+                    <!-- 4. Run tests (optional) -->
+                    <execution>
+                        <id>npm-test</id>
+                        <goals><goal>npm</goal></goals>
+                        <phase>test</phase>
+                        <configuration>
+                            <arguments>run test -- --run</arguments>
+                        </configuration>
+                    </execution>
+
+                    <!-- 5. Production build (vite build) -->
+                    <execution>
+                        <id>npm-build</id>
+                        <goals><goal>npm</goal></goals>
+                        <phase>prepare-package</phase>
+                        <configuration>
+                            <arguments>run build</arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+</project>

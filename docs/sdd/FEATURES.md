@@ -56,10 +56,23 @@ One sentence: what problem does this solve for the user?
 # Notes
 Any open questions, design decisions, or links.
 ```
-
-## In Progress
-
 ## Backlog
+
+### [FEAT-001] Feature Name
+- **Status:** idea
+- **Priority:** high
+- **Effort:** ?
+- **Depends on:** —
+
+#### Goal
+
+Add frontend module skeleton to repository to support future frontend features.
+
+#### Acceptance Criteria
+- [ ] Criterion 1
+- [ ] Criterion 2
+- 
+## In Progress
 
 ## Done
 

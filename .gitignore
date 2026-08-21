@@ -1,4 +1,12 @@
+# IntelliJ idea
 .idea/
 *.iml
+
+# Java
 target/
 .class
+
+# Frontend
+tt-data-league-frontend/node_modules/
+tt-data-league-frontend/dist/
+tt-data-league-frontend/target/
