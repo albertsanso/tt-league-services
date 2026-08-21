@@ -62,4 +62,25 @@ Any open questions, design decisions, or links.
 
 ## Done
 
+### [FEAT-001] Frontend application skeleton and theme
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** —
+
+#### Goal
+Create a basic frontend application skeleton with a consistent theme, including routing, state management, and UI components.
+Expand `docs/frontend/theme-spec.md` into an implementation sub-plan inside
+`FEAT-001-DETAILS.md`, then use that sub-plan to implement the application
+shell, overview page, responsive behavior, accessibility, and visual system.
+
+#### Acceptance Criteria
+- [x] A frontend application skeleton is created with routing, state management, and UI components.
+- [x] `FEAT-001-DETAILS.md` contains an explicit sub-plan covering the sections and implementation requirements of `docs/frontend/theme-spec.md`.
+- [x] The application follows the theme specifications defined in `docs/frontend/theme-spec.md` and the expanded sub-plan.
+- [x] The application is responsive and works on different screen sizes, desktop and mobile.
+
+#### Feature Details
+→ See [FEAT-001-DETAILS.md](./FEAT-001-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
 ---

@@ -1,16 +1,38 @@
-# React + Vite
+# TT League Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+SPA React/Vite per a la capa d'interfície del projecte TT League. Implementa el
+dashboard inicial (FEAT-001) amb shell de navegació, overview i pàgines bàsiques.
 
-Currently, two official plugins are available:
+## Requisits
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Node.js 20+ i npm 10+ (la build Maven ja els fixa via `frontend-maven-plugin`).
+- Backend opcional: si no hi ha `/api/stats/community`, el frontend usa dades mock
+  deterministes.
 
-## React Compiler
+## Scripts npm
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+```bash
+npm ci
+npm run dev
+npm run lint
+npm run build
+```
 
-## Expanding the ESLint configuration
+## Execució local
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm run dev
+```
+
+L'aplicació queda disponible a `http://localhost:5173`.
+
+## Integració amb Maven
+
+Des de l'arrel del repositori:
+
+```bash
+mvn -pl tt-data-league-frontend -am test
+```
+
+Aquest mòdul executa `npm ci`, `npm run lint` i `npm run build` durant el pipeline
+Maven. Les proves de components no formen part de FEAT-001.

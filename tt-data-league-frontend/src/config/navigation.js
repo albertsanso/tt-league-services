@@ -1,0 +1,61 @@
+import {
+  BarChart3,
+  Building2,
+  LayoutDashboard,
+  Settings,
+  Swords,
+  Users,
+} from 'lucide-react'
+
+export const navigationSections = [
+  {
+    id: 'navegacio',
+    label: 'Navegació',
+    items: [
+      {
+        id: 'overview',
+        label: 'Overview',
+        path: '/',
+        icon: LayoutDashboard,
+      },
+      {
+        id: 'clubs',
+        label: 'Cerca de clubs',
+        path: '/clubs',
+        icon: Building2,
+      },
+      {
+        id: 'jugadors',
+        label: 'Cerca de jugadors',
+        path: '/jugadors',
+        icon: Users,
+      },
+      {
+        id: 'partits',
+        label: 'Cerca de partits',
+        path: '/partits',
+        icon: Swords,
+      },
+    ],
+  },
+  {
+    id: 'analisi',
+    label: 'Anàlisi',
+    items: [
+      {
+        id: 'analytics',
+        label: 'Analytics',
+        path: '/analytics',
+        icon: BarChart3,
+        disabled: true,
+        badge: 'Aviat',
+      },
+      {
+        id: 'configuracio',
+        label: 'Configuració',
+        path: '/settings',
+        icon: Settings,
+      },
+    ],
+  },
+]

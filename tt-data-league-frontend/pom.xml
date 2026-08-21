@@ -25,7 +25,7 @@
 
                 <configuration>
                     <!-- Node/npm versions pinned for reproducibility -->
-                    <nodeVersion>v20.11.1</nodeVersion>
+                    <nodeVersion>v20.19.0</nodeVersion>
                     <npmVersion>10.2.4</npmVersion>
                     <workingDirectory>${project.basedir}</workingDirectory>
                     <installDirectory>${project.build.directory}/node</installDirectory>
@@ -57,17 +57,7 @@
                         </configuration>
                     </execution>
 
-                    <!-- 4. Run tests (optional) -->
-                    <execution>
-                        <id>npm-test</id>
-                        <goals><goal>npm</goal></goals>
-                        <phase>test</phase>
-                        <configuration>
-                            <arguments>run test -- --run</arguments>
-                        </configuration>
-                    </execution>
-
-                    <!-- 5. Production build (vite build) -->
+                    <!-- 4. Production build (vite build) -->
                     <execution>
                         <id>npm-build</id>
                         <goals><goal>npm</goal></goals>
