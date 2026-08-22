@@ -56,11 +56,46 @@ One sentence: what problem does this solve for the user?
 # Notes
 Any open questions, design decisions, or links.
 ```
-## Backlog
-
 ## In Progress
 
+## Backlog
+
 ## Done
+
+### [FEAT-002] Access control and secured navigation
+- **Status:** done
+- **Priority:** high
+- **Effort:** large (> 8h)
+- **Depends on:** FEAT-001
+
+#### Goal
+Protect application routes and data while presenting users only with navigation options permitted by their access level.
+
+#### REST API integration
+The frontend integrates with backend authentication and authorization endpoints to manage user sessions and permissions. The backend remains the authority for every protected operation.
+
+**Strategy:** Route guards, context providers, and state management control navigation and UI presentation while Spring Security enforces protected operations.
+**Architecture:** same-origin relative URLs + Vite dev proxy
+
+#### REST API endpoints
+- `POST /api/v1/auth/login` — Authenticate user and return a JWT token.
+- `POST /api/v1/auth/register` — Register a new user account.
+- `POST /api/v1/auth/logout` — Invalidate the current user session.
+- `GET /api/v1/auth/me` — Return the authenticated user's profile and permissions; `/api/v1/user/me` remains a compatibility alias.
+- `POST /api/v1/auth/password/forgot` — Start an email-based password recovery flow without revealing whether an account exists.
+- `POST /api/v1/auth/password/reset` — Consume a one-time, expiring recovery token and set a new password.
+
+#### Acceptance Criteria
+- [x] Unauthenticated users are redirected to a login flow when accessing protected routes.
+- [x] Authenticated users can access only the routes and actions allowed by their permissions.
+- [x] Navigation reflects the current user's permissions and does not expose unauthorized destinations.
+- [x] Unauthorized access produces a clear forbidden state without disclosing protected data.
+- [x] Login page can allow a user registration flow, password reset, and account recovery.
+
+#### Feature Details
+→ See [FEAT-002-DETAILS.md](./FEAT-002-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-001] Frontend application skeleton and theme
 - **Status:** done

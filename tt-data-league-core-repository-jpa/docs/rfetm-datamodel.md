@@ -94,6 +94,34 @@ that migration explicitly.
 
 ---
 
+### `APPUSER`
+
+Application users are stored separately from imported league data. Password
+hashes are persisted, never plaintext credentials. `AppUserRole` stores the
+source role assignments and is joined to `AppUser` by `user_id`; roles are
+stored as enum strings (`ADMIN`, `CLUB_MANAGER`, `ANALYST`, or `PRACTITIONER`).
+
+### `PASSWORDRECOVERYTOKEN`
+
+Password recovery records contain only a SHA-256 hash of the one-time token.
+The raw token is delivered through the configured email adapter and is never
+returned by the REST API or written to application logs.
+
+| Column       | Type         | PK  | Nullable | Unique | Description |
+| ------------ | ------------ | --- | -------- | ------ | ----------- |
+| `id`         | `UUID`       | Yes | No       | Yes    | Recovery record identifier. |
+| `user_id`    | `UUID`       | No  | No       | No     | Identifier of the `AppUser` receiving recovery instructions. |
+| `token_hash` | `VARCHAR(64)`| No  | No       | Yes    | SHA-256 digest of the raw recovery token. |
+| `created_at` | `TIMESTAMP`  | No  | No       | No     | Token creation time. |
+| `expires_at` | `TIMESTAMP`  | No  | No       | No     | Expiration time. |
+| `consumed`   | `BOOLEAN`    | No  | No       | No     | Whether the token has already been used. |
+
+`idx_recovery_token_hash` supports token lookup and `idx_recovery_expiry`
+supports expiry maintenance. A token is usable only when it is unconsumed and
+unexpired; consuming it is an atomic conditional update.
+
+---
+
 ### `PLAYER`
 
 Represents an individual player. A player is identified by its UUID and source; federation licences

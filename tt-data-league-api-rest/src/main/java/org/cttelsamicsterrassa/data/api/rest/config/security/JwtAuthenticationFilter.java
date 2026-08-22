@@ -9,17 +9,26 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import io.jsonwebtoken.JwtException;
+
 import java.util.Set;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
-    private static final Set<String> WHITELIST = Set.of("/api/v1/auth/login", "/api/v1/auth/register", "/error", "/actuator");
+    private static final Set<String> WHITELIST = Set.of(
+            "/api/v1/auth/login",
+            "/api/v1/auth/register",
+            "/api/v1/auth/password/forgot",
+            "/api/v1/auth/password/reset",
+            "/error",
+            "/actuator");
 
     @Autowired
     private JwtService jwtService;
@@ -31,7 +40,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private TokenBlacklistService blacklistService;
 
     private static boolean isWhitelisted(String path) {
-        return WHITELIST.stream().anyMatch(whitelistedPath -> path.contains(whitelistedPath) || path.startsWith(whitelistedPath + "/"));
+        return WHITELIST.stream().anyMatch(whitelistedPath ->
+                path.equals(whitelistedPath) || path.startsWith(whitelistedPath + "/"));
     }
 
     @Override
@@ -55,7 +65,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             token = authHeader.substring(7).trim();
             try {
                 username = jwtService.extractUsername(token);
-            } catch (Exception e) {
+            } catch (JwtException | IllegalArgumentException e) {
                 SecurityContextHolder.clearContext();
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or malformed token");
                 return;
@@ -83,7 +93,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired token");
                     return;
                 }
-            } catch (Exception e) {
+            } catch (JwtException | IllegalArgumentException | UsernameNotFoundException e) {
                 SecurityContextHolder.clearContext();
                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "User not found or token invalid");
                 return;
@@ -93,4 +103,3 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
-

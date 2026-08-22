@@ -7,6 +7,9 @@ import org.cttelsamicsterrassa.data.core.domain.auth.user.event.UserEnabledEvent
 import org.cttelsamicsterrassa.data.core.domain.auth.user.event.UserPasswordHashModifiedEvent;
 
 import java.time.ZonedDateTime;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.Set;
 import java.util.UUID;
 
 public class User extends Entity {
@@ -18,18 +21,24 @@ public class User extends Entity {
     private String email;
     private String passwordHash;
     private boolean actived;
+    private final Set<UserRole> roles;
 
-    private User(UUID id, ZonedDateTime createdAt, String username, String email, String passwordHash, boolean actived) {
+    private User(UUID id, ZonedDateTime createdAt, String username, String email, String passwordHash,
+                 boolean actived, Set<UserRole> roles) {
         this.id = id;
         this.createdAt = createdAt;
         this.username = username;
         this.email = email;
         this.passwordHash = passwordHash;
         this.actived = actived;
+        this.roles = roles.isEmpty()
+                ? EnumSet.of(UserRole.PRACTITIONER)
+                : EnumSet.copyOf(roles);
     }
 
-    private static User of(UUID id, ZonedDateTime createdAt, String username, String email, String passwordHash, boolean actived) {
-        return new User(id, createdAt, username, email, passwordHash, actived);
+    private static User of(UUID id, ZonedDateTime createdAt, String username, String email, String passwordHash,
+                           boolean actived, Set<UserRole> roles) {
+        return new User(id, createdAt, username, email, passwordHash, actived, roles);
     }
 
     public static User createNew(String username, String email, String passwordHash) {
@@ -39,13 +48,19 @@ public class User extends Entity {
                 username,
                 email,
                 passwordHash,
-                true);
+                true,
+                Set.of(UserRole.PRACTITIONER));
         user.publishUserCreatedEvent();
         return user;
     }
 
     public static User createExisting(UUID id, ZonedDateTime createdAt, String username, String email, String passwordHash, boolean actived) {
-        return of(id, createdAt, username, email, passwordHash, actived);
+        return createExisting(id, createdAt, username, email, passwordHash, actived, Set.of(UserRole.PRACTITIONER));
+    }
+
+    public static User createExisting(UUID id, ZonedDateTime createdAt, String username, String email,
+                                      String passwordHash, boolean actived, Set<UserRole> roles) {
+        return of(id, createdAt, username, email, passwordHash, actived, roles);
     }
 
     public void changePasswordHash(String passwordHash) {
@@ -101,5 +116,15 @@ public class User extends Entity {
 
     public ZonedDateTime getCreatedAt() {
         return createdAt;
+    }
+
+    public Set<UserRole> getRoles() {
+        return Collections.unmodifiableSet(roles);
+    }
+
+    public Set<Permission> getPermissions() {
+        EnumSet<Permission> permissions = EnumSet.noneOf(Permission.class);
+        roles.forEach(role -> permissions.addAll(role.permissions()));
+        return Collections.unmodifiableSet(permissions);
     }
 }

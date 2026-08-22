@@ -5,6 +5,7 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.auth.model.UserJPA;
 import org.springframework.stereotype.Component;
 
 import java.util.function.Function;
+import java.util.Set;
 
 @Component
 public class UserJPAToUserMapper implements Function<UserJPA, User> {
@@ -14,13 +15,16 @@ public class UserJPAToUserMapper implements Function<UserJPA, User> {
             return null;
         }
 
+        Set<org.cttelsamicsterrassa.data.core.domain.auth.user.model.UserRole> roles =
+                userJPA.getRoles() == null ? Set.of() : userJPA.getRoles();
         return User.createExisting(
                 userJPA.getId(),
                 userJPA.getCreatedAt(),
                 userJPA.getUsername(),
                 userJPA.getEmail(),
                 userJPA.getPasswordHash(),
-                userJPA.isActive()
+                userJPA.isActive(),
+                roles
         );
     }
 }

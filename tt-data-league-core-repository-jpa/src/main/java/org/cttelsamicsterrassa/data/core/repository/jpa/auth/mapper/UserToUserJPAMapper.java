@@ -21,6 +21,7 @@ public class UserToUserJPAMapper implements Function<User, UserJPA> {
         userJPA.setPasswordHash(user.getPasswordHash());
         userJPA.setCreatedAt(user.getCreatedAt());
         userJPA.setActive(user.isActived());
+        userJPA.setRoles(user.getRoles());
         return userJPA;
     }
 }

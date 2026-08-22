@@ -1,7 +1,9 @@
 import { ChevronLeft, X } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { navigationSections } from '../../config/navigation.js'
+import { getRouteMeta } from '../../config/routes.js'
 import { useAppState } from '../../context/useAppState.js'
+import { useAuth } from '../../context/useAuth.js'
 import SidebarFooter from './SidebarFooter.jsx'
 import SidebarItem from './SidebarItem.jsx'
 import SidebarSectionLabel from './SidebarSectionLabel.jsx'
@@ -24,6 +26,7 @@ function Sidebar({ variant }) {
     closeMobileDrawer,
     toggleSidebar,
   } = useAppState()
+  const { hasPermission } = useAuth()
   const isMobileVariant = variant === 'mobile'
   const collapsed = isMobileVariant ? false : isSidebarCollapsed
 
@@ -86,7 +89,11 @@ function Sidebar({ variant }) {
         {navigationSections.map((section) => (
           <div key={section.id} className="sidebar-group">
             <SidebarSectionLabel collapsed={collapsed} label={section.label} />
-            {section.items.map((item) => (
+            {section.items.filter((item) => (
+              item.disabled
+              || !getRouteMeta(item.path).permission
+              || hasPermission(getRouteMeta(item.path).permission)
+            )).map((item) => (
               <SidebarItem
                 key={item.id}
                 item={item}

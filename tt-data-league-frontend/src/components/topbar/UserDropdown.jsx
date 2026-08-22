@@ -1,6 +1,7 @@
 import { ChevronDown } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useAppState } from '../../context/useAppState.js'
+import { useAuth } from '../../context/useAuth.js'
 
 function UserDropdown() {
   const {
@@ -9,6 +10,7 @@ function UserDropdown() {
     closeUserDropdown,
     acknowledgeNotifications,
   } = useAppState()
+  const { user, logout } = useAuth()
   const rootRef = useRef(null)
   const menuRef = useRef(null)
 
@@ -83,17 +85,17 @@ function UserDropdown() {
         onClick={toggleUserDropdown}
       >
         <span className="user-avatar" aria-hidden="true">
-          AV
+          {(user?.username ?? 'U').slice(0, 2).toUpperCase()}
         </span>
-        <span className="user-name">Usuari</span>
+        <span className="user-name">{user?.username ?? 'Usuari'}</span>
         <ChevronDown size={16} strokeWidth={1.5} aria-hidden="true" />
       </button>
 
       {isUserDropdownOpen ? (
         <div id="user-menu" className="user-menu" role="menu" ref={menuRef}>
           <div className="user-menu-header">
-            <p className="user-menu-title">tttest1</p>
-            <p className="user-menu-subtitle">user@email.com</p>
+            <p className="user-menu-title">{user?.username ?? 'Usuari'}</p>
+            <p className="user-menu-subtitle">{user?.email ?? ''}</p>
           </div>
 
           <button type="button" className="user-menu-item" role="menuitem">
@@ -107,9 +109,10 @@ function UserDropdown() {
             type="button"
             className="user-menu-item logout"
             role="menuitem"
-            onClick={() => {
+            onClick={async () => {
               acknowledgeNotifications()
               closeUserDropdown()
+              await logout()
             }}
           >
             Tancar sessió

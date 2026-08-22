@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.api.rest.config.security;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -28,7 +29,9 @@ public class SecurityConfig {
                         // Public auth endpoints
                         .requestMatchers(
                                 "/api/v1/auth/register",
-                                "/api/v1/auth/login"
+                                "/api/v1/auth/login",
+                                "/api/v1/auth/password/forgot",
+                                "/api/v1/auth/password/reset"
                         ).permitAll()
                         // Swagger UI and OpenAPI docs
                         .requestMatchers(
@@ -39,27 +42,13 @@ public class SecurityConfig {
                         ).permitAll()
                         // Actuator
                         .requestMatchers("/actuator/**", "/error").permitAll()
+                        .requestMatchers("/api/v1/user/me").authenticated()
+                        .requestMatchers("/api/v1/user/**").hasRole(RbacCatalog.ADMIN)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/club/**")
+                                .hasAuthority(RbacCatalog.CLUBS_READ)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/player/**")
+                                .hasAuthority(RbacCatalog.PLAYERS_READ)
                         .anyRequest().authenticated()
-                        /*
-                        // User management — ADMIN only
-                        .requestMatchers("/api/v1/users/**")
-                                .hasRole(RbacCatalog.ADMIN)
-                        // Role catalogue — ADMIN, CLUB_MANAGER, ANALYST
-                        .requestMatchers(HttpMethod.GET, "/api/v1/roles/**")
-                                .hasAnyRole(RbacCatalog.ADMIN, RbacCatalog.CLUB_MANAGER, RbacCatalog.ANALYST)
-                        // Write operations — ADMIN and CLUB_MANAGER
-                        .requestMatchers(HttpMethod.POST, "/api/v1/**")
-                                .hasAnyRole(RbacCatalog.ADMIN, RbacCatalog.CLUB_MANAGER)
-                        .requestMatchers(HttpMethod.PUT, "/api/v1/**")
-                                .hasAnyRole(RbacCatalog.ADMIN, RbacCatalog.CLUB_MANAGER)
-                        .requestMatchers(HttpMethod.DELETE, "/api/v1/**")
-                                .hasAnyRole(RbacCatalog.ADMIN, RbacCatalog.CLUB_MANAGER)
-                        // Read operations — ADMIN, CLUB_MANAGER, ANALYST, PRACTITIONER
-                        .requestMatchers(HttpMethod.GET, "/api/v1/**")
-                                .hasAnyRole(RbacCatalog.ADMIN, RbacCatalog.CLUB_MANAGER,
-                                            RbacCatalog.ANALYST, RbacCatalog.PRACTITIONER)
-                        .anyRequest().authenticated()
-                        */
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 

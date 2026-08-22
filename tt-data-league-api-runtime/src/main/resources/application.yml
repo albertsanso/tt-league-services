@@ -18,6 +18,12 @@ spring:
       connection-timeout: 20000
       pool-name: MyHikariCP
 
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:25}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+
   jpa:
     hibernate:
       ddl-auto: update
@@ -29,6 +35,15 @@ spring:
           batch_size: 50
         order_inserts: true
         order_updates: true
+
+security:
+  jwt:
+    # Required in every environment; use a random value of at least 32 bytes.
+    secret: ${JWT_SIGNING_SECRET:some-random-dev-value-at-least-32-bytes}
+    expiration-millis: ${JWT_EXPIRATION_MILLIS:108000000}
+  password-recovery:
+    from: ${PASSWORD_RECOVERY_FROM:no-reply@localhost}
+    reset-url: ${PASSWORD_RECOVERY_RESET_URL:http://localhost:5173/reset-password}
 
 logging:
   level:
@@ -50,4 +65,3 @@ management:
   endpoint:
     health:
       show-details: always
-
