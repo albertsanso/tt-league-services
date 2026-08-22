@@ -1,18 +1,11 @@
 import { useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import AuthField from '../components/auth/AuthField.jsx'
 import AuthLayout from '../components/auth/AuthLayout.jsx'
 import { useAuth } from '../context/useAuth.js'
 
-function safeReturnPath(value) {
-  return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
-    ? value
-    : '/'
-}
-
 function LoginPage() {
   const { login } = useAuth()
-  const location = useLocation()
   const navigate = useNavigate()
   const [form, setForm] = useState({ username: '', password: '' })
   const [error, setError] = useState('')
@@ -24,7 +17,7 @@ function LoginPage() {
     setSubmitting(true)
     try {
       await login(form)
-      navigate(safeReturnPath(location.state?.from), { replace: true })
+      navigate('/', { replace: true })
     } catch (requestError) {
       setError(requestError.message)
     } finally {

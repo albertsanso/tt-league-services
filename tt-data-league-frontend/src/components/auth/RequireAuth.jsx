@@ -40,14 +40,13 @@ export function RequirePermission({ permission, children }) {
 
 export function PublicOnly({ children }) {
   const { loading, authenticated } = useAuth()
-  const location = useLocation()
 
   if (loading) {
     return <GuardLoader />
   }
 
   if (authenticated) {
-    return <Navigate to={location.state?.from ?? '/'} replace />
+    return <Navigate to="/" replace />
   }
 
   return children
