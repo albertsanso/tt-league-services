@@ -23,6 +23,11 @@
             <artifactId>tt-data-league-api-rest</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>org.cttelsamicsterrassa</groupId>
+            <artifactId>tt-data-league-core-domain</artifactId>
+        </dependency>
+
         <!--
         <dependency>
             <groupId>org.cttelsamicsterrassa</groupId>

@@ -1,4 +1,4 @@
-package org.cttelsamicsterrassa.data.api.rest;
+package org.cttelsamicsterrassa.data.api.rest.config.security;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
