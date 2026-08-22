@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.api.rest.config.security;
 
-import org.cttelsamicsterrassa.data.core.domain.auth.model.User;
-import org.cttelsamicsterrassa.data.core.domain.auth.repository.UserRepository;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.model.User;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;

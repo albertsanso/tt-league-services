@@ -2,8 +2,8 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.auth.impl;
 
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
-import org.cttelsamicsterrassa.data.core.domain.auth.model.User;
-import org.cttelsamicsterrassa.data.core.domain.auth.repository.UserRepository;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.model.User;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.repository.UserRepository;
 import org.cttelsamicsterrassa.data.core.repository.jpa.auth.mapper.UserJPAToUserMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.auth.mapper.UserToUserJPAMapper;
 import org.springframework.stereotype.Component;

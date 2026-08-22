@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.core.repository.jpa.auth;
 
-import org.cttelsamicsterrassa.data.core.domain.auth.model.User;
-import org.cttelsamicsterrassa.data.core.domain.auth.repository.UserRepository;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.model.User;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

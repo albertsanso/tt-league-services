@@ -1,4 +1,4 @@
-package org.cttelsamicsterrassa.data.core.domain.auth.service;
+package org.cttelsamicsterrassa.data.core.domain.auth.user.service;
 
 public class InvalidCredentialsException extends RuntimeException {
     public InvalidCredentialsException() {

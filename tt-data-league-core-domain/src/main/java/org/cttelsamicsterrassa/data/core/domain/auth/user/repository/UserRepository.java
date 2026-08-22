@@ -1,6 +1,6 @@
-package org.cttelsamicsterrassa.data.core.domain.auth.repository;
+package org.cttelsamicsterrassa.data.core.domain.auth.user.repository;
 
-import org.cttelsamicsterrassa.data.core.domain.auth.model.User;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.model.User;
 
 import java.util.List;
 import java.util.Optional;
