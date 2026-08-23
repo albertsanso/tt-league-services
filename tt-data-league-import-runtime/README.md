@@ -51,6 +51,11 @@ canonical `club` table, adds the nullable `federated_club.club_id` link, and
 performs exact-name backfill and preservation checks. Do not use
 `ddl-auto: update` as a substitute for this migration.
 
+Apply `docs/migrations/FEAT-009-canonical-player.sql` after FEAT-008 and before
+launching the updated runtime. It creates the canonical `player` table, adds
+the nullable `federated_player.player_id` link, and performs exact-name
+backfill and preservation checks.
+
 ## Build
 
 Run the module tests and build all required reactor dependencies from the

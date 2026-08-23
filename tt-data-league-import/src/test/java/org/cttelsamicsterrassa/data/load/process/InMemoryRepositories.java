@@ -6,6 +6,7 @@ import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -16,6 +17,7 @@ import org.cttelsamicsterrassa.data.core.domain.game.model.SetScore;
 import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.DoublesPairRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.GameRepository;
@@ -204,6 +206,36 @@ public final class InMemoryRepositories {
         @Override
         public Optional<FederatedPlayer> findFederatedPlayerById(UUID id) {
             return Optional.ofNullable(byId.get(id));
+        }
+
+        public static final class CanonicalPlayers implements PlayerRepository {
+            public final Map<UUID, Player> byId = new LinkedHashMap<>();
+
+            @Override
+            public Optional<Player> findPlayerById(UUID id) {
+                return Optional.ofNullable(byId.get(id));
+            }
+
+            @Override
+            public Optional<Player> findPlayerByExactName(String name) {
+                List<Player> matches = byId.values().stream()
+                        .filter(player -> Objects.equals(player.getName(), name))
+                        .toList();
+                if (matches.size() > 1) {
+                    throw new IllegalStateException("Multiple canonical players found for name: " + name);
+                }
+                return matches.stream().findFirst();
+            }
+
+            @Override
+            public void savePlayer(Player player) {
+                byId.put(player.getId(), player);
+            }
+
+            @Override
+            public void deletePlayerById(UUID id) {
+                byId.remove(id);
+            }
         }
 
         @Override

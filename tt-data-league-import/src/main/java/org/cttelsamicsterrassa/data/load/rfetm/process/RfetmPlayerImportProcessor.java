@@ -1,7 +1,10 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
+import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
+import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -9,11 +12,13 @@ import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
+import org.cttelsamicsterrassa.data.load.shared.player.CanonicalPlayerResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import javax.inject.Inject;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -38,11 +43,22 @@ public class RfetmPlayerImportProcessor implements MatchContextProcessor {
 
     private final FederatedPlayerRepository playerRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
+    private final CanonicalPlayerResolver canonicalPlayerResolver;
 
     public RfetmPlayerImportProcessor(FederatedPlayerRepository playerRepository,
                                  PlayerSeasonRepository playerSeasonRepository) {
+        this(playerRepository, playerSeasonRepository, null);
+    }
+
+    @Inject
+    public RfetmPlayerImportProcessor(FederatedPlayerRepository playerRepository,
+                                     PlayerSeasonRepository playerSeasonRepository,
+                                     PlayerRepository canonicalPlayerRepository) {
         this.playerRepository = playerRepository;
         this.playerSeasonRepository = playerSeasonRepository;
+        this.canonicalPlayerResolver = canonicalPlayerRepository == null
+                ? null
+                : new CanonicalPlayerResolver(canonicalPlayerRepository);
     }
 
     @Override
@@ -67,13 +83,29 @@ public class RfetmPlayerImportProcessor implements MatchContextProcessor {
             return;
         }
 
+        Player canonicalPlayer = canonicalPlayerResolver == null
+                ? null
+                : canonicalPlayerResolver.resolveOrCreate(name);
+        FederatedPlayer federatedPlayer = playerRepository.findFederatedPlayerBySourceAndName(
+                        ImportSource.RFETM, name)
+                .map(existing -> linkCanonicalPlayer(existing, canonicalPlayer))
+                .orElseGet(() -> FederatedPlayer.createNew(ImportSource.RFETM, name, canonicalPlayer));
+        playerRepository.saveFederatedPlayer(federatedPlayer);
+
         playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, license, season)
                 .orElseGet(() -> {
-                    PlayerSeason created = PlayerSeason.createNew(ImportSource.RFETM, name, license, null, season);
+                    PlayerSeason created = PlayerSeason.createNew(
+                            ImportSource.RFETM, name, license, federatedPlayer, season);
                     playerSeasonRepository.savePlayerSeason(created);
                     LOGGER.debug("Created player season {} {} ({})", name, season, license);
                     return created;
                 });
+    }
+
+    private FederatedPlayer linkCanonicalPlayer(FederatedPlayer federatedPlayer, Player canonicalPlayer) {
+        return canonicalPlayer == null || federatedPlayer.getPlayer().isPresent()
+                ? federatedPlayer
+                : federatedPlayer.withPlayer(canonicalPlayer);
     }
 
     private static List<ActaLineupPlayer> players(Acta acta) {

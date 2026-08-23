@@ -63,6 +63,42 @@ Any open questions, design decisions, or links.
 
 ## Done
 
+### [FEAT-009] Canonical player entity
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large (> 8h)
+- **Depends on:** FEAT-006
+
+#### Goal
+Establish a canonical, season-independent player entity that can be referenced consistently across seasons, imports, persistence, and APIs.
+
+`Player` canonical entity has the following properties only:
+- `id` (UUID) (Primary key, a unique identifier for the canonical player entity)
+- `name` (string) (Globally unique canonical display name)
+
+`FederatedPlayer` is a source-dependent representation of a player.
+`FederatedPlayer` references a `Player` entity and retains source-specific properties such as:
+- `player_id` (UUID) (Foreign key referencing the canonical `Player` entity)
+- `source` (string) (The source of the player data, e.g., a specific federation or league)
+- `name` (string) (The name of the player as provided by the source)
+
+#### Acceptance Criteria
+- [x] A new `Player` entity is created in the backend with a unique identifier and name.
+- [x] The `FederatedPlayer` entity is updated to reference the new `Player` entity via a nullable foreign key.
+- [x] Canonical-player-facing references are updated to use `Player` where appropriate while source-scoped import lookups continue to use `FederatedPlayer`.
+- [x] The database schema is updated to include the new `Player` table and the foreign key relationship between `FederatedPlayer` and `Player`.
+- [x] All relevant JPA entities, helpers, mappers, and repository implementations are updated to reflect the new entity structure.
+- [x] All JPQL queries and `@Query()` annotations are updated to use the new entity structure.
+- [x] `PlayerSeason` registration identity, licences, season data, UUIDs, and all match, lineup, and doubles-pair references remain unchanged.
+- [x] Source-scoped or explicitly disambiguated player resolution is preserved; no unscoped name lookup or `(source, name)` uniqueness rule is introduced for `FederatedPlayer`.
+- [x] Canonical-player linking and consolidation remain exact-name, source-scoped, opt-in, deterministic, idempotent, non-destructive, and support report mode without persistence writes.
+- [x] All tests, public API adapters, and documentation are updated to reflect the new entity structure without changing player routes, response field names, or registration semantics.
+
+#### Feature Details
+→ See [FEAT-009-DETAILS.md](./FEAT-009-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
 ### [FEAT-008] Canonical club entity
 - **Status:** done
 - **Priority:** medium

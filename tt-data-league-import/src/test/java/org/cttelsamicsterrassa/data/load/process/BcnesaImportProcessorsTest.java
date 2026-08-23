@@ -34,6 +34,7 @@ class BcnesaImportProcessorsTest {
     private InMemoryRepositories.CanonicalClubs canonicalClubs;
     private InMemoryRepositories.Teams teams;
     private InMemoryRepositories.Players players;
+    private InMemoryRepositories.Players.CanonicalPlayers canonicalPlayers;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
     private InMemoryRepositories.Matches matches;
     private InMemoryRepositories.Lineups lineups;
@@ -49,6 +50,7 @@ class BcnesaImportProcessorsTest {
         canonicalClubs = new InMemoryRepositories.CanonicalClubs();
         teams = new InMemoryRepositories.Teams();
         players = new InMemoryRepositories.Players();
+        canonicalPlayers = new InMemoryRepositories.Players.CanonicalPlayers();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
         matches = new InMemoryRepositories.Matches();
         lineups = new InMemoryRepositories.Lineups(playerSeasons);
@@ -57,7 +59,7 @@ class BcnesaImportProcessorsTest {
 
         processors = List.of(
                 new BcnesaTeamImportProcessor(teams, clubs, canonicalClubs),
-                new BcnesaPlayerImportProcessor(players, playerSeasons),
+                new BcnesaPlayerImportProcessor(players, playerSeasons, canonicalPlayers),
                 new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         doublesPairs));
 
@@ -99,6 +101,7 @@ class BcnesaImportProcessorsTest {
 
         // 2 games per fixture, 2 distinct participants per game, no overlap between fixtures.
         assertEquals(8, players.byId.size());
+        assertEquals(8, canonicalPlayers.byId.size());
         assertEquals(8, playerSeasons.byId.size());
         assertTrue(playerSeasons.findPlayerSeasonByLicenseAndSeason(ImportSource.BCNESA, "7026", Season.of(2020)).isPresent());
         assertTrue(playerSeasons.findPlayerSeasonByLicenseAndSeason(ImportSource.BCNESA, "878", Season.of(2020)).isPresent());

@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.load.shared.player;
 
 import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
+import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -83,6 +84,27 @@ class PlayerSeasonConsolidationProcessorTest {
         assertEquals(0, second.registrationsReassociated());
         assertEquals(2, second.alreadyCorrectRegistrations());
         assertTrue(seasons.findPlayerSeasonById(otherSource.getId()).orElseThrow().getFederatedPlayer().isEmpty());
+    }
+
+    @Test
+    void linksExistingFederatedPlayersToCanonicalPlayersWithoutChangingRegistrations() {
+        InMemoryRepositories.Players players = new InMemoryRepositories.Players();
+        InMemoryRepositories.Players.CanonicalPlayers canonicalPlayers =
+                new InMemoryRepositories.Players.CanonicalPlayers();
+        InMemoryRepositories.PlayerSeasons seasons = new InMemoryRepositories.PlayerSeasons();
+        FederatedPlayer federated = FederatedPlayer.createNew(ImportSource.FCTT, "PLAYER, ONE");
+        players.saveFederatedPlayer(federated);
+        PlayerSeason registration = save(seasons, "PLAYER, ONE", "1", Season.of(2023), federated);
+
+        PlayerConsolidationSummary summary = new PlayerSeasonConsolidationProcessor(
+                players, seasons, canonicalPlayers).consolidate(ImportSource.FCTT);
+
+        assertEquals(1, canonicalPlayers.byId.size());
+        assertEquals(canonicalPlayers.byId.values().iterator().next().getId(),
+                players.findFederatedPlayerById(federated.getId()).orElseThrow()
+                        .getPlayer().orElseThrow().getId());
+        assertEquals(registration.getId(), seasons.findPlayerSeasonById(registration.getId()).orElseThrow().getId());
+        assertEquals(0, summary.registrationsReassociated());
     }
 
     @Test

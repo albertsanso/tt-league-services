@@ -33,6 +33,7 @@ class FcttImportProcessorsTest {
     private InMemoryRepositories.CanonicalClubs canonicalClubs;
     private InMemoryRepositories.Teams teams;
     private InMemoryRepositories.Players players;
+    private InMemoryRepositories.Players.CanonicalPlayers canonicalPlayers;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
     private InMemoryRepositories.Matches matches;
     private InMemoryRepositories.Lineups lineups;
@@ -47,6 +48,7 @@ class FcttImportProcessorsTest {
         canonicalClubs = new InMemoryRepositories.CanonicalClubs();
         teams = new InMemoryRepositories.Teams();
         players = new InMemoryRepositories.Players();
+        canonicalPlayers = new InMemoryRepositories.Players.CanonicalPlayers();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
         matches = new InMemoryRepositories.Matches();
         lineups = new InMemoryRepositories.Lineups(playerSeasons);
@@ -55,7 +57,7 @@ class FcttImportProcessorsTest {
         doublesPairs = new InMemoryRepositories.DoublesPairs();
         processors = List.of(
                 new FcttTeamImportProcessor(teams, clubs, canonicalClubs),
-                new FcttPlayerImportProcessor(players, playerSeasons),
+                new FcttPlayerImportProcessor(players, playerSeasons, canonicalPlayers),
                 new FcttMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         setScores, doublesPairs));
     }
@@ -71,6 +73,7 @@ class FcttImportProcessorsTest {
         assertEquals("HORTITEC ALZIRA TT", home.getClub().orElseThrow().getName());
         assertTrue(teams.findTeamByFederatedClubAndSeason(home.getId(), Season.of(2023)).isPresent());
         assertEquals(6, players.byId.size());
+        assertEquals(6, canonicalPlayers.byId.size());
         assertTrue(playerSeasons.findPlayerSeasonByLicenseAndSeason(ImportSource.FCTT, "29194", Season.of(2023))
                 .isPresent());
     }

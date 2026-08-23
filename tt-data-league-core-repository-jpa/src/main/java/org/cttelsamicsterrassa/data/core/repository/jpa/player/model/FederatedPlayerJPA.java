@@ -6,6 +6,9 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +25,8 @@ import java.util.UUID;
         name = "federated_player",
         indexes = {
                 @Index(name="idx_federated_player_name", columnList="name"),
-                @Index(name="idx_federated_player_source_name", columnList="source,name")
+                @Index(name="idx_federated_player_source_name", columnList="source,name"),
+                @Index(name="idx_federated_player_player_id", columnList="player_id")
         }
 )
 public class FederatedPlayerJPA {
@@ -35,4 +39,8 @@ public class FederatedPlayerJPA {
 
     @Column(name = "name", nullable = false, length = 255)
     private String name;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "player_id", nullable = true)
+    private PlayerJPA player;
 }

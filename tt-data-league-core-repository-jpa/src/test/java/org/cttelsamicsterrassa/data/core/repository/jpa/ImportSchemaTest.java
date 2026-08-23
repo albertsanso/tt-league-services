@@ -13,10 +13,13 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
+import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.junit.jupiter.api.Test;
+import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
@@ -69,6 +72,12 @@ class ImportSchemaTest {
 
     @Autowired
     private FederatedPlayerRepository playerRepository;
+
+    @Autowired
+    private PlayerRepository canonicalPlayerRepository;
+
+    @Autowired
+    private EntityManager entityManager;
 
     @Autowired
     private PlayerSeasonRepository playerSeasonRepository;
@@ -146,6 +155,31 @@ class ImportSchemaTest {
 
         assertEquals(bcnesa.getId(), found.getId());
         assertEquals(ImportSource.BCNESA, found.getSource());
+    }
+
+    @Test
+    void roundTripsCanonicalPlayerAndFederatedAssociation() {
+        Player canonical = Player.createNew("CANONICAL PLAYER");
+        canonicalPlayerRepository.savePlayer(canonical);
+        FederatedPlayer federated = FederatedPlayer.createNew(
+                ImportSource.FCTT, "SOURCE PLAYER", canonical);
+        playerRepository.saveFederatedPlayer(federated);
+
+        FederatedPlayer found = playerRepository.findFederatedPlayerById(federated.getId()).orElseThrow();
+
+        assertEquals(canonical.getId(), found.getPlayer().orElseThrow().getId());
+        assertEquals("CANONICAL PLAYER", found.getPlayer().orElseThrow().getName());
+        assertEquals(canonical.getId(),
+                canonicalPlayerRepository.findPlayerByExactName("CANONICAL PLAYER").orElseThrow().getId());
+    }
+
+    @Test
+    void enforcesCanonicalPlayerNameUniqueness() {
+        canonicalPlayerRepository.savePlayer(Player.createNew("UNIQUE CANONICAL PLAYER"));
+
+        canonicalPlayerRepository.savePlayer(Player.createNew("UNIQUE CANONICAL PLAYER"));
+
+        assertThrows(Exception.class, entityManager::flush);
     }
 
     @Test

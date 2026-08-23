@@ -103,7 +103,13 @@ public class FindFederatedClubDetailsQueryHandler
                 playerSeason.getLicense(),
                 playerSeason.getSource(),
                 playerSeason.getSeason(),
-                competitions);
+                competitions,
+                playerSeason.getFederatedPlayer()
+                        .flatMap(player -> player.getPlayer().map(canonical -> canonical.getId()))
+                        .orElse(null),
+                playerSeason.getFederatedPlayer()
+                        .flatMap(player -> player.getPlayer().map(canonical -> canonical.getName()))
+                        .orElse(null));
     }
 
     private List<FederatedClubCompetitionReadModel> summarizeCompetitions(

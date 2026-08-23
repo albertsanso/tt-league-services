@@ -2,54 +2,58 @@
 
 ## Goal
 
-Make the `PlayerSeason.player` association optional in the domain API, matching
-the existing `Team.club` design, and migrate all related logic without
-changing registration identity or the nullable JPA `player_id` relationship.
+Make the `PlayerSeason.federatedPlayer` association optional in the domain API,
+matching the existing `Team.club` design, and migrate all related logic without
+changing registration identity or the nullable JPA `federated_player_id`
+relationship.
 
 ## Confirmed behavior
 
-- Store the association as `Optional<Player>`.
-- Expose `Optional<Player> getPlayer()`.
-- Keep `PlayerSeason.createNew`, `createExisting`, and `withPlayer` accepting
-  nullable `Player` inputs; null values become `Optional.empty()`.
-- Return `Optional<Player>` from `PlayerSeasonCreatedEvent.getPlayer()`.
+- Store the association as `Optional<FederatedPlayer>`.
+- Expose `Optional<FederatedPlayer> getFederatedPlayer()`.
+- Keep `PlayerSeason.createNew`, `createExisting`, and
+  `withFederatedPlayer` accepting nullable `FederatedPlayer` inputs; null
+  values become `Optional.empty()`.
+- Return `Optional<FederatedPlayer>` from `PlayerSeasonCreatedEvent.getFederatedPlayer()`.
 - Preserve `PlayerSeason` IDs, source, name, licence, and season.
 - Keep `LINEUP` and `DoublesPair` references to `PlayerSeason` unchanged.
 - Do not add external IDs or alter the relational schema unless verification
-  finds the existing nullable `player_id` contract is inaccurate.
+  finds the existing nullable `federated_player_id` contract is inaccurate.
 
 ## Implementation steps
 
 1. **Domain model**
-   - Change `PlayerSeason.player` to `Optional<Player>`.
+   - Change `PlayerSeason.federatedPlayer` to `Optional<FederatedPlayer>`.
    - Wrap constructor input with `Optional.ofNullable`.
-   - Make `withPlayer` return `this` when the association is already the same,
+   - Make `withFederatedPlayer` return `this` when the association is already the same,
      including safe handling of null to clear the association.
    - Update creation-event publication and `PlayerSeasonCreatedEvent`.
 
 2. **Call-site migration**
    - Update the player consolidation processor’s conflict, canonical selection,
-     reassociation, and reporting logic to use `Optional<Player>`.
+     reassociation, and reporting logic to use `Optional<FederatedPlayer>`.
    - Update player application handlers and any import processors that inspect
-     `PlayerSeason.getPlayer()`.
+     `PlayerSeason.getFederatedPlayer()`.
    - Update in-memory repositories and focused tests to assert `isEmpty()` or
      `orElseThrow()` rather than compare nullable values.
 
 3. **Persistence adapters**
    - Update `PlayerSeasonToPlayerSeasonJPAMapper` to map
-     `playerSeason.getPlayer().map(...).orElse(null)`.
-   - Keep the reverse mapper’s nullable JPA player conversion as an optional
-     domain association.
+     `playerSeason.getFederatedPlayer().map(...).orElse(null)`.
+   - Keep the reverse mapper’s nullable JPA federated-player conversion as an
+     optional domain association.
    - Verify lineup and doubles-pair mappers continue to pass complete
      `PlayerSeason` objects.
-   - Preserve nullable `player_id`, registration IDs, and metadata on save/reload.
+   - Preserve nullable `federated_player_id`, registration IDs, and metadata
+     on save/reload. The separate `federated_player.player_id` column links
+     to canonical `Player` and must not replace this registration reference.
 
 4. **Tests and documentation**
    - Add domain tests for present, absent, same-association, replacement, and
      clearing behavior.
    - Extend import consolidation tests for empty associations and idempotent
      reassociation.
-   - Extend JPA integration coverage for null and non-null `player_id` round
+   - Extend JPA integration coverage for null and non-null `federated_player_id` round
      trips and unchanged registration metadata.
    - Update `docs/rfetm-datamodel.md` only if the documented nullability differs
      from the implementation.

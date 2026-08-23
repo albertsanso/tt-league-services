@@ -15,7 +15,9 @@ public record FederatedClubPlayerReadModel(
         String license,
         ImportSource source,
         Season season,
-        List<String> competitions) {
+        List<String> competitions,
+        UUID canonicalPlayerId,
+        String canonicalPlayerName) {
 
     public FederatedClubPlayerReadModel {
         Objects.requireNonNull(playerSeasonId, "playerSeasonId must not be null");
@@ -33,6 +35,20 @@ public record FederatedClubPlayerReadModel(
             String license,
             ImportSource source,
             Season season) {
-        this(playerSeasonId, federatedPlayerId, federatedPlayerName, registrationName, license, source, season, List.of());
+        this(playerSeasonId, federatedPlayerId, federatedPlayerName, registrationName, license, source, season,
+                List.of(), null, null);
+    }
+
+    public FederatedClubPlayerReadModel(
+            UUID playerSeasonId,
+            UUID federatedPlayerId,
+            String federatedPlayerName,
+            String registrationName,
+            String license,
+            ImportSource source,
+            Season season,
+            List<String> competitions) {
+        this(playerSeasonId, federatedPlayerId, federatedPlayerName, registrationName, license, source, season,
+                competitions, null, null);
     }
 }

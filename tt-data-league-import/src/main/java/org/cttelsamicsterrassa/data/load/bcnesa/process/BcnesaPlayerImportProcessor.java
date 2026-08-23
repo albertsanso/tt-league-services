@@ -1,17 +1,22 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
+import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
+import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParticipant;
+import org.cttelsamicsterrassa.data.load.shared.player.CanonicalPlayerResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+import javax.inject.Inject;
 
 /**
  * Stores the players named in a BCNESA fixture's singles games, and their registration for that
@@ -37,11 +42,22 @@ public class BcnesaPlayerImportProcessor implements BcnesaMatchReportProcessor {
 
     private final FederatedPlayerRepository playerRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
+    private final CanonicalPlayerResolver canonicalPlayerResolver;
 
     public BcnesaPlayerImportProcessor(FederatedPlayerRepository playerRepository,
                                        PlayerSeasonRepository playerSeasonRepository) {
+        this(playerRepository, playerSeasonRepository, null);
+    }
+
+    @Inject
+    public BcnesaPlayerImportProcessor(FederatedPlayerRepository playerRepository,
+                                       PlayerSeasonRepository playerSeasonRepository,
+                                       PlayerRepository canonicalPlayerRepository) {
         this.playerRepository = playerRepository;
         this.playerSeasonRepository = playerSeasonRepository;
+        this.canonicalPlayerResolver = canonicalPlayerRepository == null
+                ? null
+                : new CanonicalPlayerResolver(canonicalPlayerRepository);
     }
 
     @Override
@@ -84,13 +100,29 @@ public class BcnesaPlayerImportProcessor implements BcnesaMatchReportProcessor {
             return;
         }
 
+        Player canonicalPlayer = canonicalPlayerResolver == null
+                ? null
+                : canonicalPlayerResolver.resolveOrCreate(name);
+        FederatedPlayer federatedPlayer = playerRepository.findFederatedPlayerBySourceAndName(
+                        ImportSource.BCNESA, name)
+                .map(existing -> linkCanonicalPlayer(existing, canonicalPlayer))
+                .orElseGet(() -> FederatedPlayer.createNew(ImportSource.BCNESA, name, canonicalPlayer));
+        playerRepository.saveFederatedPlayer(federatedPlayer);
+
         playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(ImportSource.BCNESA, license, season)
                 .orElseGet(() -> {
-                    PlayerSeason created = PlayerSeason.createNew(ImportSource.BCNESA, name, license, null, season);
+                    PlayerSeason created = PlayerSeason.createNew(
+                            ImportSource.BCNESA, name, license, federatedPlayer, season);
                     playerSeasonRepository.savePlayerSeason(created);
                     LOGGER.debug("Created BCNESA player season {} {} ({})", name, season, license);
                     return created;
                 });
+    }
+
+    private FederatedPlayer linkCanonicalPlayer(FederatedPlayer federatedPlayer, Player canonicalPlayer) {
+                return canonicalPlayer == null || federatedPlayer.getPlayer().isPresent()
+                        ? federatedPlayer
+                        : federatedPlayer.withPlayer(canonicalPlayer);
     }
 
     private static boolean isBlank(String value) {

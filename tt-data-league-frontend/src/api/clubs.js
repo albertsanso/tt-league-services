@@ -110,6 +110,12 @@ function normalizePlayer(value) {
     playerSeasonId: requireText(value.playerSeasonId, 'un identificador de registre'),
     playerId: value.playerId == null ? null : requireText(value.playerId, 'un identificador de jugador'),
     playerName: value.playerName == null ? null : requireText(value.playerName, 'un nom de jugador'),
+    canonicalPlayerId: value.canonicalPlayerId == null
+      ? null
+      : requireText(value.canonicalPlayerId, 'un identificador de jugador canònic'),
+    canonicalPlayerName: value.canonicalPlayerName == null
+      ? null
+      : requireText(value.canonicalPlayerName, 'un nom de jugador canònic'),
     registrationName: requireText(value.registrationName, 'un nom de registre'),
     license: value.license == null ? '—' : requireText(value.license, 'una llicència'),
     source: value.source == null ? '—' : requireText(value.source, 'la font del jugador'),

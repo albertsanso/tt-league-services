@@ -87,7 +87,9 @@ public record ClubDetailsDto(
             String license,
             String source,
             String season,
-            List<String> competitions) {
+            List<String> competitions,
+            UUID canonicalPlayerId,
+            String canonicalPlayerName) {
         public PlayerDetailsDto(
                 UUID playerSeasonId,
                 UUID playerId,
@@ -99,6 +101,19 @@ public record ClubDetailsDto(
             this(playerSeasonId, playerId, playerName, registrationName, license, source, season, List.of());
         }
 
+        public PlayerDetailsDto(
+                UUID playerSeasonId,
+                UUID playerId,
+                String playerName,
+                String registrationName,
+                String license,
+                String source,
+                String season,
+                List<String> competitions) {
+            this(playerSeasonId, playerId, playerName, registrationName, license, source, season,
+                competitions, null, null);
+        }
+
         private static PlayerDetailsDto fromObject(FederatedClubPlayerReadModel player) {
             return new PlayerDetailsDto(
                     player.playerSeasonId(),
@@ -108,7 +123,9 @@ public record ClubDetailsDto(
                     player.license(),
                     player.source().name(),
                     player.season().toString(),
-                    player.competitions());
+                    player.competitions(),
+                    player.canonicalPlayerId(),
+                    player.canonicalPlayerName());
         }
     }
 }

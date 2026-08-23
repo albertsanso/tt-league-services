@@ -30,6 +30,8 @@ describe('club API boundary', () => {
         playerSeasonId: 'player-season-id',
         playerId: 'player-id',
         playerName: 'Maria Player',
+        canonicalPlayerId: 'canonical-player-id',
+        canonicalPlayerName: 'Maria Canonical Player',
         registrationName: 'Maria Player',
         license: '123',
         source: 'RFETM',
@@ -46,6 +48,8 @@ describe('club API boundary', () => {
       resultTotals: { wins: 5, draws: 1, losses: 2 },
     })
     expect(details.players[0].competitions).toEqual(['Preferent'])
+    expect(details.players[0].canonicalPlayerId).toBe('canonical-player-id')
+    expect(details.players[0].canonicalPlayerName).toBe('Maria Canonical Player')
   })
 
   it('encodes the search, sends the session token, and normalizes results', async () => {

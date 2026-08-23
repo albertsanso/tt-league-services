@@ -2,7 +2,7 @@
 
 ## Scope
 
-Add the Player application surface under
+Add the canonical Player application surface under
 `org.cttelsamicsterrassa.data.core.application.player`, mirroring the existing
 Club application structure while using the Player and PlayerSeason repository
 ports and preserving source-scoped identity.
@@ -11,20 +11,26 @@ ports and preserving source-scoped identity.
 
 ### `player.create`
 
-- `CreatePlayerCommand`: command carrying occurred time, command id, player
-  UUID when supplied by an importer, display name, and `ImportSource`.
-- `CreatePlayerCommandHandler`: reject an existing source/name identity;
+- `CreatePlayerCommand`: command carrying occurred time, command id, optional
+  canonical player UUID, and canonical display name. Canonical `Player` has no
+  source field.
+- `CreatePlayerCommandHandler`: reject an existing exact canonical name;
   otherwise create with `Player.createNew` and save through `PlayerRepository`.
+- `CreateFederatedPlayerCommandHandler`: resolve or create the exact-name
+  canonical `Player`, then create the source-scoped `FederatedPlayer` while
+  retaining its source-provided name.
 - `CreatePlayerSeasonCommand`: command carrying source, player-season name,
-  licence, parent player, and `Season`.
-- `CreatePlayerSeasonCommandHandler`: resolve or receive the parent Player,
+  licence, parent `FederatedPlayer`, and `Season`.
+- `CreatePlayerSeasonCommandHandler`: resolve or receive the parent
+  `FederatedPlayer`,
   reject an existing `(source, license, season)` registration, create with
   `PlayerSeason.createNew`, and save through `PlayerSeasonRepository`.
 
-The parent Player should be represented by the domain `Player` relationship,
-not an external id. If the command is intended for importer use, it should
-carry the already resolved Player, matching the domain model and avoiding an
-unscoped name lookup.
+The `PlayerSeason` parent should be represented by the domain
+`FederatedPlayer` relationship, not an external id. The federated relationship
+may be absent for historical or partially imported registrations. Canonical
+linking belongs on `FederatedPlayer`, with source-scoped resolution at import
+boundaries.
 
 ### `player.update`
 
@@ -54,17 +60,16 @@ unscoped operation.
 ### `player.find`
 
 - `FindPlayerByIdQuery` / handler -> `findPlayerById`.
-- `FindPlayerByNameQuery` / handler -> `findPlayerByName` only if retaining
-  exact Club API compatibility; source-aware lookup must also be available.
-- `FindPlayerBySourceAndNameQuery` / handler -> `findPlayerBySourceAndName`.
+- `FindPlayerByNameQuery` / handler -> exact canonical `Player` name lookup.
+- `FindFederatedPlayerBySourceAndNameQuery` / handler ->
+  `findFederatedPlayerBySourceAndName`.
 - `FindPlayerSeasonByIdQuery` / handler -> `findPlayerSeasonById`.
 - `FindPlayerSeasonByLicenseAndSeasonQuery` / handler ->
   `findPlayerSeasonByLicenseAndSeason(source, license, season)`.
 
-The source-aware queries are required for federation-safe imports. Name-only
-queries may remain as compatibility wrappers because the repository ports
-currently expose them, but new importer-facing code must use source-scoped
-queries.
+The source-aware federated query is required for federation-safe imports.
+Canonical name lookup is intentionally unscoped because canonical names are
+globally unique; importer-facing federated lookups must remain source-scoped.
 
 ## Validation and tests
 

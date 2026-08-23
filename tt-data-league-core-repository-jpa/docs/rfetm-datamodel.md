@@ -156,20 +156,42 @@ unexpired; consuming it is an atomic conditional update.
 
 ### `FEDERATED_PLAYER`
 
-Represents the season-independent federated player identity. A player is identified by its UUID and
-source; federation licences are stored on `PLAYER_SEASON`.
+Represents a source-specific player identity. Its UUID, source, and source-provided
+name remain unchanged; it may reference the season-independent `PLAYER` identity.
 
 | Column        | Type           | PK  | Nullable | Unique | Description                                                                    |
 | ------------- | -------------- | --- | -------- | ------ | ------------------------------------------------------------------------------ |
 | `id`          | `UUID`         | Yes | No       | Yes    | Surrogate primary key (caller-provided UUID v4).                               |
 | `source`      | `VARCHAR(20)`  | No  | No       | No     | Federation that supplied the player row.                                       |
 | `name`        | `VARCHAR(255)` | No  | No       | No     | Full name in "SURNAME, FIRSTNAME" format.                                      |
+| `player_id`   | `UUID`         | No  | Yes      | No     | Nullable foreign key to `PLAYER`; populated by the manual migration/backfill.  |
 
 The `source` and `name` columns are not subject to a unique constraint. Federation licence identity
 is represented by the `PLAYER_SEASON` `(source, season, license)` constraint.
 
 - `idx_federated_player_name` indexes `name`.
 - `idx_federated_player_source_name` indexes `(source, name)` for scoped lookup; it is not unique.
+- `idx_federated_player_player_id` indexes `player_id`.
+
+`FEDERATED_PLAYER.player_id` is a lazy, nullable many-to-one relationship with
+no cascade. Canonical players must be created before their federated references.
+
+---
+
+### `PLAYER`
+
+Represents the globally unique, season-independent canonical identity of a player.
+Its exact display name is the only automatic cross-source linking key.
+
+| Column | Type | PK | Nullable | Unique | Description |
+| ------ | ---- | -- | -------- | ------ | ----------- |
+| `id` | `UUID` | Yes | No | Yes | Caller-provided UUID v4. |
+| `name` | `VARCHAR(255)` | No | No | Yes | Exact canonical display name. |
+
+`uk_player_name` enforces global exact-name uniqueness and `idx_player_name`
+supports canonical-name lookup. Federation licences remain on
+`PLAYER_SEASON`; `PLAYER_SEASON.federated_player_id` and all match, lineup, and
+doubles-pair references continue to target their existing season-specific rows.
 
 ---
 
@@ -358,6 +380,7 @@ from the child side.
 ```mermaid
 erDiagram
     FEDERATED_CLUB ||--o{ TEAM : has
+    PLAYER ||--o{ FEDERATED_PLAYER : identifies
     TEAM ||--o{ MATCH : home_team
     TEAM ||--o{ MATCH : away_team
     TEAM o|--o{ MATCH : winner_team
@@ -386,6 +409,11 @@ erDiagram
     FEDERATED_PLAYER {
         UUID id PK
         VARCHAR source
+        VARCHAR name
+        UUID player_id FK
+    }
+    PLAYER {
+        UUID id PK
         VARCHAR name
     }
     PLAYER_SEASON {
@@ -449,10 +477,12 @@ erDiagram
     }
 ```
 
-## Season tables
+## Identity and season tables
 
 The implementation splits club and player identity from their per-season registration, which this
-specification predates. Two tables carry that split:
+specification predates. Canonical `CLUB` and `PLAYER` rows are referenced by
+source-specific federated rows, while `TEAM` and `PLAYER_SEASON` retain
+season-specific identity and historical references.
 
 ### `TEAM`
 
@@ -477,6 +507,12 @@ A player's registration for one season: `id`, `source`, `name`, `license`, `seas
 
 `MATCH`, `LINEUP`, `GAME` and `DOUBLES_PAIR` reference these season rows rather than `FEDERATED_CLUB` and
 `FEDERATED_PLAYER` directly, so a match is always tied to the club and player as they stood that season.
+
+### `PLAYER`
+
+A season-independent canonical player identity: `id` and globally unique exact
+display `name`. `FEDERATED_PLAYER.player_id` is nullable so legacy rows can be
+reviewed before linking; it does not replace `PLAYER_SEASON.federated_player_id`.
 
 ---
 

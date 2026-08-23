@@ -1,10 +1,13 @@
 package org.cttelsamicsterrassa.data.load.shared.player.consolidate;
 
 import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
+import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.load.shared.player.CanonicalPlayerResolver;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,19 +33,35 @@ public class PlayerSeasonConsolidationProcessor {
     private final FederatedPlayerRepository playerRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
     private final PlayerNameMatcher matcher;
+    private final CanonicalPlayerResolver canonicalPlayerResolver;
+
+    public PlayerSeasonConsolidationProcessor(FederatedPlayerRepository playerRepository,
+                                              PlayerSeasonRepository playerSeasonRepository) {
+        this(playerRepository, playerSeasonRepository, new PlayerNameMatcher(new PlayerNameNormalizer()), null);
+    }
 
     @Inject
     public PlayerSeasonConsolidationProcessor(FederatedPlayerRepository playerRepository,
-                                              PlayerSeasonRepository playerSeasonRepository) {
-        this(playerRepository, playerSeasonRepository, new PlayerNameMatcher(new PlayerNameNormalizer()));
+                                              PlayerSeasonRepository playerSeasonRepository,
+                                              PlayerRepository canonicalPlayerRepository) {
+        this(playerRepository, playerSeasonRepository, new PlayerNameMatcher(new PlayerNameNormalizer()),
+                new CanonicalPlayerResolver(canonicalPlayerRepository));
     }
 
     PlayerSeasonConsolidationProcessor(FederatedPlayerRepository playerRepository,
                                        PlayerSeasonRepository playerSeasonRepository,
                                        PlayerNameMatcher matcher) {
+        this(playerRepository, playerSeasonRepository, matcher, null);
+    }
+
+    private PlayerSeasonConsolidationProcessor(FederatedPlayerRepository playerRepository,
+                                               PlayerSeasonRepository playerSeasonRepository,
+                                               PlayerNameMatcher matcher,
+                                               CanonicalPlayerResolver canonicalPlayerResolver) {
         this.playerRepository = Objects.requireNonNull(playerRepository, "playerRepository");
         this.playerSeasonRepository = Objects.requireNonNull(playerSeasonRepository, "playerSeasonRepository");
         this.matcher = Objects.requireNonNull(matcher, "matcher");
+        this.canonicalPlayerResolver = canonicalPlayerResolver;
     }
 
     public PlayerConsolidationSummary consolidate(ImportSource source) {
@@ -178,12 +197,15 @@ public class PlayerSeasonConsolidationProcessor {
                 playerRepository.saveFederatedPlayer(canonical);
             }
         }
+        canonical = linkCanonicalPlayer(canonical, displayName, mode);
+
         UUID canonicalId = canonical.getId();
         for (PlayerSeason member : members) {
             if (member.getFederatedPlayer().map(player -> player.getId().equals(canonicalId)).orElse(false)) {
                 summary.incrementAlreadyCorrect();
                 continue;
             }
+
             if (mode == ConsolidationMode.WRITE) {
                 playerSeasonRepository.savePlayerSeason(member.withFederatedPlayer(canonical));
             }
@@ -194,6 +216,22 @@ public class PlayerSeasonConsolidationProcessor {
             summary.consolidation(new ConsolidatedFederatedPlayer(source, canonical.getName(), canonical.getId(),
                     matchingMode, ids(members), names(members)));
         }
+    }
+
+    private FederatedPlayer linkCanonicalPlayer(FederatedPlayer federatedPlayer,
+                                                String canonicalName,
+                                                ConsolidationMode mode) {
+        if (canonicalPlayerResolver == null || federatedPlayer.getPlayer().isPresent()) {
+            return federatedPlayer;
+        }
+        Player player = mode == ConsolidationMode.WRITE
+                ? canonicalPlayerResolver.resolveOrCreate(canonicalName)
+                : canonicalPlayerResolver.findOrCreateForReport(canonicalName);
+        FederatedPlayer linked = federatedPlayer.withPlayer(player);
+        if (mode == ConsolidationMode.WRITE) {
+            playerRepository.saveFederatedPlayer(linked);
+        }
+        return linked;
     }
 
     private static Optional<FederatedPlayer> uniquePlayer(List<PlayerSeason> members) {

@@ -40,6 +40,7 @@ class ImportProcessorsTest {
     private InMemoryRepositories.CanonicalClubs canonicalClubs;
     private InMemoryRepositories.Teams teams;
     private InMemoryRepositories.Players players;
+    private InMemoryRepositories.Players.CanonicalPlayers canonicalPlayers;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
     private InMemoryRepositories.Matches matches;
     private InMemoryRepositories.Lineups lineups;
@@ -55,6 +56,7 @@ class ImportProcessorsTest {
         canonicalClubs = new InMemoryRepositories.CanonicalClubs();
         teams = new InMemoryRepositories.Teams();
         players = new InMemoryRepositories.Players();
+        canonicalPlayers = new InMemoryRepositories.Players.CanonicalPlayers();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
         matches = new InMemoryRepositories.Matches();
         lineups = new InMemoryRepositories.Lineups(playerSeasons);
@@ -64,7 +66,7 @@ class ImportProcessorsTest {
 
         processors = List.of(
                 new RfetmTeamImportProcessor(teams, clubs, canonicalClubs),
-                new RfetmPlayerImportProcessor(players, playerSeasons),
+                new RfetmPlayerImportProcessor(players, playerSeasons, canonicalPlayers),
                 new RfetmMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         setScores, doublesPairs));
     }
@@ -86,6 +88,8 @@ class ImportProcessorsTest {
         run(singlesContext());
 
         assertEquals(6, players.byId.size());
+        assertEquals(6, canonicalPlayers.byId.size());
+        assertTrue(players.byId.values().stream().allMatch(player -> player.getPlayer().isPresent()));
         assertEquals(6, playerSeasons.byId.size());
         assertTrue(playerSeasons.findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, "29194", Season.of(2023)).isPresent());
     }

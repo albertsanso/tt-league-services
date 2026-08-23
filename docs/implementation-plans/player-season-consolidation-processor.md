@@ -3,19 +3,21 @@
 ## Goal and corrected consolidation boundary
 
 Add an import-layer reconciliation processor that consolidates equivalent
-player registrations onto one canonical, source-scoped `Player`.
+player registrations onto one source-scoped `FederatedPlayer` and links that
+identity to the season-independent canonical `Player`.
 
-`PlayerSeason` is the season-specific registration and `Player` is the
-season-independent identity. Therefore, consolidation must preserve every
-`PlayerSeason` row, UUID, source, licence, season, and season-specific name.
-It must update only the `PlayerSeason` association through an immutable
-`PlayerSeason.withPlayer(...)` operation. It must not delete registrations or
+`PlayerSeason` is the season-specific registration and `FederatedPlayer` is the
+source-specific identity; `Player` is the season-independent identity linked
+from it. Therefore, consolidation must preserve every `PlayerSeason` row,
+UUID, source, licence, season, and season-specific name. It must update only
+the `PlayerSeason` association through immutable
+`PlayerSeason.withFederatedPlayer(...)`, and must not delete registrations or
 retarget `MATCH` or `LINEUP` references.
 
-The prompt's requirement to create a new `Player` is interpreted as
-create-or-reuse one canonical `Player` per safe group. Existing player
-associations are retained when they agree; conflicting associations are not
-silently merged.
+The canonical-player requirement is implemented as create-or-reuse one
+canonical `Player` per exact display name. Existing federated associations are
+retained when they agree; conflicting source-scoped federated associations are
+not silently merged.
 
 ## Scope and safety policy
 
@@ -63,9 +65,10 @@ values independent from persistence entities and provide a concise
 
 ### Domain
 
-1. Add `PlayerSeason.withPlayer(Player)` that returns an otherwise identical
+1. Use `PlayerSeason.withFederatedPlayer(FederatedPlayer)` to return an otherwise identical
    registration while retaining its ID, source, name, licence, and season.
-   Do not add a mutable public setter.
+   Do not add a mutable public setter. Canonical `Player` linkage is held by
+   the selected `FederatedPlayer`.
 2. Preserve the existing `Player` identity model. Do not add `externalId` or
    source-system licence fields to `Player`.
 
@@ -95,11 +98,12 @@ For the requested source:
 3. Group registrations by the exact normalized key. Empty keys are warnings,
    not matches.
 4. For each exact group, select the canonical player deterministically:
-   - retain the single existing player when every member agrees;
-   - otherwise choose an existing player using stable registration ordering
+   - retain the single existing federated player when every member agrees;
+   - otherwise choose an existing federated player using stable registration ordering
      only when the group has no conflicting player IDs;
-   - when no player exists, reuse a source-scoped canonical-name match or
-     create one `Player` with the deterministic preferred display name.
+   - when no federated player exists, reuse a source-scoped name match or
+     create one `FederatedPlayer` with the deterministic preferred display name;
+   - resolve or create the global exact-name `Player` link independently.
 5. Compare different exact groups for fuzzy candidates only when:
    - significant token sets are compatible;
    - names are not too short or one-token-only;
@@ -109,9 +113,9 @@ For the requested source:
    satisfy the safeguards for its canonical group.
 7. Skip groups containing conflicting pre-existing player IDs unless a
    future source-specific identity policy explicitly authorizes the merge.
-8. Reassociate only registrations whose current player differs from the
-   selected canonical player. Save the `PlayerSeason` returned by
-   `withPlayer(...)`, preserving all other fields.
+8. Reassociate only registrations whose current federated player differs from
+the selected federated player. Save the `PlayerSeason` returned by
+`withFederatedPlayer(...)`, preserving all other fields.
 9. Record canonical display names, registration IDs, matching mode, and
    rejection reasons in the immutable summary.
 
@@ -152,8 +156,9 @@ and reassociation:
    while `PlayerSeasonJPAToPlayerSeasonMapper` converts a non-null JPA
    `Source` with `ImportSource.valueOf(playerSeasonJPA.getSource().name())`.
    Null handling must remain explicit in both directions.
-4. Ensure the existing mappers persist the canonical `player_id` while
-   retaining the registration ID and metadata.
+4. Ensure the federated-player mapper persists nullable canonical
+   `federated_player.player_id` while retaining the registration ID and
+   metadata.
 5. Add or update repository integration coverage for loading registrations,
    changing `player_id`, and reloading the same registration.
 6. Do not alter match or lineup foreign keys, cascades, or registration
@@ -219,9 +224,10 @@ The implementation is complete when:
 
 1. Safe duplicate `PlayerSeason` registrations are identified using
    source-scoped normalized and conservative fuzzy matching.
-2. Each safe group has one deterministic canonical `Player`.
-3. Every registration row and UUID is preserved, with only `player_id`
-   reassociated through the domain API.
+2. Each safe source-scoped group has one deterministic `FederatedPlayer`
+   linked to an exact-name canonical `Player`.
+3. Every registration row and UUID is preserved, with only
+   `federated_player_id` reassociated through the domain API.
 4. Match and lineup references remain unchanged.
 5. Ambiguous, conflicting, malformed, and unsafe matches produce warnings and
    no unintended writes.
@@ -252,7 +258,7 @@ mvn test
 - Automatic processing applies to all current `ImportSource` values, with
   source-scoped matching and identity lookups.
 - `PlayerSeason` registrations are preserved; consolidation changes only their
-  `Player` association.
+  `FederatedPlayer` association and fills the nullable canonical `Player` link.
 - External IDs are not added to `Player` or `PlayerSeason`.
 - Fuzzy matching is conservative and non-transitive; uncertain cases are
   reported rather than merged.
