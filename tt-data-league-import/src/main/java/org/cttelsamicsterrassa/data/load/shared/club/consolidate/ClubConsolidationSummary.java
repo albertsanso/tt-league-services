@@ -13,6 +13,7 @@ public final class ClubConsolidationSummary {
     private final int exactGroups;
     private final int acceptedFuzzyGroups;
     private final int clubsCreated;
+    private final int canonicalLinksCreated;
     private final int registrationsReassociated;
     private final int alreadyCorrectRegistrations;
     private final List<ConsolidatedClub> consolidations;
@@ -25,6 +26,7 @@ public final class ClubConsolidationSummary {
         this.exactGroups = builder.exactGroups;
         this.acceptedFuzzyGroups = builder.acceptedFuzzyGroups;
         this.clubsCreated = builder.clubsCreated;
+        this.canonicalLinksCreated = builder.canonicalLinksCreated;
         this.registrationsReassociated = builder.registrationsReassociated;
         this.alreadyCorrectRegistrations = builder.alreadyCorrectRegistrations;
         this.consolidations = List.copyOf(builder.consolidations);
@@ -66,6 +68,10 @@ public final class ClubConsolidationSummary {
         return registrationsReassociated;
     }
 
+    public int canonicalLinksCreated() {
+        return canonicalLinksCreated;
+    }
+
     public int alreadyCorrectRegistrations() {
         return alreadyCorrectRegistrations;
     }
@@ -84,9 +90,10 @@ public final class ClubConsolidationSummary {
 
     @Override
     public String toString() {
-        return "ClubConsolidationSummary{source=%s, scanned=%d, exactGroups=%d, fuzzyGroups=%d, created=%d, reassociated=%d, alreadyCorrect=%d, warnings=%d, errors=%d}"
+        return "ClubConsolidationSummary{source=%s, scanned=%d, exactGroups=%d, fuzzyGroups=%d, created=%d, canonicalLinks=%d, reassociated=%d, alreadyCorrect=%d, warnings=%d, errors=%d}"
                 .formatted(source, scannedRegistrations, exactGroups, acceptedFuzzyGroups, clubsCreated,
-                        registrationsReassociated, alreadyCorrectRegistrations, warnings.size(), errors.size());
+                        canonicalLinksCreated, registrationsReassociated, alreadyCorrectRegistrations,
+                        warnings.size(), errors.size());
     }
 
     public static final class Builder {
@@ -95,6 +102,7 @@ public final class ClubConsolidationSummary {
         private int exactGroups;
         private int acceptedFuzzyGroups;
         private int clubsCreated;
+        private int canonicalLinksCreated;
         private int registrationsReassociated;
         private int alreadyCorrectRegistrations;
         private final List<ConsolidatedClub> consolidations = new ArrayList<>();
@@ -122,6 +130,11 @@ public final class ClubConsolidationSummary {
 
         public Builder incrementClubsCreated() {
             this.clubsCreated++;
+            return this;
+        }
+
+        public Builder incrementCanonicalLinksCreated() {
+            this.canonicalLinksCreated++;
             return this;
         }
 

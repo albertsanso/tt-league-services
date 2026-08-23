@@ -14,7 +14,9 @@ public record ClubDetailsDto(
         String source,
         List<TeamDetailsDto> teams,
         List<CompetitionDetailsDto> competitions,
-        List<PlayerDetailsDto> players) {
+        List<PlayerDetailsDto> players,
+        UUID canonicalClubId,
+        String canonicalClubName) {
 
     public ClubDetailsDto(
             UUID id,
@@ -22,7 +24,17 @@ public record ClubDetailsDto(
             String source,
             List<TeamDetailsDto> teams,
             List<CompetitionDetailsDto> competitions) {
-        this(id, name, source, teams, competitions, List.of());
+        this(id, name, source, teams, competitions, List.of(), null, null);
+    }
+
+    public ClubDetailsDto(
+            UUID id,
+            String name,
+            String source,
+            List<TeamDetailsDto> teams,
+            List<CompetitionDetailsDto> competitions,
+            List<PlayerDetailsDto> players) {
+        this(id, name, source, teams, competitions, players, null, null);
     }
 
     public static ClubDetailsDto fromObject(FederatedClubDetailsReadModel details) {
@@ -32,7 +44,9 @@ public record ClubDetailsDto(
                 details.source().name(),
                 details.teams().stream().map(TeamDetailsDto::fromObject).toList(),
                 details.competitions().stream().map(CompetitionDetailsDto::fromObject).toList(),
-                details.players().stream().map(PlayerDetailsDto::fromObject).toList());
+                details.players().stream().map(PlayerDetailsDto::fromObject).toList(),
+                details.canonicalClubId(),
+                details.canonicalClubName());
     }
 
     public record TeamDetailsDto(UUID id, String name, String source, String season) {

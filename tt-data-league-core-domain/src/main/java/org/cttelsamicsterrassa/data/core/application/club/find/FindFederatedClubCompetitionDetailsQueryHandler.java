@@ -76,7 +76,9 @@ public class FindFederatedClubCompetitionDetailsQueryHandler
                 matches.stream()
                         .sorted(Comparator.comparing(Match::getRound).thenComparing(Match::getId))
                         .map(match -> toReadModel(match, teamIds))
-                        .toList()));
+                        .toList(),
+                club.getClub().map(canonical -> canonical.getId()).orElse(null),
+                club.getClub().map(canonical -> canonical.getName()).orElse(null)));
     }
 
     private FederatedClubMatchReadModel toReadModel(Match match, List<UUID> clubTeamIds) {

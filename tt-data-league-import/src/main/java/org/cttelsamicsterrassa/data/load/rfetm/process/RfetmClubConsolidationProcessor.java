@@ -1,11 +1,14 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidationSummary;
+import org.cttelsamicsterrassa.data.load.shared.club.CanonicalClubResolver;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidatedClub;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationWarning;
@@ -37,14 +40,26 @@ public class RfetmClubConsolidationProcessor {
 
     private final FederatedClubRepository clubRepository;
     private final TeamRepository teamRepository;
+    private final CanonicalClubResolver canonicalClubResolver;
 
     private final TeamParser teamParser;
 
+    public RfetmClubConsolidationProcessor(FederatedClubRepository clubRepository,
+                                           TeamRepository teamRepository,
+                                           TeamParser teamParser) {
+        this(clubRepository, teamRepository, teamParser, null);
+    }
+
     @Inject
-    public RfetmClubConsolidationProcessor(FederatedClubRepository clubRepository, TeamRepository teamRepository, TeamParser teamParser) {
+    public RfetmClubConsolidationProcessor(FederatedClubRepository clubRepository,
+                                           TeamRepository teamRepository,
+                                           TeamParser teamParser,
+                                           ClubRepository canonicalClubRepository) {
         this.clubRepository = clubRepository;
         this.teamRepository = teamRepository;
         this.teamParser = teamParser;
+        this.canonicalClubResolver = canonicalClubRepository == null
+                ? null : new CanonicalClubResolver(canonicalClubRepository);
     }
 
     public ClubConsolidationSummary process(Path teamsFolderPath) {
@@ -73,12 +88,18 @@ public class RfetmClubConsolidationProcessor {
             if (clubName != null) {
                 ClubResolution resolution = clubsByName.computeIfAbsent(
                         clubName, name -> findOrCreateClub(name, team.getSeason(), mode, summary));
-                FederatedClub club = resolution.club();
+                FederatedClub club = linkCanonicalClub(resolution.club(), clubName, mode);
+                if (resolution.club().getClub().isEmpty() && club.getClub().isPresent()) {
+                    summary.incrementCanonicalLinksCreated();
+                    resolution = new ClubResolution(club, resolution.created());
+                    clubsByName.put(clubName, resolution);
+                }
                 clubs.put(club.getId(), club);
                 associatedTeams.computeIfAbsent(club.getId(), ignored -> new ArrayList<>()).add(team);
                 if (resolution.created()) {
                     changedClubs.put(club.getId(), true);
                 }
+
                 if (team.getFederatedClub().map(associatedClub -> associatedClub.getId().equals(club.getId())).orElse(false)) {
                     summary.incrementAlreadyCorrect();
                     return;
@@ -116,6 +137,22 @@ public class RfetmClubConsolidationProcessor {
         return result;
     }
 
+    private FederatedClub linkCanonicalClub(FederatedClub federatedClub,
+                                             String canonicalName,
+                                             ConsolidationMode mode) {
+        if (canonicalClubResolver == null || federatedClub.getClub().isPresent()) {
+            return federatedClub;
+        }
+        Club canonicalClub = mode == ConsolidationMode.WRITE
+                ? canonicalClubResolver.resolveOrCreate(canonicalName)
+                : canonicalClubResolver.findOrCreateForReport(canonicalName);
+        FederatedClub linked = federatedClub.withClub(canonicalClub);
+        if (mode == ConsolidationMode.WRITE) {
+            clubRepository.saveFederatedClub(linked);
+        }
+        return linked;
+    }
+
     private Map<SeasonTeamNameKey, String> loadClubAndTeamNamesDictionary(Path teamsFolderPath, String season) {
         List<Team> teamsListForAllSeasons = loadListOfTeams(teamsFolderPath, season);
         return buildClubNamesMap(teamsListForAllSeasons);
@@ -126,8 +163,9 @@ public class RfetmClubConsolidationProcessor {
         try (DirectoryStream<Path> stream = Files.newDirectoryStream(teamsFolderPath)) {
             for (Path pathEntry : stream) {
                 String fileName = pathEntry.getFileName().toString();
-                if ((season == null && TEAMS_FILE_NAME_PATTERN.matcher(fileName).matches())
-                        || (season != null && fileName.equals("%s.json".formatted(season)))) {
+                // Consolidation always analyses the complete RFETM inventory. The
+                // season argument limits traversal, not the repair inventory.
+                if (TEAMS_FILE_NAME_PATTERN.matcher(fileName).matches()) {
                     teams.addAll(teamParser.parse(pathEntry));
                 }
             }

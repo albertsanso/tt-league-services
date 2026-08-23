@@ -1,11 +1,14 @@
 package org.cttelsamicsterrassa.data.load.shared.club.consolidate;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+import org.cttelsamicsterrassa.data.load.shared.club.CanonicalClubResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -37,18 +40,34 @@ public class TeamToClubConsolidationProcessor {
     private final FederatedClubRepository clubRepository;
     private final TeamRepository teamRepository;
     private final ClubNameMatcher matcher;
+    private final CanonicalClubResolver canonicalClubResolver;
+
+    public TeamToClubConsolidationProcessor(FederatedClubRepository clubRepository, TeamRepository teamRepository) {
+        this(clubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()), null);
+    }
 
     @Inject
-    public TeamToClubConsolidationProcessor(FederatedClubRepository clubRepository, TeamRepository teamRepository) {
-        this(clubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()));
+    public TeamToClubConsolidationProcessor(FederatedClubRepository clubRepository,
+                                            TeamRepository teamRepository,
+                                            ClubRepository canonicalClubRepository) {
+        this(clubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()),
+                new CanonicalClubResolver(canonicalClubRepository));
     }
 
     TeamToClubConsolidationProcessor(FederatedClubRepository clubRepository,
                                      TeamRepository teamRepository,
                                      ClubNameMatcher matcher) {
+        this(clubRepository, teamRepository, matcher, null);
+    }
+
+    private TeamToClubConsolidationProcessor(FederatedClubRepository clubRepository,
+                                             TeamRepository teamRepository,
+                                             ClubNameMatcher matcher,
+                                             CanonicalClubResolver canonicalClubResolver) {
         this.clubRepository = Objects.requireNonNull(clubRepository, "clubRepository");
         this.teamRepository = Objects.requireNonNull(teamRepository, "teamRepository");
         this.matcher = Objects.requireNonNull(matcher, "matcher");
+        this.canonicalClubResolver = canonicalClubResolver;
     }
 
     public ClubConsolidationSummary consolidate(ImportSource source) {
@@ -230,14 +249,18 @@ public class TeamToClubConsolidationProcessor {
             }
         }
 
+        FederatedClub linkedClub = linkCanonicalClub(canonical, representativeName, mode);
+        if (canonical.getClub().isEmpty() && linkedClub.getClub().isPresent()) {
+            summary.incrementCanonicalLinksCreated();
+        }
         int reassociatedHere = 0;
         for (Team member : members) {
-            if (member.getFederatedClub().map(club -> club.getId().equals(canonical.getId())).orElse(false)) {
+            if (member.getFederatedClub().map(club -> club.getId().equals(linkedClub.getId())).orElse(false)) {
                 summary.incrementAlreadyCorrect();
                 continue;
             }
             if (mode == ConsolidationMode.WRITE) {
-                Team updated = member.withFederatedClub(canonical);
+                Team updated = member.withFederatedClub(linkedClub);
                 teamRepository.saveTeam(updated);
             }
             summary.incrementReassociated();
@@ -250,6 +273,23 @@ public class TeamToClubConsolidationProcessor {
             summary.consolidation(new ConsolidatedClub(
                     source, canonical.getName(), canonical.getId(), matchingMode, ids(members), names(members)));
         }
+
+    }
+
+    private FederatedClub linkCanonicalClub(FederatedClub federatedClub,
+                                             String canonicalName,
+                                             ConsolidationMode mode) {
+        if (canonicalClubResolver == null || federatedClub.getClub().isPresent()) {
+            return federatedClub;
+        }
+        Club canonicalClub = mode == ConsolidationMode.WRITE
+                ? canonicalClubResolver.resolveOrCreate(canonicalName)
+                : canonicalClubResolver.findOrCreateForReport(canonicalName);
+        FederatedClub linked = federatedClub.withClub(canonicalClub);
+        if (mode == ConsolidationMode.WRITE) {
+            clubRepository.saveFederatedClub(linked);
+        }
+        return linked;
     }
 
     private static boolean shouldWarn(ClubNameComparison comparison) {

@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.core.domain.club.event.FederatedClubNameModi
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 
 import java.time.ZonedDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -20,25 +21,44 @@ public class FederatedClub extends Entity {
     private final UUID id;
     private final ImportSource source;
     private String name;
+    private final Optional<Club> club;
 
-    private FederatedClub(UUID id, ImportSource source, String name) {
+    private FederatedClub(UUID id, ImportSource source, String name, Club club) {
         this.id = id;
         this.source = source;
         this.name = name;
+        this.club = Optional.ofNullable(club);
     }
 
     public static FederatedClub createNew(ImportSource source, String name) {
-        FederatedClub club = of(UUID.randomUUID(), source, name);
+        FederatedClub club = of(UUID.randomUUID(), source, name, null);
+        club.publishFederatedClubCreatedEvent();
+        return club;
+    }
+
+    public static FederatedClub createNew(ImportSource source, String name, Club canonicalClub) {
+        FederatedClub club = of(UUID.randomUUID(), source, name, canonicalClub);
         club.publishFederatedClubCreatedEvent();
         return club;
     }
 
     public static FederatedClub createExisting(UUID id, ImportSource source, String name) {
-        return of(id, source, name);
+        return of(id, source, name, null);
     }
 
-    private static FederatedClub of(UUID id, ImportSource source, String name) {
-        return new FederatedClub(id, source, name);
+    public static FederatedClub createExisting(UUID id, ImportSource source, String name, Club canonicalClub) {
+        return of(id, source, name, canonicalClub);
+    }
+
+    private static FederatedClub of(UUID id, ImportSource source, String name, Club canonicalClub) {
+        return new FederatedClub(id, source, name, canonicalClub);
+    }
+
+    public FederatedClub withClub(Club canonicalClub) {
+        if (canonicalClub != null && club.map(existing -> existing.getId().equals(canonicalClub.getId())).orElse(false)) {
+            return this;
+        }
+        return of(id, source, name, canonicalClub);
     }
 
     public void modifyName(String newName) {
@@ -74,6 +94,10 @@ public class FederatedClub extends Entity {
 
     public String getName() {
         return name;
+    }
+
+    public Optional<Club> getClub() {
+        return club;
     }
 
 }

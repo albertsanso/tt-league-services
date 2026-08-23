@@ -1,6 +1,8 @@
 package org.cttelsamicsterrassa.data.core.repository.jpa;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
@@ -38,8 +40,26 @@ class ImportSchemaTest {
 
     private static final Season SEASON = Season.of(2023);
 
+    @Test
+    void validatesCanonicalClubNamesAndKeepsFederatedNameIndependent() {
+        assertThrows(NullPointerException.class, () -> Club.createNew(null));
+        assertThrows(IllegalArgumentException.class, () -> Club.createNew(" \t"));
+
+        Club canonical = Club.createNew("CANONICAL ORIGINAL");
+        FederatedClub federated = FederatedClub.createNew(
+                ImportSource.FCTT, "SOURCE DISPLAY NAME", canonical);
+
+        canonical.modifyName("CANONICAL RENAMED");
+
+        assertEquals("CANONICAL RENAMED", federated.getClub().orElseThrow().getName());
+        assertEquals("SOURCE DISPLAY NAME", federated.getName());
+    }
+
     @Autowired
     private FederatedClubRepository clubRepository;
+
+    @Autowired
+    private ClubRepository canonicalClubRepository;
 
     @Autowired
     private TeamRepository teamRepository;
@@ -67,6 +87,39 @@ class ImportSchemaTest {
         assertTrue(found.isPresent());
         assertEquals(club.getId(), found.get().getId());
         assertEquals("HORTITEC ALZIRA TT", found.get().getName());
+    }
+
+    @Test
+    void roundTripsCanonicalClubAndFederatedAssociation() {
+        Club canonical = Club.createNew("CANONICAL CLUB");
+        canonicalClubRepository.saveClub(canonical);
+        FederatedClub federated = FederatedClub.createNew(
+                ImportSource.FCTT, "CANONICAL CLUB", canonical);
+        clubRepository.saveFederatedClub(federated);
+
+        FederatedClub found = clubRepository.findFederatedClubById(federated.getId()).orElseThrow();
+
+        assertEquals(canonical.getId(), found.getClub().orElseThrow().getId());
+        assertEquals("CANONICAL CLUB", found.getClub().orElseThrow().getName());
+        assertEquals(canonical.getId(),
+                canonicalClubRepository.findClubByExactName("CANONICAL CLUB").orElseThrow().getId());
+    }
+
+    @Test
+    void preservesCanonicalAssociationWhenSavingASeasonTeam() {
+        Club canonical = Club.createNew("TEAM CANONICAL CLUB");
+        canonicalClubRepository.saveClub(canonical);
+        FederatedClub federated = FederatedClub.createNew(
+                ImportSource.FCTT, "TEAM SOURCE CLUB", canonical);
+        clubRepository.saveFederatedClub(federated);
+        Team team = Team.createExisting(
+                UUID.randomUUID(), ImportSource.FCTT, "TEAM SOURCE CLUB", SEASON, federated);
+
+        teamRepository.saveTeam(team);
+
+        Team reloaded = teamRepository.findTeamById(team.getId()).orElseThrow();
+        assertEquals(canonical.getId(), reloaded.getFederatedClub().orElseThrow()
+                .getClub().orElseThrow().getId());
     }
 
     @Test

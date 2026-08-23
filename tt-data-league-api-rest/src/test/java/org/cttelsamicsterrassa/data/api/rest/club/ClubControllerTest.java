@@ -57,6 +57,7 @@ class ClubControllerTest {
         QueryBus queryBus = mock(QueryBus.class);
         ClubController controller = controllerWith(queryBus, mock(CommandBus.class));
         Season season = Season.of(2023);
+        UUID canonicalClubId = UUID.randomUUID();
         FederatedClubDetailsReadModel details = new FederatedClubDetailsReadModel(
                 CLUB_ID,
                 "Club A",
@@ -71,7 +72,9 @@ class ClubControllerTest {
                         "123",
                         ImportSource.RFETM,
                         season,
-                        List.of("Divisió d'Honor"))));
+                        List.of("Divisió d'Honor"))),
+                canonicalClubId,
+                "Canonical Club");
         when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(details));
 
         var response = controller.findClubDetailsById(CLUB_ID);
@@ -82,6 +85,8 @@ class ClubControllerTest {
         assertEquals("2023-2024", body.teams().getFirst().season());
         assertEquals(2, body.competitions().getFirst().resultTotals().wins());
         assertEquals(List.of("Divisió d'Honor"), body.players().getFirst().competitions());
+        assertEquals(canonicalClubId, body.canonicalClubId());
+        assertEquals("Canonical Club", body.canonicalClubName());
     }
 
     @Test

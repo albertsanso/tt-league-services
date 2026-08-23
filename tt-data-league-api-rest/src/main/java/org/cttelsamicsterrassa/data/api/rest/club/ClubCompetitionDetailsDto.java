@@ -13,7 +13,19 @@ public record ClubCompetitionDetailsDto(
         String source,
         String competition,
         String season,
-        List<MatchDetailsDto> matches) {
+        List<MatchDetailsDto> matches,
+        UUID canonicalClubId,
+        String canonicalClubName) {
+
+    public ClubCompetitionDetailsDto(
+            UUID clubId,
+            String clubName,
+            String source,
+            String competition,
+            String season,
+            List<MatchDetailsDto> matches) {
+        this(clubId, clubName, source, competition, season, matches, null, null);
+    }
 
     public static ClubCompetitionDetailsDto fromObject(FederatedClubCompetitionDetailsReadModel details) {
         return new ClubCompetitionDetailsDto(
@@ -22,7 +34,9 @@ public record ClubCompetitionDetailsDto(
                 details.source().name(),
                 details.competition(),
                 details.season().toString(),
-                details.matches().stream().map(MatchDetailsDto::fromObject).toList());
+                details.matches().stream().map(MatchDetailsDto::fromObject).toList(),
+                details.canonicalClubId(),
+                details.canonicalClubName());
     }
 
     public record MatchDetailsDto(

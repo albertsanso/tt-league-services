@@ -65,13 +65,16 @@ Represents the outcome of a game.
 
 ### `FEDERATED_CLUB`
 
-Represents a table tennis club or team entity. Persists across seasons and matches.
+Represents a source-specific club identity. It may reference the
+season-independent `CLUB` identity, but its source-provided name and UUID remain
+unchanged.
 
 | Column        | Type           | PK  | Nullable | Unique | Description                                                     |
 | ------------- | -------------- | --- | -------- | ------ | --------------------------------------------------------------- |
 | `id`          | `UUID`         | Yes | No       | Yes    | Surrogate primary key (caller-provided UUID v4).                 |
 | `source`      | `VARCHAR(20)`  | No  | No       | No     | Federation that supplied the club row.                            |
 | `name`        | `VARCHAR(255)` | No  | Yes      | No     | Club name. Can be null for unknown clubs.                        |
+| `club_id`     | `UUID`         | No  | Yes      | No     | Nullable foreign key to `CLUB`; populated by the manual migration/backfill. |
 
 FederatedClub and FederatedPlayer entities do not persist source-system identifiers. Their UUID is the entity identity;
 `source` scopes federation data. FederatedClub retains its `(source, name)` uniqueness constraint, while
@@ -81,10 +84,28 @@ source-specific matching.
 
 ---
 
+### `CLUB`
+
+Represents the canonical, season-independent club identity. Its display name
+is globally unique and is the only automatic cross-source matching key.
+
+| Column | Type | PK | Nullable | Unique | Description |
+| ------ | ---- | -- | -------- | ------ | ----------- |
+| `id` | `UUID` | Yes | No | Yes | Caller-provided UUID v4. |
+| `name` | `VARCHAR(255)` | No | No | Yes | Exact canonical display name. |
+
+`FEDERATED_CLUB.club_id` is a lazy, nullable many-to-one relationship. No
+cascade is defined: canonical clubs must be created before their federated
+references. `TEAM.federated_club_id` and all match, lineup, and
+player-season references continue to target the federated/season-specific
+records and are not redirected to `CLUB`.
+
+---
+
 ## Existing database migration requirement
 
 The entity rename requires a database migration for existing deployments before
-starting the renamed application. The migration must rename `club` to
+starting the renamed application. The earlier migration must rename `club` to
 `federated_club`, rename `team.club_id` to `team.federated_club_id`, rename
 `player` to `federated_player`, and rename `player_season.player_id` to
 `player_season.federated_player_id`. It must also rename the related indexes,
@@ -92,10 +113,16 @@ foreign keys, and constraints while preserving UUIDs, row data, row counts, and
 references. `LINEUP.player_id`, `GAME.home_player_id`, `GAME.away_player_id`,
 and `DOUBLES_PAIR.player_id` target `PLAYER_SEASON` and must remain unchanged.
 
-This repository has no Flyway, Liquibase, or other versioned migration
-framework/location, so no migration is supplied. The feature remains blocked
-for deployment until the deployment owner provides and verifies that migration.
-Hibernate `ddl-auto: update` must not be treated as a rename migration.
+This repository owns the manually applied PostgreSQL migration
+`docs/migrations/FEAT-008-canonical-club.sql`. It includes prechecks,
+backfill-safe nullable steps, and postchecks for row counts, UUIDs, names,
+references, and foreign-key integrity. Apply it before starting either runtime;
+the runtime datasource uses `DB_TTLEAGUEDATA_JDBC_URL`,
+`DB_TTLEAGUEDATA_CREDENTIAL_USERNAME`, and
+`DB_TTLEAGUEDATA_CREDENTIAL_PASSWORD`.
+
+Hibernate `ddl-auto: update` is not a migration and must not be used to rename
+tables, preserve data, or perform this backfill.
 
 ---
 

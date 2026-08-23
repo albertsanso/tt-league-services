@@ -20,14 +20,16 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class TeamToClubConsolidationProcessorTest {
 
     private InMemoryRepositories.Clubs clubs;
+    private InMemoryRepositories.CanonicalClubs canonicalClubs;
     private InMemoryRepositories.Teams teams;
     private TeamToClubConsolidationProcessor processor;
 
     @BeforeEach
     void setUp() {
         clubs = new InMemoryRepositories.Clubs();
+        canonicalClubs = new InMemoryRepositories.CanonicalClubs();
         teams = new InMemoryRepositories.Teams();
-        processor = new TeamToClubConsolidationProcessor(clubs, teams);
+        processor = new TeamToClubConsolidationProcessor(clubs, teams, canonicalClubs);
     }
 
     @Test
@@ -41,6 +43,7 @@ class TeamToClubConsolidationProcessorTest {
         assertEquals(1, summary.clubsCreated());
         assertEquals(2, summary.registrationsReassociated());
         assertEquals(sameClub(first.getId()), sameClub(second.getId()));
+        assertEquals(1, canonicalClubs.size());
     }
 
     @Test
@@ -75,6 +78,7 @@ class TeamToClubConsolidationProcessorTest {
         assertEquals(ImportSource.FCTT, fctt.getSource());
         assertEquals(ImportSource.BCNESA, bcnesa.getSource());
         assertTrue(!fctt.getId().equals(bcnesa.getId()));
+        assertEquals(fctt.getClub().orElseThrow().getId(), bcnesa.getClub().orElseThrow().getId());
     }
 
     @Test

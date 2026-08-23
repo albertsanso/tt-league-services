@@ -3,24 +3,28 @@
 ## Goal and corrected consolidation boundary
 
 Add an import-layer reconciliation processor that attaches equivalent
-`Team` registrations to one canonical, source-scoped `Club`. It must
-repair registrations created by the current import processors without merging
-or deleting `Team` rows.
+`Team` registrations to one source-scoped `FederatedClub`, while linking that
+federated identity to a season-independent canonical `Club`. It must repair
+registrations created by the current import processors without merging or
+deleting `Team` rows.
 
 This distinction is required by the existing model:
 
 - `Team` is the season-specific team/registration record and owns an
-  optional `Club` association.
+  optional `FederatedClub` association.
+- `FederatedClub` is the source-scoped identity and owns an optional canonical
+  `Club` association.
 - `MATCH.home_team_id`, `MATCH.away_team_id`, `MATCH.winner_team_id`, and
-  `LINEUP.team_id` references `TEAM`, while `TEAM.club_id` references `CLUB`.
+  `LINEUP.team_id` references `TEAM`, while `TEAM.federated_club_id`
+  references `FEDERATED_CLUB`, which may reference `CLUB`.
 
 Therefore, the prompt's instruction to redirect references from old
 `Team` records to a new `Club` is not type-compatible and would destroy
 the match natural key, lineup history, and the ability to retain different
 teams from one club in a season. The processor must leave those foreign keys
-unchanged, create or reuse one canonical `Club`, and save replacement
-`Team` domain objects with the same IDs, source, names, and seasons but
-with the canonical `Club` assigned.
+unchanged, create or reuse a source-scoped `FederatedClub`, link it to one
+exact-name canonical `Club`, and save replacement `Team` domain objects with
+the same IDs, source, names, and seasons but with that federated association.
 
 No `externalId` field is added to `Club` or `Team`. Federation keys stay
 in source-specific import identity logic.
@@ -50,12 +54,13 @@ in source-specific import identity logic.
 
 Restore the normal club-registration flow in the three existing processors:
 
-- `tt-data-league-import/.../rfetm/process/RfetmClubImportProcessor`
-- `tt-data-league-import/.../bcnesa/process/BcnesaClubImportProcessor`
-- `tt-data-league-import/.../fctt/process/FcttClubImportProcessor`
+- `tt-data-league-import/.../rfetm/process/RfetmTeamImportProcessor`
+- `tt-data-league-import/.../bcnesa/process/BcnesaTeamImportProcessor`
+- `tt-data-league-import/.../fctt/process/FcttTeamImportProcessor`
 
-Each must resolve/create a source-scoped `Club`, then create the season
-registration with that club. Preserve each source's existing identity rules:
+Each must resolve/create a source-scoped `FederatedClub` and an exact-name
+canonical `Club`, then create the season registration with that federated
+club. Preserve each source's existing identity rules:
 BCNESA uses its narrow quoted-team-letter normalization; RFETM must continue
 to use its source-specific key policy rather than replacing it with a
 name-only upsert; FCTT must not interpret RFETM-shaped payload IDs as FCTT
@@ -79,8 +84,8 @@ Create the feature in a source-neutral package under
   abbreviation registry. Keep the registry source-aware and include only
   abbreviations demonstrated by fixtures; do not introduce generic
   football-club expansion rules for table-tennis data.
-- `TeamToClubConsolidationProcessor`: constructor-injected `ClubRepository`
-  and `TeamRepository`; exposes
+- `TeamToClubConsolidationProcessor`: constructor-injected
+  `FederatedClubRepository`, `TeamRepository`, and `ClubRepository`; exposes
   `consolidate(ImportSource source)` and returns a
   `ClubConsolidationSummary`.
 - `ClubConsolidationSummary`: immutable result containing scanned
@@ -106,22 +111,22 @@ dedicated repair command; it must never run independently once per report.
    `findAll...SimilarName`, which cannot discover arbitrary duplicate groups
    and is unsuitable for a complete reconciliation.
 2. Add a domain factory or intent-revealing method that creates an otherwise
-   identical existing `Team` with a supplied `Club` association. The
+   identical existing `Team` with a supplied `FederatedClub` association. The
    current association is final, so do not add a public mutable setter. The
-   processor uses this API and `saveTeam` to update `team.club_id`.
-3. Add only the source-scoped club lookups needed to choose/create a canonical
-   club. If a complete source inventory becomes necessary to resolve legacy
-   duplicate `Club` records, add it explicitly to the port and adapter rather
-   than falling back to name-only lookup.
+   processor uses this API and `saveTeam` to update
+   `team.federated_club_id`; canonical links are persisted on the federated
+   club.
+3. Add exact-name canonical `Club` lookup and CRUD to its own port and adapter.
+   Keep source-scoped `FederatedClub` lookup separate; never fall back to an
+   unscoped federated name lookup.
 4. In the JPA adapter, save the reassociated `Team` using the existing
-   mappers. Keep `team.club_id` nullable for legacy data until the
+   mappers. Keep `federated_club.club_id` nullable for legacy data until the
    migration has been performed; do not change column nullability in this
    feature unless an audited data migration is included.
 5. Do not alter match or lineup foreign keys, their natural/unique
    constraints, or their mappers. Update
-   `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` only if the
-   schema contract actually changes; the intended reassociation requires no
-   schema change.
+   `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` and the manual
+   FEAT-008 migration document the canonical table and federated link.
 
 ## Matching and canonicalization algorithm
 
@@ -130,17 +135,20 @@ For each requested source:
 1. Read all `Team` records for that source, reject and report null or
    blank names, and group the remaining entries by the exact normalized key.
 2. For every exact group with more than one distinct registration, choose its
-   canonical club deterministically:
+   source-scoped federated club deterministically:
    - retain a single already-associated club when all associated entries agree;
    - otherwise prefer the associated club from the earliest season and then
      the lexicographically smallest UUID as a stable tie-breaker;
    - when no entry has a club, create one with the stable representative name
      selected by earliest season, then normalized/display-name and UUID
      tie-breakers.
-3. Reassociate each group member to that club while retaining its original
-   season-specific name and ID. If the group contains multiple conflicting
-   pre-existing club IDs, warn and skip automatic reassignment unless the
-   selected source policy explicitly authorizes that migration.
+3. Reassociate each group member to that federated club while retaining its
+   original season-specific name and ID. If the group contains multiple
+   conflicting pre-existing federated club IDs, warn and skip automatic
+   reassignment unless the selected source policy explicitly authorizes that
+   migration. Canonical links are created or reused by exact canonical display
+   name only; source-specific fuzzy/rules matching does not become cross-source
+   canonical matching.
 4. Build fuzzy candidates only between different exact groups in the same
    source. Require the same significant token set after known abbreviations,
    reject one-token/very-short names, require mutual best match, and calculate
@@ -186,7 +194,8 @@ Cover:
    tokens produce warnings and no writes.
 4. Identically named records from different sources never group.
 5. Multiple seasonal registrations with equivalent names retain their IDs,
-   season names, and match/lineup references while receiving one `Club`.
+   season names, and match/lineup references while receiving one federated
+   association linked to one canonical `Club`.
 6. Existing agreement on a club produces no duplicate `Club`; no associated
    club creates exactly one canonical one; conflicting associated clubs are
    reported and unchanged.
@@ -202,9 +211,10 @@ Cover:
 
 Extend `ImportSchemaTest` or add a focused repository test to persist a
 canonical `Club`, multiple `Team` rows, a match, and lineups; then
-reassociate the teams and reload them. Assert the `team.club_id` changes
-while match and lineup references continue to target the same
-`Team.id`. Also test the source-scoped inventory query.
+reassociate the teams and reload them. Assert the
+`federated_club.club_id` association is linked while match and lineup
+references continue to target the same `Team.id`. Also test the source-scoped
+inventory query.
 
 ## Validation
 
@@ -215,12 +225,13 @@ while match and lineup references continue to target the same
    in-memory-repository changes.
 4. Run `mvn test` from the repository root.
 
-## Decisions to confirm before implementation
+## Historical decisions (resolved for FEAT-008)
 
-1. Which source-specific abbreviation mappings are supported by representative
+1. Source-specific abbreviation mappings remain supported only when demonstrated
+   by representative
    exports? The initial registry must be evidence-based.
-2. Should RFETM consolidation remain disabled as recommended, or should a
-   future RFETM-specific key-aware policy define exactly which team
-   registrations may share a parent club?
-3. Is an opt-in post-import repair sufficient, or is a separate maintenance
-   command/profile required for production operational controls?
+2. RFETM automatic consolidation remains disabled in the shared processor;
+   its source-specific key-aware consolidation is invoked separately.
+3. Opt-in post-import repair is sufficient for the current runtime. Both write
+   and report modes are available; no destructive operation is enabled by
+   default.

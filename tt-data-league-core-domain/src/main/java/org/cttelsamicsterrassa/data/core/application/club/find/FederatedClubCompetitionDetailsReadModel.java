@@ -13,7 +13,9 @@ public record FederatedClubCompetitionDetailsReadModel(
         ImportSource source,
         String competition,
         Season season,
-        List<FederatedClubMatchReadModel> matches) {
+        List<FederatedClubMatchReadModel> matches,
+        UUID canonicalClubId,
+        String canonicalClubName) {
 
     public FederatedClubCompetitionDetailsReadModel {
         Objects.requireNonNull(federatedClubId, "federatedClubId must not be null");
@@ -22,5 +24,15 @@ public record FederatedClubCompetitionDetailsReadModel(
         Objects.requireNonNull(competition, "competition must not be null");
         Objects.requireNonNull(season, "season must not be null");
         matches = List.copyOf(Objects.requireNonNull(matches, "matches must not be null"));
+    }
+
+    public FederatedClubCompetitionDetailsReadModel(
+            UUID federatedClubId,
+            String federatedClubName,
+            ImportSource source,
+            String competition,
+            Season season,
+            List<FederatedClubMatchReadModel> matches) {
+        this(federatedClubId, federatedClubName, source, competition, season, matches, null, null);
     }
 }

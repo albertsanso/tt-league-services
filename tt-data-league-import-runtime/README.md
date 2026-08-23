@@ -38,17 +38,18 @@ and JDBC batching with a batch size of 50. The configuration is in
 http://localhost:9090/actuator/health
 ```
 
-`ddl-auto: update` does not rename the existing `club` or `player` tables, nor
-the `team.club_id` or `player_season.player_id` columns. Existing databases
-require a reviewed deployment migration to `federated_club`,
+`ddl-auto: update` does not rename legacy `club` or `player` tables, nor the
+`team.club_id` or `player_season.player_id` columns. Existing databases require
+the reviewed legacy deployment migration to `federated_club`,
 `team.federated_club_id`, `federated_player`, and
 `player_season.federated_player_id` before launch. The
 `lineup.player_id`, `game.home_player_id`, `game.away_player_id`, and
 `doubles_pair.player_id` columns remain linked to `player_season`.
-This repository has no migration framework or versioned migration location, so
-no migration is supplied and the feature remains blocked for deployment until
-the deployment owner provides and verifies it. Do not use `ddl-auto: update` as
-a substitute.
+Apply the manually owned PostgreSQL migration
+`docs/migrations/FEAT-008-canonical-club.sql` before launch. It creates the
+canonical `club` table, adds the nullable `federated_club.club_id` link, and
+performs exact-name backfill and preservation checks. Do not use
+`ddl-auto: update` as a substitute for this migration.
 
 ## Build
 

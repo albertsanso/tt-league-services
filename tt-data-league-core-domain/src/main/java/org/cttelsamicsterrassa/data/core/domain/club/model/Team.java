@@ -46,7 +46,10 @@ public class Team extends Entity {
      */
     public Team withFederatedClub(FederatedClub club) {
         if (club != null && this.federatedClub.isPresent()
-                && club.getId().equals(this.federatedClub.get().getId())) {
+                && club.getId().equals(this.federatedClub.get().getId())
+                && club.getClub().map(canonical -> this.federatedClub.get().getClub()
+                        .map(existingCanonical -> existingCanonical.getId().equals(canonical.getId()))
+                        .orElse(false)).orElse(this.federatedClub.get().getClub().isEmpty())) {
             return this;
         }
         return of(id, source, name, season, club);

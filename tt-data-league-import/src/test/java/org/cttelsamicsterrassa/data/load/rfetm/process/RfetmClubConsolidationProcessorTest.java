@@ -70,6 +70,40 @@ class RfetmClubConsolidationProcessorTest {
                 .count());
     }
 
+    @Test
+    void linksEachCreatedRfetmClubToCanonicalIdentityOnce(@TempDir Path teamsFolder) throws IOException {
+        InMemoryRepositories.Clubs clubs = new InMemoryRepositories.Clubs();
+        InMemoryRepositories.CanonicalClubs canonicalClubs = new InMemoryRepositories.CanonicalClubs();
+        InMemoryRepositories.Teams teams = new InMemoryRepositories.Teams();
+        teams.saveTeam(Team.createNew(ImportSource.RFETM, "CLUB A TEAM", Season.of(2023), null));
+        teams.saveTeam(Team.createNew(ImportSource.RFETM, "CLUB B TEAM", Season.of(2023), null));
+
+        Files.writeString(teamsFolder.resolve("2023-2024.json"), """
+                [
+                  {
+                    "season": "2023-2024",
+                    "club_name": "CLUB A",
+                    "team_name": "CLUB A TEAM",
+                    "category": "MEN-A"
+                  },
+                  {
+                    "season": "2023-2024",
+                    "club_name": "CLUB A",
+                    "team_name": "CLUB B TEAM",
+                    "category": "MEN-B"
+                  }
+                ]
+                """);
+
+        ClubConsolidationSummary summary = new RfetmClubConsolidationProcessor(
+                clubs, teams, new TeamParser(), canonicalClubs).process(teamsFolder);
+
+        assertEquals(1, summary.canonicalLinksCreated());
+        assertEquals(1, canonicalClubs.size());
+        assertEquals(1, clubs.findAllFederatedClubsBySourceAndFragmentsInName(
+                ImportSource.RFETM, List.of("CLUB A")).size());
+    }
+
     private static final class CountingFederatedClubRepository implements FederatedClubRepository {
         private final InMemoryRepositories.Clubs delegate = new InMemoryRepositories.Clubs();
         private int findBySourceAndNameCalls;

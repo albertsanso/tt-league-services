@@ -1,6 +1,8 @@
 package org.cttelsamicsterrassa.data.load.process;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
@@ -88,6 +90,40 @@ public final class InMemoryRepositories {
             return name != null && fragments != null && !fragments.isEmpty()
                     && fragments.stream().allMatch(fragment ->
                     fragment != null && name.toLowerCase().contains(fragment.toLowerCase()));
+        }
+    }
+
+    public static final class CanonicalClubs implements ClubRepository {
+        final Map<UUID, Club> byId = new LinkedHashMap<>();
+
+        @Override
+        public Optional<Club> findClubById(UUID id) {
+            return Optional.ofNullable(byId.get(id));
+        }
+
+        @Override
+        public Optional<Club> findClubByExactName(String name) {
+            List<Club> matches = byId.values().stream()
+                    .filter(club -> Objects.equals(club.getName(), name))
+                    .toList();
+            if (matches.size() > 1) {
+                throw new IllegalStateException("Multiple canonical clubs found for name: " + name);
+            }
+            return matches.stream().findFirst();
+        }
+
+        @Override
+        public void saveClub(Club club) {
+            byId.put(club.getId(), club);
+        }
+
+        @Override
+        public void deleteClubById(UUID id) {
+            byId.remove(id);
+        }
+
+        public int size() {
+            return byId.size();
         }
     }
 

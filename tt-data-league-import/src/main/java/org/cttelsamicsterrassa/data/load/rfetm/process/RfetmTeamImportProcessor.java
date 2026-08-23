@@ -1,15 +1,24 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeam;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
+import org.cttelsamicsterrassa.data.load.shared.club.CanonicalClubResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+
+import javax.inject.Inject;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Stores the two clubs of a match report, and their entry for that season.
@@ -33,9 +42,26 @@ public class RfetmTeamImportProcessor implements MatchContextProcessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(RfetmTeamImportProcessor.class);
 
     private final TeamRepository teamRepository;
+    private final FederatedClubRepository federatedClubRepository;
+    private final CanonicalClubResolver canonicalClubResolver;
+    private final Map<String, FederatedClub> federatedClubsByKey = new LinkedHashMap<>();
 
+    @Inject
+    public RfetmTeamImportProcessor(TeamRepository teamRepository,
+                                    FederatedClubRepository federatedClubRepository,
+                                    ClubRepository clubRepository) {
+        this.teamRepository = teamRepository;
+        this.federatedClubRepository = federatedClubRepository;
+        this.canonicalClubResolver = new CanonicalClubResolver(clubRepository);
+    }
+
+    /**
+     * Compatibility constructor for clients that only need the historical team behavior.
+     */
     public RfetmTeamImportProcessor(TeamRepository teamRepository) {
         this.teamRepository = teamRepository;
+        this.federatedClubRepository = null;
+        this.canonicalClubResolver = null;
     }
 
     @Override
@@ -49,12 +75,81 @@ public class RfetmTeamImportProcessor implements MatchContextProcessor {
         String name = team != null ? team.name() : key.name();
 
         teamRepository.findTeamByNameAndSeasonAndSource(name, season, ImportSource.RFETM)
-                .orElseGet(() -> {
-                    Team created = Team.createNew(ImportSource.RFETM, name, season, null);
+                .ifPresentOrElse(existing -> updateFederatedClub(existing, key, name),
+                        () -> {
+                    FederatedClub federatedClub = resolveFederatedClub(key, name);
+                    Team created = Team.createNew(ImportSource.RFETM, name, season, federatedClub);
                     teamRepository.saveTeam(created);
                     LOGGER.debug("Created team {} {} ({})", name, season, key);
+                });
+    }
+
+    private void updateFederatedClub(Team existing, RfetmClubKey key, String name) {
+        if (federatedClubRepository == null) {
+            return;
+        }
+        FederatedClub federatedClub = existing.getFederatedClub()
+                .map(existingClub -> {
+                    FederatedClub knownClub = key == null ? null : federatedClubsByKey.get(key.value());
+                    if (knownClub != null && !knownClub.getId().equals(existingClub.getId())) {
+                        return knownClub;
+                    }
+                    if (key != null) {
+                        federatedClubsByKey.putIfAbsent(key.value(), existingClub);
+                    }
+                    if (existingClub.getClub().isPresent()) {
+                        return existingClub;
+                    }
+                    Club canonicalClub = canonicalClubResolver.resolveOrCreate(name);
+                    FederatedClub linked = existingClub.withClub(canonicalClub);
+                    federatedClubRepository.saveFederatedClub(linked);
+                    if (key != null) {
+                        federatedClubsByKey.put(key.value(), linked);
+                    }
+                    return linked;
+                })
+                .orElseGet(() -> resolveFederatedClub(key, name));
+        if (existing.getFederatedClub().map(club -> sameFederatedClub(club, federatedClub)).orElse(false)) {
+            return;
+        }
+        teamRepository.saveTeam(existing.withFederatedClub(federatedClub));
+    }
+
+    private static boolean sameFederatedClub(FederatedClub left, FederatedClub right) {
+        return left.getId().equals(right.getId())
+                && left.getClub().map(a -> right.getClub().map(b -> a.getId().equals(b.getId())).orElse(false))
+                .orElse(right.getClub().isEmpty());
+    }
+
+    private FederatedClub resolveFederatedClub(RfetmClubKey key, String name) {
+        if (federatedClubRepository == null) {
+            return null;
+        }
+        if (key != null) {
+            FederatedClub known = federatedClubsByKey.get(key.value());
+            if (known != null) {
+                return known;
+            }
+        }
+        Club canonicalClub = canonicalClubResolver.resolveOrCreate(name);
+        FederatedClub resolved = federatedClubRepository.findFederatedClubBySourceAndName(ImportSource.RFETM, name)
+                .map(existing -> {
+                    if (existing.getClub().isPresent()) {
+                        return existing;
+                    }
+                    FederatedClub linked = existing.withClub(canonicalClub);
+                    federatedClubRepository.saveFederatedClub(linked);
+                    return linked;
+                })
+                .orElseGet(() -> {
+                    FederatedClub created = FederatedClub.createNew(ImportSource.RFETM, name, canonicalClub);
+                    federatedClubRepository.saveFederatedClub(created);
                     return created;
                 });
+        if (key != null) {
+            federatedClubsByKey.put(key.value(), resolved);
+        }
+        return resolved;
     }
 
     private static ActaTeam homeTeam(MatchReportContext context) {

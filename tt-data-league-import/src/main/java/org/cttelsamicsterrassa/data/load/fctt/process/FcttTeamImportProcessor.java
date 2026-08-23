@@ -1,6 +1,10 @@
 package org.cttelsamicsterrassa.data.load.fctt.process;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -9,6 +13,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+
+import javax.inject.Inject;
+import org.cttelsamicsterrassa.data.load.shared.club.CanonicalClubResolver;
 
 /**
  * Stores the FCTT report's two clubs and their season entries.
@@ -26,9 +33,22 @@ public class FcttTeamImportProcessor implements FcttMatchReportProcessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(FcttTeamImportProcessor.class);
 
     private final TeamRepository teamRepository;
+    private final FederatedClubRepository federatedClubRepository;
+    private final CanonicalClubResolver canonicalClubResolver;
+
+    @Inject
+    public FcttTeamImportProcessor(TeamRepository teamRepository,
+                                   FederatedClubRepository federatedClubRepository,
+                                   ClubRepository clubRepository) {
+        this.teamRepository = teamRepository;
+        this.federatedClubRepository = federatedClubRepository;
+        this.canonicalClubResolver = new CanonicalClubResolver(clubRepository);
+    }
 
     public FcttTeamImportProcessor(TeamRepository teamRepository) {
         this.teamRepository = teamRepository;
+        this.federatedClubRepository = null;
+        this.canonicalClubResolver = null;
     }
 
     @Override
@@ -49,10 +69,49 @@ public class FcttTeamImportProcessor implements FcttMatchReportProcessor {
             return;
         }
         teamRepository.findTeamByNameAndSeasonAndSource(team.name(), season, ImportSource.FCTT)
-                .orElseGet(() -> {
-                    Team created = Team.createNew(ImportSource.FCTT, team.name(), season, null);
+                .ifPresentOrElse(existing -> updateFederatedClub(existing, team.name()),
+                        () -> {
+                    FederatedClub federatedClub = resolveFederatedClub(team.name());
+                    Team created = Team.createNew(ImportSource.FCTT, team.name(), season, federatedClub);
                     teamRepository.saveTeam(created);
                     LOGGER.debug("Created FCTT team {} {}", team.name(), season);
+                });
+    }
+
+    private void updateFederatedClub(Team existing, String name) {
+        if (federatedClubRepository == null) {
+            return;
+        }
+        FederatedClub federatedClub = resolveFederatedClub(name);
+        if (existing.getFederatedClub().map(club -> sameFederatedClub(club, federatedClub)).orElse(false)) {
+            return;
+        }
+        teamRepository.saveTeam(existing.withFederatedClub(federatedClub));
+    }
+
+    private static boolean sameFederatedClub(FederatedClub left, FederatedClub right) {
+        return left.getId().equals(right.getId())
+                && left.getClub().map(a -> right.getClub().map(b -> a.getId().equals(b.getId())).orElse(false))
+                .orElse(right.getClub().isEmpty());
+    }
+
+    private FederatedClub resolveFederatedClub(String name) {
+        if (federatedClubRepository == null) {
+            return null;
+        }
+        Club canonicalClub = canonicalClubResolver.resolveOrCreate(name);
+        return federatedClubRepository.findFederatedClubBySourceAndName(ImportSource.FCTT, name)
+                .map(existing -> {
+                    if (existing.getClub().isPresent()) {
+                        return existing;
+                    }
+                    FederatedClub linked = existing.withClub(canonicalClub);
+                    federatedClubRepository.saveFederatedClub(linked);
+                    return linked;
+                })
+                .orElseGet(() -> {
+                    FederatedClub created = FederatedClub.createNew(ImportSource.FCTT, name, canonicalClub);
+                    federatedClubRepository.saveFederatedClub(created);
                     return created;
                 });
     }

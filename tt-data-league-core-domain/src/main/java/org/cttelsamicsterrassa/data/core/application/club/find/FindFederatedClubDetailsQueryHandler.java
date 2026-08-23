@@ -87,7 +87,9 @@ public class FindFederatedClubDetailsQueryHandler
         List<FederatedClubCompetitionReadModel> competitions = summarizeCompetitions(matches, teamIds);
 
         return new FederatedClubDetailsReadModel(
-                club.getId(), club.getName(), club.getSource(), teamModels, competitions, players);
+                club.getId(), club.getName(), club.getSource(), teamModels, competitions, players,
+                club.getClub().map(canonical -> canonical.getId()).orElse(null),
+                club.getClub().map(canonical -> canonical.getName()).orElse(null));
     }
 
     private FederatedClubPlayerReadModel toPlayerReadModel(

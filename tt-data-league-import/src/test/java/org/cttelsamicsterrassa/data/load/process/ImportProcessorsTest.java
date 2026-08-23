@@ -37,6 +37,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ImportProcessorsTest {
 
     private InMemoryRepositories.Clubs clubs;
+    private InMemoryRepositories.CanonicalClubs canonicalClubs;
     private InMemoryRepositories.Teams teams;
     private InMemoryRepositories.Players players;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
@@ -51,6 +52,7 @@ class ImportProcessorsTest {
     @BeforeEach
     void setUp() {
         clubs = new InMemoryRepositories.Clubs();
+        canonicalClubs = new InMemoryRepositories.CanonicalClubs();
         teams = new InMemoryRepositories.Teams();
         players = new InMemoryRepositories.Players();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
@@ -61,7 +63,7 @@ class ImportProcessorsTest {
         doublesPairs = new InMemoryRepositories.DoublesPairs();
 
         processors = List.of(
-                new RfetmTeamImportProcessor(teams),
+                new RfetmTeamImportProcessor(teams, clubs, canonicalClubs),
                 new RfetmPlayerImportProcessor(players, playerSeasons),
                 new RfetmMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         setScores, doublesPairs));

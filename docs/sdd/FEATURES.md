@@ -59,8 +59,40 @@ Any open questions, design decisions, or links.
 ## In Progress
 
 ## Backlog
+---
 
 ## Done
+
+### [FEAT-008] Canonical club entity
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large (> 8h)
+- **Depends on:** —
+
+#### Goal
+Establish a canonical, season-independent club entity that can be referenced consistently across seasons, imports, persistence, and APIs.
+
+`Club` canonical entity the following properties only:
+- `id` (UUID) (Primary key a unique identifier for the canonical club entity)
+- `name` (string) (Unique name of the club)
+
+`FederatedClub` entity is a source-dependent representation of a club.
+`FederatedClub` references a `Club` entity and includes additional properties such as:
+- `club_id` (UUID) (Foreign key referencing the canonical `Club` entity)
+- `source` (string) (The source of the club data, e.g., a specific federation or league)
+- `name` (string) (The name of the club as provided by the source)
+
+#### Acceptance Criteria
+- [x] A new `Club` entity is created in the backend with a unique identifier and name.
+- [x] The `FederatedClub` entity is updated to reference the new `Club` entity via a foreign key.
+- [x] All existing references to `FederatedClub` in the backend codebase are updated to use the canonical `Club` entity where appropriate.
+- [x] The database schema is updated to include the new `Club` table and the foreign key relationship between `FederatedClub` and `Club`.
+- [x] All relevant JPA entities, helpers, mappers, and repository implementations are updated to reflect the new entity structure.
+- [x] All JPQL queries and `@Query()` annotations are updated to use the new entity structure.
+- [x] All tests, public API adapters, and documentation are updated to reflect the new entity structure without changing existing functionality.
+
+#### Feature Details
+→ See [FEAT-008-DETAILS.md](./FEAT-008-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ### [FEAT-007] fixes in breadcrumb and navigation
 - **Status:** done

@@ -31,6 +31,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class BcnesaImportProcessorsTest {
 
     private InMemoryRepositories.Clubs clubs;
+    private InMemoryRepositories.CanonicalClubs canonicalClubs;
     private InMemoryRepositories.Teams teams;
     private InMemoryRepositories.Players players;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
@@ -45,6 +46,7 @@ class BcnesaImportProcessorsTest {
     @BeforeEach
     void setUp() {
         clubs = new InMemoryRepositories.Clubs();
+        canonicalClubs = new InMemoryRepositories.CanonicalClubs();
         teams = new InMemoryRepositories.Teams();
         players = new InMemoryRepositories.Players();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
@@ -54,7 +56,7 @@ class BcnesaImportProcessorsTest {
         doublesPairs = new InMemoryRepositories.DoublesPairs();
 
         processors = List.of(
-                new BcnesaTeamImportProcessor(teams),
+                new BcnesaTeamImportProcessor(teams, clubs, canonicalClubs),
                 new BcnesaPlayerImportProcessor(players, playerSeasons),
                 new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         doublesPairs));
@@ -68,8 +70,11 @@ class BcnesaImportProcessorsTest {
         run(secondFixture());
 
         assertEquals(4, clubs.byId.size());
+        assertEquals(4, canonicalClubs.size());
         FederatedClub home1 = clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "FALCONS DE SABADELL").orElseThrow();
         FederatedClub home2 = clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "CTT ATENEU").orElseThrow();
+        assertEquals("FALCONS DE SABADELL", home1.getClub().orElseThrow().getName());
+        assertEquals("CTT ATENEU", home2.getClub().orElseThrow().getName());
         assertTrue(teams.findTeamByFederatedClubAndSeason(home1.getId(), Season.of(2020)).isPresent());
         assertTrue(teams.findTeamByFederatedClubAndSeason(home2.getId(), Season.of(2020)).isPresent());
     }

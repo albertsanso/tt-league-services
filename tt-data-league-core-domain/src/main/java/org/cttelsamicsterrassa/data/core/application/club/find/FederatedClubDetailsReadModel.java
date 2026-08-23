@@ -12,7 +12,9 @@ public record FederatedClubDetailsReadModel(
         ImportSource source,
         List<FederatedClubTeamReadModel> teams,
         List<FederatedClubCompetitionReadModel> competitions,
-        List<FederatedClubPlayerReadModel> players) {
+        List<FederatedClubPlayerReadModel> players,
+        UUID canonicalClubId,
+        String canonicalClubName) {
 
     public FederatedClubDetailsReadModel(
             UUID id,
@@ -20,7 +22,17 @@ public record FederatedClubDetailsReadModel(
             ImportSource source,
             List<FederatedClubTeamReadModel> teams,
             List<FederatedClubCompetitionReadModel> competitions) {
-        this(id, name, source, teams, competitions, List.of());
+        this(id, name, source, teams, competitions, List.of(), null, null);
+    }
+
+    public FederatedClubDetailsReadModel(
+            UUID id,
+            String name,
+            ImportSource source,
+            List<FederatedClubTeamReadModel> teams,
+            List<FederatedClubCompetitionReadModel> competitions,
+            List<FederatedClubPlayerReadModel> players) {
+        this(id, name, source, teams, competitions, players, null, null);
     }
 
     public FederatedClubDetailsReadModel {
