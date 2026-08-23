@@ -1,0 +1,27 @@
+package org.cttelsamicsterrassa.data.core.application.club.find;
+
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+
+import java.time.ZonedDateTime;
+import java.util.Objects;
+import java.util.UUID;
+
+public record ClubMatchReadModel(
+        UUID id,
+        String homeTeam,
+        String awayTeam,
+        Integer homeGamesWon,
+        Integer awayGamesWon,
+        String result,
+        int round,
+        ZonedDateTime dateTime,
+        String city,
+        String venue) {
+
+    public ClubMatchReadModel {
+        Objects.requireNonNull(id, "id must not be null");
+        Objects.requireNonNull(homeTeam, "homeTeam must not be null");
+        Objects.requireNonNull(awayTeam, "awayTeam must not be null");
+        Objects.requireNonNull(result, "result must not be null");
+    }
+}

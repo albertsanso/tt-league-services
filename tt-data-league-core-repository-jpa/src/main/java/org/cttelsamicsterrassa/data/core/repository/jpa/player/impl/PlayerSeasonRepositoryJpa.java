@@ -12,8 +12,13 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.player.mapper.PlayerSeas
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.Collection;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Transactional
 @Component
@@ -42,6 +47,39 @@ public class PlayerSeasonRepositoryJpa implements PlayerSeasonRepository {
                 .stream()
                 .map(playerSeasonJPAToPlayerSeasonMapper)
                 .toList();
+    }
+
+    @Override
+    public List<PlayerSeason> findAllPlayerSeasonsByTeamIdsAndSource(
+            Collection<UUID> teamIds,
+            ImportSource source) {
+        if (teamIds == null || teamIds.isEmpty()) {
+            return List.of();
+        }
+        return playerSeasonRepositoryHelper.findAllByTeamIdsAndSource(
+                        teamIds, mapFromImportSourceToSource(source))
+                .stream()
+                .map(playerSeasonJPAToPlayerSeasonMapper)
+                .toList();
+    }
+
+    @Override
+    public Map<UUID, List<String>> findAllPlayerSeasonCompetitionsByTeamIdsAndSource(
+            Collection<UUID> teamIds,
+            ImportSource source) {
+        if (teamIds == null || teamIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, List<String>> competitionsByPlayerSeason = new LinkedHashMap<>();
+        playerSeasonRepositoryHelper.findAllPlayerSeasonCompetitionsByTeamIdsAndSource(
+                        teamIds, mapFromImportSourceToSource(source))
+                .forEach(projection -> competitionsByPlayerSeason
+                        .computeIfAbsent(projection.getPlayerSeasonId(), ignored -> new ArrayList<>())
+                        .add(projection.getCompetition()));
+        return competitionsByPlayerSeason.entrySet().stream()
+                .collect(Collectors.toUnmodifiableMap(
+                        Map.Entry::getKey,
+                        entry -> entry.getValue().stream().distinct().toList()));
     }
 
     @Override

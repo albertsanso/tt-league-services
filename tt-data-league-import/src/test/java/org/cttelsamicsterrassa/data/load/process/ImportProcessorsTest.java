@@ -55,7 +55,7 @@ class ImportProcessorsTest {
         players = new InMemoryRepositories.Players();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
         matches = new InMemoryRepositories.Matches();
-        lineups = new InMemoryRepositories.Lineups();
+        lineups = new InMemoryRepositories.Lineups(playerSeasons);
         games = new InMemoryRepositories.Games();
         setScores = new InMemoryRepositories.SetScores();
         doublesPairs = new InMemoryRepositories.DoublesPairs();

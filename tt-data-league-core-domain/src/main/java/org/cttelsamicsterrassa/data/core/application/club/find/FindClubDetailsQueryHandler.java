@@ -8,6 +8,8 @@ import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import javax.inject.Inject;
@@ -26,15 +28,18 @@ public class FindClubDetailsQueryHandler
     private final ClubRepository clubRepository;
     private final TeamRepository teamRepository;
     private final MatchRepository matchRepository;
+    private final PlayerSeasonRepository playerSeasonRepository;
 
     @Inject
     public FindClubDetailsQueryHandler(
             ClubRepository clubRepository,
             TeamRepository teamRepository,
-            MatchRepository matchRepository) {
+            MatchRepository matchRepository,
+            PlayerSeasonRepository playerSeasonRepository) {
         this.clubRepository = clubRepository;
         this.teamRepository = teamRepository;
         this.matchRepository = matchRepository;
+        this.playerSeasonRepository = playerSeasonRepository;
     }
 
     @Override
@@ -50,7 +55,9 @@ public class FindClubDetailsQueryHandler
     }
 
     private ClubDetailsReadModel composeDetails(Club club) {
-        List<Team> teams = teamRepository.findAllTeamsByClubId(club.getId());
+        List<Team> teams = teamRepository.findAllTeamsByClubId(club.getId()).stream()
+                .filter(team -> club.getSource().equals(team.getSource()))
+                .toList();
         List<ClubTeamReadModel> teamModels = teams.stream()
                 .sorted(Comparator.comparing(
                                 Team::getSeason,
@@ -62,13 +69,39 @@ public class FindClubDetailsQueryHandler
                 .toList();
 
         List<UUID> teamIds = teams.stream().map(Team::getId).toList();
+        List<PlayerSeason> playerSeasons = teamIds.isEmpty()
+                ? List.of()
+                : playerSeasonRepository.findAllPlayerSeasonsByTeamIdsAndSource(teamIds, club.getSource());
         List<Match> matches = teamIds.isEmpty()
                 ? List.of()
-                : matchRepository.findAllMatchesByTeamIds(teamIds);
+                : matchRepository.findAllMatchesByTeamIdsAndSource(teamIds, club.getSource());
+        Map<UUID, List<String>> playerCompetitions = teamIds.isEmpty()
+                ? Map.of()
+                : playerSeasonRepository.findAllPlayerSeasonCompetitionsByTeamIdsAndSource(
+                        teamIds, club.getSource());
+        List<ClubPlayerReadModel> players = playerSeasons.stream()
+                .map(playerSeason -> toPlayerReadModel(
+                        playerSeason,
+                        playerCompetitions.getOrDefault(playerSeason.getId(), List.of())))
+                .toList();
         List<ClubCompetitionReadModel> competitions = summarizeCompetitions(matches, teamIds);
 
         return new ClubDetailsReadModel(
-                club.getId(), club.getName(), club.getSource(), teamModels, competitions);
+                club.getId(), club.getName(), club.getSource(), teamModels, competitions, players);
+    }
+
+    private ClubPlayerReadModel toPlayerReadModel(
+            PlayerSeason playerSeason,
+            List<String> competitions) {
+        return new ClubPlayerReadModel(
+                playerSeason.getId(),
+                playerSeason.getPlayer().map(player -> player.getId()).orElse(null),
+                playerSeason.getPlayer().map(player -> player.getName()).orElse(null),
+                playerSeason.getName(),
+                playerSeason.getLicense(),
+                playerSeason.getSource(),
+                playerSeason.getSeason(),
+                competitions);
     }
 
     private List<ClubCompetitionReadModel> summarizeCompetitions(

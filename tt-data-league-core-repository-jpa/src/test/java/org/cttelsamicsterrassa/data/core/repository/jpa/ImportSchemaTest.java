@@ -233,6 +233,34 @@ class ImportSchemaTest {
     }
 
     @Test
+    void findsCompetitionsForPlayerSeasonsFromTheirLineups() {
+        Team home = storedTeam("1", "CLUB A");
+        Team away = storedTeam("2", "CLUB B");
+        Match saved = match(home, away);
+        matchRepository.saveMatch(saved);
+
+        Player player = Player.createNew(ImportSource.RFETM, "PLAYER, ONE");
+        playerRepository.savePlayer(player);
+        PlayerSeason playerSeason = PlayerSeason.createNew(
+                ImportSource.RFETM, "PLAYER, ONE", "1", player, SEASON);
+        playerSeasonRepository.savePlayerSeason(playerSeason);
+        lineupRepository.saveLineups(List.of(Lineup.builder()
+                .id(UUID.randomUUID())
+                .source(ImportSource.RFETM)
+                .match(saved)
+                .team(home)
+                .letter("A")
+                .position(1)
+                .player(playerSeason)
+                .createNew()));
+
+        assertEquals(
+                List.of("super-divisio-masculino"),
+                playerSeasonRepository.findAllPlayerSeasonCompetitionsByTeamIdsAndSource(
+                        List.of(home.getId()), ImportSource.RFETM).get(playerSeason.getId()));
+    }
+
+    @Test
     void reassociatingATeamKeepsMatchAndLineupReferences() {
         Club original = storedClub("1", "ORIGINAL CLUB");
         Club canonical = storedClub("2", "CANONICAL CLUB");

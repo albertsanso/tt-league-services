@@ -95,6 +95,29 @@ function normalizeCompetition(value) {
   }
 }
 
+function normalizePlayer(value) {
+  if (!value || typeof value !== 'object') {
+    throw new ApiError('La resposta conté un jugador no vàlid.', 502, value)
+  }
+
+  const competitions = value.competitions == null ? [] : value.competitions
+  if (!Array.isArray(competitions)
+    || competitions.some((competition) => typeof competition !== 'string' || !competition.trim())) {
+    throw new ApiError('La resposta conté competicions de jugador no vàlides.', 502, value)
+  }
+
+  return {
+    playerSeasonId: requireText(value.playerSeasonId, 'un identificador de registre'),
+    playerId: value.playerId == null ? null : requireText(value.playerId, 'un identificador de jugador'),
+    playerName: value.playerName == null ? null : requireText(value.playerName, 'un nom de jugador'),
+    registrationName: requireText(value.registrationName, 'un nom de registre'),
+    license: value.license == null ? '—' : requireText(value.license, 'una llicència'),
+    source: value.source == null ? '—' : requireText(value.source, 'la font del jugador'),
+    season: requireText(String(value.season ?? ''), 'una temporada de jugador'),
+    competitions: competitions.map((competition) => competition.trim()),
+  }
+}
+
 export function normalizeClubDetailsResponse(payload) {
   const club = normalizeClub(payload)
   if (!Array.isArray(payload.teams) || !Array.isArray(payload.competitions)) {
@@ -105,6 +128,7 @@ export function normalizeClubDetailsResponse(payload) {
     ...club,
     teams: payload.teams.map(normalizeTeam),
     competitions: payload.competitions.map(normalizeCompetition),
+    players: (payload.players ?? []).map(normalizePlayer),
   }
 }
 
@@ -141,6 +165,59 @@ export function getClubDetails(clubId, token, signal, onUnauthorized) {
     signal,
     onUnauthorized,
   }).then(normalizeClubDetailsResponse)
+}
+
+function normalizeMatch(value) {
+  if (!value || typeof value !== 'object') {
+    throw new ApiError('La resposta conté un partit no vàlid.', 502, value)
+  }
+
+  return {
+    id: requireText(value.id, 'un identificador de partit'),
+    homeTeam: requireText(value.homeTeam, 'un equip local'),
+    awayTeam: requireText(value.awayTeam, 'un equip visitant'),
+    homeGamesWon: value.homeGamesWon == null ? null : Number(value.homeGamesWon),
+    awayGamesWon: value.awayGamesWon == null ? null : Number(value.awayGamesWon),
+    result: requireText(value.result, 'un resultat'),
+    round: Number(value.round ?? 0),
+    dateTime: value.dateTime ?? null,
+    city: value.city ?? null,
+    venue: value.venue ?? null,
+  }
+}
+
+export function normalizeClubCompetitionDetailsResponse(payload) {
+  if (!payload || typeof payload !== 'object' || !Array.isArray(payload.matches)) {
+    throw new ApiError('La resposta detallada de la competició no és vàlida.', 502, payload)
+  }
+
+  return {
+    clubId: requireText(payload.clubId, 'un identificador de club'),
+    clubName: requireText(payload.clubName, 'un nom de club'),
+    source: requireText(payload.source, 'la font del club'),
+    competition: requireText(payload.competition, 'un nom de competició'),
+    season: requireText(String(payload.season ?? ''), 'una temporada'),
+    matches: payload.matches.map(normalizeMatch),
+  }
+}
+
+export function getClubCompetitionDetails(
+  clubId,
+  season,
+  competition,
+  token,
+  signal,
+  onUnauthorized,
+) {
+  if (!clubId || typeof clubId !== 'string' || !season || typeof season !== 'string'
+    || !competition || typeof competition !== 'string') {
+    throw new ApiError('Els filtres de competició no són vàlids.', 400)
+  }
+
+  return apiRequest(
+    `/api/v1/club/${encodeURIComponent(clubId)}/competition/${encodeURIComponent(season)}/${encodeURIComponent(competition)}`,
+    { token, signal, onUnauthorized },
+  ).then(normalizeClubCompetitionDetailsResponse)
 }
 
 export function updateClubName(clubId, name, token, signal, onUnauthorized) {

@@ -8,12 +8,15 @@ import org.albertsanso.commons.command.DomainCommandResponse;
 import org.albertsanso.commons.query.DomainQueryResponse;
 import org.albertsanso.commons.query.QueryBus;
 import org.cttelsamicsterrassa.data.core.application.club.find.ClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.ClubCompetitionDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FindClubCompetitionDetailsQuery;
 import org.cttelsamicsterrassa.data.core.application.club.find.FindClubByIdQuery;
 import org.cttelsamicsterrassa.data.core.application.club.find.FindClubDetailsQuery;
 import org.cttelsamicsterrassa.data.core.application.club.find.FindClubsByStringInNameQuery;
 import org.cttelsamicsterrassa.data.core.application.club.update.ModifyClubNameCommand;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +25,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.security.access.prepost.PreAuthorize;
 import jakarta.validation.Valid;
 
 import java.time.ZonedDateTime;
@@ -64,6 +68,39 @@ public class ClubController {
         return queryResponse.isSuccess()
                 ? ResponseEntity.ok(ClubDetailsDto.fromObject(queryResponse.getResponse()))
                 : ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage("Club not found: " + id));
+    }
+
+    @GetMapping("/{id}/competition/{season}/{competition}")
+    @PreAuthorize("hasAuthority('clubs:read') and hasAuthority('matches:read')")
+    @Operation(summary = "Get club competition details",
+            description = "Returns the selected club competition and its match results")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Competition details returned"),
+            @ApiResponse(responseCode = "400", description = "Malformed UUID or invalid filter"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Missing clubs:read or matches:read permission"),
+            @ApiResponse(responseCode = "404", description = "Club or competition not found")
+    })
+    public ResponseEntity<?> findClubCompetitionDetails(
+            @PathVariable("id") UUID id,
+            @PathVariable String season,
+            @PathVariable String competition) {
+        Season parsedSeason;
+        try {
+            parsedSeason = Season.fromFormatted(season);
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(new ErrorMessage("Invalid season filter: " + season));
+        }
+        if (competition == null || competition.isBlank()) {
+            return ResponseEntity.badRequest().body(new ErrorMessage("Competition must not be blank"));
+        }
+
+        DomainQueryResponse<ClubCompetitionDetailsReadModel> queryResponse =
+                queryBus.push(new FindClubCompetitionDetailsQuery(id, parsedSeason, competition));
+        return queryResponse.isSuccess()
+                ? ResponseEntity.ok(ClubCompetitionDetailsDto.fromObject(queryResponse.getResponse()))
+                : ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ErrorMessage("Competition not found: " + competition));
     }
 
     @GetMapping("/search_in_name")

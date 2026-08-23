@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { updateClubName } from '../api/clubs.js'
 import { routePaths } from '../config/routes.js'
 import { useAuth } from '../context/useAuth.js'
@@ -8,6 +8,7 @@ import { useClubDetails } from '../hooks/useClubs.js'
 function ClubEditPage() {
   const { clubId } = useParams()
   const navigate = useNavigate()
+  const location = useLocation()
   const { token, clearSession } = useAuth()
   const { data: club, loading, error } = useClubDetails(clubId)
   if (loading) {
@@ -24,10 +25,19 @@ function ClubEditPage() {
     )
   }
 
-  return <ClubEditForm club={club} clubId={clubId} token={token} clearSession={clearSession} navigate={navigate} />
+  return (
+    <ClubEditForm
+      club={club}
+      clubId={clubId}
+      token={token}
+      clearSession={clearSession}
+      navigate={navigate}
+      returnSearch={location.search}
+    />
+  )
 }
 
-function ClubEditForm({ club, clubId, token, clearSession, navigate }) {
+function ClubEditForm({ club, clubId, token, clearSession, navigate, returnSearch }) {
   const [name, setName] = useState(club.name)
   const [validationError, setValidationError] = useState('')
   const [requestError, setRequestError] = useState(null)
@@ -51,7 +61,7 @@ function ClubEditForm({ club, clubId, token, clearSession, navigate }) {
     controllerRef.current = controller
     try {
       await updateClubName(clubId, normalizedName, token, controller.signal, clearSession)
-      navigate(routePaths.clubDetails(clubId), {
+      navigate(`${routePaths.clubDetails(clubId)}${returnSearch}`, {
         replace: true,
         state: { successMessage: 'El nom del club s’ha actualitzat correctament.' },
       })
@@ -95,7 +105,7 @@ function ClubEditForm({ club, clubId, token, clearSession, navigate }) {
           />
         </label>
         <div className="club-form-actions">
-          <Link className="secondary-button" to={routePaths.clubDetails(clubId)}>Cancel·la</Link>
+          <Link className="secondary-button" to={`${routePaths.clubDetails(clubId)}${returnSearch}`}>Cancel·la</Link>
           <button className="primary-button" type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Desant...' : 'Desa els canvis'}
           </button>

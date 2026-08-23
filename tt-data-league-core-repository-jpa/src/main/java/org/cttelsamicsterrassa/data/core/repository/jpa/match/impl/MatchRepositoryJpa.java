@@ -4,7 +4,9 @@ import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
+import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.mapper.MatchJPAToMatchMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.mapper.MatchToMatchJPAMapper;
 import org.springframework.stereotype.Component;
@@ -52,6 +54,37 @@ public class MatchRepositoryJpa implements MatchRepository {
             return List.of();
         }
         return matchRepositoryHelper.findAllByTeamIds(teamIds)
+                .stream()
+                .map(matchJPAToMatchMapper)
+                .toList();
+    }
+
+    @Override
+    public List<Match> findAllMatchesByTeamIdsAndSource(Collection<UUID> teamIds, ImportSource source) {
+        if (teamIds == null || teamIds.isEmpty()) {
+            return List.of();
+        }
+        return matchRepositoryHelper.findAllByTeamIdsAndSource(
+                        teamIds, source == null ? null : Source.valueOf(source.name()))
+                .stream()
+                .map(matchJPAToMatchMapper)
+                .toList();
+    }
+
+    @Override
+    public List<Match> findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(
+            Collection<UUID> teamIds,
+            ImportSource source,
+            Season season,
+            String competition) {
+        if (teamIds == null || teamIds.isEmpty()) {
+            return List.of();
+        }
+        return matchRepositoryHelper.findAllByTeamIdsAndSourceAndSeasonAndCompetition(
+                        teamIds,
+                        source == null ? null : Source.valueOf(source.name()),
+                        season == null ? null : season.toString(),
+                        competition)
                 .stream()
                 .map(matchJPAToMatchMapper)
                 .toList();

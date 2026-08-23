@@ -32,7 +32,7 @@ describe('ClubsSearchPage', () => {
     expect(screen.getByText('Club Terrassa')).toBeInTheDocument()
     expect(screen.getByText('Font: RFETM')).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /Club Terrassa/ }))
-      .toHaveAttribute('href', '/clubs/club-uuid')
+      .toHaveAttribute('href', '/clubs/club-uuid?season=all&source=all')
   })
 
   it('shows validation instead of requesting a one-character URL query', () => {

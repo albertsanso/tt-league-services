@@ -12,6 +12,7 @@ import DashboardLayout from './layouts/DashboardLayout.jsx'
 const OverviewPage = lazy(() => import('./pages/OverviewPage.jsx'))
 const ClubsSearchPage = lazy(() => import('./pages/ClubsSearchPage.jsx'))
 const ClubDetailPage = lazy(() => import('./pages/ClubDetailPage.jsx'))
+const ClubCompetitionDetailPage = lazy(() => import('./pages/ClubCompetitionDetailPage.jsx'))
 const ClubEditPage = lazy(() => import('./pages/ClubEditPage.jsx'))
 const PlayersSearchPage = lazy(() => import('./pages/PlayersSearchPage.jsx'))
 const MatchesSearchPage = lazy(() => import('./pages/MatchesSearchPage.jsx'))
@@ -60,6 +61,10 @@ function App() {
             )}
           />
           <Route path="clubs/:clubId" element={<ProtectedPage><ClubDetailPage /></ProtectedPage>} />
+          <Route
+            path="clubs/:clubId/competition/:season/:competition"
+            element={<ProtectedPage><ClubCompetitionDetailPage /></ProtectedPage>}
+          />
           <Route path="jugadors" element={<ProtectedPage><PlayersSearchPage /></ProtectedPage>} />
           <Route path="partits" element={<ProtectedPage><MatchesSearchPage /></ProtectedPage>} />
           <Route path="cerca" element={<ProtectedPage><SearchResultsPage /></ProtectedPage>} />

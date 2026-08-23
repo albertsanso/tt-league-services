@@ -22,7 +22,7 @@ public class UserRegistrationService {
     }
 
     public User registerUser(String username, String email, String plainPassword) {
-        userValidator.validateOrThrow(username, email, plainPassword);
+        //userValidator.validateOrThrow(username, email, plainPassword);
 
         if (userRepository.existsByUsername(username)) {
             throw new UserAlreadyExistsException("Username already exists");

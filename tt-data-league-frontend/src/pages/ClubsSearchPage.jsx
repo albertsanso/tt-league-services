@@ -106,7 +106,10 @@ function ClubsSearchPage() {
         <ul className="club-result-list" aria-label="Clubs trobats">
           {clubs.map((club) => (
             <li key={club.id} className="club-result card">
-              <Link to={routePaths.clubDetails(club.id)} className="club-result-link">
+              <Link
+                to={`${routePaths.clubDetails(club.id)}?season=all&source=all`}
+                className="club-result-link"
+              >
                 <span>
                   <strong>{club.name}</strong>
                   <span className="club-source">Font: {club.source}</span>

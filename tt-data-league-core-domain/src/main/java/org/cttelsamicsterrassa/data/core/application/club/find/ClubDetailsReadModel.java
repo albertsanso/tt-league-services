@@ -11,12 +11,23 @@ public record ClubDetailsReadModel(
         String name,
         ImportSource source,
         List<ClubTeamReadModel> teams,
-        List<ClubCompetitionReadModel> competitions) {
+        List<ClubCompetitionReadModel> competitions,
+        List<ClubPlayerReadModel> players) {
+
+    public ClubDetailsReadModel(
+            UUID id,
+            String name,
+            ImportSource source,
+            List<ClubTeamReadModel> teams,
+            List<ClubCompetitionReadModel> competitions) {
+        this(id, name, source, teams, competitions, List.of());
+    }
 
     public ClubDetailsReadModel {
         Objects.requireNonNull(id, "id must not be null");
         Objects.requireNonNull(source, "source must not be null");
         teams = List.copyOf(Objects.requireNonNull(teams, "teams must not be null"));
         competitions = List.copyOf(Objects.requireNonNull(competitions, "competitions must not be null"));
+        players = List.copyOf(Objects.requireNonNull(players, "players must not be null"));
     }
 }

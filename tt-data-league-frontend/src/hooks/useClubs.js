@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  getClubCompetitionDetails,
   getClubDetails,
   searchClubs,
 } from '../api/clubs.js'
@@ -75,4 +76,21 @@ export function useClubDetails(clubId) {
   )
 
   return useRequest(request, Boolean(clubId), clubId)
+}
+
+export function useClubCompetitionDetails(clubId, season, competition) {
+  const request = useCallback(
+    (token, signal, onUnauthorized) => getClubCompetitionDetails(
+      clubId,
+      season,
+      competition,
+      token,
+      signal,
+      onUnauthorized,
+    ),
+    [clubId, competition, season],
+  )
+
+  const enabled = Boolean(clubId && season && competition)
+  return useRequest(request, enabled, `${clubId}-${season}-${competition}`)
 }

@@ -23,11 +23,13 @@ import org.cttelsamicsterrassa.data.core.domain.game.repository.SetScoreReposito
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * In-memory stand-ins for the persistence ports, enforcing the same natural keys as the schema so
@@ -207,6 +209,8 @@ public final class InMemoryRepositories {
 
     public static final class PlayerSeasons implements PlayerSeasonRepository {
         final Map<UUID, PlayerSeason> byId = new LinkedHashMap<>();
+        private final Map<UUID, List<UUID>> playerSeasonIdsByTeam = new LinkedHashMap<>();
+        private final Map<UUID, LinkedHashSet<String>> competitionsByPlayerSeason = new LinkedHashMap<>();
 
         @Override
         public Optional<PlayerSeason> findPlayerSeasonById(UUID id) {
@@ -227,6 +231,59 @@ public final class InMemoryRepositories {
             return byId.values().stream()
                     .filter(ps -> Objects.equals(ps.getSource(), source))
                     .toList();
+        }
+
+        @Override
+        public List<PlayerSeason> findAllPlayerSeasonsByTeamIdsAndSource(
+                java.util.Collection<UUID> teamIds,
+                ImportSource source) {
+            if (teamIds == null || teamIds.isEmpty()) {
+                return List.of();
+            }
+            return byId.values().stream()
+                    .filter(playerSeason -> Objects.equals(playerSeason.getSource(), source))
+                    .filter(playerSeason -> teamIds.stream()
+                            .anyMatch(teamId -> playerSeasonIdsByTeam
+                                    .getOrDefault(teamId, List.of())
+                                    .contains(playerSeason.getId())))
+                    .toList();
+        }
+
+        @Override
+        public Map<UUID, List<String>> findAllPlayerSeasonCompetitionsByTeamIdsAndSource(
+                java.util.Collection<UUID> teamIds,
+                ImportSource source) {
+            if (teamIds == null || teamIds.isEmpty()) {
+                return Map.of();
+            }
+            return byId.values().stream()
+                    .filter(playerSeason -> Objects.equals(playerSeason.getSource(), source))
+                    .filter(playerSeason -> teamIds.stream()
+                            .anyMatch(teamId -> playerSeasonIdsByTeam
+                                    .getOrDefault(teamId, List.of())
+                                    .contains(playerSeason.getId())))
+                    .collect(Collectors.toMap(
+                            PlayerSeason::getId,
+                            playerSeason -> List.copyOf(
+                                    competitionsByPlayerSeason.getOrDefault(
+                                            playerSeason.getId(), new LinkedHashSet<>()))));
+        }
+
+        void associateLineups(List<Lineup> lineups) {
+            lineups.stream()
+                    .filter(lineup -> lineup.getTeam() != null && lineup.getPlayer() != null)
+                    .forEach(lineup -> playerSeasonIdsByTeam
+                            .computeIfAbsent(lineup.getTeam().getId(), ignored -> new ArrayList<>())
+                            .add(lineup.getPlayer().getId()));
+            lineups.stream()
+                    .filter(lineup -> lineup.getPlayer() != null
+                            && lineup.getMatch() != null
+                            && lineup.getMatch().getCompetition() != null
+                            && Objects.equals(lineup.getMatch().getSource(), lineup.getPlayer().getSource())
+                            && Objects.equals(lineup.getMatch().getSeason(), lineup.getPlayer().getSeason()))
+                    .forEach(lineup -> competitionsByPlayerSeason
+                            .computeIfAbsent(lineup.getPlayer().getId(), ignored -> new LinkedHashSet<>())
+                            .add(lineup.getMatch().getCompetition()));
         }
 
         @Override
@@ -278,6 +335,28 @@ public final class InMemoryRepositories {
         }
 
         @Override
+        public List<Match> findAllMatchesByTeamIdsAndSource(
+                java.util.Collection<UUID> teamIds,
+                ImportSource source) {
+            return findAllMatchesByTeamIds(teamIds).stream()
+                    .filter(match -> Objects.equals(match.getSource(), source))
+                    .toList();
+        }
+
+        @Override
+        public List<Match> findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(
+                java.util.Collection<UUID> teamIds,
+                ImportSource source,
+                Season season,
+                String competition) {
+            return findAllMatchesByTeamIds(teamIds).stream()
+                    .filter(match -> Objects.equals(match.getSource(), source))
+                    .filter(match -> Objects.equals(match.getSeason(), season))
+                    .filter(match -> Objects.equals(match.getCompetition(), competition))
+                    .toList();
+        }
+
+        @Override
         public void saveMatch(Match match) {
             saved.add(match);
         }
@@ -285,6 +364,15 @@ public final class InMemoryRepositories {
 
     static final class Lineups implements LineupRepository {
         final List<Lineup> saved = new ArrayList<>();
+        private final PlayerSeasons playerSeasons;
+
+        Lineups() {
+            this(null);
+        }
+
+        Lineups(PlayerSeasons playerSeasons) {
+            this.playerSeasons = playerSeasons;
+        }
 
         @Override
         public List<Lineup> findLineupsByMatchId(UUID matchId) {
@@ -294,6 +382,9 @@ public final class InMemoryRepositories {
         @Override
         public void saveLineups(List<Lineup> lineups) {
             saved.addAll(lineups);
+            if (playerSeasons != null) {
+                playerSeasons.associateLineups(lineups);
+            }
         }
     }
 

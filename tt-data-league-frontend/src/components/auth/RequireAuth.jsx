@@ -32,7 +32,8 @@ export function RequireAuth({ children }) {
 
 export function RequirePermission({ permission, children }) {
   const { authenticated, hasPermission } = useAuth()
-  if (!authenticated || !permission || hasPermission(permission)) {
+  const permissions = Array.isArray(permission) ? permission : [permission]
+  if (!authenticated || !permission || permissions.every(hasPermission)) {
     return children
   }
   return <Navigate to="/forbidden" replace />

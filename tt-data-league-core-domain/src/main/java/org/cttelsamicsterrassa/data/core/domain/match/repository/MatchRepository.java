@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.core.domain.match.repository;
 
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.util.Collection;
@@ -32,6 +33,14 @@ public interface MatchRepository {
      * Returns matches involving any of the supplied canonical team registrations.
      */
     List<Match> findAllMatchesByTeamIds(Collection<UUID> teamIds);
+
+    List<Match> findAllMatchesByTeamIdsAndSource(Collection<UUID> teamIds, ImportSource source);
+
+    List<Match> findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(
+            Collection<UUID> teamIds,
+            ImportSource source,
+            Season season,
+            String competition);
 
     void saveMatch(Match match);
 }

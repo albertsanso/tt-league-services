@@ -60,8 +60,12 @@ Any open questions, design decisions, or links.
 
 ## Backlog
 
+## Done
+
+---
+
 ### [FEAT-004] Club detail redesign 1
-- **Status:** idea
+- **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
 - **Depends on:** FEAT-003
@@ -74,20 +78,33 @@ shell, overview page, responsive behavior, accessibility, and visual system.
 
 #### Behaviour
 - Selecting `season` or `competition` filters updates the displayed competition summaries accordingly.
+- The `season` filter includes `Totes les temporades`, which displays competition summaries across all seasons.
+- The `Font` filter includes `Totes les fonts` and the available import sources.
+- Selecting `source`, `season`, or `competition` filters updates the available values in the other filters and the displayed data accordingly.
+- The Players tab filters players by the competitions recorded for each player-season registration.
+- The Players tab displays the season associated with each player-season registration.
+- Selecting a club from Club search opens its detail view with `Totes les fonts`, `Totes les temporades`, and `Totes les competicions` selected by default.
+- Selecting `season` or `competition` filters update each other: selecting a season filters the available competitions, while selecting a competition restricts the available seasons to those where it is present.
 - Selecting a competition summary navigates to a dedicated Competition detail view for that competition and season.
+- From the dedicated Competition detail view, users can navigate back to the Club detail view with the previously selected filters preserved.
+- `Equips i inscripcions` section is removed from the `Partits` tab in the Club detail view.
 
 #### Acceptance Criteria
-- [ ] The Club detail view presents the club identity, data source, and administrator edit action in the redesigned header.
-- [ ] Users can switch between player and match views and filter the displayed data by season and competition.
-- [ ] Competition summaries display the competition name, season, available match count, and win/draw/loss totals.
-- [ ] The redesigned view is accessible and responsive across supported screen sizes.
+- [x] The Club detail view presents the club identity, data source, and administrator edit action in the redesigned header.
+- [x] Users can switch between player and match views and filter the displayed data by source, season, all seasons, and competition.
+- [x] Club search navigation opens Club detail with all sources, all seasons, and all competitions selected by default.
+- [x] Competition summaries display the competition name, season, available match count, and win/draw/loss totals.
+- [x] The redesigned view is accessible and responsive across supported screen sizes.
+- [x] Users can navigate back to the Club detail view from the Competition detail view with the previously selected filters preserved.
+- [x] The filters `season` and `competition` are interdependent and update each other when one is selected, including competition-specific season choices.
+- [x] The filters `source`, `season`, and `competition` are interdependent and update each other while preserving explicit source scoping.
+- [x] The Players tab applies the selected competition to each player's related competition references.
+- [x] Each player in the Players tab displays the season associated with their registration.
 
 #### Feature Details
 See [FEAT-004-DETAILS.md](./FEAT-004-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-
-## Done
 
 ### [FEAT-003] Club search and club detail
 - **Status:** done

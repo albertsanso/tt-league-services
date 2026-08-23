@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   normalizeClubDetailsResponse,
+  normalizeClubCompetitionDetailsResponse,
+  getClubCompetitionDetails,
   normalizeClubSearchResponse,
   searchClubs,
 } from './clubs.js'
@@ -24,6 +26,16 @@ describe('club API boundary', () => {
         draws: 1,
         losses: 2,
       }],
+      players: [{
+        playerSeasonId: 'player-season-id',
+        playerId: 'player-id',
+        playerName: 'Maria Player',
+        registrationName: 'Maria Player',
+        license: '123',
+        source: 'RFETM',
+        season: '2025',
+        competitions: ['Preferent'],
+      }],
     })
 
     expect(details.teams[0].season).toBe('2025')
@@ -33,6 +45,7 @@ describe('club API boundary', () => {
       matchCount: 8,
       resultTotals: { wins: 5, draws: 1, losses: 2 },
     })
+    expect(details.players[0].competitions).toEqual(['Preferent'])
   })
 
   it('encodes the search, sends the session token, and normalizes results', async () => {
@@ -64,5 +77,55 @@ describe('club API boundary', () => {
   it('rejects malformed result payloads instead of returning mock data', () => {
     expect(() => normalizeClubSearchResponse({ results: [{ name: 'Missing id' }] }))
       .toThrow('La resposta del club no conté un identificador')
+  })
+
+  it('normalizes competition details and encodes scoped filters', async () => {
+    const response = {
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({
+        clubId: 'club-id',
+        clubName: 'Club A',
+        source: 'RFETM',
+        competition: 'Divisió d’Honor',
+        season: '2023-2024',
+        matches: [{
+          id: 'match-id',
+          homeTeam: 'Club A 1',
+          awayTeam: 'Club B 1',
+          homeGamesWon: 3,
+          awayGamesWon: 1,
+          result: 'win',
+          round: 2,
+        }],
+      }),
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response)
+    const details = await getClubCompetitionDetails(
+      'club-id',
+      '2023-2024',
+      'Divisió d’Honor',
+      'session-token',
+    )
+
+    expect(details.matches[0].result).toBe('win')
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/club/club-id/competition/2023-2024/Divisi%C3%B3%20d%E2%80%99Honor',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: expect.any(String) }),
+      }),
+    )
+  })
+
+  it('rejects malformed competition payloads', () => {
+    expect(() => normalizeClubCompetitionDetailsResponse({
+      clubId: 'club-id',
+      clubName: 'Club A',
+      source: 'RFETM',
+      competition: 'Preferent',
+      season: '2023-2024',
+      matches: null,
+    }))
+      .toThrow('La resposta detallada de la competició no és vàlida')
   })
 })
