@@ -1,29 +1,78 @@
+const CLUB_DETAIL_QUERY_KEYS = ['view', 'season', 'source', 'competition']
+
+function normalizeClubDetailSearch(search) {
+  if (!search) {
+    return ''
+  }
+
+  const rawSearch = typeof search === 'string' ? search : search.toString()
+  const params = new URLSearchParams(rawSearch.replace(/^\?/, ''))
+  const normalized = new URLSearchParams()
+
+  CLUB_DETAIL_QUERY_KEYS.forEach((key) => {
+    const value = params.get(key)
+    if (value != null && value !== '') {
+      normalized.set(key, value)
+    }
+  })
+
+  return normalized.toString()
+}
+
+function withSearch(path, search) {
+  const query = normalizeClubDetailSearch(search)
+  return query ? `${path}?${query}` : path
+}
+
 export const routePaths = {
+  home: '/',
   clubs: '/clubs',
-  clubDetails: (clubId) => `/clubs/${encodeURIComponent(clubId)}`,
+  clubDetails: (clubId, returnSearch = '') => withSearch(
+    `/clubs/${encodeURIComponent(clubId)}`,
+    returnSearch,
+  ),
   clubCompetitionDetails: (clubId, season, competition, returnSearch = '') => {
     const path = `/clubs/${encodeURIComponent(clubId)}/competition/${encodeURIComponent(season)}/${encodeURIComponent(competition)}`
-    return returnSearch ? `${path}?${returnSearch.replace(/^\?/, '')}` : path
+    return withSearch(path, returnSearch)
   },
-  clubEdit: (clubId) => `/clubs/${encodeURIComponent(clubId)}/edit`,
+  clubEdit: (clubId, returnSearch = '') => withSearch(
+    `/clubs/${encodeURIComponent(clubId)}/edit`,
+    returnSearch,
+  ),
   players: (clubId) => `/jugadors?clubId=${encodeURIComponent(clubId)}`,
   matches: (clubId) => `/partits?clubId=${encodeURIComponent(clubId)}`,
 }
 
+const generalBreadcrumb = () => ({ label: 'General', path: routePaths.home })
+const clubsBreadcrumb = () => ({ label: 'Cerca de clubs', path: routePaths.clubs })
+
+function clubDetailBreadcrumb() {
+  return [
+    generalBreadcrumb(),
+    clubsBreadcrumb(),
+    { label: 'Detall del club' },
+  ]
+}
+
+function clubChildBreadcrumb({ clubId }, search, label) {
+  return [
+    generalBreadcrumb(),
+    clubsBreadcrumb(),
+    { label: 'Detall del club', path: routePaths.clubDetails(clubId, search) },
+    { label },
+  ]
+}
+
 export const routesMeta = [
-  { path: '/', label: 'Overview', section: 'General', auth: true },
-  { path: '/clubs', label: 'Cerca de clubs', section: 'General', auth: true, permission: 'clubs:read' },
+  { path: routePaths.home, label: 'Overview', section: 'General', auth: true },
+  { path: routePaths.clubs, label: 'Cerca de clubs', section: 'General', auth: true, permission: 'clubs:read' },
   {
     path: '/clubs/:clubId/edit',
     label: 'Editar club',
     section: 'General',
     auth: true,
     permission: 'clubs:read',
-    breadcrumb: [
-      { label: 'General', path: '/' },
-      { label: 'Cerca de clubs', path: '/clubs' },
-      { label: 'Editar club' },
-    ],
+    breadcrumb: (params, search) => clubChildBreadcrumb(params, search, 'Editar club'),
   },
   {
     path: '/clubs/:clubId',
@@ -31,11 +80,7 @@ export const routesMeta = [
     section: 'General',
     auth: true,
     permission: 'clubs:read',
-    breadcrumb: [
-      { label: 'General', path: '/' },
-      { label: 'Cerca de clubs', path: '/clubs' },
-      { label: 'Detall del club' },
-    ],
+    breadcrumb: clubDetailBreadcrumb,
   },
   {
     path: '/clubs/:clubId/competition/:season/:competition',
@@ -43,12 +88,7 @@ export const routesMeta = [
     section: 'General',
     auth: true,
     permission: ['clubs:read', 'matches:read'],
-    breadcrumb: [
-      { label: 'General', path: '/' },
-      { label: 'Cerca de clubs', path: '/clubs' },
-      { label: 'Detall del club', path: '/clubs' },
-      { label: 'Detall de competició' },
-    ],
+    breadcrumb: (params, search) => clubChildBreadcrumb(params, search, 'Detall de competició'),
   },
   { path: '/jugadors', label: 'Cerca de jugadors', section: 'General', auth: true, permission: 'players:read' },
   { path: '/partits', label: 'Cerca de partits', section: 'General', auth: true, permission: 'matches:read' },
@@ -62,7 +102,7 @@ export function getRouteMeta(pathname) {
     return exactRoute
   }
 
-  const dynamicRoute = routesMeta.find((route) => {
+  const dynamicRoute = routesMeta.filter((route) => route.path.includes(':')).find((route) => {
     if (route.path === '/clubs/:clubId/edit') {
       return /^\/clubs\/[^/]+\/edit$/.test(pathname)
     }
@@ -72,19 +112,68 @@ export function getRouteMeta(pathname) {
     if (route.path === '/clubs/:clubId/competition/:season/:competition') {
       return /^\/clubs\/[^/]+\/competition\/[^/]+\/[^/]+$/.test(pathname)
     }
-    return route.path !== '/' && pathname.startsWith(`${route.path}/`)
   })
 
-  return dynamicRoute ?? routesMeta[0]
+  if (dynamicRoute) {
+    return dynamicRoute
+  }
+
+  const nestedRoute = routesMeta.find((route) => (
+    !route.path.includes(':')
+      && route.path !== routePaths.home
+      && pathname.startsWith(`${route.path}/`)
+  ))
+
+  return nestedRoute ?? routesMeta[0]
 }
 
-export function getBreadcrumbItems(pathname) {
-  const activeRoute = getRouteMeta(pathname)
+function decodeRouteParameter(value) {
+  try {
+    return decodeURIComponent(value)
+  } catch (error) {
+    if (error instanceof URIError) {
+      return value
+    }
+    throw error
+  }
+}
 
-  return activeRoute.breadcrumb ?? [
+function getRouteParameters(pathname, routePath) {
+  const patterns = {
+    '/clubs/:clubId/edit': /^\/clubs\/([^/]+)\/edit$/,
+    '/clubs/:clubId': /^\/clubs\/([^/]+)$/,
+    '/clubs/:clubId/competition/:season/:competition':
+      /^\/clubs\/([^/]+)\/competition\/([^/]+)\/([^/]+)$/,
+  }
+  const match = patterns[routePath]?.exec(pathname)
+
+  if (!match) {
+    return {}
+  }
+
+  if (routePath === '/clubs/:clubId/competition/:season/:competition') {
+    return {
+      clubId: decodeRouteParameter(match[1]),
+      season: decodeRouteParameter(match[2]),
+      competition: decodeRouteParameter(match[3]),
+    }
+  }
+
+  return { clubId: decodeRouteParameter(match[1]) }
+}
+
+export function getBreadcrumbItems(pathname, search = '') {
+  const activeRoute = getRouteMeta(pathname)
+  const breadcrumb = activeRoute.breadcrumb
+
+  if (typeof breadcrumb === 'function') {
+    return breadcrumb(getRouteParameters(pathname, activeRoute.path), search)
+  }
+
+  return breadcrumb ?? [
     {
       label: activeRoute.section,
-      path: '/',
+      path: routePaths.home,
     },
     {
       label: activeRoute.label,

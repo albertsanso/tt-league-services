@@ -60,8 +60,28 @@ Any open questions, design decisions, or links.
 
 ## Backlog
 
-
 ## Done
+
+### [FEAT-007] fixes in breadcrumb and navigation
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** —
+
+#### Goal
+In the frontend, fix breadcrumb labels, links, and navigation behavior so users can move through the application consistently.
+
+The Club detail breadcrumb is missing or incorrect in the frontend. After selecting a club from the search results, the breadcrumb should show the correct hierarchy and label for the Club detail view and provide a link back to the Club search results.
+
+#### Acceptance Criteria
+- [x] The Club detail view shows `General > Cerca de clubs > Detall del club`, with `Cerca de clubs` linking to `/clubs`.
+- [x] Breadcrumb and navigation links lead to the intended destinations and preserve relevant query/navigation state.
+- [x] Supported Club detail, competition detail, and edit routes use consistent breadcrumb hierarchy and valid dynamic links.
+- [x] Breadcrumbs and navigation remain accessible and responsive across supported screen sizes.
+
+#### Feature Details
+→ See [FEAT-007-DETAILS.md](./FEAT-007-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
 
 ### [FEAT-006] Player entity rename to FederatedPlayer
 - **Status:** done

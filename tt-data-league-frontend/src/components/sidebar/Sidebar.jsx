@@ -4,17 +4,10 @@ import { navigationSections } from '../../config/navigation.js'
 import { getRouteMeta } from '../../config/routes.js'
 import { useAppState } from '../../context/useAppState.js'
 import { useAuth } from '../../context/useAuth.js'
+import { isRouteActive } from './routeMatching.js'
 import SidebarFooter from './SidebarFooter.jsx'
 import SidebarItem from './SidebarItem.jsx'
 import SidebarSectionLabel from './SidebarSectionLabel.jsx'
-
-function isRouteActive(pathname, itemPath) {
-  if (itemPath === '/') {
-    return pathname === '/'
-  }
-
-  return pathname.startsWith(itemPath)
-}
 
 function Sidebar({ variant }) {
   const location = useLocation()

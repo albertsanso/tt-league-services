@@ -187,7 +187,7 @@ function ClubDetailContent({
         {isAdmin ? (
           <Link
             className="secondary-button"
-            to={`${routePaths.clubEdit(club.id)}?${searchParams.toString()}`}
+            to={routePaths.clubEdit(club.id, searchParams)}
           >
             <Edit3 size={16} aria-hidden="true" /> Edita el club
           </Link>

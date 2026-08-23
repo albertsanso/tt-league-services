@@ -107,7 +107,7 @@ function ClubsSearchPage() {
           {clubs.map((club) => (
             <li key={club.id} className="club-result card">
               <Link
-                to={`${routePaths.clubDetails(club.id)}?season=all&source=all`}
+                to={routePaths.clubDetails(club.id, 'season=all&source=all')}
                 className="club-result-link"
               >
                 <span>

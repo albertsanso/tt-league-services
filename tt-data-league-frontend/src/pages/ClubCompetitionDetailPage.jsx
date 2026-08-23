@@ -8,7 +8,7 @@ function ClubCompetitionDetailPage() {
   const location = useLocation()
   const { data, loading, error, retry } = useClubCompetitionDetails(clubId, season, competition)
   const returnSearch = location.search || `?season=${encodeURIComponent(season)}&competition=${encodeURIComponent(competition)}`
-  const clubPath = `${routePaths.clubDetails(clubId)}${returnSearch}`
+  const clubPath = routePaths.clubDetails(clubId, returnSearch)
 
   if (loading) {
     return <p className="club-state card" role="status" aria-live="polite">Carregant la competició...</p>

@@ -16,7 +16,7 @@ export const navigationSections = [
       {
         id: 'overview',
         label: 'Overview',
-        path: '/',
+        path: routePaths.home,
         icon: LayoutDashboard,
       },
       {

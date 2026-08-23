@@ -253,6 +253,11 @@
   gap: 1rem;
 }
 
+.topbar-left {
+  min-width: 0;
+  flex: 1;
+}
+
 .icon-button {
   border: 0;
   background: transparent;
@@ -273,13 +278,18 @@
 }
 
 .breadcrumb {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
   font-size: 0.8125rem;
+  -webkit-overflow-scrolling: touch;
 }
 
 .breadcrumb ol {
   list-style: none;
   display: flex;
   align-items: center;
+  min-width: max-content;
   margin: 0;
   padding: 0;
 }

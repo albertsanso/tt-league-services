@@ -4,7 +4,7 @@ import { getBreadcrumbItems } from '../../config/routes.js'
 
 function Breadcrumb() {
   const location = useLocation()
-  const items = getBreadcrumbItems(location.pathname)
+  const items = getBreadcrumbItems(location.pathname, location.search)
 
   return (
     <nav className="breadcrumb" aria-label="Fil d'Ariadna">
@@ -15,7 +15,7 @@ function Breadcrumb() {
           return (
             <li key={item.label} className="breadcrumb-item">
               {isLast ? (
-                <span className="breadcrumb-current">{item.label}</span>
+                <span className="breadcrumb-current" aria-current="page">{item.label}</span>
               ) : (
                 <Link className="breadcrumb-link" to={item.path}>
                   {item.label}

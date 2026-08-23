@@ -20,7 +20,9 @@ function ClubEditPage() {
       <section className="page-block">
         <h1 className="page-title">No s’ha pogut carregar el club</h1>
         <p className="page-description">No es pot editar aquest club en aquests moments.</p>
-        <Link className="secondary-button" to={routePaths.clubDetails(clubId)}>Torna al club</Link>
+        <Link className="secondary-button" to={routePaths.clubDetails(clubId, location.search)}>
+          Torna al club
+        </Link>
       </section>
     )
   }
@@ -61,7 +63,7 @@ function ClubEditForm({ club, clubId, token, clearSession, navigate, returnSearc
     controllerRef.current = controller
     try {
       await updateClubName(clubId, normalizedName, token, controller.signal, clearSession)
-      navigate(`${routePaths.clubDetails(clubId)}${returnSearch}`, {
+      navigate(routePaths.clubDetails(clubId, returnSearch), {
         replace: true,
         state: { successMessage: 'El nom del club s’ha actualitzat correctament.' },
       })
@@ -105,7 +107,7 @@ function ClubEditForm({ club, clubId, token, clearSession, navigate, returnSearc
           />
         </label>
         <div className="club-form-actions">
-          <Link className="secondary-button" to={`${routePaths.clubDetails(clubId)}${returnSearch}`}>Cancel·la</Link>
+          <Link className="secondary-button" to={routePaths.clubDetails(clubId, returnSearch)}>Cancel·la</Link>
           <button className="primary-button" type="submit" disabled={isSubmitting}>
             {isSubmitting ? 'Desant...' : 'Desa els canvis'}
           </button>
