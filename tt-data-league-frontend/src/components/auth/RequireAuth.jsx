@@ -38,6 +38,14 @@ export function RequirePermission({ permission, children }) {
   return <Navigate to="/forbidden" replace />
 }
 
+export function RequireRole({ role, children }) {
+  const { authenticated, hasRole } = useAuth()
+  if (authenticated && hasRole(role)) {
+    return children
+  }
+  return <Navigate to="/forbidden" replace />
+}
+
 export function PublicOnly({ children }) {
   const { loading, authenticated } = useAuth()
 

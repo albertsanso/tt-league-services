@@ -1,11 +1,18 @@
 import { Suspense, lazy } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
-import { PublicOnly, RequireAuth, RequirePermission } from './components/auth/RequireAuth.jsx'
+import {
+  PublicOnly,
+  RequireAuth,
+  RequirePermission,
+  RequireRole,
+} from './components/auth/RequireAuth.jsx'
 import { getRouteMeta } from './config/routes.js'
 import DashboardLayout from './layouts/DashboardLayout.jsx'
 
 const OverviewPage = lazy(() => import('./pages/OverviewPage.jsx'))
 const ClubsSearchPage = lazy(() => import('./pages/ClubsSearchPage.jsx'))
+const ClubDetailPage = lazy(() => import('./pages/ClubDetailPage.jsx'))
+const ClubEditPage = lazy(() => import('./pages/ClubEditPage.jsx'))
 const PlayersSearchPage = lazy(() => import('./pages/PlayersSearchPage.jsx'))
 const MatchesSearchPage = lazy(() => import('./pages/MatchesSearchPage.jsx'))
 const SearchResultsPage = lazy(() => import('./pages/SearchResultsPage.jsx'))
@@ -42,6 +49,17 @@ function App() {
         <Route element={<RequireAuth><DashboardLayout /></RequireAuth>}>
           <Route index element={<ProtectedPage><OverviewPage /></ProtectedPage>} />
           <Route path="clubs" element={<ProtectedPage><ClubsSearchPage /></ProtectedPage>} />
+          <Route
+            path="clubs/:clubId/edit"
+            element={(
+              <ProtectedPage>
+                <RequireRole role="ADMIN">
+                  <ClubEditPage />
+                </RequireRole>
+              </ProtectedPage>
+            )}
+          />
+          <Route path="clubs/:clubId" element={<ProtectedPage><ClubDetailPage /></ProtectedPage>} />
           <Route path="jugadors" element={<ProtectedPage><PlayersSearchPage /></ProtectedPage>} />
           <Route path="partits" element={<ProtectedPage><MatchesSearchPage /></ProtectedPage>} />
           <Route path="cerca" element={<ProtectedPage><SearchResultsPage /></ProtectedPage>} />

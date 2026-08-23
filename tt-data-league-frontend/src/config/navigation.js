@@ -6,6 +6,7 @@ import {
   Swords,
   Users,
 } from 'lucide-react'
+import { routePaths } from './routes.js'
 
 export const navigationSections = [
   {
@@ -21,7 +22,7 @@ export const navigationSections = [
       {
         id: 'clubs',
         label: 'Cerca de clubs',
-        path: '/clubs',
+        path: routePaths.clubs,
         icon: Building2,
       },
       {

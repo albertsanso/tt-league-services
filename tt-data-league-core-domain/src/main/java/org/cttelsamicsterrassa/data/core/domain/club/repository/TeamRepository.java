@@ -13,6 +13,11 @@ public interface TeamRepository {
     Optional<Team> findTeamByNameAndSeasonAndSource(String name, Season season, ImportSource source);
     Optional<Team> findTeamByClubAndSeason(UUID clubId, Season season);
 
+    /**
+     * Returns every season registration belonging to the canonical club.
+     */
+    List<Team> findAllTeamsByClubId(UUID clubId);
+
     List<Team> findAllTeamsBySource(ImportSource source);
     List<Team> findAllTeamsBySimilarName(String name);
     List<Team> findAllTeamsBySimilarNameAndSeason(String name, Season season);

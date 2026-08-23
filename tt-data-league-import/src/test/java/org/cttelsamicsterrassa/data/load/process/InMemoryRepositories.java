@@ -120,6 +120,13 @@ public final class InMemoryRepositories {
         }
 
         @Override
+        public List<Team> findAllTeamsByClubId(UUID clubId) {
+            return byId.values().stream()
+                    .filter(team -> team.getClub().map(club -> clubId.equals(club.getId())).orElse(false))
+                    .toList();
+        }
+
+        @Override
         public List<Team> findAllTeamsBySource(ImportSource source) {
             return byId.values().stream()
                     .filter(cs -> Objects.equals(cs.getSource(), source))
@@ -260,6 +267,14 @@ public final class InMemoryRepositories {
                     .filter(m -> homeTeamId.equals(m.getHomeTeam().getId()))
                     .filter(m -> awayTeamId.equals(m.getAwayTeam().getId()))
                     .findFirst();
+        }
+
+        @Override
+        public List<Match> findAllMatchesByTeamIds(java.util.Collection<UUID> teamIds) {
+            return saved.stream()
+                    .filter(match -> teamIds.contains(match.getHomeTeam().getId())
+                            || teamIds.contains(match.getAwayTeam().getId()))
+                    .toList();
         }
 
         @Override

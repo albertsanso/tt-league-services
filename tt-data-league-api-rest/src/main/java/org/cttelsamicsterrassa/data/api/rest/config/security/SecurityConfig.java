@@ -46,6 +46,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/user/**").hasRole(RbacCatalog.ADMIN)
                         .requestMatchers(HttpMethod.GET, "/api/v1/club/**")
                                 .hasAuthority(RbacCatalog.CLUBS_READ)
+                        .requestMatchers(HttpMethod.PUT, "/api/v1/club/**")
+                                .hasRole(RbacCatalog.ADMIN)
                         .requestMatchers(HttpMethod.GET, "/api/v1/player/**")
                                 .hasAuthority(RbacCatalog.PLAYERS_READ)
                         .anyRequest().authenticated()

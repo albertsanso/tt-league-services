@@ -3,6 +3,8 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.club.impl;
 import org.cttelsamicsterrassa.data.core.repository.jpa.club.model.TeamJPA;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -13,6 +15,14 @@ public interface TeamRepositoryHelper extends JpaRepository<TeamJPA, UUID> {
     Optional<TeamJPA> findTeamByNameAndSeasonAndSource(String name, String season, Source source);
 
     Optional<TeamJPA> findFirstByClub_IdAndSeason(UUID clubId, String season);
+
+    @Query("""
+            select t from TeamJPA t
+            left join fetch t.club
+            where t.club.id = :clubId
+            order by t.season asc, t.name asc, t.id asc
+            """)
+    List<TeamJPA> findAllByClubId(@Param("clubId") UUID clubId);
 
     List<TeamJPA> findAllBySource(Source source);
 

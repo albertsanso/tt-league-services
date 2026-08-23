@@ -1,4 +1,4 @@
-# FEATURES.md — Feature Registry & Build Plans
+ dev# FEATURES.md — Feature Registry & Build Plans
 
 This file is the single source of truth for planned, in-progress, and completed features.
 
@@ -60,7 +60,74 @@ Any open questions, design decisions, or links.
 
 ## Backlog
 
+### [FEAT-004] Club detail redesign 1
+- **Status:** idea
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-003
+
+#### Goal
+Redesign the Club detail view to present club identity, navigation, filters, and competition summaries in a clear and consistent layout.
+
+Expand `docs/frontend/club-detail-view-mockup-spec.md` into an implementation sub-plan inside `FEAT-004-DETAILS.md`, then use that sub-plan to implement the application
+shell, overview page, responsive behavior, accessibility, and visual system.
+
+#### Behaviour
+- Selecting `season` or `competition` filters updates the displayed competition summaries accordingly.
+- Selecting a competition summary navigates to a dedicated Competition detail view for that competition and season.
+
+#### Acceptance Criteria
+- [ ] The Club detail view presents the club identity, data source, and administrator edit action in the redesigned header.
+- [ ] Users can switch between player and match views and filter the displayed data by season and competition.
+- [ ] Competition summaries display the competition name, season, available match count, and win/draw/loss totals.
+- [ ] The redesigned view is accessible and responsive across supported screen sizes.
+
+#### Feature Details
+See [FEAT-004-DETAILS.md](./FEAT-004-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
 ## Done
+
+### [FEAT-003] Club search and club detail
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-001, FEAT-002
+
+#### Goal
+Enable users to find clubs and inspect the relevant club information from the application.
+
+#### Club search
+- Users can search for clubs by name or other identifying information.
+- Search results are displayed in a list with clear loading, empty, and error states.
+- Selecting a club from the search results navigates to a dedicated Club detail view.
+
+#### Club detail view
+- Displays the club's identifying information (name, location, league, etc.).
+- Displays relevant league data associated with the club.
+- The detail view is accessible and responsive across supported screen sizes.
+- Display a group of actions that the user can take on the club (e.g., view players, view matches, etc.) based on their access level.
+
+##### Action: Players search (Access: Any role)
+- Navigates to a dedicated Players search view filtered by the selected club.
+
+##### Action: Matches search (Access: Any role)
+- Navigates to a dedicated Matches search view filtered by the selected club.
+
+##### Action: Edit club (Access: Admin role)
+- Navigates to a dedicated Club edit view where the user can modify the club's information.
+
+#### Acceptance Criteria
+- [x] Users can search for clubs and see matching results with clear loading, empty, and error states.
+- [x] Selecting a club opens a dedicated detail view with its identifying information and relevant league data.
+- [x] Club detail actions allow any authorized role to open filtered player/match views, while club editing is available only to administrators and is enforced by the backend.
+- [x] Search and detail views are accessible and responsive across supported screen sizes.
+
+#### Feature Details
+→ See [FEAT-003-DETAILS.md](./FEAT-003-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-002] Access control and secured navigation
 - **Status:** done

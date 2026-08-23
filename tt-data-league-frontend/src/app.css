@@ -866,6 +866,175 @@
   color: var(--text-primary);
 }
 
+.club-search-form {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.club-search-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  flex: 1;
+  min-height: 3rem;
+  padding: 0 1rem;
+  color: var(--text-muted);
+  background: var(--surface-card);
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+}
+
+.club-search-input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  color: var(--text-primary);
+  background: transparent;
+  font-size: 0.875rem;
+}
+
+.club-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.club-state {
+  display: grid;
+  gap: 0.85rem;
+  padding: 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.club-state p {
+  margin: 0;
+}
+
+.club-result-list,
+.club-team-list,
+.club-competition-list {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.club-result-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.15rem;
+}
+
+.club-result-link:hover {
+  background: var(--surface-card-sub);
+}
+
+.club-result-link strong,
+.club-result-link span,
+.club-team-card,
+.club-competition-card span {
+  display: block;
+}
+
+.club-source {
+  display: block;
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.club-detail-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.club-action-row,
+.club-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.secondary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.5rem;
+  background: var(--surface-card);
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.secondary-button:hover {
+  background: var(--accent-light);
+}
+
+.club-detail-section {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.club-detail-section h2 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.club-team-card,
+.club-competition-card {
+  padding: 1rem 1.15rem;
+}
+
+.club-team-card span,
+.club-competition-card > span,
+.club-competition-card div span {
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.club-competition-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.club-empty,
+.selected-club-filter {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.selected-club-filter {
+  padding: 0.75rem 1rem;
+  border-left: 2px solid var(--secondary);
+  background: var(--secondary-light);
+}
+
+.club-edit-form {
+  display: grid;
+  gap: 1rem;
+  max-width: 42rem;
+  padding: 1.25rem;
+}
+
+.club-form-actions {
+  justify-content: flex-end;
+}
+
 .mobile-backdrop {
   position: fixed;
   inset: 0;
@@ -1045,6 +1214,11 @@
     gap: 0.6rem;
   }
 
+  .club-search-form {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+
   .primary-button {
     width: 100%;
   }
@@ -1073,6 +1247,11 @@
 
   .analytics-button {
     width: 100%;
+  }
+
+  .club-detail-header,
+  .club-competition-card {
+    flex-direction: column;
   }
 
   .breadcrumb {

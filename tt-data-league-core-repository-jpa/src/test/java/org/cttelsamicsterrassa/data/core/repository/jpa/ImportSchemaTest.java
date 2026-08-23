@@ -191,6 +191,21 @@ class ImportSchemaTest {
     }
 
     @Test
+    void loadsClubRegistrationsAndMatchesByCanonicalTeamIds() {
+        Team home = storedTeam("1", "CLUB A");
+        Team away = storedTeam("2", "CLUB B");
+        Match saved = match(home, away);
+        matchRepository.saveMatch(saved);
+
+        assertEquals(List.of(home.getId()),
+                teamRepository.findAllTeamsByClubId(home.getClub().orElseThrow().getId())
+                        .stream().map(Team::getId).toList());
+        assertEquals(List.of(saved.getId()),
+                matchRepository.findAllMatchesByTeamIds(List.of(home.getId()))
+                        .stream().map(Match::getId).toList());
+    }
+
+    @Test
     void roundTripsPlayerSeasonWithAndWithoutPlayerAssociation() {
         PlayerSeason unassigned = PlayerSeason.createExisting(
                 UUID.randomUUID(), ImportSource.RFETM, "UNASSIGNED PLAYER", "unassigned", null, SEASON);

@@ -19,14 +19,21 @@ public class ModifyClubNameCommandHandler extends DomainCommandHandler<ModifyClu
 
     @Override
     public DomainCommandResponse handle(ModifyClubNameCommand modifyClubNameCommand) {
+        String clubName = modifyClubNameCommand.getClubName();
+        if (clubName == null || clubName.trim().length() < 2) {
+            return DomainCommandResponse.failResponse("Club name must contain at least 2 characters");
+        }
         return clubRepository.findClubById(modifyClubNameCommand.getClubId())
                 .map(existingClub -> {
-                    existingClub.modifyName(modifyClubNameCommand.getClubName());
+                    if (modifyClubNameCommand.getSource() != null
+                            && modifyClubNameCommand.getSource() != existingClub.getSource()) {
+                        return DomainCommandResponse.failResponse("Club source does not match");
+                    }
+                    existingClub.modifyName(clubName.trim());
                     clubRepository.saveClub(existingClub);
                     return DomainCommandResponse.successResponse(existingClub);
                 })
-                .orElseGet(() -> {
-                    return DomainCommandResponse.successResponse(String.format("Club not found: %s", modifyClubNameCommand.getClubId()));
-                });
+                .orElseGet(() -> DomainCommandResponse.failResponse(
+                        String.format("Club not found: %s", modifyClubNameCommand.getClubId())));
     }
 }

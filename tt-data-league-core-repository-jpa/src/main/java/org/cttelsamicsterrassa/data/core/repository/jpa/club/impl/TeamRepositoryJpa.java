@@ -42,6 +42,14 @@ public class TeamRepositoryJpa implements TeamRepository {
     }
 
     @Override
+    public List<Team> findAllTeamsByClubId(UUID clubId) {
+        return teamRepositoryHelper.findAllByClubId(clubId)
+                .stream()
+                .map(teamJPAToTeamMapper)
+                .toList();
+    }
+
+    @Override
     public List<Team> findAllTeamsBySource(ImportSource source) {
         return teamRepositoryHelper.findAllBySource(mapFromImportSourceToSource(source))
                 .stream()

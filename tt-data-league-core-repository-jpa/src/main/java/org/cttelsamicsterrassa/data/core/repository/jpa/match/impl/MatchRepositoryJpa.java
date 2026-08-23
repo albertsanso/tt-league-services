@@ -10,6 +10,8 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.match.mapper.MatchToMatc
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.Collection;
+import java.util.List;
 import java.util.UUID;
 
 @Transactional
@@ -42,6 +44,17 @@ public class MatchRepositoryJpa implements MatchRepository {
                 .findByCompetitionAndSeasonAndGroupNumberAndRoundAndHomeTeam_IdAndAwayTeam_Id(
                         competition, season.toString(), groupNumber, round, homeTeamId, awayTeamId)
                 .map(matchJPAToMatchMapper);
+    }
+
+    @Override
+    public List<Match> findAllMatchesByTeamIds(Collection<UUID> teamIds) {
+        if (teamIds == null || teamIds.isEmpty()) {
+            return List.of();
+        }
+        return matchRepositoryHelper.findAllByTeamIds(teamIds)
+                .stream()
+                .map(matchJPAToMatchMapper)
+                .toList();
     }
 
     @Override

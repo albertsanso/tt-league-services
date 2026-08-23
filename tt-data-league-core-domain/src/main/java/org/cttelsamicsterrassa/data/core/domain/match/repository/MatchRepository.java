@@ -3,6 +3,8 @@ package org.cttelsamicsterrassa.data.core.domain.match.repository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,6 +27,11 @@ public interface MatchRepository {
                                           int round,
                                           UUID homeTeamId,
                                           UUID awayTeamId);
+
+    /**
+     * Returns matches involving any of the supplied canonical team registrations.
+     */
+    List<Match> findAllMatchesByTeamIds(Collection<UUID> teamIds);
 
     void saveMatch(Match match);
 }

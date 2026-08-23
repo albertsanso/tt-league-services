@@ -55,7 +55,8 @@ public class ClubRepositoryJpa implements ClubRepository {
             (root, query, criteriaBuilder) ->
                     createNameFragmentsPredicate(root, criteriaBuilder, fragments, false);
 
-        List<ClubJPA> clubJPAs = clubRepositoryHelper.findAll(clubSpec, Sort.by("name"));
+        List<ClubJPA> clubJPAs = clubRepositoryHelper.findAll(
+                clubSpec, Sort.by("name", "source", "id"));
         return clubJPAs.stream()
                 .map(clubJPAToClubMapper)
                 .toList();
@@ -80,7 +81,8 @@ public class ClubRepositoryJpa implements ClubRepository {
                         createNameFragmentsPredicate(root, criteriaBuilder, fragments, false));
             };
 
-        List<ClubJPA> clubJPAs = clubRepositoryHelper.findAll(clubSpec, Sort.by("name"));
+        List<ClubJPA> clubJPAs = clubRepositoryHelper.findAll(
+                clubSpec, Sort.by("name", "source", "id"));
         return clubJPAs.stream()
                 .map(clubJPAToClubMapper)
                 .toList();
