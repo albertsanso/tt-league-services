@@ -38,10 +38,13 @@ and JDBC batching with a batch size of 50. The configuration is in
 http://localhost:9090/actuator/health
 ```
 
-`ddl-auto: update` does not migrate the previous season-registration table or
-its foreign-key columns to the `TEAM` schema. Existing databases require the
-reviewed migration described in
-`tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` before launch.
+`ddl-auto: update` does not rename the existing `club` table or
+`team.club_id` column. Existing databases require a reviewed deployment
+migration to `federated_club` and `team.federated_club_id` before launch.
+This repository has no migration framework or versioned migration location, so
+no migration is supplied and the feature remains blocked for deployment until
+the deployment owner provides and verifies it. Do not use `ddl-auto: update` as
+a substitute.
 
 ## Build
 

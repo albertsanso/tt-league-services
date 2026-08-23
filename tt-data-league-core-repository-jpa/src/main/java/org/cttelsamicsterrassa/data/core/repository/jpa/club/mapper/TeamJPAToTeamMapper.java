@@ -13,7 +13,7 @@ import java.util.function.Function;
 @Component
 public class TeamJPAToTeamMapper implements Function<TeamJPA, Team> {
 
-    private final ClubJPAToClubMapper clubJPAToClubMapper;
+    private final FederatedClubJPAToFederatedClubMapper clubJPAToClubMapper;
 
     @Override
     public Team apply(TeamJPA teamJPA) {
@@ -25,7 +25,7 @@ public class TeamJPAToTeamMapper implements Function<TeamJPA, Team> {
                 teamJPA.getSource() == null ? null : ImportSource.valueOf(teamJPA.getSource().name()),
                 teamJPA.getName(),
                 Season.fromFormatted(teamJPA.getSeason()),
-                clubJPAToClubMapper.apply(teamJPA.getClub())
+                clubJPAToClubMapper.apply(teamJPA.getFederatedClub())
         );
     }
 }

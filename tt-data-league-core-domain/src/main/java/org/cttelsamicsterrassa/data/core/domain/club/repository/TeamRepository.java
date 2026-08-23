@@ -11,12 +11,12 @@ import java.util.UUID;
 public interface TeamRepository {
     Optional<Team> findTeamById(UUID id);
     Optional<Team> findTeamByNameAndSeasonAndSource(String name, Season season, ImportSource source);
-    Optional<Team> findTeamByClubAndSeason(UUID clubId, Season season);
+    Optional<Team> findTeamByFederatedClubAndSeason(UUID federatedClubId, Season season);
 
     /**
      * Returns every season registration belonging to the canonical club.
      */
-    List<Team> findAllTeamsByClubId(UUID clubId);
+    List<Team> findAllTeamsByFederatedClubId(UUID federatedClubId);
 
     List<Team> findAllTeamsBySource(ImportSource source);
     List<Team> findAllTeamsBySimilarName(String name);

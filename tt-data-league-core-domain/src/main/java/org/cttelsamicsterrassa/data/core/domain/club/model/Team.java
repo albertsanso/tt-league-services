@@ -16,27 +16,27 @@ public class Team extends Entity {
     private final ImportSource source;
     private String name;
     private final Season season;
-    private final Optional<Club> club;
+    private final Optional<FederatedClub> federatedClub;
 
-    private Team(UUID id, ImportSource source, String name, Season season, Club club) {
+    private Team(UUID id, ImportSource source, String name, Season season, FederatedClub club) {
         this.id = id;
         this.source = source;
         this.name = name;
         this.season = season;
-        this.club = Optional.ofNullable(club);
+        this.federatedClub = Optional.ofNullable(club);
     }
 
-    private static Team of(UUID id, ImportSource source, String name, Season season, Club club) {
+    private static Team of(UUID id, ImportSource source, String name, Season season, FederatedClub club) {
         return new Team(id, source, name, season, club);
     }
 
-    public static Team createNew(ImportSource source, String name, Season season, Club club) {
+    public static Team createNew(ImportSource source, String name, Season season, FederatedClub club) {
         Team team = of(UUID.randomUUID(), source, name, season, club);
         team.publishTeamCreatedEvent();
         return team;
     }
 
-    public static Team createExisting(UUID id, ImportSource source, String name, Season season, Club club) {
+    public static Team createExisting(UUID id, ImportSource source, String name, Season season, FederatedClub club) {
         return of(id, source, name, season, club);
     }
 
@@ -44,8 +44,9 @@ public class Team extends Entity {
      * Returns an otherwise identical registration associated with {@code club}.
      * The original id, source, season-specific name, and season are retained.
      */
-    public Team withClub(Club club) {
-        if (club != null && this.club.isPresent() && club.getId().equals(this.club.get().getId())) {
+    public Team withFederatedClub(FederatedClub club) {
+        if (club != null && this.federatedClub.isPresent()
+                && club.getId().equals(this.federatedClub.get().getId())) {
             return this;
         }
         return of(id, source, name, season, club);
@@ -63,7 +64,7 @@ public class Team extends Entity {
     }
 
     private void publishTeamCreatedEvent() {
-        publishEvent(TeamCreatedEvent.of(id, name, source, club.orElse(null)));
+        publishEvent(TeamCreatedEvent.of(id, name, source, federatedClub.orElse(null)));
     }
     private void publishTeamNameModifiedEvent() {
         publishEvent(TeamNameModifiedEvent.of(id, name));
@@ -88,7 +89,7 @@ public class Team extends Entity {
         return season;
     }
 
-    public Optional<Club> getClub() {
-        return club;
+    public Optional<FederatedClub> getFederatedClub() {
+        return federatedClub;
     }
 }

@@ -7,14 +7,14 @@ import org.albertsanso.commons.command.CommandBus;
 import org.albertsanso.commons.command.DomainCommandResponse;
 import org.albertsanso.commons.query.DomainQueryResponse;
 import org.albertsanso.commons.query.QueryBus;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubDetailsReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubCompetitionDetailsReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.FindClubCompetitionDetailsQuery;
-import org.cttelsamicsterrassa.data.core.application.club.find.FindClubByIdQuery;
-import org.cttelsamicsterrassa.data.core.application.club.find.FindClubDetailsQuery;
-import org.cttelsamicsterrassa.data.core.application.club.find.FindClubsByStringInNameQuery;
-import org.cttelsamicsterrassa.data.core.application.club.update.ModifyClubNameCommand;
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubCompetitionDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClubCompetitionDetailsQuery;
+import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClubByIdQuery;
+import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClubDetailsQuery;
+import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClubsByStringInNameQuery;
+import org.cttelsamicsterrassa.data.core.application.club.update.ModifyFederatedClubNameCommand;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,8 +45,8 @@ public class ClubController {
     @GetMapping("/find_by_id")
     @Operation(summary = "Find club by id", description = "Returns a club by its UUID")
     public ResponseEntity<ClubDto> findClubById(@RequestParam("id") UUID id) {
-        FindClubByIdQuery findClubByIdQuery = new FindClubByIdQuery(id);
-        DomainQueryResponse<Club> queryResponse = queryBus.push(findClubByIdQuery);
+        FindFederatedClubByIdQuery findFederatedClubByIdQuery = new FindFederatedClubByIdQuery(id);
+        DomainQueryResponse<FederatedClub> queryResponse = queryBus.push(findFederatedClubByIdQuery);
         return queryResponse.isSuccess() ?
                 ResponseEntity.ok(ClubDto.fromObject(queryResponse.getResponse())) :
                 ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
@@ -63,8 +63,8 @@ public class ClubController {
             @ApiResponse(responseCode = "500", description = "Unexpected query failure")
     })
     public ResponseEntity<?> findClubDetailsById(@PathVariable("id") UUID id) {
-        DomainQueryResponse<ClubDetailsReadModel> queryResponse =
-                queryBus.push(new FindClubDetailsQuery(id));
+        DomainQueryResponse<FederatedClubDetailsReadModel> queryResponse =
+                queryBus.push(new FindFederatedClubDetailsQuery(id));
         return queryResponse.isSuccess()
                 ? ResponseEntity.ok(ClubDetailsDto.fromObject(queryResponse.getResponse()))
                 : ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage("Club not found: " + id));
@@ -95,8 +95,8 @@ public class ClubController {
             return ResponseEntity.badRequest().body(new ErrorMessage("Competition must not be blank"));
         }
 
-        DomainQueryResponse<ClubCompetitionDetailsReadModel> queryResponse =
-                queryBus.push(new FindClubCompetitionDetailsQuery(id, parsedSeason, competition));
+        DomainQueryResponse<FederatedClubCompetitionDetailsReadModel> queryResponse =
+                queryBus.push(new FindFederatedClubCompetitionDetailsQuery(id, parsedSeason, competition));
         return queryResponse.isSuccess()
                 ? ResponseEntity.ok(ClubCompetitionDetailsDto.fromObject(queryResponse.getResponse()))
                 : ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -129,8 +129,9 @@ public class ClubController {
                     .body(new ErrorMessage("Unknown source filter: " + source));
         }
 
-        FindClubsByStringInNameQuery query = new FindClubsByStringInNameQuery(normalizedSearch, importSource);
-        DomainQueryResponse<List<Club>> queryResponse = queryBus.push(query);
+        FindFederatedClubsByStringInNameQuery query =
+                new FindFederatedClubsByStringInNameQuery(normalizedSearch, importSource);
+        DomainQueryResponse<List<FederatedClub>> queryResponse = queryBus.push(query);
         if (queryResponse.isSuccess()) {
             List<ClubDto> clubDtos = queryResponse.getResponse().stream()
                     .map(ClubDto::fromObject)
@@ -170,7 +171,7 @@ public class ClubController {
                     .body(new ErrorMessage("Club name must contain at least 2 characters"));
         }
 
-        ModifyClubNameCommand command = new ModifyClubNameCommand(
+        ModifyFederatedClubNameCommand command = new ModifyFederatedClubNameCommand(
                 ZonedDateTime.now(),
                 UUID.randomUUID().toString(),
                 id,
@@ -179,7 +180,7 @@ public class ClubController {
         DomainCommandResponse commandResponse = commandBus.push(command);
         if (commandResponse.isSuccess()) {
             return ResponseEntity.ok(ClubDto.fromObject(
-                    (Club) commandResponse.getResponse()));
+                    (FederatedClub) commandResponse.getResponse()));
         }
 
         String error = String.valueOf(commandResponse.getResponse());

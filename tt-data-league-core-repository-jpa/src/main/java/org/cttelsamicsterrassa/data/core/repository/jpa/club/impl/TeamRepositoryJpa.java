@@ -36,14 +36,15 @@ public class TeamRepositoryJpa implements TeamRepository {
     }
 
     @Override
-    public Optional<Team> findTeamByClubAndSeason(UUID clubId, Season season) {
-        return teamRepositoryHelper.findFirstByClub_IdAndSeason(clubId, season.toString())
+    public Optional<Team> findTeamByFederatedClubAndSeason(UUID federatedClubId, Season season) {
+        return teamRepositoryHelper.findFirstByFederatedClub_IdAndSeason(
+                        federatedClubId, season.toString())
                 .map(teamJPAToTeamMapper);
     }
 
     @Override
-    public List<Team> findAllTeamsByClubId(UUID clubId) {
-        return teamRepositoryHelper.findAllByClubId(clubId)
+    public List<Team> findAllTeamsByFederatedClubId(UUID federatedClubId) {
+        return teamRepositoryHelper.findAllByFederatedClubId(federatedClubId)
                 .stream()
                 .map(teamJPAToTeamMapper)
                 .toList();

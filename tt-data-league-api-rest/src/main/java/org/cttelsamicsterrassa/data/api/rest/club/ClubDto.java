@@ -1,11 +1,11 @@
 package org.cttelsamicsterrassa.data.api.rest.club;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 
 import java.util.UUID;
 
 public record ClubDto(UUID id, String name, String source) {
-    public static ClubDto fromObject(Club club) {
+    public static ClubDto fromObject(FederatedClub club) {
         return new ClubDto(
                 club.getId(),
                 club.getName(),

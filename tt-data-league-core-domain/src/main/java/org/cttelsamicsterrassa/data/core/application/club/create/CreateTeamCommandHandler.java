@@ -24,7 +24,7 @@ public class CreateTeamCommandHandler extends DomainCommandHandler<CreateTeamCom
                 .map(existingTeam ->
                         DomainCommandResponse.failResponse("Team with the same name and season already exists"))
                 .orElseGet(() -> {
-                    var newTeam = Team.createNew(null, command.getClubName(), command.getSeason(), command.getClub());
+                    var newTeam = Team.createNew(null, command.getClubName(), command.getSeason(), command.getFederatedClub());
                     teamRepository.saveTeam(newTeam);
                     return DomainCommandResponse.successResponse(newTeam);
                 });

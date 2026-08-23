@@ -4,13 +4,13 @@ import org.albertsanso.commons.command.CommandBus;
 import org.albertsanso.commons.command.DomainCommandResponse;
 import org.albertsanso.commons.query.DomainQueryResponse;
 import org.albertsanso.commons.query.QueryBus;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubCompetitionReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubCompetitionDetailsReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubMatchReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubDetailsReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubPlayerReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubTeamReadModel;
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubCompetitionReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubCompetitionDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubMatchReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubPlayerReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubTeamReadModel;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.junit.jupiter.api.Test;
@@ -43,7 +43,7 @@ class ClubControllerTest {
     void trimsSearchAndPreservesSourceInResults() {
         QueryBus queryBus = mock(QueryBus.class);
         ClubController controller = controllerWith(queryBus, mock(CommandBus.class));
-        Club club = Club.createExisting(CLUB_ID, ImportSource.FCTT, "Club A");
+        FederatedClub club = FederatedClub.createExisting(CLUB_ID, ImportSource.FCTT, "Club A");
         when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(List.of(club)));
 
         var response = controller.findClubsByStringInName(" Club ", "fctt");
@@ -57,13 +57,13 @@ class ClubControllerTest {
         QueryBus queryBus = mock(QueryBus.class);
         ClubController controller = controllerWith(queryBus, mock(CommandBus.class));
         Season season = Season.of(2023);
-        ClubDetailsReadModel details = new ClubDetailsReadModel(
+        FederatedClubDetailsReadModel details = new FederatedClubDetailsReadModel(
                 CLUB_ID,
                 "Club A",
                 ImportSource.RFETM,
-                List.of(new ClubTeamReadModel(UUID.randomUUID(), "Club A 1", ImportSource.RFETM, season)),
-                List.of(new ClubCompetitionReadModel("Divisió d'Honor", season, 3, 2, 0, 1)),
-                List.of(new ClubPlayerReadModel(
+                List.of(new FederatedClubTeamReadModel(UUID.randomUUID(), "Club A 1", ImportSource.RFETM, season)),
+                List.of(new FederatedClubCompetitionReadModel("Divisió d'Honor", season, 3, 2, 0, 1)),
+                List.of(new FederatedClubPlayerReadModel(
                         UUID.randomUUID(),
                         UUID.randomUUID(),
                         "Player A",
@@ -101,13 +101,13 @@ class ClubControllerTest {
         QueryBus queryBus = mock(QueryBus.class);
         ClubController controller = controllerWith(queryBus, mock(CommandBus.class));
         Season season = Season.of(2023);
-        ClubCompetitionDetailsReadModel details = new ClubCompetitionDetailsReadModel(
+        FederatedClubCompetitionDetailsReadModel details = new FederatedClubCompetitionDetailsReadModel(
                 CLUB_ID,
                 "Club A",
                 ImportSource.RFETM,
                 "Preferent",
                 season,
-                List.of(new ClubMatchReadModel(
+                List.of(new FederatedClubMatchReadModel(
                         UUID.randomUUID(),
                         "Club A 1",
                         "Club B 1",

@@ -1,6 +1,6 @@
 package org.cttelsamicsterrassa.data.load.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -63,9 +63,9 @@ class FcttImportProcessorsTest {
         run(context("acta_singles.json", "G3"));
 
         assertEquals(2, clubs.byId.size());
-        Club home = clubs.findClubBySourceAndName(ImportSource.FCTT, "HORTITEC ALZIRA TT").orElseThrow();
+        FederatedClub home = clubs.findFederatedClubBySourceAndName(ImportSource.FCTT, "HORTITEC ALZIRA TT").orElseThrow();
         assertEquals(ImportSource.FCTT, home.getSource());
-        assertTrue(teams.findTeamByClubAndSeason(home.getId(), Season.of(2023)).isPresent());
+        assertTrue(teams.findTeamByFederatedClubAndSeason(home.getId(), Season.of(2023)).isPresent());
         assertEquals(6, players.byId.size());
         assertTrue(playerSeasons.findPlayerSeasonByLicenseAndSeason(ImportSource.FCTT, "29194", Season.of(2023))
                 .isPresent());

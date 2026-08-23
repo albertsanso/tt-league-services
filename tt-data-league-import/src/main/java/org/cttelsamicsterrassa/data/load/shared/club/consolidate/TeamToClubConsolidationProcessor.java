@@ -1,8 +1,8 @@
 package org.cttelsamicsterrassa.data.load.shared.club.consolidate;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -25,7 +25,7 @@ import java.util.stream.Collectors;
 
 /**
  * Source-scoped historical repair: attach equivalent {@link Team} registrations to one
- * canonical {@link Club} without merging or deleting season rows.
+ * canonical {@link FederatedClub} without merging or deleting season rows.
  */
 @Component
 public class TeamToClubConsolidationProcessor {
@@ -34,16 +34,16 @@ public class TeamToClubConsolidationProcessor {
 
     private static final Set<ImportSource> AUTOMATIC_SOURCES = EnumSet.of(ImportSource.FCTT, ImportSource.BCNESA);
 
-    private final ClubRepository clubRepository;
+    private final FederatedClubRepository clubRepository;
     private final TeamRepository teamRepository;
     private final ClubNameMatcher matcher;
 
     @Inject
-    public TeamToClubConsolidationProcessor(ClubRepository clubRepository, TeamRepository teamRepository) {
+    public TeamToClubConsolidationProcessor(FederatedClubRepository clubRepository, TeamRepository teamRepository) {
         this(clubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()));
     }
 
-    TeamToClubConsolidationProcessor(ClubRepository clubRepository,
+    TeamToClubConsolidationProcessor(FederatedClubRepository clubRepository,
                                      TeamRepository teamRepository,
                                      ClubNameMatcher matcher) {
         this.clubRepository = Objects.requireNonNull(clubRepository, "clubRepository");
@@ -200,31 +200,31 @@ public class TeamToClubConsolidationProcessor {
             return;
         }
 
-        Optional<Club> agreed = uniqueAssociatedClub(members);
-        Club canonical;
+        Optional<FederatedClub> agreed = uniqueAssociatedClub(members);
+        FederatedClub canonical;
         boolean created = false;
         if (agreed.isPresent()) {
             canonical = agreed.get();
             if (!canonical.getName().equals(representativeName)) {
                 if (mode == ConsolidationMode.WRITE) {
                     canonical.modifyName(representativeName);
-                    clubRepository.saveClub(canonical);
+                    clubRepository.saveFederatedClub(canonical);
                 }
                 LOGGER.info("Canonicalized club {} name from {} to {}", canonical.getId(), canonical.getName(), representativeName);
             }
         } else {
             String clubName = representativeName;
-            Optional<Club> existing = clubRepository.findClubBySourceAndName(source, clubName);
+            Optional<FederatedClub> existing = clubRepository.findFederatedClubBySourceAndName(source, clubName);
             if (existing.isPresent()) {
                 canonical = existing.get();
             } else if (mode == ConsolidationMode.WRITE) {
-                canonical = Club.createNew(source, clubName);
-                clubRepository.saveClub(canonical);
+                canonical = FederatedClub.createNew(source, clubName);
+                clubRepository.saveFederatedClub(canonical);
                 created = true;
                 summary.incrementClubsCreated();
                 LOGGER.info("Created canonical club {} ({}) for {}", canonical.getId(), clubName, source);
             } else {
-                canonical = Club.createNew(source, clubName);
+                canonical = FederatedClub.createNew(source, clubName);
                 created = true;
                 summary.incrementClubsCreated();
             }
@@ -232,12 +232,12 @@ public class TeamToClubConsolidationProcessor {
 
         int reassociatedHere = 0;
         for (Team member : members) {
-            if (member.getClub().map(club -> club.getId().equals(canonical.getId())).orElse(false)) {
+            if (member.getFederatedClub().map(club -> club.getId().equals(canonical.getId())).orElse(false)) {
                 summary.incrementAlreadyCorrect();
                 continue;
             }
             if (mode == ConsolidationMode.WRITE) {
-                Team updated = member.withClub(canonical);
+                Team updated = member.withFederatedClub(canonical);
                 teamRepository.saveTeam(updated);
             }
             summary.incrementReassociated();
@@ -273,9 +273,9 @@ public class TeamToClubConsolidationProcessor {
         return associatedClubIds(members).size() > 1;
     }
 
-    private static Optional<Club> uniqueAssociatedClub(List<Team> members) {
-        List<Club> clubs = members.stream()
-                .map(Team::getClub)
+    private static Optional<FederatedClub> uniqueAssociatedClub(List<Team> members) {
+        List<FederatedClub> clubs = members.stream()
+                .map(Team::getFederatedClub)
                 .flatMap(Optional::stream)
                 .toList();
         if (clubs.isEmpty()) {
@@ -288,11 +288,11 @@ public class TeamToClubConsolidationProcessor {
         return Optional.empty();
     }
 
-    private static Club selectAssociatedClub(List<Team> members) {
+    private static FederatedClub selectAssociatedClub(List<Team> members) {
         return members.stream()
-                .filter(member -> member.getClub().isPresent())
+                .filter(member -> member.getFederatedClub().isPresent())
                 .sorted(registrationOrder())
-                .map(member -> member.getClub().orElseThrow())
+                .map(member -> member.getFederatedClub().orElseThrow())
                 .findFirst()
                 .orElseThrow();
     }
@@ -326,9 +326,9 @@ public class TeamToClubConsolidationProcessor {
 
     private static Set<UUID> associatedClubIds(List<Team> members) {
         return members.stream()
-                .map(Team::getClub)
+                .map(Team::getFederatedClub)
                 .flatMap(Optional::stream)
-                .map(Club::getId)
+                .map(FederatedClub::getId)
                 .collect(Collectors.toSet());
     }
 

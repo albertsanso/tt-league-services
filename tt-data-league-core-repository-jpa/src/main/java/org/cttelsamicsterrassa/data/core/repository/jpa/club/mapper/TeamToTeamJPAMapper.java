@@ -12,7 +12,7 @@ import java.util.function.Function;
 @Component
 public class TeamToTeamJPAMapper implements Function<Team, TeamJPA> {
 
-    private final ClubToClubJPAMapper clubToClubJPAMapper;
+    private final FederatedClubToFederatedClubJPAMapper clubToFederatedClubJPAMapper;
 
     @Override
     public TeamJPA apply(Team team) {
@@ -24,7 +24,8 @@ public class TeamToTeamJPAMapper implements Function<Team, TeamJPA> {
         result.setSource(team.getSource() == null ? null : Source.valueOf(team.getSource().name()));
         result.setName(team.getName());
         result.setSeason(team.getSeason().toString());
-        result.setClub(team.getClub().map(clubToClubJPAMapper).orElse(null));
+        result.setFederatedClub(team.getFederatedClub()
+                .map(clubToFederatedClubJPAMapper).orElse(null));
         return result;
     }
 }

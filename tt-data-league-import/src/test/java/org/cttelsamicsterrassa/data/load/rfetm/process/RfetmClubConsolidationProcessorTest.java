@@ -1,8 +1,8 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -25,7 +25,7 @@ class RfetmClubConsolidationProcessorTest {
 
     @Test
     void looksUpAndCreatesEachClubOnlyOnce(@TempDir Path teamsFolder) throws IOException {
-        CountingClubRepository clubs = new CountingClubRepository();
+        CountingFederatedClubRepository clubs = new CountingFederatedClubRepository();
         InMemoryRepositories.Teams teams = new InMemoryRepositories.Teams();
         teams.saveTeam(Team.createNew(ImportSource.RFETM, "CLUB A TEAM", Season.of(2023), null));
         teams.saveTeam(Team.createNew(ImportSource.RFETM, "CLUB B TEAM", Season.of(2023), null));
@@ -58,59 +58,54 @@ class RfetmClubConsolidationProcessorTest {
                 new RfetmClubConsolidationProcessor(clubs, teams, new TeamParser()).process(teamsFolder);
 
         assertEquals(2, clubs.findBySourceAndNameCalls);
-        assertEquals(2, clubs.saveClubCalls);
+        assertEquals(2, clubs.saveFederatedClubCalls);
         assertEquals(3, summary.scannedRegistrations());
         assertEquals(2, summary.clubsCreated());
         assertEquals(3, summary.registrationsReassociated());
         assertEquals(0, summary.alreadyCorrectRegistrations());
         assertEquals(2, summary.consolidations().size());
         assertEquals(2, teams.findAllTeamsBySource(ImportSource.RFETM).stream()
-                .map(team -> team.getClub().orElseThrow().getId())
+                .map(team -> team.getFederatedClub().orElseThrow().getId())
                 .distinct()
                 .count());
     }
 
-    private static final class CountingClubRepository implements ClubRepository {
+    private static final class CountingFederatedClubRepository implements FederatedClubRepository {
         private final InMemoryRepositories.Clubs delegate = new InMemoryRepositories.Clubs();
         private int findBySourceAndNameCalls;
-        private int saveClubCalls;
+        private int saveFederatedClubCalls;
 
         @Override
-        public Optional<Club> findClubById(UUID id) {
-            return delegate.findClubById(id);
+        public Optional<FederatedClub> findFederatedClubById(UUID id) {
+            return delegate.findFederatedClubById(id);
         }
 
         @Override
-        public Optional<Club> findClubByName(String name) {
-            return delegate.findClubByName(name);
-        }
-
-        @Override
-        public Optional<Club> findClubBySourceAndName(ImportSource source, String name) {
+        public Optional<FederatedClub> findFederatedClubBySourceAndName(ImportSource source, String name) {
             findBySourceAndNameCalls++;
-            return delegate.findClubBySourceAndName(source, name);
+            return delegate.findFederatedClubBySourceAndName(source, name);
         }
 
         @Override
-        public List<Club> findAllClubsByFragmentsInName(List<String> fragments) {
-            return delegate.findAllClubsByFragmentsInName(fragments);
+        public List<FederatedClub> findAllFederatedClubsByFragmentsInName(List<String> fragments) {
+            return delegate.findAllFederatedClubsByFragmentsInName(fragments);
         }
 
         @Override
-        public List<Club> findAllClubsBySourceAndFragmentsInName(
+        public List<FederatedClub> findAllFederatedClubsBySourceAndFragmentsInName(
                 ImportSource source, List<String> fragments) {
-            return delegate.findAllClubsBySourceAndFragmentsInName(source, fragments);
+            return delegate.findAllFederatedClubsBySourceAndFragmentsInName(source, fragments);
         }
 
         @Override
-        public void saveClub(Club club) {
-            saveClubCalls++;
-            delegate.saveClub(club);
+        public void saveFederatedClub(FederatedClub club) {
+            saveFederatedClubCalls++;
+            delegate.saveFederatedClub(club);
         }
 
         @Override
-        public void deleteClubById(UUID id) {
-            delegate.deleteClubById(id);
+        public void deleteFederatedClubById(UUID id) {
+            delegate.deleteFederatedClubById(id);
         }
     }
 }

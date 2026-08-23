@@ -1,6 +1,6 @@
 package org.cttelsamicsterrassa.data.load.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
@@ -68,10 +68,10 @@ class BcnesaImportProcessorsTest {
         run(secondFixture());
 
         assertEquals(4, clubs.byId.size());
-        Club home1 = clubs.findClubBySourceAndName(ImportSource.BCNESA, "FALCONS DE SABADELL").orElseThrow();
-        Club home2 = clubs.findClubBySourceAndName(ImportSource.BCNESA, "CTT ATENEU").orElseThrow();
-        assertTrue(teams.findTeamByClubAndSeason(home1.getId(), Season.of(2020)).isPresent());
-        assertTrue(teams.findTeamByClubAndSeason(home2.getId(), Season.of(2020)).isPresent());
+        FederatedClub home1 = clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "FALCONS DE SABADELL").orElseThrow();
+        FederatedClub home2 = clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "CTT ATENEU").orElseThrow();
+        assertTrue(teams.findTeamByFederatedClubAndSeason(home1.getId(), Season.of(2020)).isPresent());
+        assertTrue(teams.findTeamByFederatedClubAndSeason(home2.getId(), Season.of(2020)).isPresent());
     }
 
     @Test
@@ -83,8 +83,8 @@ class BcnesaImportProcessorsTest {
         run(bare);
 
         assertEquals(2, clubs.byId.size());
-        assertTrue(clubs.findClubBySourceAndName(ImportSource.BCNESA, "CLUB ARIEL A").isPresent());
-        assertTrue(clubs.findClubBySourceAndName(ImportSource.BCNESA, "CLUB ARIEL B").isPresent());
+        assertTrue(clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "CLUB ARIEL A").isPresent());
+        assertTrue(clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "CLUB ARIEL B").isPresent());
     }
 
     @Test

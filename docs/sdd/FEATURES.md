@@ -60,6 +60,39 @@ Any open questions, design decisions, or links.
 
 ## Backlog
 
+### [FEAT-005] Club entity rename to FederatedClub
+- **Status:** blocked
+- **Priority:** medium
+- **Effort:** large (> 8h)
+- **Depends on:** —
+
+#### Goal
+Rename the `Club` entity to `FederatedClub` in the backend codebase.
+- Consider domain components `Club` entity to `FederatedClub`.
+- DONT rename current package names.
+- Consider jpa entities, helpers, mappers and repository implementations.
+- Consider jpa @Query() annotation and JPQL queries.
+- Consider annotation @Param("clubId").
+- Consider unscoped club lookups, use uniqueness constraint to use (source, name).
+- Table `club`to `federated_club`.
+- Columns, used as foreign keys, named `club_id`, to be renamed to `federated_club_id`.
+
+#### Acceptance Criteria
+- [x] All references to `Club` in the domain codebase are renamed to `FederatedClub`.
+- [x] Package names are NOT updated.
+- [x] All JPA entities, helpers, mappers, and repository implementations are updated to reflect the new entity name.
+- [x] All JPQL queries and `@Query()` annotations are updated to use the new entity name.
+- [x] All `@Param("clubId")` annotations are updated to use `@Param("federatedClubId")`.
+- [x] All unscoped club lookups are updated to use the uniqueness constraint `(source, name)`.
+- [ ] The database table `club` is renamed to `federated_club`, and all foreign key columns named `club_id` are renamed to `federated_club_id`.
+- [x] All tests and documentation are updated to reflect the new entity name and any changes made during the renaming process.
+- [ ] All migration scripts are updated to reflect the new table and column names.
+
+#### Feature Details
+→ See [FEAT-005-DETAILS.md](./FEAT-005-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
 ## Done
 
 ---

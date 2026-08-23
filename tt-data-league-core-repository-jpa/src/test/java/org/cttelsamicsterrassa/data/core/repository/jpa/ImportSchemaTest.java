@@ -1,8 +1,8 @@
 package org.cttelsamicsterrassa.data.core.repository.jpa;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
@@ -38,7 +38,7 @@ class ImportSchemaTest {
     private static final Season SEASON = Season.of(2023);
 
     @Autowired
-    private ClubRepository clubRepository;
+    private FederatedClubRepository clubRepository;
 
     @Autowired
     private TeamRepository teamRepository;
@@ -57,10 +57,11 @@ class ImportSchemaTest {
 
     @Test
     void findsAClubByItsFederationId() {
-        Club club = Club.createNew(ImportSource.RFETM,"HORTITEC ALZIRA TT");
-        clubRepository.saveClub(club);
+        FederatedClub club = FederatedClub.createNew(ImportSource.RFETM,"HORTITEC ALZIRA TT");
+        clubRepository.saveFederatedClub(club);
 
-        Optional<Club> found = clubRepository.findClubByName("HORTITEC ALZIRA TT");
+        Optional<FederatedClub> found = clubRepository.findFederatedClubBySourceAndName(
+                ImportSource.RFETM, "HORTITEC ALZIRA TT");
 
         assertTrue(found.isPresent());
         assertEquals(club.getId(), found.get().getId());
@@ -69,12 +70,12 @@ class ImportSchemaTest {
 
     @Test
     void keepsSameDisplayNameApartWhenTheSourceDiffers() {
-        clubRepository.saveClub(Club.createNew(ImportSource.RFETM, "UNIVERSIDAD DE BURGOS - TPF"));
-        clubRepository.saveClub(Club.createNew(ImportSource.FCTT, "UNIVERSIDAD DE BURGOS - TPF"));
+        clubRepository.saveFederatedClub(FederatedClub.createNew(ImportSource.RFETM, "UNIVERSIDAD DE BURGOS - TPF"));
+        clubRepository.saveFederatedClub(FederatedClub.createNew(ImportSource.FCTT, "UNIVERSIDAD DE BURGOS - TPF"));
 
-        UUID rfetm = clubRepository.findClubBySourceAndName(ImportSource.RFETM, "UNIVERSIDAD DE BURGOS - TPF")
+        UUID rfetm = clubRepository.findFederatedClubBySourceAndName(ImportSource.RFETM, "UNIVERSIDAD DE BURGOS - TPF")
                 .orElseThrow().getId();
-        UUID fctt = clubRepository.findClubBySourceAndName(ImportSource.FCTT, "UNIVERSIDAD DE BURGOS - TPF")
+        UUID fctt = clubRepository.findFederatedClubBySourceAndName(ImportSource.FCTT, "UNIVERSIDAD DE BURGOS - TPF")
                 .orElseThrow().getId();
 
         assertNotEquals(rfetm, fctt);
@@ -95,13 +96,13 @@ class ImportSchemaTest {
 
     @Test
     void keepsASeasonEntryPerClubEvenWhenTheNamesCollide() {
-        Club a = storedClub("790", "UNIVERSIDAD DE BURGOS - TPF A");
-        Club b = storedClub("1056", "UNIVERSIDAD DE BURGOS - TPF B");
+        FederatedClub a = storedClub("790", "UNIVERSIDAD DE BURGOS - TPF A");
+        FederatedClub b = storedClub("1056", "UNIVERSIDAD DE BURGOS - TPF B");
         teamRepository.saveTeam(Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, a.getName(), SEASON, a));
         teamRepository.saveTeam(Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, b.getName(), SEASON, b));
 
-        Team forA = teamRepository.findTeamByClubAndSeason(a.getId(), SEASON).orElseThrow();
-        Team forB = teamRepository.findTeamByClubAndSeason(b.getId(), SEASON).orElseThrow();
+        Team forA = teamRepository.findTeamByFederatedClubAndSeason(a.getId(), SEASON).orElseThrow();
+        Team forB = teamRepository.findTeamByFederatedClubAndSeason(b.getId(), SEASON).orElseThrow();
 
         assertNotEquals(forA.getId(), forB.getId());
     }
@@ -165,14 +166,14 @@ class ImportSchemaTest {
         assertTrue(found.isProtested());
     }
 
-    private Club storedClub(String externalId, String name) {
-        Club club = Club.createNew(ImportSource.RFETM, name);
-        clubRepository.saveClub(club);
+    private FederatedClub storedClub(String externalId, String name) {
+        FederatedClub club = FederatedClub.createNew(ImportSource.RFETM, name);
+        clubRepository.saveFederatedClub(club);
         return club;
     }
 
     private Team storedTeam(String externalId, String name) {
-        Club club = storedClub(externalId, name);
+        FederatedClub club = storedClub(externalId, name);
         Team team = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, name, SEASON, club);
         teamRepository.saveTeam(team);
         return team;
@@ -181,8 +182,8 @@ class ImportSchemaTest {
     @Test
     void inventoriesTeamsBySource() {
         storedTeam("1", "CLUB A");
-        Club fcttClub = Club.createNew(ImportSource.FCTT, "CLUB A FCTT");
-        clubRepository.saveClub(fcttClub);
+        FederatedClub fcttClub = FederatedClub.createNew(ImportSource.FCTT, "CLUB A FCTT");
+        clubRepository.saveFederatedClub(fcttClub);
         teamRepository.saveTeam(Team.createExisting(
                 UUID.randomUUID(), ImportSource.FCTT, "CLUB A", SEASON, fcttClub));
 
@@ -198,7 +199,7 @@ class ImportSchemaTest {
         matchRepository.saveMatch(saved);
 
         assertEquals(List.of(home.getId()),
-                teamRepository.findAllTeamsByClubId(home.getClub().orElseThrow().getId())
+                teamRepository.findAllTeamsByFederatedClubId(home.getFederatedClub().orElseThrow().getId())
                         .stream().map(Team::getId).toList());
         assertEquals(List.of(saved.getId()),
                 matchRepository.findAllMatchesByTeamIds(List.of(home.getId()))
@@ -262,8 +263,8 @@ class ImportSchemaTest {
 
     @Test
     void reassociatingATeamKeepsMatchAndLineupReferences() {
-        Club original = storedClub("1", "ORIGINAL CLUB");
-        Club canonical = storedClub("2", "CANONICAL CLUB");
+        FederatedClub original = storedClub("1", "ORIGINAL CLUB");
+        FederatedClub canonical = storedClub("2", "CANONICAL CLUB");
         Team home = storedTeam(original, "HOME CLUB");
         Team away = storedTeam("3", "AWAY CLUB");
         Match saved = match(home, away);
@@ -284,15 +285,15 @@ class ImportSchemaTest {
                 .createNew()));
 
         UUID homeId = home.getId();
-        teamRepository.saveTeam(home.withClub(canonical));
+        teamRepository.saveTeam(home.withFederatedClub(canonical));
 
         Team reloaded = teamRepository.findTeamById(homeId).orElseThrow();
-        assertEquals(canonical.getId(), reloaded.getClub().orElseThrow().getId());
+        assertEquals(canonical.getId(), reloaded.getFederatedClub().orElseThrow().getId());
         assertEquals(homeId, matchRepository.findMatchById(saved.getId()).orElseThrow().getHomeTeam().getId());
         assertEquals(homeId, lineupRepository.findLineupsByMatchId(saved.getId()).getFirst().getTeam().getId());
     }
 
-    private Team storedTeam(Club club, String name) {
+    private Team storedTeam(FederatedClub club, String name) {
         Team team = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, name, SEASON, club);
         teamRepository.saveTeam(team);
         return team;

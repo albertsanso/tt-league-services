@@ -8,7 +8,6 @@ import lombok.AllArgsConstructor;
 import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.core.repository.jpa.club.model.ClubJPA;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
 import org.cttelsamicsterrassa.data.core.repository.jpa.player.mapper.PlayerJPAToPlayerMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.player.mapper.PlayerToPlayerJPAMapper;

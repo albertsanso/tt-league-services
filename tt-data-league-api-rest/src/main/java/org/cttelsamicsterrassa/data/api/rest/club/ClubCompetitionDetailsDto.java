@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.api.rest.club;
 
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubCompetitionDetailsReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubMatchReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubCompetitionDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubMatchReadModel;
 
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -15,10 +15,10 @@ public record ClubCompetitionDetailsDto(
         String season,
         List<MatchDetailsDto> matches) {
 
-    public static ClubCompetitionDetailsDto fromObject(ClubCompetitionDetailsReadModel details) {
+    public static ClubCompetitionDetailsDto fromObject(FederatedClubCompetitionDetailsReadModel details) {
         return new ClubCompetitionDetailsDto(
-                details.clubId(),
-                details.clubName(),
+                details.federatedClubId(),
+                details.federatedClubName(),
                 details.source().name(),
                 details.competition(),
                 details.season().toString(),
@@ -36,7 +36,7 @@ public record ClubCompetitionDetailsDto(
             ZonedDateTime dateTime,
             String city,
             String venue) {
-        private static MatchDetailsDto fromObject(ClubMatchReadModel match) {
+        private static MatchDetailsDto fromObject(FederatedClubMatchReadModel match) {
             return new MatchDetailsDto(
                     match.id(),
                     match.homeTeam(),

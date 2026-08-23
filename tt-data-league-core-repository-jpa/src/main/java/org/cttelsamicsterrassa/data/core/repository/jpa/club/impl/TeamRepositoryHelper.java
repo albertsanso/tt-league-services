@@ -14,15 +14,15 @@ public interface TeamRepositoryHelper extends JpaRepository<TeamJPA, UUID> {
 
     Optional<TeamJPA> findTeamByNameAndSeasonAndSource(String name, String season, Source source);
 
-    Optional<TeamJPA> findFirstByClub_IdAndSeason(UUID clubId, String season);
+    Optional<TeamJPA> findFirstByFederatedClub_IdAndSeason(UUID federatedClubId, String season);
 
     @Query("""
             select t from TeamJPA t
-            left join fetch t.club
-            where t.club.id = :clubId
+            left join fetch t.federatedClub
+            where t.federatedClub.id = :federatedClubId
             order by t.season asc, t.name asc, t.id asc
             """)
-    List<TeamJPA> findAllByClubId(@Param("clubId") UUID clubId);
+    List<TeamJPA> findAllByFederatedClubId(@Param("federatedClubId") UUID federatedClubId);
 
     List<TeamJPA> findAllBySource(Source source);
 

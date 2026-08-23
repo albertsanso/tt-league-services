@@ -18,11 +18,11 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
     @Query("""
             select distinct m from MatchJPA m
             join fetch m.homeTeam homeTeam
-            left join fetch homeTeam.club
+            left join fetch homeTeam.federatedClub
             join fetch m.awayTeam awayTeam
-            left join fetch awayTeam.club
+            left join fetch awayTeam.federatedClub
             left join fetch m.winnerTeam winnerTeam
-            left join fetch winnerTeam.club
+            left join fetch winnerTeam.federatedClub
             where homeTeam.id in :teamIds or awayTeam.id in :teamIds
             order by m.season asc, m.competition asc, m.id asc
             """)
@@ -31,11 +31,11 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
     @Query("""
             select distinct m from MatchJPA m
             join fetch m.homeTeam homeTeam
-            left join fetch homeTeam.club
+            left join fetch homeTeam.federatedClub
             join fetch m.awayTeam awayTeam
-            left join fetch awayTeam.club
+            left join fetch awayTeam.federatedClub
             left join fetch m.winnerTeam winnerTeam
-            left join fetch winnerTeam.club
+            left join fetch winnerTeam.federatedClub
             where (homeTeam.id in :teamIds or awayTeam.id in :teamIds)
               and m.source = :source
             order by m.season asc, m.competition asc, m.id asc
@@ -47,11 +47,11 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
     @Query("""
             select distinct m from MatchJPA m
             join fetch m.homeTeam homeTeam
-            left join fetch homeTeam.club
+            left join fetch homeTeam.federatedClub
             join fetch m.awayTeam awayTeam
-            left join fetch awayTeam.club
+            left join fetch awayTeam.federatedClub
             left join fetch m.winnerTeam winnerTeam
-            left join fetch winnerTeam.club
+            left join fetch winnerTeam.federatedClub
             where (homeTeam.id in :teamIds or awayTeam.id in :teamIds)
               and m.source = :source
               and m.season = :season

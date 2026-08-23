@@ -1,9 +1,9 @@
 package org.cttelsamicsterrassa.data.api.rest.club;
 
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubCompetitionReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubDetailsReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubPlayerReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubTeamReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubCompetitionReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubPlayerReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubTeamReadModel;
 
 import java.util.List;
 import java.util.UUID;
@@ -25,7 +25,7 @@ public record ClubDetailsDto(
         this(id, name, source, teams, competitions, List.of());
     }
 
-    public static ClubDetailsDto fromObject(ClubDetailsReadModel details) {
+    public static ClubDetailsDto fromObject(FederatedClubDetailsReadModel details) {
         return new ClubDetailsDto(
                 details.id(),
                 details.name(),
@@ -36,7 +36,7 @@ public record ClubDetailsDto(
     }
 
     public record TeamDetailsDto(UUID id, String name, String source, String season) {
-        private static TeamDetailsDto fromObject(ClubTeamReadModel team) {
+        private static TeamDetailsDto fromObject(FederatedClubTeamReadModel team) {
             return new TeamDetailsDto(
                     team.id(),
                     team.name(),
@@ -50,7 +50,7 @@ public record ClubDetailsDto(
             String season,
             int matchCount,
             ResultTotalsDto resultTotals) {
-        private static CompetitionDetailsDto fromObject(ClubCompetitionReadModel competition) {
+        private static CompetitionDetailsDto fromObject(FederatedClubCompetitionReadModel competition) {
             return new CompetitionDetailsDto(
                     competition.name(),
                     competition.season().toString(),
@@ -85,7 +85,7 @@ public record ClubDetailsDto(
             this(playerSeasonId, playerId, playerName, registrationName, license, source, season, List.of());
         }
 
-        private static PlayerDetailsDto fromObject(ClubPlayerReadModel player) {
+        private static PlayerDetailsDto fromObject(FederatedClubPlayerReadModel player) {
             return new PlayerDetailsDto(
                     player.playerSeasonId(),
                     player.playerId(),

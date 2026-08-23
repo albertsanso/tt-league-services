@@ -1,8 +1,8 @@
 package org.cttelsamicsterrassa.data.load.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
@@ -40,45 +40,40 @@ public final class InMemoryRepositories {
     private InMemoryRepositories() {
     }
 
-    public static final class Clubs implements ClubRepository {
-        final Map<UUID, Club> byId = new LinkedHashMap<>();
+    public static final class Clubs implements FederatedClubRepository {
+        final Map<UUID, FederatedClub> byId = new LinkedHashMap<>();
 
         @Override
-        public Optional<Club> findClubById(UUID id) {
+        public Optional<FederatedClub> findFederatedClubById(UUID id) {
             return Optional.ofNullable(byId.get(id));
         }
 
         @Override
-        public Optional<Club> findClubByName(String name) {
-            return byId.values().stream().filter(club -> Objects.equals(club.getName(), name)).findFirst();
-        }
-
-        @Override
-        public Optional<Club> findClubBySourceAndName(ImportSource source, String name) {
+        public Optional<FederatedClub> findFederatedClubBySourceAndName(ImportSource source, String name) {
             return byId.values().stream()
                     .filter(club -> Objects.equals(club.getSource(), source) && Objects.equals(club.getName(), name))
                     .findFirst();
         }
 
         @Override
-        public void saveClub(Club club) {
+        public void saveFederatedClub(FederatedClub club) {
             byId.put(club.getId(), club);
         }
 
         @Override
-        public void deleteClubById(UUID id) {
+        public void deleteFederatedClubById(UUID id) {
             byId.remove(id);
         }
 
         @Override
-        public List<Club> findAllClubsByFragmentsInName(List<String> fragments) {
+        public List<FederatedClub> findAllFederatedClubsByFragmentsInName(List<String> fragments) {
             return byId.values().stream()
                     .filter(club -> containsAllFragments(club.getName(), fragments))
                     .toList();
         }
 
         @Override
-        public List<Club> findAllClubsBySourceAndFragmentsInName(ImportSource source, List<String> fragments) {
+        public List<FederatedClub> findAllFederatedClubsBySourceAndFragmentsInName(ImportSource source, List<String> fragments) {
             return byId.values().stream()
                     .filter(club -> Objects.equals(club.getSource(), source))
                     .filter(club -> containsAllFragments(club.getName(), fragments))
@@ -114,17 +109,17 @@ public final class InMemoryRepositories {
         }
 
         @Override
-        public Optional<Team> findTeamByClubAndSeason(UUID clubId, Season season) {
+        public Optional<Team> findTeamByFederatedClubAndSeason(UUID clubId, Season season) {
             return byId.values().stream()
-                    .filter(cs -> cs.getClub().map(club -> clubId.equals(club.getId())).orElse(false))
+                    .filter(cs -> cs.getFederatedClub().map(club -> clubId.equals(club.getId())).orElse(false))
                     .filter(cs -> season.equals(cs.getSeason()))
                     .findFirst();
         }
 
         @Override
-        public List<Team> findAllTeamsByClubId(UUID clubId) {
+        public List<Team> findAllTeamsByFederatedClubId(UUID clubId) {
             return byId.values().stream()
-                    .filter(team -> team.getClub().map(club -> clubId.equals(club.getId())).orElse(false))
+                    .filter(team -> team.getFederatedClub().map(club -> clubId.equals(club.getId())).orElse(false))
                     .toList();
         }
 

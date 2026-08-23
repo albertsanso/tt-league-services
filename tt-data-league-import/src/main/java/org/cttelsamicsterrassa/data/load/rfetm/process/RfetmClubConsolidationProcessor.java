@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -35,13 +35,13 @@ public class RfetmClubConsolidationProcessor {
 
     private static final Pattern TEAMS_FILE_NAME_PATTERN = Pattern.compile("\\d{4}-\\d{4}\\.json");
 
-    private final ClubRepository clubRepository;
+    private final FederatedClubRepository clubRepository;
     private final TeamRepository teamRepository;
 
     private final TeamParser teamParser;
 
     @Inject
-    public RfetmClubConsolidationProcessor(ClubRepository clubRepository, TeamRepository teamRepository, TeamParser teamParser) {
+    public RfetmClubConsolidationProcessor(FederatedClubRepository clubRepository, TeamRepository teamRepository, TeamParser teamParser) {
         this.clubRepository = clubRepository;
         this.teamRepository = teamRepository;
         this.teamParser = teamParser;
@@ -64,7 +64,7 @@ public class RfetmClubConsolidationProcessor {
         ClubConsolidationSummary.Builder summary = ClubConsolidationSummary.builder(ImportSource.RFETM)
                 .scannedRegistrations(registrations.size());
         Map<String, ClubResolution> clubsByName = new HashMap<>();
-        Map<UUID, Club> clubs = new HashMap<>();
+        Map<UUID, FederatedClub> clubs = new HashMap<>();
         Map<UUID, List<org.cttelsamicsterrassa.data.core.domain.club.model.Team>> associatedTeams = new HashMap<>();
         Map<UUID, Boolean> changedClubs = new HashMap<>();
 
@@ -73,18 +73,18 @@ public class RfetmClubConsolidationProcessor {
             if (clubName != null) {
                 ClubResolution resolution = clubsByName.computeIfAbsent(
                         clubName, name -> findOrCreateClub(name, team.getSeason(), mode, summary));
-                Club club = resolution.club();
+                FederatedClub club = resolution.club();
                 clubs.put(club.getId(), club);
                 associatedTeams.computeIfAbsent(club.getId(), ignored -> new ArrayList<>()).add(team);
                 if (resolution.created()) {
                     changedClubs.put(club.getId(), true);
                 }
-                if (team.getClub().map(associatedClub -> associatedClub.getId().equals(club.getId())).orElse(false)) {
+                if (team.getFederatedClub().map(associatedClub -> associatedClub.getId().equals(club.getId())).orElse(false)) {
                     summary.incrementAlreadyCorrect();
                     return;
                 }
                 if (mode == ConsolidationMode.WRITE) {
-                    teamRepository.saveTeam(team.withClub(club));
+                    teamRepository.saveTeam(team.withFederatedClub(club));
                 }
                 summary.incrementReassociated();
                 changedClubs.put(club.getId(), true);
@@ -100,7 +100,7 @@ public class RfetmClubConsolidationProcessor {
         for (Map.Entry<UUID, List<org.cttelsamicsterrassa.data.core.domain.club.model.Team>> entry
                 : associatedTeams.entrySet()) {
             if (changedClubs.getOrDefault(entry.getKey(), false)) {
-                Club club = clubs.get(entry.getKey());
+                FederatedClub club = clubs.get(entry.getKey());
                 List<org.cttelsamicsterrassa.data.core.domain.club.model.Team> teams = entry.getValue();
                 summary.consolidation(new ConsolidatedClub(
                         ImportSource.RFETM,
@@ -141,13 +141,13 @@ public class RfetmClubConsolidationProcessor {
                                             Season season,
                                             ConsolidationMode mode,
                                             ClubConsolidationSummary.Builder summary) {
-        return clubRepository.findClubBySourceAndName(ImportSource.RFETM, clubName)
+        return clubRepository.findFederatedClubBySourceAndName(ImportSource.RFETM, clubName)
                 .map(club -> new ClubResolution(club, false))
                 .orElseGet(() -> {
                     LOGGER.warn("No club found for club name: {} in season: {}", clubName, season);
-                    Club newClub = Club.createNew(ImportSource.RFETM, clubName);
+                    FederatedClub newClub = FederatedClub.createNew(ImportSource.RFETM, clubName);
                     if (mode == ConsolidationMode.WRITE) {
-                        clubRepository.saveClub(newClub);
+                        clubRepository.saveFederatedClub(newClub);
                     }
                     summary.incrementClubsCreated();
                     return new ClubResolution(newClub, true);
@@ -165,6 +165,6 @@ public class RfetmClubConsolidationProcessor {
 
     private record SeasonTeamNameKey(Season season, String teamName) {}
 
-    private record ClubResolution(Club club, boolean created) {}
+    private record ClubResolution(FederatedClub club, boolean created) {}
 
 }

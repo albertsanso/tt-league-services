@@ -63,7 +63,7 @@ Represents the outcome of a game.
 
 ## Tables
 
-### `CLUB`
+### `FEDERATED_CLUB`
 
 Represents a table tennis club or team entity. Persists across seasons and matches.
 
@@ -73,8 +73,8 @@ Represents a table tennis club or team entity. Persists across seasons and match
 | `source`      | `VARCHAR(20)`  | No  | No       | No     | Federation that supplied the club row.                            |
 | `name`        | `VARCHAR(255)` | No  | Yes      | No     | Club name. Can be null for unknown clubs.                        |
 
-Club and Player entities do not persist source-system identifiers. Their UUID is the entity identity;
-`source` scopes federation data, and `name` is descriptive rather than unique. RFETM team keys and
+FederatedClub and Player entities do not persist source-system identifiers. Their UUID is the entity identity;
+`source` scopes federation data, and `(source, name)` is unique. RFETM team keys and
 player licences are retained by the import and season-registration flows where they are needed for
 source-specific matching.
 
@@ -82,15 +82,17 @@ source-specific matching.
 
 ## Existing database migration requirement
 
-This terminology change is not a database migration. Existing deployments must
-run a reviewed, versioned migration before starting the renamed application. The
-migration must rename `club_season` to `team`, rename match foreign-key columns
-`home_club_id`, `away_club_id`, and `winner_club_id` to their `*_team_id`
-forms, and rename the lineup `club_id` column to `team_id`. It must also rename
-the affected indexes and constraints where supported, while preserving UUIDs,
-row data, row counts, and all foreign-key references. This repository has no
-versioned migration mechanism, so deployment tooling must provide and verify
-that migration explicitly.
+The entity rename requires a database migration for existing deployments before
+starting the renamed application. The migration must rename `club` to
+`federated_club`, rename `team.club_id` to `team.federated_club_id`, and rename
+the related indexes, foreign keys, and constraints while preserving UUIDs, row
+data, row counts, and references. `MATCH` and `LINEUP` team foreign keys are not
+part of this rename.
+
+This repository has no Flyway, Liquibase, or other versioned migration
+framework/location, so no migration is supplied. The feature remains blocked
+for deployment until the deployment owner provides and verifies that migration.
+Hibernate `ddl-auto: update` must not be treated as a rename migration.
 
 ---
 
@@ -141,8 +143,8 @@ The `name` column is not unique. Federation licence identity is represented by t
 ### `TEAM`
 
 Represents a club's season-specific registration. A team keeps its own UUID and
-season data and may reference the season-independent `CLUB` row through
-`club_id`.
+season data and may reference the season-independent `FEDERATED_CLUB` row
+through `federated_club_id`.
 
 | Column   | Type           | PK  | Nullable | Unique | FK Target | Description |
 | -------- | -------------- | --- | -------- | ------ | --------- | ----------- |
@@ -150,13 +152,13 @@ season data and may reference the season-independent `CLUB` row through
 | `source` | `VARCHAR(20)`  | No  | Yes      | No     |           | Federation that supplied the team row. |
 | `name`   | `VARCHAR(255)` | No  | Yes      | No     |           | Team name for the season. |
 | `season` | `VARCHAR(10)`  | No  | Yes      | No     |           | Season label. |
-| `club_id` | `UUID`        | No  | Yes      | No     | `CLUB.id` | Optional canonical club association. |
+| `federated_club_id` | `UUID`        | No  | Yes      | No     | `FEDERATED_CLUB.id` | Optional canonical club association. |
 
 **Constraints:**
 
 - `uk_team_name_season_source` is unique on `(name, season, source)`.
 - `idx_team_name_season` indexes `(name, season)`.
-- `idx_team_club_id` indexes `club_id`.
+- `idx_team_federated_club_id` indexes `federated_club_id`.
 
 ---
 
@@ -322,7 +324,7 @@ from the child side.
 
 ```mermaid
 erDiagram
-    CLUB ||--o{ TEAM : has
+    FEDERATED_CLUB ||--o{ TEAM : has
     TEAM ||--o{ MATCH : home_team
     TEAM ||--o{ MATCH : away_team
     TEAM o|--o{ MATCH : winner_team
@@ -337,7 +339,7 @@ erDiagram
     GAME ||--o{ SET_SCORE : scores
     GAME ||--o{ DOUBLES_PAIR : contains
 
-    CLUB {
+    FEDERATED_CLUB {
         UUID id PK
         VARCHAR source
         VARCHAR name
@@ -346,7 +348,7 @@ erDiagram
         UUID id PK
         VARCHAR name
         VARCHAR season
-        UUID team_id FK
+        UUID federated_club_id FK
     }
     PLAYER {
         UUID id PK
@@ -377,7 +379,7 @@ erDiagram
     LINEUP {
         UUID id PK
         UUID match_id FK
-        UUID club_id FK
+        UUID team_id FK
         VARCHAR letter
         INTEGER position
         UUID player_id FK
@@ -422,7 +424,8 @@ specification predates. Two tables carry that split:
 ### `TEAM`
 
 A club's entry for one season: `id`, `name` (the name as written that season), `season`, and
-`club_id` → `CLUB.id`. The current JPA columns allow `name`, `season`, and `club_id` to be null.
+`federated_club_id` → `FEDERATED_CLUB.id`. The current JPA columns allow `name`, `season`, and
+`federated_club_id` to be null.
 
 - `@UniqueConstraint(columnNames = {"name", "season", "source"})` — a source-scoped team name is
   unique within a season.
@@ -436,7 +439,7 @@ are nullable.
 - `@UniqueConstraint(columnNames = {"source", "season", "license"})` — the federation licence
   identifies a registration within a source and season.
 
-`MATCH`, `LINEUP`, `GAME` and `DOUBLES_PAIR` reference these season rows rather than `CLUB` and
+`MATCH`, `LINEUP`, `GAME` and `DOUBLES_PAIR` reference these season rows rather than `FEDERATED_CLUB` and
 `PLAYER` directly, so a match is always tied to the club and player as they stood that season.
 
 ---

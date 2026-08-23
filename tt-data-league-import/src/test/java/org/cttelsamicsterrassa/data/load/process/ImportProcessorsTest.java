@@ -1,6 +1,6 @@
 package org.cttelsamicsterrassa.data.load.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
@@ -72,10 +72,11 @@ class ImportProcessorsTest {
         run(singlesContext());
 
         assertEquals(2, clubs.byId.size());
-        Club home = clubs.findClubByName("HORTITEC ALZIRA TT").orElseThrow();
+        FederatedClub home = clubs.findFederatedClubBySourceAndName(
+                ImportSource.RFETM, "HORTITEC ALZIRA TT").orElseThrow();
         assertEquals("HORTITEC ALZIRA TT", home.getName());
         assertEquals(2, teams.byId.size());
-        assertTrue(teams.findTeamByClubAndSeason(home.getId(), Season.of(2023)).isPresent());
+        assertTrue(teams.findTeamByFederatedClubAndSeason(home.getId(), Season.of(2023)).isPresent());
     }
 
     @Test
