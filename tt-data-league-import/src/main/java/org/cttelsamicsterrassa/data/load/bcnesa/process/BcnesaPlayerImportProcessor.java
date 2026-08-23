@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
-import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -35,10 +35,10 @@ public class BcnesaPlayerImportProcessor implements BcnesaMatchReportProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BcnesaPlayerImportProcessor.class);
 
-    private final PlayerRepository playerRepository;
+    private final FederatedPlayerRepository playerRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
 
-    public BcnesaPlayerImportProcessor(PlayerRepository playerRepository,
+    public BcnesaPlayerImportProcessor(FederatedPlayerRepository playerRepository,
                                        PlayerSeasonRepository playerSeasonRepository) {
         this.playerRepository = playerRepository;
         this.playerSeasonRepository = playerSeasonRepository;

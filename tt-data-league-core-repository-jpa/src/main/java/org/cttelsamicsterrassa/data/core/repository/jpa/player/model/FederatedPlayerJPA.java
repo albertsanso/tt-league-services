@@ -7,7 +7,6 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
-import jakarta.persistence.UniqueConstraint;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
@@ -20,16 +19,13 @@ import java.util.UUID;
 @Setter
 @RequiredArgsConstructor
 @Table(
-        name = "player",
+        name = "federated_player",
         indexes = {
-                @Index(name="idx_player_name", columnList="name"),
-                @Index(name="idx_player_source_name", columnList="source,name")
-        },
-        uniqueConstraints = {
-                @UniqueConstraint(name="uk_player_source_name", columnNames={"source","name"})
+                @Index(name="idx_federated_player_name", columnList="name"),
+                @Index(name="idx_federated_player_source_name", columnList="source,name")
         }
 )
-public class PlayerJPA {
+public class FederatedPlayerJPA {
     @Id
     private UUID id;
 

@@ -11,9 +11,9 @@ import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.game.model.SetScore;
-import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
+import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
-import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.DoublesPairRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.GameRepository;
@@ -162,38 +162,39 @@ public final class InMemoryRepositories {
         }
     }
 
-    public static final class Players implements PlayerRepository {
-        public final Map<UUID, Player> byId = new LinkedHashMap<>();
+    public static final class Players implements FederatedPlayerRepository {
+        public final Map<UUID, FederatedPlayer> byId = new LinkedHashMap<>();
 
         @Override
-        public Optional<Player> findPlayerById(UUID id) {
+        public Optional<FederatedPlayer> findFederatedPlayerById(UUID id) {
             return Optional.ofNullable(byId.get(id));
         }
 
         @Override
-        public Optional<Player> findPlayerByName(String name) {
-            return byId.values().stream().filter(p -> Objects.equals(p.getName(), name)).findFirst();
-        }
-
-        @Override
-        public Optional<Player> findPlayerBySourceAndName(ImportSource source, String name) {
-            return byId.values().stream()
+        public Optional<FederatedPlayer> findFederatedPlayerBySourceAndName(ImportSource source, String name) {
+            Objects.requireNonNull(source, "source must not be null");
+            List<FederatedPlayer> matches = byId.values().stream()
                     .filter(p -> Objects.equals(p.getSource(), source) && Objects.equals(p.getName(), name))
-                    .findFirst();
+                    .toList();
+            if (matches.size() > 1) {
+                throw new IllegalStateException(
+                        "Multiple federated players found for source and name: " + source + ", " + name);
+            }
+            return matches.stream().findFirst();
         }
 
         @Override
-        public void savePlayer(Player player) {
+        public void saveFederatedPlayer(FederatedPlayer player) {
             byId.put(player.getId(), player);
         }
 
         @Override
-        public void deletePlayerById(UUID id) {
+        public void deleteFederatedPlayerById(UUID id) {
             byId.remove(id);
         }
 
         @Override
-        public List<Player> findAllPlayersByFragmentsInName(List<String> fragments) {
+        public List<FederatedPlayer> findAllFederatedPlayersByFragmentsInName(List<String> fragments) {
             return byId.values().stream()
                     .filter(player -> player.getName() != null && fragments != null && !fragments.isEmpty()
                             && fragments.stream().allMatch(fragment ->

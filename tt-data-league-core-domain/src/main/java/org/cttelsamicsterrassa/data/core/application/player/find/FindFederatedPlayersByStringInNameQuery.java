@@ -5,10 +5,10 @@ import org.albertsanso.commons.query.DomainQuery;
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
-public class FindPlayersByStringInNameQuery extends DomainQuery {
+public class FindFederatedPlayersByStringInNameQuery extends DomainQuery {
     private final String stringToSearch;
 
-    public FindPlayersByStringInNameQuery(String stringToSearch) {
+    public FindFederatedPlayersByStringInNameQuery(String stringToSearch) {
         super(ZonedDateTime.now(), UUID.randomUUID().toString());
         this.stringToSearch = stringToSearch;
     }

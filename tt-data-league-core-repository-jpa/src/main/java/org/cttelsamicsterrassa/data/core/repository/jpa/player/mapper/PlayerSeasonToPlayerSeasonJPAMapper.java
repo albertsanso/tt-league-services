@@ -12,7 +12,7 @@ import java.util.function.Function;
 @Component
 public class PlayerSeasonToPlayerSeasonJPAMapper implements Function<PlayerSeason, PlayerSeasonJPA> {
 
-    PlayerToPlayerJPAMapper playerToPlayerJPAMapper;
+    FederatedPlayerToFederatedPlayerJPAMapper federatedPlayerToFederatedPlayerJPAMapper;
 
     @Override
     public PlayerSeasonJPA apply(PlayerSeason playerSeason) {
@@ -26,7 +26,7 @@ public class PlayerSeasonToPlayerSeasonJPAMapper implements Function<PlayerSeaso
                 playerSeason.getName(),
                 playerSeason.getLicense(),
                 playerSeason.getSeason().toString(),
-                playerSeason.getPlayer().map(playerToPlayerJPAMapper).orElse(null)
+                playerSeason.getFederatedPlayer().map(federatedPlayerToFederatedPlayerJPAMapper).orElse(null)
         );
     }
 }

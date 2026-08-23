@@ -60,8 +60,44 @@ Any open questions, design decisions, or links.
 
 ## Backlog
 
+
+## Done
+
+### [FEAT-006] Player entity rename to FederatedPlayer
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large (> 8h)
+- **Depends on:** —
+
+#### Goal
+Rename the season-independent `Player` entity to `FederatedPlayer` throughout the backend codebase while preserving `PlayerSeason` registration identity and the public API contract.
+
+- Consider domain components `Player` entity to `FederatedPlayer`.
+- DONT rename current package names.
+- Consider JPA entities, helpers, mappers and repository implementations.
+- Consider JPA `@Query()` annotations, JPQL queries, and `@Param("playerId")`.
+- Replace unscoped exact player resolution with source-scoped or otherwise explicitly disambiguated lookup; do not introduce a `(source, name)` uniqueness rule because player registrations are identified through `PlayerSeason`.
+- Table `player` to `federated_player`.
+- Rename only foreign-key columns that target the season-independent Player entity. The `PlayerSeason` association currently uses `player_id` and should become `federated_player_id`; lineup, game, and doubles-pair `player_id` columns target `PlayerSeason` and must remain unchanged.
+
+#### Acceptance Criteria
+- [x] All references to the season-independent `Player` entity in the domain codebase are renamed to `FederatedPlayer`, while `PlayerSeason` and its registration terminology remain intact.
+- [x] Package names are NOT updated.
+- [x] All JPA entities, helpers, mappers, and repository implementations are updated to reflect the new entity name, including the `PlayerSeason` association to the canonical player.
+- [x] All JPQL queries and `@Query()` annotations are updated to use the new entity name and all direct `@Param("playerId")` references are updated to `@Param("federatedPlayerId")`.
+- [x] Unscoped exact player lookups are removed or reworked to require source and, when source plus name is still ambiguous, an explicit disambiguating identity; no unsafe first-match resolution remains.
+- [ ] The database table `player` is renamed to `federated_player`, and the canonical-player foreign key `player_season.player_id` is renamed to `player_season.federated_player_id`, including related indexes, foreign keys, and constraints.
+- [x] Foreign keys named `player_id`, `home_player_id`, or `away_player_id` that target `PlayerSeason` remain unchanged, along with season-specific registration, match history, lineup, and doubles-pair references.
+- [x] All tests, public API adapters, and documentation are updated to reflect the renamed entity without changing player routes, response field names, or registration semantics.
+- [ ] All migration scripts are updated to reflect the new table and canonical-player column names, with existing UUIDs, rows, registrations, and references preserved.
+
+#### Feature Details
+→ See [FEAT-006-DETAILS.md](./FEAT-006-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
 ### [FEAT-005] Club entity rename to FederatedClub
-- **Status:** blocked
+- **Status:** done
 - **Priority:** medium
 - **Effort:** large (> 8h)
 - **Depends on:** —
@@ -90,10 +126,6 @@ Rename the `Club` entity to `FederatedClub` in the backend codebase.
 
 #### Feature Details
 → See [FEAT-005-DETAILS.md](./FEAT-005-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
-## Done
 
 ---
 

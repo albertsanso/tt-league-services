@@ -2,7 +2,7 @@
 
 ## Scope
 
-This module defines the core league model under `org.cttelsamicsterrassa.data.core.domain.model`. It currently contains `Club`, `Player`, `Season`, `Match`, `Lineup`, and `Game`.
+This module defines the core league model under `org.cttelsamicsterrassa.data.core.domain.model`. It currently contains `FederatedClub`, `FederatedPlayer`, `Season`, `Match`, `Lineup`, and `Game`.
 
 ## Design rules
 

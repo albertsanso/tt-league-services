@@ -1,0 +1,3 @@
+package org.cttelsamicsterrassa.data.core.application.player.find;
+import org.albertsanso.commons.query.DomainQuery; import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource; import java.time.ZonedDateTime; import java.util.UUID;
+public class FindFederatedPlayerBySourceAndNameQuery extends DomainQuery{private final ImportSource source;private final String name;public FindFederatedPlayerBySourceAndNameQuery(ImportSource s,String n){super(ZonedDateTime.now(),UUID.randomUUID().toString());source=s;name=n;}public ImportSource getSource(){return source;}public String getName(){return name;}}

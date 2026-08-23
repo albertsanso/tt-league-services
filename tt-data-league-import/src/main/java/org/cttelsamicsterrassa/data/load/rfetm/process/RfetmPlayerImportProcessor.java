@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
-import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -22,7 +22,7 @@ import java.util.stream.Stream;
  * Stores the players named in a match report's lineups, and their registration for that season.
  *
  * <p>A season registration is keyed by federation licence, which is the identifier the reports
- * carry. The season-independent {@code PLAYER} row is keyed by name, as the data model defines it —
+ * carry. The season-independent {@code FEDERATED_PLAYER} row is keyed by name, as the data model defines it —
  * so two licences under one spelling share a player, and a player whose name is spelled differently
  * in two seasons gets two rows. Doubles-pair members are also imported because their name and
  * licence can identify players omitted from {@code alineaciones}.</p>
@@ -36,10 +36,10 @@ public class RfetmPlayerImportProcessor implements MatchContextProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(RfetmPlayerImportProcessor.class);
 
-    private final PlayerRepository playerRepository;
+    private final FederatedPlayerRepository playerRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
 
-    public RfetmPlayerImportProcessor(PlayerRepository playerRepository,
+    public RfetmPlayerImportProcessor(FederatedPlayerRepository playerRepository,
                                  PlayerSeasonRepository playerSeasonRepository) {
         this.playerRepository = playerRepository;
         this.playerSeasonRepository = playerSeasonRepository;

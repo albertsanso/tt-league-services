@@ -14,7 +14,7 @@ public final class PlayerConsolidationSummary {
     private final int playersCreated;
     private final int registrationsReassociated;
     private final int alreadyCorrectRegistrations;
-    private final List<ConsolidatedPlayer> consolidations;
+    private final List<ConsolidatedFederatedPlayer> consolidations;
     private final List<ConsolidationWarning> warnings;
     private final List<ConsolidationWarning> errors;
 
@@ -42,7 +42,7 @@ public final class PlayerConsolidationSummary {
     public int playersCreated() { return playersCreated; }
     public int registrationsReassociated() { return registrationsReassociated; }
     public int alreadyCorrectRegistrations() { return alreadyCorrectRegistrations; }
-    public List<ConsolidatedPlayer> consolidations() { return consolidations; }
+    public List<ConsolidatedFederatedPlayer> consolidations() { return consolidations; }
     public List<ConsolidationWarning> warnings() { return warnings; }
     public List<ConsolidationWarning> errors() { return errors; }
 
@@ -61,7 +61,7 @@ public final class PlayerConsolidationSummary {
         private int playersCreated;
         private int registrationsReassociated;
         private int alreadyCorrectRegistrations;
-        private final List<ConsolidatedPlayer> consolidations = new ArrayList<>();
+        private final List<ConsolidatedFederatedPlayer> consolidations = new ArrayList<>();
         private final List<ConsolidationWarning> warnings = new ArrayList<>();
         private final List<ConsolidationWarning> errors = new ArrayList<>();
 
@@ -75,7 +75,7 @@ public final class PlayerConsolidationSummary {
         public Builder incrementPlayersCreated() { playersCreated++; return this; }
         public Builder incrementReassociated() { registrationsReassociated++; return this; }
         public Builder incrementAlreadyCorrect() { alreadyCorrectRegistrations++; return this; }
-        public Builder consolidation(ConsolidatedPlayer value) { consolidations.add(value); return this; }
+        public Builder consolidation(ConsolidatedFederatedPlayer value) { consolidations.add(value); return this; }
         public Builder warning(ConsolidationWarning value) { warnings.add(value); return this; }
         public Builder error(ConsolidationWarning value) { errors.add(value); return this; }
         public PlayerConsolidationSummary build() { return new PlayerConsolidationSummary(this); }

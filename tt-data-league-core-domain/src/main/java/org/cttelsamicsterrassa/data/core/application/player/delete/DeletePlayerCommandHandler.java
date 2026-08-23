@@ -1,3 +1,0 @@
-package org.cttelsamicsterrassa.data.core.application.player.delete;
-import org.albertsanso.commons.command.*; import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository; import javax.inject.*;
-@Named public class DeletePlayerCommandHandler extends DomainCommandHandler<DeletePlayerCommand>{private final PlayerRepository r;@Inject public DeletePlayerCommandHandler(PlayerRepository r){this.r=r;}public DomainCommandResponse handle(DeletePlayerCommand c){return r.findPlayerById(c.getPlayerId()).map(p->{p.delete();r.deletePlayerById(c.getPlayerId());return DomainCommandResponse.successResponse("Player deleted successfully: "+c.getPlayerId());}).orElseGet(()->DomainCommandResponse.successResponse("Player not found: "+c.getPlayerId()));}}

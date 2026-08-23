@@ -29,7 +29,7 @@ import java.util.UUID;
         indexes = {
                 @Index(name = "idx_player_season_name", columnList = "name"),
                 @Index(name = "idx_player_season_season_license", columnList = "season,license"),
-                @Index(name = "idx_player_season_player_id", columnList = "player_id")
+                @Index(name = "idx_player_season_federated_player_id", columnList = "federated_player_id")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_player_season_source_season_license",
@@ -52,6 +52,6 @@ public class PlayerSeasonJPA {
     private String season;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "player_id", nullable = true)
-    private PlayerJPA player;
+    @JoinColumn(name = "federated_player_id", nullable = true)
+    private FederatedPlayerJPA federatedPlayer;
 }

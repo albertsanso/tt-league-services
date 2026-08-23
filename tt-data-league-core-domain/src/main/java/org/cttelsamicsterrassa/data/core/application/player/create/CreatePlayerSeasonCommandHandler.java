@@ -12,6 +12,6 @@ public class CreatePlayerSeasonCommandHandler extends DomainCommandHandler<Creat
     @Override public DomainCommandResponse handle(CreatePlayerSeasonCommand c) {
         return repository.findPlayerSeasonByLicenseAndSeason(c.getSource(),c.getLicense(),c.getSeason())
             .map(x->DomainCommandResponse.failResponse("Player season with the same source, license and season already exists"))
-            .orElseGet(()->{var ps=PlayerSeason.createNew(c.getSource(),c.getName(),c.getLicense(),c.getPlayer(),c.getSeason()); repository.savePlayerSeason(ps); return DomainCommandResponse.successResponse(ps);});
+            .orElseGet(()->{var ps=PlayerSeason.createNew(c.getSource(),c.getName(),c.getLicense(),c.getFederatedPlayer(),c.getSeason()); repository.savePlayerSeason(ps); return DomainCommandResponse.successResponse(ps);});
     }
 }

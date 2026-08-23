@@ -1,6 +1,6 @@
 package org.cttelsamicsterrassa.data.load.shared.player;
 
-import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
+import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -23,21 +24,21 @@ class PlayerSeasonConsolidationProcessorTest {
         PlayerSeason registration = PlayerSeason.createExisting(
                 UUID.randomUUID(), ImportSource.FCTT, "PLAYER", "1", null, Season.of(2023));
 
-        assertTrue(registration.getPlayer().isEmpty());
-        assertSame(registration, registration.withPlayer(null));
+        assertTrue(registration.getFederatedPlayer().isEmpty());
+        assertSame(registration, registration.withFederatedPlayer(null));
     }
 
     @Test
     void preservesRegistrationWhenReplacingOrReusingPlayerAssociation() {
-        Player first = Player.createNew(ImportSource.FCTT, "PLAYER");
-        Player second = Player.createNew(ImportSource.FCTT, "PLAYER");
+        FederatedPlayer first = FederatedPlayer.createNew(ImportSource.FCTT, "PLAYER");
+        FederatedPlayer second = FederatedPlayer.createNew(ImportSource.FCTT, "PLAYER");
         PlayerSeason registration = PlayerSeason.createExisting(
                 UUID.randomUUID(), ImportSource.FCTT, "PLAYER", "1", first, Season.of(2023));
 
-        assertSame(registration, registration.withPlayer(first));
-        PlayerSeason replaced = registration.withPlayer(second);
+        assertSame(registration, registration.withFederatedPlayer(first));
+        PlayerSeason replaced = registration.withFederatedPlayer(second);
 
-        assertEquals(second.getId(), replaced.getPlayer().orElseThrow().getId());
+        assertEquals(second.getId(), replaced.getFederatedPlayer().orElseThrow().getId());
         assertEquals(registration.getId(), replaced.getId());
         assertEquals(registration.getLicense(), replaced.getLicense());
         assertEquals(registration.getSeason(), replaced.getSeason());
@@ -60,8 +61,8 @@ class PlayerSeasonConsolidationProcessorTest {
         assertEquals("1", seasons.findPlayerSeasonById(first.getId()).orElseThrow().getLicense());
         assertEquals("2", seasons.findPlayerSeasonById(second.getId()).orElseThrow().getLicense());
         assertEquals(1, players.byId.size());
-        assertEquals(seasons.findPlayerSeasonById(first.getId()).orElseThrow().getPlayer().orElseThrow().getId(),
-                seasons.findPlayerSeasonById(second.getId()).orElseThrow().getPlayer().orElseThrow().getId());
+        assertEquals(seasons.findPlayerSeasonById(first.getId()).orElseThrow().getFederatedPlayer().orElseThrow().getId(),
+                seasons.findPlayerSeasonById(second.getId()).orElseThrow().getFederatedPlayer().orElseThrow().getId());
     }
 
     @Test
@@ -81,17 +82,17 @@ class PlayerSeasonConsolidationProcessorTest {
         assertEquals(0, second.playersCreated());
         assertEquals(0, second.registrationsReassociated());
         assertEquals(2, second.alreadyCorrectRegistrations());
-        assertTrue(seasons.findPlayerSeasonById(otherSource.getId()).orElseThrow().getPlayer().isEmpty());
+        assertTrue(seasons.findPlayerSeasonById(otherSource.getId()).orElseThrow().getFederatedPlayer().isEmpty());
     }
 
     @Test
     void skipsConflictingPlayersAndReportModeDoesNotWrite() {
         InMemoryRepositories.Players players = new InMemoryRepositories.Players();
         InMemoryRepositories.PlayerSeasons seasons = new InMemoryRepositories.PlayerSeasons();
-        Player left = Player.createNew(ImportSource.RFETM, "John Doe");
-        Player right = Player.createNew(ImportSource.RFETM, "Different Player");
-        players.savePlayer(left);
-        players.savePlayer(right);
+        FederatedPlayer left = FederatedPlayer.createNew(ImportSource.RFETM, "John Doe");
+        FederatedPlayer right = FederatedPlayer.createNew(ImportSource.RFETM, "Different Player");
+        players.saveFederatedPlayer(left);
+        players.saveFederatedPlayer(right);
         save(seasons, ImportSource.RFETM, "John Doe", "1", Season.of(2023), left);
         save(seasons, ImportSource.RFETM, " john   doe ", "2", Season.of(2024), right);
 
@@ -108,16 +109,26 @@ class PlayerSeasonConsolidationProcessorTest {
         assertEquals(1, report.playersCreated());
         assertEquals(0, reportPlayers.byId.size());
         assertTrue(reportSeasons.findAllPlayerSeasonsBySource(ImportSource.RFETM).stream()
-                .allMatch(registration -> registration.getPlayer().isEmpty()));
+                .allMatch(registration -> registration.getFederatedPlayer().isEmpty()));
+    }
+
+    @Test
+    void rejectsAmbiguousSourceScopedPlayerNameResolution() {
+        InMemoryRepositories.Players players = new InMemoryRepositories.Players();
+        players.saveFederatedPlayer(FederatedPlayer.createNew(ImportSource.RFETM, "DUPLICATE PLAYER"));
+        players.saveFederatedPlayer(FederatedPlayer.createNew(ImportSource.RFETM, "DUPLICATE PLAYER"));
+
+        assertThrows(IllegalStateException.class, () ->
+                players.findFederatedPlayerBySourceAndName(ImportSource.RFETM, "DUPLICATE PLAYER"));
     }
 
     private static PlayerSeason save(InMemoryRepositories.PlayerSeasons seasons, String name, String license,
-                                     Season season, Player player) {
+                                     Season season, FederatedPlayer player) {
         return save(seasons, ImportSource.FCTT, name, license, season, player);
     }
 
     private static PlayerSeason save(InMemoryRepositories.PlayerSeasons seasons, ImportSource source, String name,
-                                     String license, Season season, Player player) {
+                                     String license, Season season, FederatedPlayer player) {
         PlayerSeason registration = PlayerSeason.createExisting(UUID.randomUUID(), source, name, license, player, season);
         seasons.savePlayerSeason(registration);
         return registration;

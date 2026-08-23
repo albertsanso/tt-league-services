@@ -10,9 +10,9 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
-import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
+import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
-import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +26,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -47,7 +48,7 @@ class ImportSchemaTest {
     private MatchRepository matchRepository;
 
     @Autowired
-    private PlayerRepository playerRepository;
+    private FederatedPlayerRepository playerRepository;
 
     @Autowired
     private PlayerSeasonRepository playerSeasonRepository;
@@ -83,15 +84,25 @@ class ImportSchemaTest {
 
     @Test
     void findsAPlayerByItsSourceScopedFederationId() {
-        Player rfetm = Player.createNew(ImportSource.RFETM, "RFETM PLAYER");
-        Player bcnesa = Player.createNew(ImportSource.BCNESA, "BCNESA PLAYER");
-        playerRepository.savePlayer(rfetm);
-        playerRepository.savePlayer(bcnesa);
+        FederatedPlayer rfetm = FederatedPlayer.createNew(ImportSource.RFETM, "RFETM PLAYER");
+        FederatedPlayer bcnesa = FederatedPlayer.createNew(ImportSource.BCNESA, "BCNESA PLAYER");
+        playerRepository.saveFederatedPlayer(rfetm);
+        playerRepository.saveFederatedPlayer(bcnesa);
 
-        Player found = playerRepository.findPlayerBySourceAndName(ImportSource.BCNESA, "BCNESA PLAYER").orElseThrow();
+        FederatedPlayer found = playerRepository.findFederatedPlayerBySourceAndName(ImportSource.BCNESA, "BCNESA PLAYER").orElseThrow();
 
         assertEquals(bcnesa.getId(), found.getId());
         assertEquals(ImportSource.BCNESA, found.getSource());
+    }
+
+    @Test
+    void rejectsAmbiguousSourceScopedPlayerNameResolutionWithoutAUniqueConstraint() {
+        playerRepository.saveFederatedPlayer(FederatedPlayer.createNew(ImportSource.RFETM, "DUPLICATE PLAYER"));
+        playerRepository.saveFederatedPlayer(FederatedPlayer.createNew(ImportSource.RFETM, "DUPLICATE PLAYER"));
+
+        assertThrows(IllegalStateException.class, () ->
+                playerRepository.findFederatedPlayerBySourceAndName(
+                        ImportSource.RFETM, "DUPLICATE PLAYER"));
     }
 
     @Test
@@ -212,8 +223,8 @@ class ImportSchemaTest {
                 UUID.randomUUID(), ImportSource.RFETM, "UNASSIGNED PLAYER", "unassigned", null, SEASON);
         playerSeasonRepository.savePlayerSeason(unassigned);
 
-        Player player = Player.createNew(ImportSource.RFETM, "ASSIGNED PLAYER");
-        playerRepository.savePlayer(player);
+        FederatedPlayer player = FederatedPlayer.createNew(ImportSource.RFETM, "ASSIGNED PLAYER");
+        playerRepository.saveFederatedPlayer(player);
         PlayerSeason assigned = PlayerSeason.createExisting(
                 UUID.randomUUID(), ImportSource.RFETM, "ASSIGNED PLAYER", "assigned", player, SEASON);
         playerSeasonRepository.savePlayerSeason(assigned);
@@ -225,10 +236,10 @@ class ImportSchemaTest {
                 .findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, "assigned", SEASON)
                 .orElseThrow();
 
-        assertTrue(reloadedUnassigned.getPlayer().isEmpty());
+        assertTrue(reloadedUnassigned.getFederatedPlayer().isEmpty());
         assertEquals(unassigned.getId(), reloadedUnassigned.getId());
         assertEquals(assigned.getId(), reloadedAssigned.getId());
-        assertEquals(player.getId(), reloadedAssigned.getPlayer().orElseThrow().getId());
+        assertEquals(player.getId(), reloadedAssigned.getFederatedPlayer().orElseThrow().getId());
         assertEquals("assigned", reloadedAssigned.getLicense());
         assertEquals(SEASON, reloadedAssigned.getSeason());
     }
@@ -240,8 +251,8 @@ class ImportSchemaTest {
         Match saved = match(home, away);
         matchRepository.saveMatch(saved);
 
-        Player player = Player.createNew(ImportSource.RFETM, "PLAYER, ONE");
-        playerRepository.savePlayer(player);
+        FederatedPlayer player = FederatedPlayer.createNew(ImportSource.RFETM, "PLAYER, ONE");
+        playerRepository.saveFederatedPlayer(player);
         PlayerSeason playerSeason = PlayerSeason.createNew(
                 ImportSource.RFETM, "PLAYER, ONE", "1", player, SEASON);
         playerSeasonRepository.savePlayerSeason(playerSeason);
@@ -270,8 +281,8 @@ class ImportSchemaTest {
         Match saved = match(home, away);
         matchRepository.saveMatch(saved);
 
-        Player player = Player.createNew(ImportSource.RFETM, "PLAYER, ONE");
-        playerRepository.savePlayer(player);
+        FederatedPlayer player = FederatedPlayer.createNew(ImportSource.RFETM, "PLAYER, ONE");
+        playerRepository.saveFederatedPlayer(player);
         PlayerSeason playerSeason = PlayerSeason.createNew(ImportSource.RFETM, "PLAYER, ONE", "1", player, SEASON);
         playerSeasonRepository.savePlayerSeason(playerSeason);
         lineupRepository.saveLineups(List.of(Lineup.builder()

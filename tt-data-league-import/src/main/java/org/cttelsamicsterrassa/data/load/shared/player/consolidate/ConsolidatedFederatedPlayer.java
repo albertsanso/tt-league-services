@@ -5,15 +5,15 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import java.util.List;
 import java.util.UUID;
 
-public record ConsolidatedPlayer(
+public record ConsolidatedFederatedPlayer(
         ImportSource source,
         String canonicalDisplayName,
-        UUID playerId,
+        UUID federatedPlayerId,
         MatchingMode matchingMode,
         List<UUID> registrationIds,
         List<String> registrationNames
 ) {
-    public ConsolidatedPlayer {
+    public ConsolidatedFederatedPlayer {
         registrationIds = List.copyOf(registrationIds);
         registrationNames = List.copyOf(registrationNames);
     }

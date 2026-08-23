@@ -22,7 +22,7 @@ Use this specification to generate **Java JPA entity classes** with the followin
 - Composite natural keys should be enforced with `@UniqueConstraint` on the `@Table` annotation.
 - Use Lombok accessors and constructors as present in each entity. Most entities use
   `@Getter`, `@Setter`, `@NoArgsConstructor`, and `@AllArgsConstructor`; `GameJPA`, `MatchJPA`, and
-  `PlayerJPA` currently use `@RequiredArgsConstructor`.
+  `FederatedPlayerJPA` currently use `@RequiredArgsConstructor`.
 - Use `org.cttelsamicsterrassa.data.core.repository.jpa` as the base package.
 - Place each entity in its own subpackage named after the entity (for example, `TeamJPA` is in `org.cttelsamicsterrassa.data.core.repository.jpa.club`).
 - Name each JPA entity after the table name in PascalCase with the `JPA` suffix.
@@ -73,8 +73,9 @@ Represents a table tennis club or team entity. Persists across seasons and match
 | `source`      | `VARCHAR(20)`  | No  | No       | No     | Federation that supplied the club row.                            |
 | `name`        | `VARCHAR(255)` | No  | Yes      | No     | Club name. Can be null for unknown clubs.                        |
 
-FederatedClub and Player entities do not persist source-system identifiers. Their UUID is the entity identity;
-`source` scopes federation data, and `(source, name)` is unique. RFETM team keys and
+FederatedClub and FederatedPlayer entities do not persist source-system identifiers. Their UUID is the entity identity;
+`source` scopes federation data. FederatedClub retains its `(source, name)` uniqueness constraint, while
+FederatedPlayer does not. RFETM team keys and
 player licences are retained by the import and season-registration flows where they are needed for
 source-specific matching.
 
@@ -84,10 +85,12 @@ source-specific matching.
 
 The entity rename requires a database migration for existing deployments before
 starting the renamed application. The migration must rename `club` to
-`federated_club`, rename `team.club_id` to `team.federated_club_id`, and rename
-the related indexes, foreign keys, and constraints while preserving UUIDs, row
-data, row counts, and references. `MATCH` and `LINEUP` team foreign keys are not
-part of this rename.
+`federated_club`, rename `team.club_id` to `team.federated_club_id`, rename
+`player` to `federated_player`, and rename `player_season.player_id` to
+`player_season.federated_player_id`. It must also rename the related indexes,
+foreign keys, and constraints while preserving UUIDs, row data, row counts, and
+references. `LINEUP.player_id`, `GAME.home_player_id`, `GAME.away_player_id`,
+and `DOUBLES_PAIR.player_id` target `PLAYER_SEASON` and must remain unchanged.
 
 This repository has no Flyway, Liquibase, or other versioned migration
 framework/location, so no migration is supplied. The feature remains blocked
@@ -124,10 +127,10 @@ unexpired; consuming it is an atomic conditional update.
 
 ---
 
-### `PLAYER`
+### `FEDERATED_PLAYER`
 
-Represents an individual player. A player is identified by its UUID and source; federation licences
-are stored on `PLAYER_SEASON`.
+Represents the season-independent federated player identity. A player is identified by its UUID and
+source; federation licences are stored on `PLAYER_SEASON`.
 
 | Column        | Type           | PK  | Nullable | Unique | Description                                                                    |
 | ------------- | -------------- | --- | -------- | ------ | ------------------------------------------------------------------------------ |
@@ -135,8 +138,11 @@ are stored on `PLAYER_SEASON`.
 | `source`      | `VARCHAR(20)`  | No  | No       | No     | Federation that supplied the player row.                                       |
 | `name`        | `VARCHAR(255)` | No  | No       | No     | Full name in "SURNAME, FIRSTNAME" format.                                      |
 
-The `name` column is not unique. Federation licence identity is represented by the
-`PLAYER_SEASON` `(source, season, license)` constraint.
+The `source` and `name` columns are not subject to a unique constraint. Federation licence identity
+is represented by the `PLAYER_SEASON` `(source, season, license)` constraint.
+
+- `idx_federated_player_name` indexes `name`.
+- `idx_federated_player_source_name` indexes `(source, name)` for scoped lookup; it is not unique.
 
 ---
 
@@ -329,7 +335,7 @@ erDiagram
     TEAM ||--o{ MATCH : away_team
     TEAM o|--o{ MATCH : winner_team
     TEAM ||--o{ LINEUP : represents
-    PLAYER ||--o{ PLAYER_SEASON : registers
+    FEDERATED_PLAYER ||--o{ PLAYER_SEASON : registers
     PLAYER_SEASON ||--o{ LINEUP : assigned
     PLAYER_SEASON o|--o{ GAME : home_player
     PLAYER_SEASON o|--o{ GAME : away_player
@@ -350,7 +356,7 @@ erDiagram
         VARCHAR season
         UUID federated_club_id FK
     }
-    PLAYER {
+    FEDERATED_PLAYER {
         UUID id PK
         VARCHAR source
         VARCHAR name
@@ -361,7 +367,7 @@ erDiagram
         VARCHAR name
         VARCHAR license
         VARCHAR season
-        UUID player_id FK
+        UUID federated_player_id FK
     }
     MATCH {
         UUID id PK
@@ -432,15 +438,18 @@ A club's entry for one season: `id`, `name` (the name as written that season), `
 
 ### `PLAYER_SEASON`
 
-A player's registration for one season: `id`, `source`, `name`, `license`, `season`, and `player_id` →
-`PLAYER.id`. The current JPA columns require `source`, `name`, and `license`; `season` and `player_id`
-are nullable.
+A player's registration for one season: `id`, `source`, `name`, `license`, `season`, and
+`federated_player_id` → `FEDERATED_PLAYER.id`. The current JPA columns require `source`, `name`, and
+`license`; `season` and `federated_player_id` are nullable.
 
 - `@UniqueConstraint(columnNames = {"source", "season", "license"})` — the federation licence
   identifies a registration within a source and season.
+- `idx_player_season_federated_player_id` indexes the nullable `federated_player_id` association.
+- `@ManyToOne(fetch = LAZY)` → `FEDERATED_PLAYER` via `federated_player_id`
+  (field name: `federatedPlayer`).
 
 `MATCH`, `LINEUP`, `GAME` and `DOUBLES_PAIR` reference these season rows rather than `FEDERATED_CLUB` and
-`PLAYER` directly, so a match is always tied to the club and player as they stood that season.
+`FEDERATED_PLAYER` directly, so a match is always tied to the club and player as they stood that season.
 
 ---
 

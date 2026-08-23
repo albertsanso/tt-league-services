@@ -95,8 +95,8 @@ public class FindFederatedClubDetailsQueryHandler
             List<String> competitions) {
         return new FederatedClubPlayerReadModel(
                 playerSeason.getId(),
-                playerSeason.getPlayer().map(player -> player.getId()).orElse(null),
-                playerSeason.getPlayer().map(player -> player.getName()).orElse(null),
+                playerSeason.getFederatedPlayer().map(player -> player.getId()).orElse(null),
+                playerSeason.getFederatedPlayer().map(player -> player.getName()).orElse(null),
                 playerSeason.getName(),
                 playerSeason.getLicense(),
                 playerSeason.getSource(),

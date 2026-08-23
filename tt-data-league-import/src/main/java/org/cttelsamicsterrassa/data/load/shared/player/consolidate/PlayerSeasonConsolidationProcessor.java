@@ -1,8 +1,8 @@
 package org.cttelsamicsterrassa.data.load.shared.player.consolidate;
 
-import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
+import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
-import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
@@ -27,17 +27,17 @@ import java.util.stream.Collectors;
 public class PlayerSeasonConsolidationProcessor {
     private static final Logger LOGGER = LoggerFactory.getLogger(PlayerSeasonConsolidationProcessor.class);
 
-    private final PlayerRepository playerRepository;
+    private final FederatedPlayerRepository playerRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
     private final PlayerNameMatcher matcher;
 
     @Inject
-    public PlayerSeasonConsolidationProcessor(PlayerRepository playerRepository,
+    public PlayerSeasonConsolidationProcessor(FederatedPlayerRepository playerRepository,
                                               PlayerSeasonRepository playerSeasonRepository) {
         this(playerRepository, playerSeasonRepository, new PlayerNameMatcher(new PlayerNameNormalizer()));
     }
 
-    PlayerSeasonConsolidationProcessor(PlayerRepository playerRepository,
+    PlayerSeasonConsolidationProcessor(FederatedPlayerRepository playerRepository,
                                        PlayerSeasonRepository playerSeasonRepository,
                                        PlayerNameMatcher matcher) {
         this.playerRepository = Objects.requireNonNull(playerRepository, "playerRepository");
@@ -92,7 +92,7 @@ public class PlayerSeasonConsolidationProcessor {
             applyCanonical(source, members, MatchingMode.FUZZY, mode, summary);
         }
         PlayerConsolidationSummary result = summary.build();
-        LOGGER.info("Player consolidation for {}: {}", source, result);
+        LOGGER.info("FederatedPlayer consolidation for {}: {}", source, result);
         return result;
     }
 
@@ -167,43 +167,43 @@ public class PlayerSeasonConsolidationProcessor {
             return;
         }
         String displayName = matcher.preferredDisplayName(names(members));
-        Player canonical = uniquePlayer(members).orElseGet(() ->
-                playerRepository.findPlayerBySourceAndName(source, displayName).orElse(null));
+        FederatedPlayer canonical = uniquePlayer(members).orElseGet(() ->
+                playerRepository.findFederatedPlayerBySourceAndName(source, displayName).orElse(null));
         boolean created = false;
         if (canonical == null) {
-            canonical = Player.createNew(source, displayName);
+            canonical = FederatedPlayer.createNew(source, displayName);
             created = true;
             summary.incrementPlayersCreated();
             if (mode == ConsolidationMode.WRITE) {
-                playerRepository.savePlayer(canonical);
+                playerRepository.saveFederatedPlayer(canonical);
             }
         }
         UUID canonicalId = canonical.getId();
         for (PlayerSeason member : members) {
-            if (member.getPlayer().map(player -> player.getId().equals(canonicalId)).orElse(false)) {
+            if (member.getFederatedPlayer().map(player -> player.getId().equals(canonicalId)).orElse(false)) {
                 summary.incrementAlreadyCorrect();
                 continue;
             }
             if (mode == ConsolidationMode.WRITE) {
-                playerSeasonRepository.savePlayerSeason(member.withPlayer(canonical));
+                playerSeasonRepository.savePlayerSeason(member.withFederatedPlayer(canonical));
             }
             summary.incrementReassociated();
         }
-        if (created || members.stream().anyMatch(member -> member.getPlayer()
+        if (created || members.stream().anyMatch(member -> member.getFederatedPlayer()
                 .map(player -> !player.getId().equals(canonicalId)).orElse(true))) {
-            summary.consolidation(new ConsolidatedPlayer(source, canonical.getName(), canonical.getId(),
+            summary.consolidation(new ConsolidatedFederatedPlayer(source, canonical.getName(), canonical.getId(),
                     matchingMode, ids(members), names(members)));
         }
     }
 
-    private static Optional<Player> uniquePlayer(List<PlayerSeason> members) {
-        List<Player> players = members.stream().map(PlayerSeason::getPlayer).flatMap(Optional::stream).toList();
-        return players.stream().map(Player::getId).distinct().count() == 1 ? Optional.of(players.getFirst()) : Optional.empty();
+    private static Optional<FederatedPlayer> uniquePlayer(List<PlayerSeason> members) {
+        List<FederatedPlayer> players = members.stream().map(PlayerSeason::getFederatedPlayer).flatMap(Optional::stream).toList();
+        return players.stream().map(FederatedPlayer::getId).distinct().count() == 1 ? Optional.of(players.getFirst()) : Optional.empty();
     }
 
     private static boolean hasConflictingPlayers(List<PlayerSeason> members) {
-        return members.stream().map(PlayerSeason::getPlayer).flatMap(Optional::stream)
-                .map(Player::getId).distinct().count() > 1;
+        return members.stream().map(PlayerSeason::getFederatedPlayer).flatMap(Optional::stream)
+                .map(FederatedPlayer::getId).distinct().count() > 1;
     }
 
     private static Comparator<PlayerSeason> registrationOrder() {

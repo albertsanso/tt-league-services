@@ -88,8 +88,8 @@ public record ClubDetailsDto(
         private static PlayerDetailsDto fromObject(FederatedClubPlayerReadModel player) {
             return new PlayerDetailsDto(
                     player.playerSeasonId(),
-                    player.playerId(),
-                    player.playerName(),
+                    player.federatedPlayerId(),
+                    player.federatedPlayerName(),
                     player.registrationName(),
                     player.license(),
                     player.source().name(),

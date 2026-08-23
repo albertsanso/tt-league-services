@@ -37,7 +37,7 @@ by an SDD plan, also follow the nearest application-module `AGENTS.md`.
 
 ## Identity and data integrity
 
-`Club` and `Player` domain/JPA entities are identified by UUID, source, and
+`FederatedClub` and `FederatedPlayer` domain/JPA entities are identified by UUID, source, and
 name. They do not contain `externalId` properties. Source-system identifiers
 such as RFETM team keys and player licences belong to import or
 season-registration identity handling, not to Club or Player entity state.

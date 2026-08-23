@@ -9,8 +9,8 @@ import java.util.UUID;
 
 public record FederatedClubPlayerReadModel(
         UUID playerSeasonId,
-        UUID playerId,
-        String playerName,
+        UUID federatedPlayerId,
+        String federatedPlayerName,
         String registrationName,
         String license,
         ImportSource source,
@@ -27,12 +27,12 @@ public record FederatedClubPlayerReadModel(
 
     public FederatedClubPlayerReadModel(
             UUID playerSeasonId,
-            UUID playerId,
-            String playerName,
+            UUID federatedPlayerId,
+            String federatedPlayerName,
             String registrationName,
             String license,
             ImportSource source,
             Season season) {
-        this(playerSeasonId, playerId, playerName, registrationName, license, source, season, List.of());
+        this(playerSeasonId, federatedPlayerId, federatedPlayerName, registrationName, license, source, season, List.of());
     }
 }

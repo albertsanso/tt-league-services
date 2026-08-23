@@ -13,7 +13,7 @@ This module parses RFETM and BCNESA source data and translates it into domain en
 
 ## Import identity
 
-- `Club` and `Player` do not contain `externalId` properties.
+- `FederatedClub` and `FederatedPlayer` do not contain `externalId` properties.
 - Preserve source-system identifiers such as RFETM team keys and player licences in the appropriate import or season-registration flow.
 - Do not deduplicate clubs or players using an unscoped name when a source, season, competition, licence, or team key is required to distinguish records.
 - Do not silently normalize invalid or incomplete source data. Log and skip malformed records using the existing navigator and processor conventions.

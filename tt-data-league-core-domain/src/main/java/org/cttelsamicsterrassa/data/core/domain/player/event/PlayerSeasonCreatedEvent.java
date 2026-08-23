@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.core.domain.player.event;
 
 import org.albertsanso.commons.event.DomainEvent;
-import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
+import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
@@ -16,19 +16,19 @@ public class PlayerSeasonCreatedEvent extends DomainEvent {
     private final Season season;
     private final String license;
     private final ImportSource source;
-    private final Optional<Player> player;
+    private final Optional<FederatedPlayer> federatedPlayer;
 
-    private PlayerSeasonCreatedEvent(UUID playerSeasonId, String name, Season season, String license, ImportSource source, Player player) {
+    private PlayerSeasonCreatedEvent(UUID playerSeasonId, String name, Season season, String license, ImportSource source, FederatedPlayer player) {
         super(ZonedDateTime.now(), playerSeasonId.toString());
         this.playerSeasonId = playerSeasonId;
         this.name = name;
         this.season = season;
         this.license = license;
         this.source = source;
-        this.player = Optional.ofNullable(player);
+        this.federatedPlayer = Optional.ofNullable(player);
     }
 
-    public static PlayerSeasonCreatedEvent of(UUID playerSeasonId, String name, Season season, String license, ImportSource source, Player player) {
+    public static PlayerSeasonCreatedEvent of(UUID playerSeasonId, String name, Season season, String license, ImportSource source, FederatedPlayer player) {
         return new PlayerSeasonCreatedEvent(playerSeasonId, name, season, license, source, player);
     }
 
@@ -52,7 +52,7 @@ public class PlayerSeasonCreatedEvent extends DomainEvent {
         return name;
     }
 
-    public Optional<Player> getPlayer() {
-        return player;
+    public Optional<FederatedPlayer> getFederatedPlayer() {
+        return federatedPlayer;
     }
 }
