@@ -20,6 +20,14 @@ All references from Team to the new Federated Club instance should be updated, w
 
 The process should handle edge cases, log its actions, and provide a summary report of the consolidation process.
 
+# Hard rules
+
+- When generating an implementation plan, use only the requirements and examples in this prompt as input.
+- Do not query Git, inspect the repository, consult repository history, or rely on previous implementations, plans, documentation, or code.
+- Build a clean new implementation of the Team-to-Federated Club consolidation process from the requirements defined here.
+- Ensure that the implementation is deterministic, producing the same results given the same input data.
+- Handle edge cases gracefully and provide meaningful logging and reporting.
+
 # Execution workflow
 
 This process must be executed just after the Traversal import process, and after the MATCH and LINEUP import processes. The workflow should include the following steps:
@@ -62,6 +70,9 @@ mode must be idempotent, while report mode must perform no writes and produce
 the same proposed actions.
 
 # Canonical name examples
+
+Use those example to extract general rules for canonicalization of club names from team names. 
+The examples illustrate how to handle variations, abbreviations, and suffixes in team names to derive a consistent federated club name.
 
 **Example 1**
 
