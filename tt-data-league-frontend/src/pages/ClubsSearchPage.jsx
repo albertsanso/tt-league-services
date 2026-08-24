@@ -48,6 +48,7 @@ function ClubsSearchPage() {
 
   const hasQuery = query.length > 0
   const canSearch = inputValue.trim().length >= 2
+  const displaySources = (club) => club.sources?.length ? club.sources : [club.source]
 
   return (
     <section className="page-block" aria-labelledby="clubs-title">
@@ -112,7 +113,15 @@ function ClubsSearchPage() {
               >
                 <span>
                   <strong>{club.name}</strong>
-                  <span className="club-source">Font: {club.source}</span>
+                  <span className="club-source">
+                    {displaySources(club).length > 1 ? 'Fonts' : 'Font'}:{' '}
+                    {displaySources(club).join(', ')}
+                  </span>
+                  {club.playerCount !== undefined ? (
+                    <span className="club-source">
+                      {club.playerCount} jugadors · {club.seasons?.length ?? 0} temporades
+                    </span>
+                  ) : null}
                 </span>
                 <span aria-hidden="true">→</span>
               </Link>

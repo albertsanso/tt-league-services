@@ -13,11 +13,52 @@ function normalizeClub(value) {
     throw new ApiError('La resposta del club no és vàlida.', 502, value)
   }
 
-  return {
+  const club = {
     id: requireText(value.id, 'un identificador'),
     name: requireText(value.name, 'un nom'),
-    source: requireText(value.source, 'la font'),
+    source: value.source == null ? '—' : requireText(value.source, 'la font'),
   }
+  if (value.sources != null && !Array.isArray(value.sources)) {
+    throw new ApiError('La resposta conté fonts no vàlides.', 502, value)
+  }
+  if (Array.isArray(value.sources)) {
+    club.sources = value.sources.map((source) => requireText(source, 'una font')).sort()
+  }
+  if (value.federatedClubs != null && !Array.isArray(value.federatedClubs)) {
+    throw new ApiError('La resposta conté clubs federats no vàlids.', 502, value)
+  }
+  if (Array.isArray(value.federatedClubs)) {
+    club.federatedClubs = value.federatedClubs.map((federatedClub) => ({
+      id: requireText(federatedClub.id, 'un identificador federat'),
+      name: requireText(federatedClub.name, 'un nom federat'),
+      source: federatedClub.source == null ? '—' : requireText(federatedClub.source, 'la font federada'),
+    }))
+  }
+  if (value.competitions != null && !Array.isArray(value.competitions)) {
+    throw new ApiError('La resposta conté competicions no vàlides.', 502, value)
+  }
+  if (value.competitions != null && value.playerCount !== undefined) {
+    club.competitions = value.competitions.map((competition) => ({
+      name: requireText(competition.name, 'un nom de competició'),
+      source: competition.source == null ? '—' : requireText(competition.source, 'la font de la competició'),
+      season: requireText(String(competition.season ?? ''), 'una temporada de competició'),
+      matchCount: Number(competition.matchCount ?? 0),
+      wins: Number(competition.wins ?? 0),
+      draws: Number(competition.draws ?? 0),
+      losses: Number(competition.losses ?? 0),
+    }))
+    club.playerCount = Number(value.playerCount)
+    if (!Number.isFinite(club.playerCount) || club.playerCount < 0) {
+      throw new ApiError('La resposta conté un recompte de jugadors no vàlid.', 502, value)
+    }
+  }
+  if (value.seasons != null && !Array.isArray(value.seasons)) {
+    throw new ApiError('La resposta conté temporades no vàlides.', 502, value)
+  }
+  if (Array.isArray(value.seasons)) {
+    club.seasons = value.seasons.map((season) => requireText(String(season), 'una temporada')).sort()
+  }
+  return club
 }
 
 function getCollection(payload, fields) {
@@ -38,7 +79,42 @@ function getCollection(payload, fields) {
 }
 
 export function normalizeClubSearchResponse(payload) {
-  return getCollection(payload, ['clubs', 'results', 'content']).map(normalizeClub)
+  const clubs = getCollection(payload, ['clubs', 'results', 'content']).map(normalizeClub)
+  const clubsById = new Map()
+  clubs.forEach((club) => {
+    const previous = clubsById.get(club.id)
+    if (!previous) {
+      clubsById.set(club.id, club)
+      return
+    }
+    const merged = { ...previous }
+    if (club.sources || previous.sources) {
+      merged.sources = [...new Set([...(previous.sources ?? []), ...(club.sources ?? [])])].sort()
+    }
+    if (club.federatedClubs || previous.federatedClubs) {
+      const federatedById = new Map(
+        [...(previous.federatedClubs ?? []), ...(club.federatedClubs ?? [])]
+          .map((federatedClub) => [federatedClub.id, federatedClub]),
+      )
+      merged.federatedClubs = [...federatedById.values()]
+    }
+    if (club.competitions || previous.competitions) {
+      const competitionsByKey = new Map(
+        [...(previous.competitions ?? []), ...(club.competitions ?? [])]
+          .map((competition) => [
+            `${competition.source}-${competition.season}-${competition.name}`,
+            competition,
+          ]),
+      )
+      merged.competitions = [...competitionsByKey.values()]
+      merged.playerCount = Math.max(previous.playerCount ?? 0, club.playerCount ?? 0)
+    }
+    if (club.seasons || previous.seasons) {
+      merged.seasons = [...new Set([...(previous.seasons ?? []), ...(club.seasons ?? [])])].sort()
+    }
+    clubsById.set(club.id, merged)
+  })
+  return [...clubsById.values()]
 }
 
 function normalizeTeam(value) {
@@ -87,12 +163,16 @@ function normalizeCompetition(value) {
       losses: value.losses ?? 0,
     }
 
-  return {
+  const competition = {
     name: requireText(value.name, 'un nom de competició'),
     season: requireText(String(value.season ?? ''), 'una temporada de competició'),
     matchCount,
     resultTotals: normalizeResultTotals(resultTotals),
   }
+  if (value.source != null) {
+    competition.source = requireText(value.source, 'la font de la competició')
+  }
+  return competition
 }
 
 function normalizePlayer(value) {
@@ -126,7 +206,10 @@ function normalizePlayer(value) {
 
 export function normalizeClubDetailsResponse(payload) {
   const club = normalizeClub(payload)
-  if (!Array.isArray(payload.teams) || !Array.isArray(payload.competitions)) {
+  if (!Array.isArray(payload.teams) || !Array.isArray(payload.competitions)
+    || (payload.players != null && !Array.isArray(payload.players))
+    || (payload.federatedClubs != null && !Array.isArray(payload.federatedClubs))
+    || (payload.sources != null && !Array.isArray(payload.sources))) {
     throw new ApiError('La resposta detallada del club no és vàlida.', 502, payload)
   }
 
@@ -135,6 +218,14 @@ export function normalizeClubDetailsResponse(payload) {
     teams: payload.teams.map(normalizeTeam),
     competitions: payload.competitions.map(normalizeCompetition),
     players: (payload.players ?? []).map(normalizePlayer),
+    federatedClubs: (payload.federatedClubs ?? []).map((federatedClub) => ({
+      id: requireText(federatedClub.id, 'un identificador federat'),
+      name: requireText(federatedClub.name, 'un nom federat'),
+      source: federatedClub.source == null ? '—' : requireText(federatedClub.source, 'la font federada'),
+    })),
+    sources: Array.isArray(payload.sources)
+      ? payload.sources.map((source) => requireText(source, 'una font')).sort()
+      : club.sources,
   }
 }
 

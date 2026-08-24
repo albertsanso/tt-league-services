@@ -59,9 +59,33 @@ Any open questions, design decisions, or links.
 ## In Progress
 
 ## Backlog
----
 
 ## Done
+
+### [FEAT-010] club search returns canonical club entities with full details
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-003, FEAT-008
+
+#### Goal
+
+Return canonical `Club` entities with full details in the club search results, including federated club references, competition summaries, and player counts.
+Each result has a stable identity and the complete club details needed by the search and detail views and should include the canonical club's name, federated club names,
+source identifiers, competition summaries, and player counts.
+
+#### Acceptance Criteria
+- [x] Club search results identify each club by its canonical `Club` UUID rather than a source-specific `FederatedClub` identity, with full details, including federated club references, competition summaries, and player counts.
+- [x] Search results include the complete approved canonical club details and the source or season context needed to interpret associated data.
+- [x] Each result has a stable identity and the complete club details needed by the search and detail views.
+- [x] Selecting a search result opens the matching canonical club detail without losing the result's identity or returning details for another club.
+- [x] Search behavior remains explicitly source-scoped where source identity affects matching, and duplicate federated records do not produce duplicate canonical results.
+- [x] REST/API adapters, frontend consumers, tests, and relevant documentation expose the agreed canonical response contract consistently.
+
+#### Feature Details
+→ See [FEAT-010-DETAILS.md](./FEAT-010-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-009] Canonical player entity
 - **Status:** done

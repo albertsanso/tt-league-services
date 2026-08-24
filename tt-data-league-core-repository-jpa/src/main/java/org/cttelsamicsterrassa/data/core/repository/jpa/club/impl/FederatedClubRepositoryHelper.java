@@ -13,6 +13,7 @@ import java.util.UUID;
 public interface FederatedClubRepositoryHelper extends JpaRepository<FederatedClubJPA, UUID>, JpaSpecificationExecutor<FederatedClubJPA> {
     List<FederatedClubJPA> findAllBySourceAndName(Source source, String name);
     List<FederatedClubJPA> findAllBySource(Source source, Sort sort);
+    List<FederatedClubJPA> findAllByClub_Id(UUID clubId, Sort sort);
     List<FederatedClubJPA> findAllByNameContainingIgnoreCase(String name);
     List<FederatedClubJPA> findAllBySourceAndNameContainingIgnoreCase(Source source, String name);
 }

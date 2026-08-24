@@ -83,6 +83,31 @@ describe('club API boundary', () => {
       .toThrow('La resposta del club no conté un identificador')
   })
 
+  it('deduplicates canonical results while retaining source context', () => {
+    const clubs = normalizeClubSearchResponse({
+      results: [
+        {
+          id: 'canonical-id',
+          name: 'Club A',
+          source: 'RFETM',
+          sources: ['RFETM'],
+          federatedClubs: [{ id: 'rfetm-id', name: 'Club A', source: 'RFETM' }],
+        },
+        {
+          id: 'canonical-id',
+          name: 'Club A',
+          source: 'BCNESA',
+          sources: ['BCNESA'],
+          federatedClubs: [{ id: 'bcnesa-id', name: 'Club A', source: 'BCNESA' }],
+        },
+      ],
+    })
+
+    expect(clubs).toHaveLength(1)
+    expect(clubs[0].sources).toEqual(['BCNESA', 'RFETM'])
+    expect(clubs[0].federatedClubs).toHaveLength(2)
+  })
+
   it('normalizes competition details and encodes scoped filters', async () => {
     const response = {
       ok: true,

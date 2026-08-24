@@ -55,6 +55,16 @@ public class FederatedClubRepositoryJpa implements FederatedClubRepository {
     }
 
     @Override
+    public List<FederatedClub> findAllFederatedClubsByClubId(UUID clubId) {
+        if (clubId == null) {
+            return List.of();
+        }
+        return clubRepositoryHelper.findAllByClub_Id(clubId, Sort.by("source", "name", "id")).stream()
+                .map(clubJPAToClubMapper)
+                .toList();
+    }
+
+    @Override
     public List<FederatedClub> findAllFederatedClubsByFragmentsInName(List<String> fragments) {
         if (fragments == null || fragments.isEmpty()) {
             return List.of();

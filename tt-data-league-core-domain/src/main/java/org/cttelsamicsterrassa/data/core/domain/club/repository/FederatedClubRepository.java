@@ -15,6 +15,11 @@ public interface FederatedClubRepository {
         throw new UnsupportedOperationException("Complete source inventory is not supported");
     }
 
+    /**
+     * Returns every source-specific record attached to one canonical club.
+     */
+    List<FederatedClub> findAllFederatedClubsByClubId(UUID clubId);
+
     List<FederatedClub> findAllFederatedClubsByFragmentsInName(List<String> fragments);
     List<FederatedClub> findAllFederatedClubsBySourceAndFragmentsInName(
             ImportSource source, List<String> fragments);

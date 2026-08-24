@@ -10,6 +10,9 @@ import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubMatc
 import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubDetailsReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubPlayerReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubTeamReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.ClubFederatedReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.ClubSearchReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.ClubDetailsReadModel;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -53,6 +56,26 @@ class ClubControllerTest {
     }
 
     @Test
+    void mapsCanonicalSearchIdentityAndFederatedContext() {
+        QueryBus queryBus = mock(QueryBus.class);
+        ClubController controller = controllerWith(queryBus, mock(CommandBus.class));
+        UUID federatedId = UUID.randomUUID();
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(List.of(
+                new ClubSearchReadModel(
+                        CLUB_ID,
+                        "Club A",
+                        List.of(new ClubFederatedReadModel(federatedId, "Club A RFETM", ImportSource.RFETM))))));
+
+        var response = controller.findClubsByStringInName("Club A", null);
+
+        ClubDto body = ((List<ClubDto>) response.getBody()).getFirst();
+        assertEquals(CLUB_ID, body.id());
+        assertEquals(CLUB_ID, body.canonicalClubId());
+        assertEquals(List.of("RFETM"), body.sources());
+        assertEquals(federatedId, body.federatedClubs().getFirst().id());
+    }
+
+    @Test
     void mapsTheStableDetailsPayload() {
         QueryBus queryBus = mock(QueryBus.class);
         ClubController controller = controllerWith(queryBus, mock(CommandBus.class));
@@ -87,6 +110,21 @@ class ClubControllerTest {
         assertEquals(List.of("Divisió d'Honor"), body.players().getFirst().competitions());
         assertEquals(canonicalClubId, body.canonicalClubId());
         assertEquals("Canonical Club", body.canonicalClubName());
+    }
+
+    @Test
+    void resolvesCanonicalDetailsBeforeLegacyFederatedDetails() {
+        QueryBus queryBus = mock(QueryBus.class);
+        ClubController controller = controllerWith(queryBus, mock(CommandBus.class));
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(
+                new ClubDetailsReadModel(CLUB_ID, "Canonical Club", List.of(), List.of(), List.of(), List.of())));
+
+        var response = controller.findClubDetailsById(CLUB_ID);
+
+        ClubDetailsDto body = (ClubDetailsDto) response.getBody();
+        assertEquals(CLUB_ID, body.id());
+        assertEquals(CLUB_ID, body.canonicalClubId());
+        assertEquals("Canonical Club", body.name());
     }
 
     @Test

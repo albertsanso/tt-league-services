@@ -8,11 +8,14 @@ import org.albertsanso.commons.command.DomainCommandResponse;
 import org.albertsanso.commons.query.DomainQueryResponse;
 import org.albertsanso.commons.query.QueryBus;
 import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.ClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.ClubSearchReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubCompetitionDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.FindClubDetailsQuery;
 import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClubCompetitionDetailsQuery;
 import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClubByIdQuery;
 import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClubDetailsQuery;
-import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClubsByStringInNameQuery;
+import org.cttelsamicsterrassa.data.core.application.club.find.FindClubsByStringInNameQuery;
 import org.cttelsamicsterrassa.data.core.application.club.update.ModifyFederatedClubNameCommand;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -63,10 +66,15 @@ public class ClubController {
             @ApiResponse(responseCode = "500", description = "Unexpected query failure")
     })
     public ResponseEntity<?> findClubDetailsById(@PathVariable("id") UUID id) {
-        DomainQueryResponse<FederatedClubDetailsReadModel> queryResponse =
+        DomainQueryResponse<?> canonicalResponse = queryBus.push(new FindClubDetailsQuery(id));
+        if (canonicalResponse.isSuccess() && canonicalResponse.getResponse() instanceof ClubDetailsReadModel details) {
+            return ResponseEntity.ok(ClubDetailsDto.fromObject(details));
+        }
+
+        DomainQueryResponse<FederatedClubDetailsReadModel> legacyResponse =
                 queryBus.push(new FindFederatedClubDetailsQuery(id));
-        return queryResponse.isSuccess()
-                ? ResponseEntity.ok(ClubDetailsDto.fromObject(queryResponse.getResponse()))
+        return legacyResponse.isSuccess()
+                ? ResponseEntity.ok(ClubDetailsDto.fromObject(legacyResponse.getResponse()))
                 : ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage("Club not found: " + id));
     }
 
@@ -129,13 +137,27 @@ public class ClubController {
                     .body(new ErrorMessage("Unknown source filter: " + source));
         }
 
-        FindFederatedClubsByStringInNameQuery query =
-                new FindFederatedClubsByStringInNameQuery(normalizedSearch, importSource);
-        DomainQueryResponse<List<FederatedClub>> queryResponse = queryBus.push(query);
+        DomainQueryResponse<?> queryResponse = queryBus.push(
+                new FindClubsByStringInNameQuery(normalizedSearch, importSource));
         if (queryResponse.isSuccess()) {
-            List<ClubDto> clubDtos = queryResponse.getResponse().stream()
-                    .map(ClubDto::fromObject)
-                    .toList();
+            Object response = queryResponse.getResponse();
+            List<ClubDto> clubDtos;
+            if (response instanceof List<?> results
+                    && (results.isEmpty() || results.getFirst() instanceof ClubSearchReadModel)) {
+                clubDtos = results.stream()
+                        .map(ClubSearchReadModel.class::cast)
+                        .map(ClubDto::fromObject)
+                        .toList();
+            } else if (response instanceof List<?> results
+                    && (results.isEmpty() || results.getFirst() instanceof FederatedClub)) {
+                // Keeps clients of the old application contract working while they upgrade.
+                clubDtos = results.stream()
+                        .map(FederatedClub.class::cast)
+                        .map(ClubDto::fromObject)
+                        .toList();
+            } else {
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+            }
             return ResponseEntity.ok(clubDtos);
         } else {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();

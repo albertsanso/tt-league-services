@@ -4,6 +4,9 @@ import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubComp
 import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubDetailsReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubPlayerReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubTeamReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.ClubCompetitionReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.ClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.ClubFederatedReadModel;
 
 import java.util.List;
 import java.util.UUID;
@@ -16,7 +19,9 @@ public record ClubDetailsDto(
         List<CompetitionDetailsDto> competitions,
         List<PlayerDetailsDto> players,
         UUID canonicalClubId,
-        String canonicalClubName) {
+        String canonicalClubName,
+        List<ClubDto.FederatedClubDto> federatedClubs,
+        List<String> sources) {
 
     public ClubDetailsDto(
             UUID id,
@@ -24,7 +29,8 @@ public record ClubDetailsDto(
             String source,
             List<TeamDetailsDto> teams,
             List<CompetitionDetailsDto> competitions) {
-        this(id, name, source, teams, competitions, List.of(), null, null);
+        this(id, name, source, teams, competitions, List.of(), null, null, List.of(),
+                source == null ? List.of() : List.of(source));
     }
 
     public ClubDetailsDto(
@@ -34,7 +40,8 @@ public record ClubDetailsDto(
             List<TeamDetailsDto> teams,
             List<CompetitionDetailsDto> competitions,
             List<PlayerDetailsDto> players) {
-        this(id, name, source, teams, competitions, players, null, null);
+        this(id, name, source, teams, competitions, players, null, null, List.of(),
+                source == null ? List.of() : List.of(source));
     }
 
     public static ClubDetailsDto fromObject(FederatedClubDetailsReadModel details) {
@@ -46,7 +53,36 @@ public record ClubDetailsDto(
                 details.competitions().stream().map(CompetitionDetailsDto::fromObject).toList(),
                 details.players().stream().map(PlayerDetailsDto::fromObject).toList(),
                 details.canonicalClubId(),
-                details.canonicalClubName());
+                details.canonicalClubName(),
+                List.of(),
+                details.source() == null ? List.of() : List.of(details.source().name()));
+    }
+
+    public static ClubDetailsDto fromObject(ClubDetailsReadModel details) {
+        List<ClubDto.FederatedClubDto> federatedClubs = details.federatedClubs().stream()
+                .map(club -> new ClubDto.FederatedClubDto(
+                        club.id(),
+                        club.name(),
+                        club.source() == null ? null : club.source().name()))
+                .toList();
+        List<String> sources = federatedClubs.stream()
+                .map(ClubDto.FederatedClubDto::source)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .sorted()
+                .toList();
+        String source = sources.size() == 1 ? sources.getFirst() : sources.isEmpty() ? null : "MULTIPLE";
+        return new ClubDetailsDto(
+                details.id(),
+                details.name(),
+                source,
+                details.teams().stream().map(TeamDetailsDto::fromObject).toList(),
+                details.competitions().stream().map(CompetitionDetailsDto::fromObject).toList(),
+                details.players().stream().map(PlayerDetailsDto::fromObject).toList(),
+                details.id(),
+                details.name(),
+                federatedClubs,
+                sources);
     }
 
     public record TeamDetailsDto(UUID id, String name, String source, String season) {
@@ -63,16 +99,32 @@ public record ClubDetailsDto(
             String name,
             String season,
             int matchCount,
-            ResultTotalsDto resultTotals) {
+            ResultTotalsDto resultTotals,
+            String source) {
+        public CompetitionDetailsDto(
+                String name,
+                String season,
+                int matchCount,
+                ResultTotalsDto resultTotals) {
+            this(name, season, matchCount, resultTotals, null);
+        }
+
         private static CompetitionDetailsDto fromObject(FederatedClubCompetitionReadModel competition) {
             return new CompetitionDetailsDto(
                     competition.name(),
                     competition.season().toString(),
                     competition.matchCount(),
-                    new ResultTotalsDto(
-                            competition.wins(),
-                            competition.draws(),
-                            competition.losses()));
+                    new ResultTotalsDto(competition.wins(), competition.draws(), competition.losses()),
+                    null);
+        }
+
+        private static CompetitionDetailsDto fromObject(ClubCompetitionReadModel competition) {
+            return new CompetitionDetailsDto(
+                    competition.name(),
+                    competition.season().toString(),
+                    competition.matchCount(),
+                    new ResultTotalsDto(competition.wins(), competition.draws(), competition.losses()),
+                    competition.source() == null ? null : competition.source().name());
         }
     }
 
@@ -121,8 +173,8 @@ public record ClubDetailsDto(
                     player.federatedPlayerName(),
                     player.registrationName(),
                     player.license(),
-                    player.source().name(),
-                    player.season().toString(),
+                    player.source() == null ? null : player.source().name(),
+                    player.season() == null ? null : player.season().toString(),
                     player.competitions(),
                     player.canonicalPlayerId(),
                     player.canonicalPlayerName());

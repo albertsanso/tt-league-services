@@ -16,6 +16,10 @@ function uniqueSorted(values) {
   return [...new Set(values.filter(Boolean))].sort()
 }
 
+function displaySources(club) {
+  return club.sources?.length ? club.sources : [club.source]
+}
+
 function ClubDetailPage() {
   const { clubId } = useParams()
   const location = useLocation()
@@ -72,7 +76,7 @@ function ClubDetailContent({
   successMessage,
 }) {
   const sources = uniqueSorted([
-    club.source,
+    ...displaySources(club),
     ...club.teams.map((team) => team.source),
     ...club.players.map((player) => player.source),
   ].filter((source) => source !== '—'))
@@ -86,7 +90,7 @@ function ClubDetailContent({
   const sourceMatches = (source) => !sourceFilter || source === sourceFilter
   const sourceTeams = club.teams.filter((team) => sourceMatches(team.source))
   const sourcePlayers = club.players.filter((player) => sourceMatches(player.source))
-  const sourceCompetitions = club.competitions.filter(() => sourceMatches(club.source))
+  const sourceCompetitions = club.competitions.filter((item) => sourceMatches(item.source ?? club.source))
   const seasons = uniqueSorted([
     ...sourceTeams.map((team) => team.season),
     ...sourceCompetitions.map((competition) => competition.season),
@@ -182,7 +186,17 @@ function ClubDetailContent({
         <div>
           <p className="section-label">Identitat del club</p>
           <h1 id="club-detail-title" className="page-title">{club.name}</h1>
-          <p className="club-source">Font: {club.source}</p>
+          <p className="club-source">
+            {displaySources(club).length > 1 ? 'Fonts' : 'Font'}:{' '}
+            {displaySources(club).join(', ')}
+          </p>
+          {club.federatedClubs?.length ? (
+            <p className="club-source">
+              Registres federats: {club.federatedClubs
+                .map((federatedClub) => `${federatedClub.name} (${federatedClub.source})`)
+                .join(', ')}
+            </p>
+          ) : null}
         </div>
         {isAdmin ? (
           <Link

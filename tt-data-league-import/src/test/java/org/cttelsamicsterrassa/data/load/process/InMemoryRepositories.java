@@ -70,6 +70,13 @@ public final class InMemoryRepositories {
         }
 
         @Override
+        public List<FederatedClub> findAllFederatedClubsByClubId(UUID clubId) {
+            return byId.values().stream()
+                    .filter(club -> club.getClub().map(canonical -> canonical.getId().equals(clubId)).orElse(false))
+                    .toList();
+        }
+
+        @Override
         public void saveFederatedClub(FederatedClub club) {
             byId.put(club.getId(), club);
         }

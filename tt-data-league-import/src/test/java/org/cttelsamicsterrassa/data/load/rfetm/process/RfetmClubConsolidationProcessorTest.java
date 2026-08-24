@@ -125,6 +125,11 @@ class RfetmClubConsolidationProcessorTest {
         }
 
         @Override
+        public List<FederatedClub> findAllFederatedClubsByClubId(UUID clubId) {
+            return delegate.findAllFederatedClubsByClubId(clubId);
+        }
+
+        @Override
         public List<FederatedClub> findAllFederatedClubsByFragmentsInName(List<String> fragments) {
             return delegate.findAllFederatedClubsByFragmentsInName(fragments);
         }
