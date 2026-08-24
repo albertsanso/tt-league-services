@@ -37,34 +37,34 @@ public class TeamToClubConsolidationProcessor {
 
     private static final Set<ImportSource> AUTOMATIC_SOURCES = EnumSet.of(ImportSource.FCTT, ImportSource.BCNESA);
 
-    private final FederatedClubRepository clubRepository;
+    private final FederatedClubRepository federatedClubRepository;
     private final TeamRepository teamRepository;
     private final ClubNameMatcher matcher;
     private final CanonicalClubResolver canonicalClubResolver;
 
-    public TeamToClubConsolidationProcessor(FederatedClubRepository clubRepository, TeamRepository teamRepository) {
-        this(clubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()), null);
+    public TeamToClubConsolidationProcessor(FederatedClubRepository federatedClubRepository, TeamRepository teamRepository) {
+        this(federatedClubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()), null);
     }
 
     @Inject
-    public TeamToClubConsolidationProcessor(FederatedClubRepository clubRepository,
+    public TeamToClubConsolidationProcessor(FederatedClubRepository federatedClubRepository,
                                             TeamRepository teamRepository,
                                             ClubRepository canonicalClubRepository) {
-        this(clubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()),
+        this(federatedClubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()),
                 new CanonicalClubResolver(canonicalClubRepository));
     }
 
-    TeamToClubConsolidationProcessor(FederatedClubRepository clubRepository,
+    TeamToClubConsolidationProcessor(FederatedClubRepository federatedClubRepository,
                                      TeamRepository teamRepository,
                                      ClubNameMatcher matcher) {
-        this(clubRepository, teamRepository, matcher, null);
+        this(federatedClubRepository, teamRepository, matcher, null);
     }
 
-    private TeamToClubConsolidationProcessor(FederatedClubRepository clubRepository,
+    private TeamToClubConsolidationProcessor(FederatedClubRepository federatedClubRepository,
                                              TeamRepository teamRepository,
                                              ClubNameMatcher matcher,
                                              CanonicalClubResolver canonicalClubResolver) {
-        this.clubRepository = Objects.requireNonNull(clubRepository, "clubRepository");
+        this.federatedClubRepository = Objects.requireNonNull(federatedClubRepository, "clubRepository");
         this.teamRepository = Objects.requireNonNull(teamRepository, "teamRepository");
         this.matcher = Objects.requireNonNull(matcher, "matcher");
         this.canonicalClubResolver = canonicalClubResolver;
@@ -227,18 +227,18 @@ public class TeamToClubConsolidationProcessor {
             if (!canonical.getName().equals(representativeName)) {
                 if (mode == ConsolidationMode.WRITE) {
                     canonical.modifyName(representativeName);
-                    clubRepository.saveFederatedClub(canonical);
+                    federatedClubRepository.saveFederatedClub(canonical);
                 }
                 LOGGER.info("Canonicalized club {} name from {} to {}", canonical.getId(), canonical.getName(), representativeName);
             }
         } else {
             String clubName = representativeName;
-            Optional<FederatedClub> existing = clubRepository.findFederatedClubBySourceAndName(source, clubName);
+            Optional<FederatedClub> existing = federatedClubRepository.findFederatedClubBySourceAndName(source, clubName);
             if (existing.isPresent()) {
                 canonical = existing.get();
             } else if (mode == ConsolidationMode.WRITE) {
                 canonical = FederatedClub.createNew(source, clubName);
-                clubRepository.saveFederatedClub(canonical);
+                federatedClubRepository.saveFederatedClub(canonical);
                 created = true;
                 summary.incrementClubsCreated();
                 LOGGER.info("Created canonical club {} ({}) for {}", canonical.getId(), clubName, source);
@@ -287,7 +287,7 @@ public class TeamToClubConsolidationProcessor {
                 : canonicalClubResolver.findOrCreateForReport(canonicalName);
         FederatedClub linked = federatedClub.withClub(canonicalClub);
         if (mode == ConsolidationMode.WRITE) {
-            clubRepository.saveFederatedClub(linked);
+            federatedClubRepository.saveFederatedClub(linked);
         }
         return linked;
     }
