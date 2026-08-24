@@ -2,6 +2,10 @@ package org.cttelsamicsterrassa.data.core.application.club.find;
 
 import org.albertsanso.commons.query.DomainQueryHandler;
 import org.albertsanso.commons.query.DomainQueryResponse;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubCompetitionReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubPlayerReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubTeamReadModel;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;

@@ -1,6 +1,4 @@
-package org.cttelsamicsterrassa.data.core.application.club.find;
-
-import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+package org.cttelsamicsterrassa.data.core.application.club.find.dto;
 
 import java.time.ZonedDateTime;
 import java.util.Objects;

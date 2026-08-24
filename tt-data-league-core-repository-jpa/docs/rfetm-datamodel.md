@@ -1,530 +1,341 @@
 # RFETM Relational Data Model
 
-## Context
+## Scope and JPA conventions
 
-This document defines the relational database model for imported table-tennis federation match records.
+This document describes the relational model implemented by the JPA entities in
+`tt-data-league-core-repository-jpa`. It includes imported league data and the
+application authentication tables.
 
-`source` is stored as an enum string. The supported source values are `RFETM`, `BCNESA`, and
-`FCTT`; every source-scoped natural key remains scoped by this value.
+- Entities use Jakarta Persistence and application-assigned `UUID` identifiers.
+  No entity configures `@GeneratedValue`.
+- Enum fields use `@Enumerated(EnumType.STRING)`.
+- Every `@ManyToOne` association is lazy and owns its explicit join column.
+- No entity currently declares a `@OneToMany` collection. `MATCH` and `GAME`
+  children are loaded through their repositories.
+- Unless a column is explicitly marked otherwise below, its nullability and
+  length are those declared by the entity.
+- `source` is stored as a string enum with the values `RFETM`, `BCNESA`, and
+  `FCTT`.
+- `MATCH` is persisted as `match_record` to avoid a reserved-word collision.
+
+## Enumerations
 
-The domain covers **team table tennis competitions**: two clubs meet in a **match** (the overall event), which consists of several individual **games** (singles and doubles). Each game is played as a best-of series of **sets**.
+| Enum | Stored values |
+| --- | --- |
+| `Source` | `RFETM`, `BCNESA`, `FCTT` |
+| `GameType` | `INDIVIDUAL`, `DOUBLES` |
+| `MatchResult` | `HOME`, `AWAY` |
+| `Side` | `HOME`, `AWAY` |
+| `UserRole` | `ADMIN`, `CLUB_MANAGER`, `ANALYST`, `PRACTITIONER` |
 
-Use this specification to generate **Java JPA entity classes** with the following conventions:
-
-- Use `jakarta.persistence` annotations (Jakarta EE 10+ / Spring Boot 3+).
-- Annotate every entity with `@Entity` and `@Table(name = "...")`.
-- Use `UUID` (Java `java.util.UUID`) for every entity identifier and identifier foreign key column.
-- Each entity identifier must be a caller-provided UUID v4. Do not use `@GeneratedValue`; the application must assign the UUID before persistence.
-- Use `@Column` annotations with `name`, `nullable`, `unique`, and `length` where specified.
-- Map relationships with `@ManyToOne`, `@OneToMany`, `@JoinColumn`, and `mappedBy` as appropriate.
-- Use `FetchType.LAZY` for all `@ManyToOne` and `@OneToMany` associations.
-- Use `@Enumerated(EnumType.STRING)` for enum-typed columns.
-- Composite natural keys should be enforced with `@UniqueConstraint` on the `@Table` annotation.
-- Use Lombok accessors and constructors as present in each entity. Most entities use
-  `@Getter`, `@Setter`, `@NoArgsConstructor`, and `@AllArgsConstructor`; `GameJPA`, `MatchJPA`, and
-  `FederatedPlayerJPA` currently use `@RequiredArgsConstructor`.
-- Use `org.cttelsamicsterrassa.data.core.repository.jpa` as the base package.
-- Place each entity in its own subpackage named after the entity (for example, `TeamJPA` is in `org.cttelsamicsterrassa.data.core.repository.jpa.club`).
-- Name each JPA entity after the table name in PascalCase with the `JPA` suffix.
-- Place entity-specific enums in the corresponding entity package (for example, `GameType` and `MatchResult` are in `org.cttelsamicsterrassa.data.core.repository.jpa.game`).
-
----
-
-## Enums
-
-### `GameType`
-
-Represents the modality of an individual game within a match.
-
-| Value        | Description                     |
-| ------------ | ------------------------------- |
-| `INDIVIDUAL` | Singles match (one player each) |
-| `DOUBLES`    | Doubles match (pair each side)  |
-
-### `Side`
-
-Represents a side in a match.
-
-| Value  | Description |
-| ------ | ----------- |
-| `HOME` | Home side   |
-| `AWAY` | Away side   |
-
-### `MatchResult`
-
-Represents the outcome of a game.
-
-| Value  | Description    |
-| ------ | -------------- |
-| `HOME` | Home side wins |
-| `AWAY` | Away side wins |
-
----
-
-## Tables
-
-### `FEDERATED_CLUB`
-
-Represents a source-specific club identity. It may reference the
-season-independent `CLUB` identity, but its source-provided name and UUID remain
-unchanged.
-
-| Column        | Type           | PK  | Nullable | Unique | Description                                                     |
-| ------------- | -------------- | --- | -------- | ------ | --------------------------------------------------------------- |
-| `id`          | `UUID`         | Yes | No       | Yes    | Surrogate primary key (caller-provided UUID v4).                 |
-| `source`      | `VARCHAR(20)`  | No  | No       | No     | Federation that supplied the club row.                            |
-| `name`        | `VARCHAR(255)` | No  | Yes      | No     | Club name. Can be null for unknown clubs.                        |
-| `club_id`     | `UUID`         | No  | Yes      | No     | Nullable foreign key to `CLUB`; populated by the manual migration/backfill. |
-
-FederatedClub and FederatedPlayer entities do not persist source-system identifiers. Their UUID is the entity identity;
-`source` scopes federation data. FederatedClub retains its `(source, name)` uniqueness constraint, while
-FederatedPlayer does not. RFETM team keys and
-player licences are retained by the import and season-registration flows where they are needed for
-source-specific matching.
-
----
-
-### `CLUB`
-
-Represents the canonical, season-independent club identity. Its display name
-is globally unique and is the only automatic cross-source matching key.
-
-| Column | Type | PK | Nullable | Unique | Description |
-| ------ | ---- | -- | -------- | ------ | ----------- |
-| `id` | `UUID` | Yes | No | Yes | Caller-provided UUID v4. |
-| `name` | `VARCHAR(255)` | No | No | Yes | Exact canonical display name. |
-
-`FEDERATED_CLUB.club_id` is a lazy, nullable many-to-one relationship. No
-cascade is defined: canonical clubs must be created before their federated
-references. `TEAM.federated_club_id` and all match, lineup, and
-player-season references continue to target the federated/season-specific
-records and are not redirected to `CLUB`.
-
----
-
-## Existing database migration requirement
-
-The entity rename requires a database migration for existing deployments before
-starting the renamed application. The earlier migration must rename `club` to
-`federated_club`, rename `team.club_id` to `team.federated_club_id`, rename
-`player` to `federated_player`, and rename `player_season.player_id` to
-`player_season.federated_player_id`. It must also rename the related indexes,
-foreign keys, and constraints while preserving UUIDs, row data, row counts, and
-references. `LINEUP.player_id`, `GAME.home_player_id`, `GAME.away_player_id`,
-and `DOUBLES_PAIR.player_id` target `PLAYER_SEASON` and must remain unchanged.
-
-This repository owns the manually applied PostgreSQL migration
-`docs/migrations/FEAT-008-canonical-club.sql`. It includes prechecks,
-backfill-safe nullable steps, and postchecks for row counts, UUIDs, names,
-references, and foreign-key integrity. Apply it before starting either runtime;
-the runtime datasource uses `DB_TTLEAGUEDATA_JDBC_URL`,
-`DB_TTLEAGUEDATA_CREDENTIAL_USERNAME`, and
-`DB_TTLEAGUEDATA_CREDENTIAL_PASSWORD`.
-
-Hibernate `ddl-auto: update` is not a migration and must not be used to rename
-tables, preserve data, or perform this backfill.
-
----
-
-### `APPUSER`
-
-Application users are stored separately from imported league data. Password
-hashes are persisted, never plaintext credentials. `AppUserRole` stores the
-source role assignments and is joined to `AppUser` by `user_id`; roles are
-stored as enum strings (`ADMIN`, `CLUB_MANAGER`, `ANALYST`, or `PRACTITIONER`).
-
-### `PASSWORDRECOVERYTOKEN`
-
-Password recovery records contain only a SHA-256 hash of the one-time token.
-The raw token is delivered through the configured email adapter and is never
-returned by the REST API or written to application logs.
-
-| Column       | Type         | PK  | Nullable | Unique | Description |
-| ------------ | ------------ | --- | -------- | ------ | ----------- |
-| `id`         | `UUID`       | Yes | No       | Yes    | Recovery record identifier. |
-| `user_id`    | `UUID`       | No  | No       | No     | Identifier of the `AppUser` receiving recovery instructions. |
-| `token_hash` | `VARCHAR(64)`| No  | No       | Yes    | SHA-256 digest of the raw recovery token. |
-| `created_at` | `TIMESTAMP`  | No  | No       | No     | Token creation time. |
-| `expires_at` | `TIMESTAMP`  | No  | No       | No     | Expiration time. |
-| `consumed`   | `BOOLEAN`    | No  | No       | No     | Whether the token has already been used. |
-
-`idx_recovery_token_hash` supports token lookup and `idx_recovery_expiry`
-supports expiry maintenance. A token is usable only when it is unconsumed and
-unexpired; consuming it is an atomic conditional update.
-
----
-
-### `FEDERATED_PLAYER`
-
-Represents a source-specific player identity. Its UUID, source, and source-provided
-name remain unchanged; it may reference the season-independent `PLAYER` identity.
-
-| Column        | Type           | PK  | Nullable | Unique | Description                                                                    |
-| ------------- | -------------- | --- | -------- | ------ | ------------------------------------------------------------------------------ |
-| `id`          | `UUID`         | Yes | No       | Yes    | Surrogate primary key (caller-provided UUID v4).                               |
-| `source`      | `VARCHAR(20)`  | No  | No       | No     | Federation that supplied the player row.                                       |
-| `name`        | `VARCHAR(255)` | No  | No       | No     | Full name in "SURNAME, FIRSTNAME" format.                                      |
-| `player_id`   | `UUID`         | No  | Yes      | No     | Nullable foreign key to `PLAYER`; populated by the manual migration/backfill.  |
-
-The `source` and `name` columns are not subject to a unique constraint. Federation licence identity
-is represented by the `PLAYER_SEASON` `(source, season, license)` constraint.
-
-- `idx_federated_player_name` indexes `name`.
-- `idx_federated_player_source_name` indexes `(source, name)` for scoped lookup; it is not unique.
-- `idx_federated_player_player_id` indexes `player_id`.
-
-`FEDERATED_PLAYER.player_id` is a lazy, nullable many-to-one relationship with
-no cascade. Canonical players must be created before their federated references.
-
----
-
-### `PLAYER`
-
-Represents the globally unique, season-independent canonical identity of a player.
-Its exact display name is the only automatic cross-source linking key.
-
-| Column | Type | PK | Nullable | Unique | Description |
-| ------ | ---- | -- | -------- | ------ | ----------- |
-| `id` | `UUID` | Yes | No | Yes | Caller-provided UUID v4. |
-| `name` | `VARCHAR(255)` | No | No | Yes | Exact canonical display name. |
-
-`uk_player_name` enforces global exact-name uniqueness and `idx_player_name`
-supports canonical-name lookup. Federation licences remain on
-`PLAYER_SEASON`; `PLAYER_SEASON.federated_player_id` and all match, lineup, and
-doubles-pair references continue to target their existing season-specific rows.
-
----
-
-### `TEAM`
-
-Represents a club's season-specific registration. A team keeps its own UUID and
-season data and may reference the season-independent `FEDERATED_CLUB` row
-through `federated_club_id`.
-
-| Column   | Type           | PK  | Nullable | Unique | FK Target | Description |
-| -------- | -------------- | --- | -------- | ------ | --------- | ----------- |
-| `id`     | `UUID`         | Yes | No       | Yes    |           | Caller-provided UUID v4. |
-| `source` | `VARCHAR(20)`  | No  | Yes      | No     |           | Federation that supplied the team row. |
-| `name`   | `VARCHAR(255)` | No  | Yes      | No     |           | Team name for the season. |
-| `season` | `VARCHAR(10)`  | No  | Yes      | No     |           | Season label. |
-| `federated_club_id` | `UUID`        | No  | Yes      | No     | `FEDERATED_CLUB.id` | Optional canonical club association. |
-
-**Constraints:**
-
-- `uk_team_name_season_source` is unique on `(name, season, source)`.
-- `idx_team_name_season` indexes `(name, season)`.
-- `idx_team_federated_club_id` indexes `federated_club_id`.
-
----
-
-### `MATCH`
-
-Represents a team match event. This is the top-level aggregate: an encounter between a home team and an away team within a competition round. A match typically contains 5–7 individual games.
-
-| Column            | Type           | PK  | Nullable | Unique | FK Target  | Description                                                                |
-| ----------------- | -------------- | --- | -------- | ------ | ---------- | -------------------------------------------------------------------------- |
-| `id`              | `UUID`         | Yes | No       | Yes    |            | Surrogate primary key (caller-provided UUID v4).                          |
-| `source`          | `VARCHAR(20)`  | No  | No       | No     |            | Federation that supplied the match record.                                |
-| `external_id`     | `VARCHAR(20)`  | No  | Yes      | Yes    |            | Source-system match identifier, when the source provides one.             |
-| `competition`     | `VARCHAR(255)` | No  | Yes      | No     |            | Competition name, category, and gender (e.g. "Superdivisión Masculina").   |
-| `season`          | `VARCHAR(9)`   | No  | Yes      | No     |            | Season label in `YYYY/YYYY` format (e.g. "2025/2026").                     |
-| `group_num`       | `INTEGER`      | No  | No       | No     |            | Group number within the competition. 0 if not applicable.                  |
-| `round`           | `INTEGER`      | No  | No       | No     |            | Round (matchday) number within the league.                                 |
-| `match_date`      | `DATE`         | No  | Yes      | No     |            | Date of the match (ISO 8601).                                              |
-| `match_time`      | `TIME`         | No  | Yes      | No     |            | Scheduled start time (24h format).                                         |
-| `city`            | `VARCHAR(255)` | No  | Yes      | No     |            | City (and province) where the match was played.                            |
-| `venue`           | `VARCHAR(255)` | No  | Yes      | No     |            | Name of the sports hall or facility.                                       |
-| `home_team_id`    | `UUID`         | No  | No       | No     | `TEAM.id` | Team row playing as home.                                      |
-| `away_team_id`    | `UUID`         | No  | No       | No     | `TEAM.id` | Team row playing as away.                                      |
-| `referee_name`    | `VARCHAR(255)` | No  | Yes      | No     |            | Full name of the head referee.                                             |
-| `referee_license` | `VARCHAR(20)`  | No  | Yes      | No     |            | License number of the head referee (nullable).                             |
-| `home_games_won`  | `INTEGER`      | No  | Yes      | No     |            | Total games won by the home side.                                          |
-| `away_games_won`  | `INTEGER`      | No  | Yes      | No     |            | Total games won by the away side.                                          |
-| `home_sets_won`   | `INTEGER`      | No  | Yes      | No     |            | Total sets won by the home side across all games.                          |
-| `away_sets_won`   | `INTEGER`      | No  | Yes      | No     |            | Total sets won by the away side across all games.                          |
-| `winner_team_id`  | `UUID`         | No  | Yes      | No     | `TEAM.id` | Team row that won the match. Null if not determined.            |
-| `protested`       | `BOOLEAN`      | No  | No       | No     |            | Whether the match record was formally protested.                           |
-
-**Constraints:**
-
-- `@UniqueConstraint(columnNames = {"competition", "season", "group_num", "round", "home_team_id", "away_team_id"})`
-  — the natural key of a match. A round holds one match per pair of teams, so the two teams are part
-  of the key; without them a whole matchday would collapse into a single row. This is the key an
-  importer looks up to stay idempotent.
-
-**Relationships (JPA):**
-
-- `@ManyToOne(fetch = LAZY)` → `TEAM` via `home_team_id` (field name: `homeTeam`).
-- `@ManyToOne(fetch = LAZY)` → `TEAM` via `away_team_id` (field name: `awayTeam`).
-- `@ManyToOne(fetch = LAZY)` → `TEAM` via `winner_team_id` (field name: `winnerTeam`).
-
----
-
-### `LINEUP`
-
-Represents one player's assignment in a match lineup. The import data normally produces six entries
-(three per side). This table bridges `MATCH`, `TEAM`, and `PLAYER_SEASON`.
-
-| Column      | Type            | PK  | Nullable | Unique | FK Target    | Description                                                     |
-| ----------- | --------------- | --- | -------- | ------ | ------------ | --------------------------------------------------------------- |
-| `id`        | `UUID`          | Yes | No       | Yes    |              | Surrogate primary key (caller-provided UUID v4).                |
-| `match_id`  | `UUID`          | No  | No       | No     | `MATCH.id`   | The match this lineup entry belongs to.                         |
-| `team_id`   | `UUID`          | No  | No       | No     | `TEAM.id` | The team row this player is representing.              |
-| `letter`    | `VARCHAR(2)`    | No  | No       | No     |              | Lineup letter: A, B, C, X, Y, or Z.                            |
-| `position`  | `INTEGER`       | No  | No       | No     |              | Resolved positional order (1, 2, or 3) within the team.         |
-| `player_id` | `UUID`          | No  | No       | No     | `PLAYER_SEASON.id` | The player-season row assigned to this position.             |
-| `ranking`   | `DECIMAL(10,2)` | No  | Yes      | No     |              | Player ranking at the time of this match (point-in-time snapshot). |
-
-**Constraints:**
-
-- `@UniqueConstraint(columnNames = {"match_id", "team_id", "letter", "position"})` — the current JPA
-  model prevents duplicate four-column lineup assignments. It does not separately constrain letter
-  or position.
-
-**Relationships (JPA):**
-
-- `@ManyToOne(fetch = LAZY)` → `MATCH` via `match_id` (field name: `match`).
-- `@ManyToOne(fetch = LAZY)` → `TEAM` via `team_id` (field name: `team`).
-- `@ManyToOne(fetch = LAZY)` → `PLAYER_SEASON` via `player_id` (field name: `player`).
-
----
-
-### `GAME`
-
-Represents an individual game (singles or doubles) within a team match. A match typically has 7 games (6 singles + 1 doubles in standard format, but formats vary by competition).
-
-| Column            | Type           | PK  | Nullable | Unique | FK Target    | Description                                                                |
-| ----------------- | -------------- | --- | -------- | ------ | ------------ | -------------------------------------------------------------------------- |
-| `id`              | `UUID`         | Yes | No       | Yes    |              | Surrogate primary key (caller-provided UUID v4).                          |
-| `source`          | `VARCHAR(20)`  | No  | No       | No     |              | Federation that supplied the game row.                                   |
-| `match_id`        | `UUID`         | No  | No       | No     | `MATCH.id`   | The match this game belongs to.                                            |
-| `game_number`     | `INTEGER`      | No  | No       | No     |              | Ordinal position of this game within the match (1-based).                  |
-| `type`            | `VARCHAR(10)`  | No  | No       | No     |              | Game type: `INDIVIDUAL` or `DOUBLES`. Mapped as `@Enumerated(STRING)` using `GameType`. |
-| `crossover`       | `VARCHAR(20)`  | No  | No       | No     |              | Crossover string describing the lineup letter matchup (e.g. "A vs Y", "D vs D"). |
-| `home_player_id`  | `UUID`          | No  | Yes      | No     | `PLAYER_SEASON.id`  | Home player-season row for singles. Null for doubles games.             |
-| `away_player_id`  | `UUID`          | No  | Yes      | No     | `PLAYER_SEASON.id`  | Away player-season row for singles. Null for doubles games.             |
-| `home_sets_won`   | `INTEGER`      | No  | Yes      | No     |              | Sets won by the home side. Null if game was not played.                    |
-| `away_sets_won`   | `INTEGER`      | No  | Yes      | No     |              | Sets won by the away side. Null if game was not played.                    |
-| `winner`          | `VARCHAR(4)`   | No  | Yes      | No     |              | Game winner: `HOME`, `AWAY`, or null. Mapped as `@Enumerated(STRING)` using `MatchResult`. |
-| `cumul_home`      | `INTEGER`      | No  | No       | No     |              | Cumulative match score (home games won) after this game.                   |
-| `cumul_away`      | `INTEGER`      | No  | No       | No     |              | Cumulative match score (away games won) after this game.                   |
-| `not_played`      | `BOOLEAN`      | No  | No       | No     |              | `true` if this game was not played (default `false`).                      |
-| `reason`          | `VARCHAR(255)` | No  | Yes      | No     |              | Reason the game was not played (e.g. "Victory already decided (4-0)").     |
-
-**Constraints:**
-
-- `@UniqueConstraint(columnNames = {"match_id", "game_number"})` — game number is unique within a match.
-- When `not_played = true`: `home_sets_won`, `away_sets_won`, and `winner` must be null, and there must be no child `SET_SCORE` rows.
-- When `type = DOUBLES`: `home_player_id` and `away_player_id` must be null; players are stored in `DOUBLES_PAIR` instead.
-
-**Relationships (JPA):**
-
-- `@ManyToOne(fetch = LAZY)` → `MATCH` via `match_id` (field name: `match`).
-- `@ManyToOne(fetch = LAZY)` → `PLAYER_SEASON` via `home_player_id` (field name: `homePlayer`).
-- `@ManyToOne(fetch = LAZY)` → `PLAYER_SEASON` via `away_player_id` (field name: `awayPlayer`).
-The current `GameJPA` model does not declare collection-valued relationships to `SET_SCORE` or
-`DOUBLES_PAIR`; those rows are linked to games from their owning side.
-
----
-
-### `SET_SCORE`
-
-Represents the point score of a single set within a game. Uses a composite natural key of `(game_id, set_number)`.
-
-| Column        | Type      | PK  | Nullable | Unique | FK Target  | Description                                   |
-| ------------- | --------- | --- | -------- | ------ | ---------- | --------------------------------------------- |
-| `id`          | `UUID`    | Yes | No       | Yes    |            | Surrogate primary key (caller-provided UUID v4). |
-| `game_id`     | `UUID`    | No  | No       | No     | `GAME.id`  | The game this set belongs to.                 |
-| `set_number`  | `INTEGER` | No  | No       | No     |            | Ordinal of the set within the game (1-based). |
-| `home_points` | `INTEGER` | No  | No       | No     |            | Points scored by the home side.               |
-| `away_points` | `INTEGER` | No  | No       | No     |            | Points scored by the away side.               |
-
-**Constraints:**
-
-- `@UniqueConstraint(columnNames = {"game_id", "set_number"})`.
-
-**Relationships (JPA):**
-
-- `@ManyToOne(fetch = LAZY)` → `GAME` via `game_id` (field name: `game`).
-
----
-
-### `DOUBLES_PAIR`
-
-Junction table linking a doubles game to the two players on each side. Each doubles game produces exactly 4 rows (2 per side).
-
-| Column      | Type         | PK  | Nullable | Unique | FK Target    | Description                                                              |
-| ----------- | ------------ | --- | -------- | ------ | ------------ | ------------------------------------------------------------------------ |
-| `id`        | `UUID`       | Yes | No       | Yes    |              | Surrogate primary key (caller-provided UUID v4).                         |
-| `game_id`   | `UUID`       | No  | No       | No     | `GAME.id`    | The doubles game.                                                        |
-| `side`      | `VARCHAR(4)` | No  | No       | No     |              | `HOME` or `AWAY`. Mapped as `@Enumerated(STRING)` using `Side`.         |
-| `player_id` | `UUID`       | No  | No       | No     | `PLAYER_SEASON.id`  | One of the two player-season rows in the pair.                         |
-
-**Constraints:**
-
-- `@UniqueConstraint(columnNames = {"game_id", "side", "player_id"})` — a player appears once per side per game.
-
-**Relationships (JPA):**
-
-- `@ManyToOne(fetch = LAZY)` → `GAME` via `game_id` (field name: `game`).
-- `@ManyToOne(fetch = LAZY)` → `PLAYER_SEASON` via `player_id` (field name: `player`).
-
----
-
-## Entity Relationship Summary
-
-The following diagram describes the current relational model. Relationships are shown from the
-referenced parent row to the owning child row; the JPA classes currently expose the associations
-from the child side.
+## League tables
+
+### `club`
+
+Season-independent canonical club identity.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `name` | `VARCHAR(255)` | No | Unique; `idx_club_name` |
+
+The table constraint is `uk_club_name`.
+
+### `federated_club`
+
+Source-specific club identity, optionally linked to a canonical `club`.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `source` | `VARCHAR(20)` | No | — |
+| `name` | `VARCHAR(255)` | Yes | — |
+| `club_id` | `UUID` | Yes | FK to `club`; `idx_federated_club_club_id` |
+
+The unique constraint `uk_federated_club_source_name` covers
+`(source, name)`. The indexes `idx_federated_club_name` and
+`idx_federated_club_source_name` support name and source-scoped name lookup.
+The `club` association is `@ManyToOne(fetch = LAZY)` with no cascade.
+
+### `team`
+
+Season-specific team registration, optionally linked to a source-specific
+federated club.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `source` | `VARCHAR(20)` | Yes | — |
+| `name` | `VARCHAR(255)` | Yes | — |
+| `season` | `VARCHAR(10)` | Yes | — |
+| `federated_club_id` | `UUID` | Yes | FK to `federated_club`; `idx_team_federated_club_id` |
+
+The unique constraint `uk_team_name_season_source` covers
+`(name, season, source)`. `idx_team_name_season` covers `(name, season)`.
+The `federatedClub` association is `@ManyToOne(fetch = LAZY)` with no cascade.
+
+### `player`
+
+Season-independent canonical player identity.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `name` | `VARCHAR(255)` | No | Unique; `idx_player_name` |
+
+The table constraint is `uk_player_name`.
+
+### `federated_player`
+
+Source-specific player identity, optionally linked to a canonical `player`.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `source` | `VARCHAR(20)` | No | — |
+| `name` | `VARCHAR(255)` | No | — |
+| `player_id` | `UUID` | Yes | FK to `player`; `idx_federated_player_player_id` |
+
+There is no table-level unique constraint on `(source, name)`. The indexes
+`idx_federated_player_name` and `idx_federated_player_source_name` support
+unscoped and source-scoped searches. The `player` association is
+`@ManyToOne(fetch = LAZY)` with no cascade.
+
+### `player_season`
+
+Season-specific player registration. `license` is the source-system
+registration identifier; it is not stored on `player` or `federated_player`.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `source` | `VARCHAR(20)` | No | — |
+| `name` | `VARCHAR(255)` | No | `idx_player_season_name` |
+| `license` | `VARCHAR(20)` | No | — |
+| `season` | `VARCHAR(10)` | Yes | `idx_player_season_season_license` |
+| `federated_player_id` | `UUID` | Yes | FK to `federated_player`; `idx_player_season_federated_player_id` |
+
+The unique constraint `uk_player_season_source_season_license` covers
+`(source, season, name, license)`. The `federatedPlayer` association is
+`@ManyToOne(fetch = LAZY)` with no cascade.
+
+### `match_record`
+
+Top-level team match event.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `source` | `VARCHAR(20)` | No | — |
+| `external_id` | `VARCHAR(20)` | Yes | Unique; `idx_match_external_id` |
+| `competition` | `VARCHAR(255)` | Yes | `idx_match_competition_season_group_round` |
+| `season` | `VARCHAR(9)` | Yes | `idx_match_competition_season_group_round` |
+| `group_num` | `INTEGER` | No | `idx_match_competition_season_group_round` |
+| `round` | `INTEGER` | No | `idx_match_competition_season_group_round` |
+| `match_date` | `DATE` | Yes | — |
+| `match_time` | `TIME` | Yes | — |
+| `city` | `VARCHAR(255)` | Yes | — |
+| `venue` | `VARCHAR(255)` | Yes | — |
+| `home_team_id` | `UUID` | No | FK to `team`; `idx_match_home_team_id` |
+| `away_team_id` | `UUID` | No | FK to `team`; `idx_match_away_team_id` |
+| `referee_name` | `VARCHAR(255)` | Yes | — |
+| `referee_license` | `VARCHAR(20)` | Yes | — |
+| `home_games_won` | `INTEGER` | Yes | — |
+| `away_games_won` | `INTEGER` | Yes | — |
+| `home_sets_won` | `INTEGER` | Yes | — |
+| `away_sets_won` | `INTEGER` | Yes | — |
+| `winner_team_id` | `UUID` | Yes | FK to `team`; `idx_match_winner_team_id` |
+| `protested` | `BOOLEAN` | No | Database default `false` |
+
+The unique constraints are:
+
+- `uk_competition_season_group_round_teams` on
+  `(competition, season, group_num, round, home_team_id, away_team_id)`.
+- `uk_match_external_id` on `(external_id)`.
+
+`homeTeam`, `awayTeam`, and `winnerTeam` are lazy `@ManyToOne` associations
+to `team`. The winner association is nullable.
+
+### `lineup`
+
+Player assignment to a team and position in a match.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `source` | `VARCHAR(20)` | Yes | — |
+| `match_id` | `UUID` | No | FK to `match_record`; `idx_lineup_match_id` |
+| `team_id` | `UUID` | No | FK to `team`; `idx_lineup_team_id` |
+| `letter` | `VARCHAR(2)` | No | — |
+| `position` | `INTEGER` | No | — |
+| `player_id` | `UUID` | No | FK to `player_season`; `idx_lineup_player_id` |
+| `ranking` | `DECIMAL(10,2)` | Yes | — |
+
+The unique constraint `uk_match_team_letter_position` covers
+`(match_id, team_id, letter, position)`. `match`, `team`, and `player` are
+lazy `@ManyToOne` associations.
+
+### `game`
+
+Individual singles or doubles game within a match.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `source` | `VARCHAR(20)` | No | — |
+| `match_id` | `UUID` | No | FK to `match_record`; `idx_game_match_id` |
+| `game_number` | `INTEGER` | No | Unique within match |
+| `type` | `VARCHAR(10)` | No | `INDIVIDUAL` or `DOUBLES` |
+| `crossover` | `VARCHAR(20)` | No | — |
+| `home_player_id` | `UUID` | Yes | FK to `player_season`; `idx_game_home_player_id` |
+| `away_player_id` | `UUID` | Yes | FK to `player_season`; `idx_game_away_player_id` |
+| `home_sets_won` | `INTEGER` | Yes | — |
+| `away_sets_won` | `INTEGER` | Yes | — |
+| `winner` | `VARCHAR(4)` | Yes | `HOME` or `AWAY` |
+| `cumul_home` | `INTEGER` | No | — |
+| `cumul_away` | `INTEGER` | No | — |
+| `not_played` | `BOOLEAN` | No | Database default `false` |
+| `reason` | `VARCHAR(255)` | Yes | — |
+
+The unique constraint `uk_match_game_number` covers `(match_id, game_number)`.
+`match`, `homePlayer`, and `awayPlayer` are lazy `@ManyToOne` associations;
+the player associations are nullable. `GameJPA` does not expose JPA
+collections for sets or doubles pairs.
+
+### `set_score`
+
+Point score for one set in a game.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `source` | `VARCHAR(20)` | Yes | — |
+| `game_id` | `UUID` | No | FK to `game`; `idx_set_score_game_id` |
+| `set_number` | `INTEGER` | No | Unique within game |
+| `home_points` | `INTEGER` | No | — |
+| `away_points` | `INTEGER` | No | — |
+
+The unique constraint `uk_set_score_game_set_number` covers
+`(game_id, set_number)`. `game` is a lazy `@ManyToOne` association.
+
+### `doubles_pair`
+
+Player membership of a doubles game side.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `source` | `VARCHAR(20)` | Yes | — |
+| `game_id` | `UUID` | No | FK to `game`; `idx_doubles_pair_game_id` |
+| `side` | `VARCHAR(4)` | No | `HOME` or `AWAY` |
+| `player_id` | `UUID` | No | FK to `player_season`; `idx_doubles_pair_player_id` |
+
+The unique constraint `uk_doubles_pair_game_side_player_source` covers
+`(game_id, side, player_id, source)`. `game` and `player` are lazy
+`@ManyToOne` associations.
+
+## Authentication tables
+
+### `AppUser`
+
+The entity declares the table name as `AppUser`.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key; not updatable |
+| `username` | String | No | Unique; `idx_user_username` |
+| `email` | String | No | Unique; `idx_user_email` |
+| `password_hash` | String | No | — |
+| `created_at` | `TIMESTAMP WITH TIME ZONE` | No | — |
+| `is_active` | `BOOLEAN` | No | — |
+
+`username` and `email` are unique both through their column mappings and the
+unique indexes declared by `UserJPA`.
+
+### `AppUserRole`
+
+An element-collection table for `UserJPA.roles`, declared with
+`@CollectionTable(name = "AppUserRole", joinColumns = @JoinColumn(name =
+"user_id"))`.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `user_id` | `UUID` | No | Join column to `AppUser.id` |
+| `role` | `VARCHAR(30)` | No | Enum string |
+
+The collection is initialized with the default role `PRACTITIONER`. No
+explicit cascade or orphan-removal setting is declared on the collection.
+
+### `PasswordRecoveryToken`
+
+One-time password-recovery records. The raw token is not persisted; only its
+SHA-256 hash is stored.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key; not updatable |
+| `user_id` | `UUID` | No | Scalar user identifier |
+| `token_hash` | `VARCHAR(64)` | No | Unique; `idx_recovery_token_hash` |
+| `created_at` | `TIMESTAMP WITH TIME ZONE` | No | — |
+| `expires_at` | `TIMESTAMP WITH TIME ZONE` | No | `idx_recovery_expiry` |
+| `consumed` | `BOOLEAN` | No | — |
+
+The table constraint is `uk_recovery_token_hash`. `user_id` is deliberately a
+scalar UUID field; `PasswordRecoveryTokenJPA` does not declare a JPA
+association to `UserJPA`.
+
+## Repository lookup behavior
+
+Spring Data helper repositories expose the following persistence lookups in
+addition to ordinary CRUD operations:
+
+| Repository | Lookup behavior |
+| --- | --- |
+| `ClubRepositoryHelper` | Exact canonical club name. |
+| `PlayerRepositoryHelper` | Exact canonical player name. |
+| `FederatedClubRepositoryHelper` | Source-scoped exact name, all rows by source, rows by canonical club id, and case-insensitive name searches; list results can be sorted. The adapter also supports fragment-based searches through specifications. |
+| `FederatedPlayerRepositoryHelper` | Source-scoped exact name; the adapter also supports fragment-based searches through specifications. |
+| `TeamRepositoryHelper` | Exact `(name, season, source)`, first team by federated club and season, all teams by source, and case-insensitive name searches with optional season/source. |
+| `PlayerSeasonRepositoryHelper` | Exact `(source, license, season)`, all rows by source, and source-scoped players associated with team ids through lineups. |
+| `MatchRepositoryHelper` | Exact external id; exact natural-key lookup by competition, season, group, round, home team, and away team; team-id searches optionally filtered by source, season, and competition. |
+| `LineupRepositoryHelper` | All lineup rows for a match id. |
+| `GameRepositoryHelper` | All games for a match id ordered by `game_number` ascending. |
+| `SetScoreRepositoryHelper` | CRUD only; no derived lookup method. |
+| `DoublesPairRepositoryHelper` | CRUD only; no derived lookup method. |
+| `UserRepositoryHelper` | Exact username/email lookup and existence checks. |
+| `PasswordRecoveryTokenRepositoryHelper` | Active token lookup by hash; atomic conditional consumption by token id or user id. |
+
+Repository queries that traverse teams, players, lineups, or matches apply
+source predicates where the operation is source-scoped. The database natural
+keys remain the final integrity boundary; repository method names do not
+replace the declared constraints.
+
+## Entity relationship summary
+
+The associations are owned by the child entities:
 
 ```mermaid
 erDiagram
-    FEDERATED_CLUB ||--o{ TEAM : has
-    PLAYER ||--o{ FEDERATED_PLAYER : identifies
-    TEAM ||--o{ MATCH : home_team
-    TEAM ||--o{ MATCH : away_team
-    TEAM o|--o{ MATCH : winner_team
+    CLUB o|--o{ FEDERATED_CLUB : canonicalizes
+    FEDERATED_CLUB o|--o{ TEAM : groups
+    PLAYER o|--o{ FEDERATED_PLAYER : canonicalizes
+    FEDERATED_PLAYER o|--o{ PLAYER_SEASON : registers
+    TEAM ||--o{ MATCH_RECORD : home_team
+    TEAM ||--o{ MATCH_RECORD : away_team
+    TEAM o|--o{ MATCH_RECORD : winner_team
+    MATCH_RECORD ||--o{ LINEUP : contains
     TEAM ||--o{ LINEUP : represents
-    FEDERATED_PLAYER ||--o{ PLAYER_SEASON : registers
     PLAYER_SEASON ||--o{ LINEUP : assigned
+    MATCH_RECORD ||--o{ GAME : contains
     PLAYER_SEASON o|--o{ GAME : home_player
     PLAYER_SEASON o|--o{ GAME : away_player
-    PLAYER_SEASON ||--o{ DOUBLES_PAIR : paired
-    MATCH ||--o{ GAME : contains
-    MATCH ||--o{ LINEUP : contains
     GAME ||--o{ SET_SCORE : scores
     GAME ||--o{ DOUBLES_PAIR : contains
-
-    FEDERATED_CLUB {
-        UUID id PK
-        VARCHAR source
-        VARCHAR name
-    }
-    TEAM {
-        UUID id PK
-        VARCHAR name
-        VARCHAR season
-        UUID federated_club_id FK
-    }
-    FEDERATED_PLAYER {
-        UUID id PK
-        VARCHAR source
-        VARCHAR name
-        UUID player_id FK
-    }
-    PLAYER {
-        UUID id PK
-        VARCHAR name
-    }
-    PLAYER_SEASON {
-        UUID id PK
-        VARCHAR source
-        VARCHAR name
-        VARCHAR license
-        VARCHAR season
-        UUID federated_player_id FK
-    }
-    MATCH {
-        UUID id PK
-        VARCHAR source
-        VARCHAR external_id
-        VARCHAR competition
-        VARCHAR season
-        INTEGER group_num
-        INTEGER round
-        UUID home_team_id FK
-        UUID away_team_id FK
-        UUID winner_team_id FK
-        BOOLEAN protested
-    }
-    LINEUP {
-        UUID id PK
-        UUID match_id FK
-        UUID team_id FK
-        VARCHAR letter
-        INTEGER position
-        UUID player_id FK
-        DECIMAL ranking
-    }
-    GAME {
-        UUID id PK
-        UUID match_id FK
-        INTEGER game_number
-        VARCHAR type
-        VARCHAR crossover
-        UUID home_player_id FK
-        UUID away_player_id FK
-        INTEGER home_sets_won
-        INTEGER away_sets_won
-        VARCHAR winner
-        INTEGER cumul_home
-        INTEGER cumul_away
-        BOOLEAN not_played
-        VARCHAR reason
-    }
-    SET_SCORE {
-        UUID id PK
-        UUID game_id FK
-        INTEGER set_number
-        INTEGER home_points
-        INTEGER away_points
-    }
-    DOUBLES_PAIR {
-        UUID id PK
-        UUID game_id FK
-        VARCHAR side
-        UUID player_id FK
-    }
+    PLAYER_SEASON ||--o{ DOUBLES_PAIR : paired
 ```
 
-## Identity and season tables
-
-The implementation splits club and player identity from their per-season registration, which this
-specification predates. Canonical `CLUB` and `PLAYER` rows are referenced by
-source-specific federated rows, while `TEAM` and `PLAYER_SEASON` retain
-season-specific identity and historical references.
-
-### `TEAM`
-
-A club's entry for one season: `id`, `name` (the name as written that season), `season`, and
-`federated_club_id` → `FEDERATED_CLUB.id`. The current JPA columns allow `name`, `season`, and
-`federated_club_id` to be null.
-
-- `@UniqueConstraint(columnNames = {"name", "season", "source"})` — a source-scoped team name is
-  unique within a season.
-
-### `PLAYER_SEASON`
-
-A player's registration for one season: `id`, `source`, `name`, `license`, `season`, and
-`federated_player_id` → `FEDERATED_PLAYER.id`. The current JPA columns require `source`, `name`, and
-`license`; `season` and `federated_player_id` are nullable.
-
-- `@UniqueConstraint(columnNames = {"source", "season", "license"})` — the federation licence
-  identifies a registration within a source and season.
-- `idx_player_season_federated_player_id` indexes the nullable `federated_player_id` association.
-- `@ManyToOne(fetch = LAZY)` → `FEDERATED_PLAYER` via `federated_player_id`
-  (field name: `federatedPlayer`).
-
-`MATCH`, `LINEUP`, `GAME` and `DOUBLES_PAIR` reference these season rows rather than `FEDERATED_CLUB` and
-`FEDERATED_PLAYER` directly, so a match is always tied to the club and player as they stood that season.
-
-### `PLAYER`
-
-A season-independent canonical player identity: `id` and globally unique exact
-display `name`. `FEDERATED_PLAYER.player_id` is nullable so legacy rows can be
-reviewed before linking; it does not replace `PLAYER_SEASON.federated_player_id`.
-
----
-
-## General Notes for JPA Generation
-
-1. Base package: `org.cttelsamicsterrassa.data.core.repository.jpa`.
-2. Each entity has its own lower-case subpackage (e.g., `match`, `game`, `setscore`) and is named after the table name in PascalCase with the literal `JPA` suffix. Entity IDs are `UUID` values supplied by the application and must be UUID v4; do not configure JPA ID generation.
-3. All current `@ManyToOne` fields use `FetchType.LAZY` and explicit `@JoinColumn` names matching
-   the implementation.
-4. The current entity model exposes no `@OneToMany` collections on `MatchJPA` or `GameJPA`.
-5. Entity identifiers are caller-provided UUID values; no JPA ID generation is configured.
-6. The `not_played` and `protested` columns on `GAME` and `MATCH_RECORD` use a database default of
-   `false` through their current column definitions.
-7. All string fields storing names use `@Column(length = 255)` unless otherwise specified.
-8. The match entity is persisted as `match_record`, avoiding the reserved-word risk of `MATCH`.
+`SET_SCORE` and `DOUBLES_PAIR` point to `GAME` from their own entities.
+Likewise, `MATCH_RECORD` and `GAME` do not expose inverse collection mappings.
+Team and player season rows preserve season-specific identity; canonical club
+and player links do not retarget historical match, lineup, game, or doubles
+pair foreign keys.

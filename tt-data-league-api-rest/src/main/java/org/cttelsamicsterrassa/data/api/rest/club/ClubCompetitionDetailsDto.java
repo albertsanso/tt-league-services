@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.api.rest.club;
 
-import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubCompetitionDetailsReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubMatchReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubCompetitionDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubMatchReadModel;
 
 import java.time.ZonedDateTime;
 import java.util.List;

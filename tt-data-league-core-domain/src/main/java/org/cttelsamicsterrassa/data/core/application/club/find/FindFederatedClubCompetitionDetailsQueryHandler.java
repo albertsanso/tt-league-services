@@ -2,6 +2,8 @@ package org.cttelsamicsterrassa.data.core.application.club.find;
 
 import org.albertsanso.commons.query.DomainQueryHandler;
 import org.albertsanso.commons.query.DomainQueryResponse;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubCompetitionDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubMatchReadModel;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
@@ -11,7 +13,6 @@ import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import javax.inject.Inject;
 import javax.inject.Named;

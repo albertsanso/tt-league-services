@@ -1,12 +1,11 @@
 package org.cttelsamicsterrassa.data.api.rest.club;
 
-import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubCompetitionReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubDetailsReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubPlayerReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.FederatedClubTeamReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubCompetitionReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubDetailsReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubFederatedReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubCompetitionReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubPlayerReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubTeamReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubCompetitionReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubDetailsReadModel;
 
 import java.util.List;
 import java.util.UUID;

@@ -1,4 +1,4 @@
-package org.cttelsamicsterrassa.data.core.application.club.find;
+package org.cttelsamicsterrassa.data.core.application.club.find.dto;
 
 import java.util.List;
 import java.util.Objects;

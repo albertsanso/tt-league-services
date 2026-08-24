@@ -1,8 +1,8 @@
 package org.cttelsamicsterrassa.data.api.rest.club;
 
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubFederatedReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubCompetitionReadModel;
-import org.cttelsamicsterrassa.data.core.application.club.find.ClubSearchReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubFederatedReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubCompetitionReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubSearchReadModel;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 
 import java.util.List;
