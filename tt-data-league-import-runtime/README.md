@@ -193,7 +193,8 @@ The runtime:
 
 1. Parses and validates the command-line arguments.
 2. Traverses the selected source, importing all seasons or the requested season.
-3. Runs requested club consolidation once after a successful traversal.
+3. Runs source-specific federated-club consolidation, then resolves the complete
+   source-scoped federated-club inventory to canonical clubs.
 4. Runs requested player consolidation after club consolidation.
 5. Logs the import and consolidation summaries.
 

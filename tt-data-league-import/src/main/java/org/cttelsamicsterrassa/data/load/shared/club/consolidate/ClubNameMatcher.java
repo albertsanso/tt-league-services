@@ -3,14 +3,16 @@ package org.cttelsamicsterrassa.data.load.shared.club.consolidate;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 public class ClubNameMatcher {
 
-    public static final double FUZZY_ACCEPTANCE_THRESHOLD = 0.88d;
+    public static final double FUZZY_ACCEPTANCE_THRESHOLD = 0.80d;
 
     private static final Set<String> STOP_WORDS = Set.of(
             "club", "tennis", "taula", "tenis", "mesa", "de", "del", "dels", "la", "les", "els", "ctt", "tt");
@@ -74,9 +76,56 @@ public class ClubNameMatcher {
         if (left.isEmpty() && right.isEmpty()) {
             return 1.0d;
         }
-        int distance = levenshteinDistance(left, right);
+        String leftSignature = significantTokens(left).stream().sorted().collect(Collectors.joining(" "));
+        String rightSignature = significantTokens(right).stream().sorted().collect(Collectors.joining(" "));
+        return 0.25d * levenshteinSimilarity(left, right)
+                + 0.375d * jaccardSimilarity(leftSignature, rightSignature)
+                + 0.375d * cosineSimilarity(leftSignature, rightSignature);
+    }
+
+    private static double levenshteinSimilarity(String left, String right) {
         int maxLength = Math.max(left.length(), right.length());
-        return maxLength == 0 ? 1.0d : 1.0d - ((double) distance / (double) maxLength);
+        return maxLength == 0 ? 1.0d : 1.0d - ((double) levenshteinDistance(left, right) / maxLength);
+    }
+
+    private static double jaccardSimilarity(String left, String right) {
+        Set<String> leftNgrams = characterNgrams(left);
+        Set<String> rightNgrams = characterNgrams(right);
+        Set<String> union = new HashSet<>(leftNgrams);
+        union.addAll(rightNgrams);
+        if (union.isEmpty()) {
+            return left.equals(right) ? 1.0d : 0.0d;
+        }
+        Set<String> intersection = new HashSet<>(leftNgrams);
+        intersection.retainAll(rightNgrams);
+        return (double) intersection.size() / union.size();
+    }
+
+    private static double cosineSimilarity(String left, String right) {
+        Map<String, Integer> leftNgrams = characterNgramCounts(left);
+        Map<String, Integer> rightNgrams = characterNgramCounts(right);
+        if (leftNgrams.isEmpty() || rightNgrams.isEmpty()) {
+            return left.equals(right) ? 1.0d : 0.0d;
+        }
+        int dot = leftNgrams.keySet().stream()
+                .mapToInt(ngram -> leftNgrams.get(ngram) * rightNgrams.getOrDefault(ngram, 0))
+                .sum();
+        double leftMagnitude = Math.sqrt(leftNgrams.values().stream().mapToInt(value -> value * value).sum());
+        double rightMagnitude = Math.sqrt(rightNgrams.values().stream().mapToInt(value -> value * value).sum());
+        return dot / (leftMagnitude * rightMagnitude);
+    }
+
+    private static Set<String> characterNgrams(String value) {
+        return characterNgramCounts(value).keySet();
+    }
+
+    private static Map<String, Integer> characterNgramCounts(String value) {
+        Map<String, Integer> counts = new HashMap<>();
+        String padded = "  " + value + "  ";
+        for (int i = 0; i <= padded.length() - 3; i++) {
+            counts.merge(padded.substring(i, i + 3), 1, Integer::sum);
+        }
+        return counts;
     }
 
     private static int levenshteinDistance(String left, String right) {

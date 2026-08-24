@@ -8,6 +8,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.process.InMemoryRepositories;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidationSummary;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.FederatedClubToCanonicalClubConsolidationProcessor;
 import org.cttelsamicsterrassa.data.load.shared.parse.team.TeamParser;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -96,9 +97,12 @@ class RfetmClubConsolidationProcessorTest {
                 """);
 
         ClubConsolidationSummary summary = new RfetmClubConsolidationProcessor(
-                clubs, teams, new TeamParser(), canonicalClubs).process(teamsFolder);
+                clubs, teams, new TeamParser()).process(teamsFolder);
+        ClubConsolidationSummary canonicalSummary =
+                new FederatedClubToCanonicalClubConsolidationProcessor(clubs, canonicalClubs)
+                        .consolidate(ImportSource.RFETM);
 
-        assertEquals(1, summary.canonicalLinksCreated());
+        assertEquals(1, canonicalSummary.canonicalLinksCreated());
         assertEquals(1, canonicalClubs.size());
         assertEquals(1, clubs.findAllFederatedClubsBySourceAndFragmentsInName(
                 ImportSource.RFETM, List.of("CLUB A")).size());

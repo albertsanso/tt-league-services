@@ -1,13 +1,10 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.load.shared.club.consolidate.CanonicalClubResolver;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidationSummary;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidatedClub;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
@@ -37,23 +34,13 @@ public class RfetmClubConsolidationProcessor {
     private final FederatedClubRepository federatedClubRepository;
     private final TeamRepository teamRepository;
     private final TeamParser teamParser;
-    private final CanonicalClubResolver canonicalClubResolver;
-
-    public RfetmClubConsolidationProcessor(FederatedClubRepository federatedClubRepository,
-                                           TeamRepository teamRepository,
-                                           TeamParser teamParser) {
-        this(federatedClubRepository, teamRepository, teamParser, null);
-    }
-
     @Autowired
     public RfetmClubConsolidationProcessor(FederatedClubRepository federatedClubRepository,
                                            TeamRepository teamRepository,
-                                           TeamParser teamParser,
-                                           ClubRepository canonicalClubRepository) {
+                                           TeamParser teamParser) {
         this.federatedClubRepository = federatedClubRepository;
         this.teamRepository = teamRepository;
         this.teamParser = teamParser;
-        this.canonicalClubResolver = canonicalClubRepository == null ? null : new CanonicalClubResolver(canonicalClubRepository);
     }
 
     public ClubConsolidationSummary process(Path teamsFolder) {
@@ -111,21 +98,6 @@ public class RfetmClubConsolidationProcessor {
                     }
                     clubCache.put(clubName, federatedClub);
                 }
-
-                /*
-                if (federatedClub != null && canonicalClubResolver != null && federatedClub.getClub().isEmpty()) {
-                    Club canonical = mode == ConsolidationMode.WRITE
-                            ? canonicalClubResolver.resolveOrCreate(clubName)
-                            : canonicalClubResolver.findOrCreateForReport(clubName);
-                    canonicalLinksCreated++;
-                    if (mode == ConsolidationMode.WRITE) {
-                        FederatedClub linked = federatedClub.withClub(canonical);
-                        federatedClubRepository.saveFederatedClub(linked);
-                        federatedClub = linked;
-                        clubCache.put(clubName, linked);
-                    }
-                }
-                 */
 
                 List<Team> matches = teamsByName.getOrDefault(teamName, List.of());
                 if (matches.isEmpty()) {

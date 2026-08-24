@@ -10,6 +10,7 @@ import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidationSummary;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.TeamToClubConsolidationProcessor;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.FederatedClubToCanonicalClubConsolidationProcessor;
 import org.cttelsamicsterrassa.data.load.shared.player.consolidate.PlayerConsolidationSummary;
 import org.cttelsamicsterrassa.data.load.shared.player.consolidate.PlayerSeasonConsolidationProcessor;
 import org.slf4j.Logger;
@@ -48,17 +49,20 @@ public class App implements CommandLineRunner {
     private final TeamToClubConsolidationProcessor teamToClubConsolidationProcessor;
     private final PlayerSeasonConsolidationProcessor playerSeasonConsolidationProcessor;
     private final RfetmClubConsolidationProcessor rfetmClubConsolidationProcessor;
+    private final FederatedClubToCanonicalClubConsolidationProcessor federatedClubToCanonicalClubConsolidationProcessor;
 
     @Autowired
     public App(RfetmActasDirectoryNavigator rfetmNavigator, BcnesaActasDirectoryNavigator bcnesaNavigator,
                FcttActasDirectoryNavigator fcttNavigator,
                TeamToClubConsolidationProcessor teamToClubConsolidationProcessor,
                PlayerSeasonConsolidationProcessor playerSeasonConsolidationProcessor,
-               RfetmClubConsolidationProcessor rfetmClubConsolidationProcessor) {
+               RfetmClubConsolidationProcessor rfetmClubConsolidationProcessor,
+               FederatedClubToCanonicalClubConsolidationProcessor federatedClubToCanonicalClubConsolidationProcessor) {
         this.sourceDefinitions = sourceDefinitions(rfetmNavigator, bcnesaNavigator, fcttNavigator);
         this.teamToClubConsolidationProcessor = teamToClubConsolidationProcessor;
         this.playerSeasonConsolidationProcessor = playerSeasonConsolidationProcessor;
         this.rfetmClubConsolidationProcessor = rfetmClubConsolidationProcessor;
+        this.federatedClubToCanonicalClubConsolidationProcessor = federatedClubToCanonicalClubConsolidationProcessor;
     }
 
     App(RfetmActasDirectoryNavigator rfetmNavigator, BcnesaActasDirectoryNavigator bcnesaNavigator,
@@ -67,6 +71,7 @@ public class App implements CommandLineRunner {
         this.teamToClubConsolidationProcessor = null;
         this.playerSeasonConsolidationProcessor = null;
         this.rfetmClubConsolidationProcessor = null;
+        this.federatedClubToCanonicalClubConsolidationProcessor = null;
     }
 
     public static void main(String[] args) {
@@ -149,12 +154,48 @@ public class App implements CommandLineRunner {
                         + ImportRuntimeCliContract.RFETM_TEAMS_FOLDER_ARGUMENT
                         + "<path> when consolidating RFETM clubs");
             }
-            return rfetmClubConsolidationProcessor.process(Path.of(arguments.rfetmTeamsFolder()), mode);
+            return combineClubSummaries(
+                    rfetmClubConsolidationProcessor.process(Path.of(arguments.rfetmTeamsFolder()), mode),
+                    runCanonicalClubConsolidation(source, mode));
         }
         if (teamToClubConsolidationProcessor == null) {
             throw new IllegalStateException("TeamToClubConsolidationProcessor is not configured");
         }
-        return teamToClubConsolidationProcessor.consolidate(source, mode);
+        return combineClubSummaries(
+                teamToClubConsolidationProcessor.consolidate(source, mode),
+                runCanonicalClubConsolidation(source, mode));
+    }
+
+    private ClubConsolidationSummary runCanonicalClubConsolidation(ImportSource source, ConsolidationMode mode) {
+        if (federatedClubToCanonicalClubConsolidationProcessor == null) {
+            throw new IllegalStateException(
+                    "FederatedClubToCanonicalClubConsolidationProcessor is not configured");
+        }
+        return federatedClubToCanonicalClubConsolidationProcessor.consolidate(source, mode);
+    }
+
+    private static ClubConsolidationSummary combineClubSummaries(
+            ClubConsolidationSummary sourceSummary,
+            ClubConsolidationSummary canonicalSummary) {
+        return new ClubConsolidationSummary(
+                sourceSummary.source(),
+                sourceSummary.mode(),
+                canonicalSummary.scannedRegistrations(),
+                sourceSummary.exactGroups() + canonicalSummary.exactGroups(),
+                sourceSummary.acceptedFuzzyGroups() + canonicalSummary.acceptedFuzzyGroups(),
+                sourceSummary.clubsCreated() + canonicalSummary.clubsCreated(),
+                canonicalSummary.canonicalLinksCreated(),
+                sourceSummary.registrationsReassociated(),
+                canonicalSummary.alreadyCorrectRegistrations(),
+                java.util.stream.Stream.concat(sourceSummary.consolidations().stream(),
+                                canonicalSummary.consolidations().stream())
+                        .toList(),
+                java.util.stream.Stream.concat(sourceSummary.warnings().stream(),
+                                canonicalSummary.warnings().stream())
+                        .toList(),
+                java.util.stream.Stream.concat(sourceSummary.errors().stream(),
+                                canonicalSummary.errors().stream())
+                        .toList());
     }
 
     @FunctionalInterface

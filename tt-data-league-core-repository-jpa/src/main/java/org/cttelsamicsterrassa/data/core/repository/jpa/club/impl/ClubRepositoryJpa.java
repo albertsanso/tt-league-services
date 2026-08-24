@@ -8,6 +8,8 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.ClubJPAToClu
 import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.ClubToClubJPAMapper;
 import org.springframework.stereotype.Component;
 
+import java.util.Comparator;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -27,6 +29,14 @@ public class ClubRepositoryJpa implements ClubRepository {
     @Override
     public Optional<Club> findClubByExactName(String name) {
         return clubRepositoryHelper.findByName(name).map(clubJPAToClubMapper);
+    }
+
+    @Override
+    public List<Club> findAllClubs() {
+        return clubRepositoryHelper.findAll().stream()
+                .map(clubJPAToClubMapper)
+                .sorted(Comparator.comparing(Club::getName).thenComparing(club -> club.getId().toString()))
+                .toList();
     }
 
     @Override

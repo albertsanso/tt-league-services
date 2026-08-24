@@ -53,6 +53,11 @@ class CanonicalClubResolverTest {
         }
 
         @Override
+        public java.util.List<Club> findAllClubs() {
+            return clubs.values().stream().toList();
+        }
+
+        @Override
         public void saveClub(Club club) {
             clubs.put(club.getId(), club);
         }

@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.core.domain.club.repository;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -12,6 +13,8 @@ public interface ClubRepository {
      * Finds a canonical club using the exact, case-sensitive display name.
      */
     Optional<Club> findClubByExactName(String name);
+
+    List<Club> findAllClubs();
 
     default Optional<Club> findClubByName(String name) {
         return findClubByExactName(name);
