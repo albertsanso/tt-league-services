@@ -1,6 +1,8 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -25,6 +27,12 @@ public class BcnesaTeamImportProcessor implements BcnesaMatchReportProcessor {
     @Inject
     public BcnesaTeamImportProcessor(TeamRepository teamRepository) {
         this.teamRepository = teamRepository;
+    }
+
+    public BcnesaTeamImportProcessor(TeamRepository teamRepository,
+                                     FederatedClubRepository ignoredFederatedClubRepository,
+                                     ClubRepository ignoredCanonicalClubRepository) {
+        this(teamRepository);
     }
 
     @Override

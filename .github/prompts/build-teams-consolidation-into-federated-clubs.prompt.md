@@ -1,32 +1,58 @@
 # Summary
 
-Build an import process that consolidates multiple Team entities into a single Federated Club entity. 
+Build an import process that consolidates Team entities into Federated Club entities. A
+consolidation group may contain multiple Teams, or exactly one Team when its name has
+one unambiguous match with one existing source-scoped FederatedClub.
 
 # Description
 
-The process should identify duplicate Team entities based on their names, apply a matching algorithm to determine if they refer to the same club, and create a new consolidated Club instance.
+The process should identify Team entities based on their names, apply a matching
+algorithm to determine which FederatedClub they refer to, and create or reuse one
+consolidated FederatedClub instance per accepted group.
 
 Team properties:
 - `name`: The name of the team, which may contain variations or abbreviations.
 - `season`: The season in which the team is active.
 - `source`: That means the federation identifier, which is used to scope the matching process and ensure that only teams from the same federation are considered for consolidation.
-- `federatedClub`: A reference to the new consolidated Club instance that will be created for duplicate Team entities.
+- `federatedClub`: A reference to the consolidated FederatedClub instance.
 
 Federated Club properties:
 - `name`: The canonical name of the club, derived from the consolidated Team names.
 - `source`: The federation identifier, which should match the source of the consolidated Team entities.
 
-All references from Team to the new Federated Club instance should be updated, while preserving the original Team entities and their UUIDs.
+All references from Team to the consolidated FederatedClub instance should be updated,
+while preserving the original Team entities and their UUIDs. A group can contain
+multiple Teams or exactly one Team: one Team name matching one FederatedClub name is
+a valid one-to-one consolidation. Reuse the existing FederatedClub when there is an
+unambiguous source-scoped match; otherwise create one FederatedClub for the accepted
+group.
 
 The process should handle edge cases, log its actions, and provide a summary report of the consolidation process.
 
 # Hard rules
-
+- Work with `Team` and `FederatedClub` entities only.
+- Don't consolidate `Club` entities from `FederatedClub` entities and just assign `null` to `Team.federatedClub` if no match is found.
+- Allow a one-member group: exactly one Team name and exactly one FederatedClub name
+  constitute a valid one-to-one consolidation within the same source.
+- A one-member group may reuse the existing source-scoped FederatedClub or create
+  one when no matching FederatedClub exists. Ambiguous matches must remain
+  unassociated and produce a warning.
+- Assign `null` to FederatedClub.club always.
 - When generating an implementation plan, use only the requirements and examples in this prompt as input.
 - Do not query Git, inspect the repository, consult repository history, or rely on previous implementations, plans, documentation, or code.
 - Build a clean new implementation of the Team-to-Federated Club consolidation process from the requirements defined here.
 - Ensure that the implementation is deterministic, producing the same results given the same input data.
 - Handle edge cases gracefully and provide meaningful logging and reporting.
+- Use the exact terms `Team-to-federatedClub` and `Team.withFederatedClub` in
+  the implementation plan. Do not use `Team-to-club` or `Team.withClub`.
+
+# Git prohibition
+
+Do not use Git under any circumstances. 
+Never invoke git, GitHub APIs, IDE Git features, or commands that read or modify Git metadata (including status, log, 
+diff, show, branch, checkout, reset, commit, and revert). 
+Do not delegate Git-related work to agents. 
+Work exclusively from the current filesystem contents and run only non-Git validation commands.
 
 # Execution workflow
 
@@ -34,7 +60,9 @@ This process must be executed just after the Traversal import process, and after
 1. **Data Collection**: Gather all Team entities from the import process, including their names, seasons, and sources.
 2. **Normalization**: Normalize the Team names by applying case insensitivity, whitespace normalization, and removing common abbreviations and special characters.
 3. **Matching**: Apply the matching algorithm to identify duplicate Team entities that refer to the same Federated Club.
-4. **Consolidation**: Create a new Federated Club instance for each group of duplicate Team entities, using the canonical name derived from the normalized Team names.
+4. **Consolidation**: For each accepted group, including a one-member group, reuse
+   the one unambiguous existing source-scoped FederatedClub when available;
+   otherwise create one using the canonical name derived from the Team names.
 5. **Updating References**: Update the `federatedClub` reference in each Team entity to point to the new Federated Club instance, while preserving the original Team entities and their UUIDs.
 6. **Logging and Reporting**: Log the actions taken during the consolidation process, including any warnings for ambiguous or unknown variants. Generate a summary report of the consolidation process, including the number of consolidated clubs and any issues encountered.
 7. **Cleanup**: Perform any necessary cleanup actions, such as removing temporary data structures or releasing resources used during the consolidation process.
@@ -52,15 +80,25 @@ The matching algorithm should consider the following factors to determine if two
 
 The processor must consume source-scoped `Team.name` values and choose
 one deterministic canonical `Club.name`. Preserve every Team row and
-UUID, update associations only through `Team.withClub`, and never
+UUID, update associations only through `Team.withFederatedClub`, and never
 retarget MATCH or LINEUP references.
+
+An exact one-to-one match between one Team.name and one existing
+FederatedClub.name in the same source is an accepted consolidation, even when
+the group contains only that single Team. A single Team with no existing match
+may create one FederatedClub using its canonical name. Existing FederatedClub
+records must always be looked up with the source included. Multiple possible
+matches are ambiguous and must not be consolidated automatically.
 
 Use explicit source-aware rules. Standalone terminal `A`, `B`, and `C` are
 team qualifiers. Category/team N-gram suffixes such as `Sen A/B` and
 `Vet A/B/C` must be removed as a complete terminal sequence. Support only
 reviewed aliases such as `ST` to `SANT`, optional particles, venue suffixes,
-and sponsor prefixes. Unknown or ambiguous variants must produce warnings,
-not automatic merges. Preserve valid UTF-8 accents in canonical display names.
+and sponsor prefixes. When several Team names have different prefixes but share
+one meaningful common term, that common term may define the group canonical name
+using the `TT {common term}` convention. Unknown or ambiguous variants must
+produce warnings, not automatic merges. Preserve valid UTF-8 accents in
+canonical display names.
 
 Matching must remain source-scoped and conservative: use rule-derived keys,
 mutual-best fuzzy matching with a named threshold, and non-transitive
@@ -263,3 +301,27 @@ Club "CLUB TENIS DE MESA VIGO", for Team "CLUB TENIS DE MESA VIGO"
 Club "CLUB TENIS DE MESA VICAR", for Team "CLUB TENIS DE MESA VICAR"
 Club "CLUB TENIS DE MESA ALCAZAR", for Team "CLUB TENIS DE MESA ALCAZAR"
 Club "CLUB TENIS DE MESA BASAURI", for Team "CLUB TENIS DE MESA BASAURI"
+
+**Example 17**
+
+Input:
+[
+"BADAGRES BADALONA",
+"DECATLHON BADALONA",
+"EUROCLIMA BADALONA",
+"FORN BERTRAN BADALONA",
+"PROTEC BADALONA",
+"TITUS BADALONA",
+"TURRIS BADALONA"
+]
+
+Output:
+[
+"TT BADALONA"
+]
+
+Comments: `BADALONA` is the meaningful common term shared by all Team names.
+Treat the differing prefixes as sponsors or team-specific qualifiers and create
+one FederatedClub named by concatenating the literal `TT` with the common term:
+`TT BADALONA`. This common-term rule is valid only when the shared term is
+unambiguous within the source-scoped inventory.

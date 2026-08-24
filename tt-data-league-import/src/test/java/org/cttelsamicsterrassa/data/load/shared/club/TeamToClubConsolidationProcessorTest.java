@@ -47,6 +47,33 @@ class TeamToClubConsolidationProcessorTest {
     }
 
     @Test
+    void consolidatesTeamsWithOneCommonTermIntoTtClub() {
+        String[] names = {
+                "BADAGRES BADALONA",
+                "DECATLHON BADALONA",
+                "EUROCLIMA BADALONA",
+                "FORN BERTRAN BADALONA",
+                "PROTEC BADALONA",
+                "TITUS BADALONA",
+                "TURRIS BADALONA"
+        };
+        saveNames(ImportSource.FCTT, names);
+
+        ClubConsolidationSummary summary = processor.consolidate(ImportSource.FCTT);
+
+        assertEquals(1, summary.consolidations().size());
+        assertEquals("TT BADALONA", summary.consolidations().getFirst().canonicalDisplayName());
+        assertEquals(1, summary.clubsCreated());
+        assertEquals(names.length, summary.registrationsReassociated());
+        assertEquals(1, teams.findAllTeamsBySource(ImportSource.FCTT).stream()
+                .map(team -> team.getFederatedClub().orElseThrow().getId())
+                .distinct()
+                .count());
+        assertEquals("TT BADALONA", clubs.findFederatedClubBySourceAndName(
+                ImportSource.FCTT, "TT BADALONA").orElseThrow().getName());
+    }
+
+    @Test
     void reassociatesAPermittedTypoAndWarnsOnRejectedFuzzyCases() {
         Team typoLeft = saveSeason(ImportSource.BCNESA, "FALCONS DE SABADELL", Season.of(2020), null);
         Team typoRight = saveSeason(ImportSource.BCNESA, "FALCONS DE SABDELL", Season.of(2021), null);
@@ -78,7 +105,8 @@ class TeamToClubConsolidationProcessorTest {
         assertEquals(ImportSource.FCTT, fctt.getSource());
         assertEquals(ImportSource.BCNESA, bcnesa.getSource());
         assertTrue(!fctt.getId().equals(bcnesa.getId()));
-        assertEquals(fctt.getClub().orElseThrow().getId(), bcnesa.getClub().orElseThrow().getId());
+        assertTrue(fctt.getClub().isEmpty());
+        assertTrue(bcnesa.getClub().isEmpty());
     }
 
     @Test

@@ -7,6 +7,8 @@ final class ImportRuntimeCliContract {
     static final String ACTAS_FOLDER_ARGUMENT = "--actas-folder=";
     static final String RFETM_TEAMS_FOLDER_ARGUMENT = "--rfetm-teams-folder=";
     static final String SEASON_ARGUMENT = "--season=";
+    static final String CONSOLIDATE_CLUBS_ARGUMENT = "--consolidate-clubs";
+    static final String CONSOLIDATE_PLAYERS_ARGUMENT = "--consolidate-players";
 
     static final String SOURCE_RFETM = "rfetm";
     static final String SOURCE_BCNESA = "bcnesa";
@@ -24,8 +26,10 @@ final class ImportRuntimeCliContract {
     static String usage() {
         return SOURCE_ARGUMENT + String.join("|", SUPPORTED_SOURCES)
                 + " " + ACTAS_FOLDER_ARGUMENT + "<path>"
-                + " " + RFETM_TEAMS_FOLDER_ARGUMENT + "<path>"
-                + " [" + SEASON_ARGUMENT + "<YYYY-YYYY>]";
+                + " [" + RFETM_TEAMS_FOLDER_ARGUMENT + "<path>]"
+                + " [" + SEASON_ARGUMENT + "<YYYY-YYYY>]"
+                + " [" + CONSOLIDATE_CLUBS_ARGUMENT + "[=write|report]]"
+                + " [" + CONSOLIDATE_PLAYERS_ARGUMENT + "[=write|report]]";
     }
 
     static String supportedSourcesForMessage() {

@@ -1,5 +1,7 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
+
 import java.util.Locale;
 import java.util.Optional;
 
@@ -10,7 +12,11 @@ public record ImportRuntimeArguments(
         String source,
         String actasFolder,
         String rfetmTeamsFolder,
-        String season
+        String season,
+        boolean consolidateClubs,
+        ConsolidationMode consolidationMode,
+        boolean consolidatePlayers,
+        ConsolidationMode playerConsolidationMode
 ) {
     public static ImportRuntimeArguments parse(String... args) {
         String source = valueOf(args, ImportRuntimeCliContract.SOURCE_ARGUMENT);
@@ -18,15 +24,47 @@ public record ImportRuntimeArguments(
                 ? ImportRuntimeCliContract.DEFAULT_SOURCE
                 : source.toLowerCase(Locale.ROOT);
 
+        ConsolidationSelection clubs = parseConsolidationSelection(args, ImportRuntimeCliContract.CONSOLIDATE_CLUBS_ARGUMENT);
+        ConsolidationSelection players =
+                parseConsolidationSelection(args, ImportRuntimeCliContract.CONSOLIDATE_PLAYERS_ARGUMENT);
+
         return new ImportRuntimeArguments(
                 source,
                 valueOf(args, ImportRuntimeCliContract.ACTAS_FOLDER_ARGUMENT),
                 valueOf(args, ImportRuntimeCliContract.RFETM_TEAMS_FOLDER_ARGUMENT),
-                valueOf(args, ImportRuntimeCliContract.SEASON_ARGUMENT));
+                valueOf(args, ImportRuntimeCliContract.SEASON_ARGUMENT),
+                clubs.enabled(),
+                clubs.mode(),
+                players.enabled(),
+                players.mode());
     }
 
     public Optional<String> optionalSeason() {
         return Optional.ofNullable(season);
+    }
+
+    private static ConsolidationSelection parseConsolidationSelection(String[] args, String optionName) {
+        boolean enabled = false;
+        ConsolidationMode mode = ConsolidationMode.WRITE;
+        for (String arg : args) {
+            if (arg.equals(optionName)) {
+                enabled = true;
+                mode = ConsolidationMode.WRITE;
+                continue;
+            }
+            String withEquals = optionName + "=";
+            if (arg.startsWith(withEquals)) {
+                enabled = true;
+                String rawValue = arg.substring(withEquals.length()).trim().toLowerCase(Locale.ROOT);
+                mode = switch (rawValue) {
+                    case "", "true", "write" -> ConsolidationMode.WRITE;
+                    case "report" -> ConsolidationMode.REPORT;
+                    default -> throw new IllegalArgumentException(
+                            "Unsupported consolidation mode: " + optionName + "=" + rawValue);
+                };
+            }
+        }
+        return new ConsolidationSelection(enabled, mode);
     }
 
     private static String valueOf(String[] args, String prefix) {
@@ -37,5 +75,8 @@ public record ImportRuntimeArguments(
             }
         }
         return null;
+    }
+
+    private record ConsolidationSelection(boolean enabled, ConsolidationMode mode) {
     }
 }

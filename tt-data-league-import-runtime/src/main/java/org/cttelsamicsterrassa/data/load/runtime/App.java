@@ -1,9 +1,17 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubConsolidationProcessor;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.fctt.traverse.FcttActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.rfetm.traverse.RfetmActasDirectoryNavigator;
+import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaTraversalSummary;
+import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidationSummary;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.TeamToClubConsolidationProcessor;
+import org.cttelsamicsterrassa.data.load.shared.player.consolidate.PlayerConsolidationSummary;
+import org.cttelsamicsterrassa.data.load.shared.player.consolidate.PlayerSeasonConsolidationProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,26 +45,28 @@ public class App implements CommandLineRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
 
     private final Map<String, SourceDefinition> sourceDefinitions;
+    private final TeamToClubConsolidationProcessor teamToClubConsolidationProcessor;
+    private final PlayerSeasonConsolidationProcessor playerSeasonConsolidationProcessor;
+    private final RfetmClubConsolidationProcessor rfetmClubConsolidationProcessor;
 
     @Autowired
     public App(RfetmActasDirectoryNavigator rfetmNavigator, BcnesaActasDirectoryNavigator bcnesaNavigator,
-               FcttActasDirectoryNavigator fcttNavigator) {
-        this.sourceDefinitions = Map.of(
-                ImportRuntimeCliContract.SOURCE_RFETM,
-                new SourceDefinition(ImportSource.RFETM,
-                        (path, season) -> season == null
-                                ? rfetmNavigator.traverse(path)
-                                : rfetmNavigator.traverseSeason(path, season)),
-                ImportRuntimeCliContract.SOURCE_BCNESA,
-                new SourceDefinition(ImportSource.BCNESA,
-                        (path, season) -> season == null
-                                ? bcnesaNavigator.traverse(path)
-                                : bcnesaNavigator.traverseSeason(path, season)),
-                ImportRuntimeCliContract.SOURCE_FCTT,
-                new SourceDefinition(ImportSource.FCTT,
-                        (path, season) -> season == null
-                                ? fcttNavigator.traverse(path)
-                                : fcttNavigator.traverseSeason(path, season)));
+               FcttActasDirectoryNavigator fcttNavigator,
+               TeamToClubConsolidationProcessor teamToClubConsolidationProcessor,
+               PlayerSeasonConsolidationProcessor playerSeasonConsolidationProcessor,
+               RfetmClubConsolidationProcessor rfetmClubConsolidationProcessor) {
+        this.sourceDefinitions = sourceDefinitions(rfetmNavigator, bcnesaNavigator, fcttNavigator);
+        this.teamToClubConsolidationProcessor = teamToClubConsolidationProcessor;
+        this.playerSeasonConsolidationProcessor = playerSeasonConsolidationProcessor;
+        this.rfetmClubConsolidationProcessor = rfetmClubConsolidationProcessor;
+    }
+
+    App(RfetmActasDirectoryNavigator rfetmNavigator, BcnesaActasDirectoryNavigator bcnesaNavigator,
+        FcttActasDirectoryNavigator fcttNavigator) {
+        this.sourceDefinitions = sourceDefinitions(rfetmNavigator, bcnesaNavigator, fcttNavigator);
+        this.teamToClubConsolidationProcessor = null;
+        this.playerSeasonConsolidationProcessor = null;
+        this.rfetmClubConsolidationProcessor = null;
     }
 
     public static void main(String[] args) {
@@ -79,6 +89,7 @@ public class App implements CommandLineRunner {
         String season = arguments.optionalSeason().orElse(null);
         Path actasFolderPath = Path.of(actasFolder);
         ImportSource importSource = traverseSelectedSource(source, actasFolderPath, season);
+        runRequestedConsolidations(importSource, arguments);
 
     }
 
@@ -94,8 +105,56 @@ public class App implements CommandLineRunner {
         }
 
         Object summary = definition.traversal().traverse(actasFolderPath, season);
+        ensureSuccessfulTraversal(summary);
         LOGGER.info("{} import finished: {}", definition.source().name(), summary);
         return definition.source();
+    }
+
+    private static void ensureSuccessfulTraversal(Object summary) {
+        long processorFailures = switch (summary) {
+            case TraversalSummary traversalSummary -> traversalSummary.processorFailures();
+            case BcnesaTraversalSummary bcnesaSummary -> bcnesaSummary.processorFailures();
+            default -> 0;
+        };
+        if (processorFailures > 0) {
+            throw new IllegalStateException(
+                    "Import traversal completed with " + processorFailures + " processor failures");
+        }
+    }
+
+    private void runRequestedConsolidations(ImportSource source, ImportRuntimeArguments arguments) {
+        if (arguments.consolidateClubs()) {
+            ClubConsolidationSummary clubSummary = runClubConsolidation(source, arguments);
+            LOGGER.info("Club consolidation finished for {}: {}", source, clubSummary);
+        }
+        if (arguments.consolidatePlayers()) {
+            if (playerSeasonConsolidationProcessor == null) {
+                throw new IllegalStateException("PlayerSeasonConsolidationProcessor is not configured");
+            }
+            PlayerConsolidationSummary summary = playerSeasonConsolidationProcessor.consolidate(
+                    source,
+                    arguments.playerConsolidationMode());
+            LOGGER.info("Player consolidation finished for {}: {}", source, summary);
+        }
+    }
+
+    private ClubConsolidationSummary runClubConsolidation(ImportSource source, ImportRuntimeArguments arguments) {
+        ConsolidationMode mode = arguments.consolidationMode();
+        if (source == ImportSource.RFETM) {
+            if (rfetmClubConsolidationProcessor == null) {
+                throw new IllegalStateException("RfetmClubConsolidationProcessor is not configured");
+            }
+            if (arguments.rfetmTeamsFolder() == null) {
+                throw new IllegalArgumentException("Missing required argument "
+                        + ImportRuntimeCliContract.RFETM_TEAMS_FOLDER_ARGUMENT
+                        + "<path> when consolidating RFETM clubs");
+            }
+            return rfetmClubConsolidationProcessor.process(Path.of(arguments.rfetmTeamsFolder()), mode);
+        }
+        if (teamToClubConsolidationProcessor == null) {
+            throw new IllegalStateException("TeamToClubConsolidationProcessor is not configured");
+        }
+        return teamToClubConsolidationProcessor.consolidate(source, mode);
     }
 
     @FunctionalInterface
@@ -104,5 +163,27 @@ public class App implements CommandLineRunner {
     }
 
     private record SourceDefinition(ImportSource source, SourceTraversal traversal) {
+    }
+
+    private static Map<String, SourceDefinition> sourceDefinitions(
+            RfetmActasDirectoryNavigator rfetmNavigator,
+            BcnesaActasDirectoryNavigator bcnesaNavigator,
+            FcttActasDirectoryNavigator fcttNavigator) {
+        return Map.of(
+                ImportRuntimeCliContract.SOURCE_RFETM,
+                new SourceDefinition(ImportSource.RFETM,
+                        (path, season) -> season == null
+                                ? rfetmNavigator.traverse(path)
+                                : rfetmNavigator.traverseSeason(path, season)),
+                ImportRuntimeCliContract.SOURCE_BCNESA,
+                new SourceDefinition(ImportSource.BCNESA,
+                        (path, season) -> season == null
+                                ? bcnesaNavigator.traverse(path)
+                                : bcnesaNavigator.traverseSeason(path, season)),
+                ImportRuntimeCliContract.SOURCE_FCTT,
+                new SourceDefinition(ImportSource.FCTT,
+                        (path, season) -> season == null
+                                ? fcttNavigator.traverse(path)
+                                : fcttNavigator.traverseSeason(path, season)));
     }
 }
