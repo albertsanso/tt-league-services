@@ -317,10 +317,10 @@ class ImportSchemaTest {
         playerSeasonRepository.savePlayerSeason(assigned);
 
         PlayerSeason reloadedUnassigned = playerSeasonRepository
-                .findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, "unassigned", SEASON)
+                .findPlayerSeasonBySourceLicenseAndSeason(ImportSource.RFETM, "unassigned", SEASON)
                 .orElseThrow();
         PlayerSeason reloadedAssigned = playerSeasonRepository
-                .findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, "assigned", SEASON)
+                .findPlayerSeasonBySourceLicenseAndSeason(ImportSource.RFETM, "assigned", SEASON)
                 .orElseThrow();
 
         assertTrue(reloadedUnassigned.getFederatedPlayer().isEmpty());

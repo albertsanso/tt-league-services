@@ -65,8 +65,8 @@ class ImportProcessorsTest {
         doublesPairs = new InMemoryRepositories.DoublesPairs();
 
         processors = List.of(
-                new RfetmTeamImportProcessor(teams, clubs, canonicalClubs),
-                new RfetmPlayerImportProcessor(players, playerSeasons, canonicalPlayers),
+                new RfetmTeamImportProcessor(teams),
+                new RfetmPlayerImportProcessor(playerSeasons),
                 new RfetmMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         setScores, doublesPairs));
     }
@@ -91,7 +91,7 @@ class ImportProcessorsTest {
         assertEquals(6, canonicalPlayers.byId.size());
         assertTrue(players.byId.values().stream().allMatch(player -> player.getPlayer().isPresent()));
         assertEquals(6, playerSeasons.byId.size());
-        assertTrue(playerSeasons.findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, "29194", Season.of(2023)).isPresent());
+        assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.RFETM, "29194", Season.of(2023)).isPresent());
     }
 
     @Test
@@ -168,7 +168,7 @@ class ImportProcessorsTest {
 
         run(doublesContext(acta));
 
-        assertTrue(playerSeasons.findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, "38106", Season.of(2023))
+        assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.RFETM, "38106", Season.of(2023))
                 .isPresent());
         assertTrue(doublesPairs.saved.stream().anyMatch(pair -> "38106".equals(pair.getPlayer().getLicense())));
     }

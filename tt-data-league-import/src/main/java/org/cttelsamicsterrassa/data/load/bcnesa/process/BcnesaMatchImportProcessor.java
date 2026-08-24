@@ -35,30 +35,6 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
-/**
- * Stores the match aggregate of one BCNESA fixture: the match itself, its lineups, its games and the
- * members of each doubles pair.
- *
- * <p>Runs after {@link BcnesaTeamImportProcessor} and {@link BcnesaPlayerImportProcessor}, whose rows
- * it looks up rather than creates. It is idempotent through the match natural key: if the fixture is
- * already stored, the report is left alone, so re-running a season neither duplicates nor rewrites.</p>
- *
- * <h2>Departures from the RFETM importer</h2>
- * <ul>
- *   <li>No {@code SET_SCORE} rows: {@code sets} is empty in every game across the whole BCNESA export,
- *       so {@link ActaGame#sets()} never carries anything to store.</li>
- *   <li>The winner is always decided from the fixture's own games score, never from a payload field:
- *       {@code resultado_final} is a file-level aggregate over every fixture in the matchday, not this
- *       fixture's result, so it is never consulted here.</li>
- *   <li>The lineup is built from this fixture's own singles games rather than from
- *       {@code alineaciones}, which only covers the file's first fixture. See
- *       {@link BcnesaPlayerImportProcessor}.</li>
- *   <li>Every doubles pair in the export names the same player twice ({@code jugadores} is a
- *       two-element list holding one name repeated) rather than two distinct players, so only one
- *       {@code DOUBLES_PAIR} row is ever produced per side - the export never captured the second
- *       player. This is a known gap in the source data, not a bug in the import.</li>
- * </ul>
- */
 @Component
 @Order(BcnesaMatchImportProcessor.ORDER)
 public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
@@ -212,7 +188,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             if (participant == null || participant.letter() == null || participant.license() == null) {
                 continue;
             }
-            Optional<PlayerSeason> playerSeason = playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(
+            Optional<PlayerSeason> playerSeason = playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(
                     ImportSource.BCNESA, participant.license(), season);
             if (playerSeason.isEmpty()) {
                 LOGGER.warn("No player registered for licence {} in {}; lineup letter {} left out",
@@ -335,7 +311,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         if (player != null && participant.license().equals(player.getLicense())) {
             return player;
         }
-        return playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(ImportSource.BCNESA, participant.license(), season)
+        return playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.BCNESA, participant.license(), season)
                 .orElse(null);
     }
 

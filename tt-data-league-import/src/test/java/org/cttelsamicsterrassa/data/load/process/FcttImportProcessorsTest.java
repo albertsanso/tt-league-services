@@ -56,8 +56,8 @@ class FcttImportProcessorsTest {
         setScores = new InMemoryRepositories.SetScores();
         doublesPairs = new InMemoryRepositories.DoublesPairs();
         processors = List.of(
-                new FcttTeamImportProcessor(teams, clubs, canonicalClubs),
-                new FcttPlayerImportProcessor(players, playerSeasons, canonicalPlayers),
+                new FcttTeamImportProcessor(teams),
+                new FcttPlayerImportProcessor(playerSeasons),
                 new FcttMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         setScores, doublesPairs));
     }
@@ -74,7 +74,7 @@ class FcttImportProcessorsTest {
         assertTrue(teams.findTeamByFederatedClubAndSeason(home.getId(), Season.of(2023)).isPresent());
         assertEquals(6, players.byId.size());
         assertEquals(6, canonicalPlayers.byId.size());
-        assertTrue(playerSeasons.findPlayerSeasonByLicenseAndSeason(ImportSource.FCTT, "29194", Season.of(2023))
+        assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.FCTT, "29194", Season.of(2023))
                 .isPresent());
     }
 

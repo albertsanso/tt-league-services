@@ -282,7 +282,7 @@ public final class InMemoryRepositories {
         }
 
         @Override
-        public Optional<PlayerSeason> findPlayerSeasonByLicenseAndSeason(ImportSource source, String license, Season season) {
+        public Optional<PlayerSeason> findPlayerSeasonBySourceLicenseAndSeason(ImportSource source, String license, Season season) {
             return byId.values().stream()
                     .filter(ps -> Objects.equals(ps.getSource(), source)
                             && Objects.equals(ps.getLicense(), license)

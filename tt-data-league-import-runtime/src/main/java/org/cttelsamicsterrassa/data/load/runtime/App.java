@@ -4,8 +4,6 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.fctt.traverse.FcttActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.rfetm.traverse.RfetmActasDirectoryNavigator;
-import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidationSummary;
-import org.cttelsamicsterrassa.data.load.shared.player.consolidate.PlayerConsolidationSummary;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,26 +36,11 @@ public class App implements CommandLineRunner {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
 
-    private final ClubConsolidationRunner clubConsolidationRunner;
-    private final PlayerConsolidationRunner playerConsolidationRunner;
     private final Map<String, SourceDefinition> sourceDefinitions;
-    private final RfetmClubConsolidationRunner rfetmClubConsolidationRunner;
-
-    public App(RfetmActasDirectoryNavigator rfetmNavigator, BcnesaActasDirectoryNavigator bcnesaNavigator,
-               FcttActasDirectoryNavigator fcttNavigator, ClubConsolidationRunner clubConsolidationRunner,
-               PlayerConsolidationRunner playerConsolidationRunner) {
-        this(rfetmNavigator, bcnesaNavigator, fcttNavigator, clubConsolidationRunner,
-                playerConsolidationRunner, null);
-    }
 
     @Autowired
     public App(RfetmActasDirectoryNavigator rfetmNavigator, BcnesaActasDirectoryNavigator bcnesaNavigator,
-               FcttActasDirectoryNavigator fcttNavigator, ClubConsolidationRunner clubConsolidationRunner,
-               PlayerConsolidationRunner playerConsolidationRunner,
-               RfetmClubConsolidationRunner rfetmClubConsolidationRunner) {
-        this.clubConsolidationRunner = clubConsolidationRunner;
-        this.playerConsolidationRunner = playerConsolidationRunner;
-        this.rfetmClubConsolidationRunner = rfetmClubConsolidationRunner;
+               FcttActasDirectoryNavigator fcttNavigator) {
         this.sourceDefinitions = Map.of(
                 ImportRuntimeCliContract.SOURCE_RFETM,
                 new SourceDefinition(ImportSource.RFETM,
@@ -97,21 +80,6 @@ public class App implements CommandLineRunner {
         Path actasFolderPath = Path.of(actasFolder);
         ImportSource importSource = traverseSelectedSource(source, actasFolderPath, season);
 
-        if (arguments.consolidateClubs()) {
-            ClubConsolidationSummary consolidation = clubConsolidationRunner.run(importSource, arguments.consolidationMode());
-            LOGGER.info("Club consolidation finished: {}", consolidation);
-        }
-        if (arguments.consolidatePlayers()) {
-            PlayerConsolidationSummary consolidation = playerConsolidationRunner.run(importSource, arguments.playerConsolidationMode());
-            LOGGER.info("Player consolidation finished: {}", consolidation);
-        }
-        if (arguments.consolidateRfetmClubs()) {
-            String rfetmTeamsFolder = arguments.rfetmTeamsFolder();
-            Path teamsFolderPath = Path.of(rfetmTeamsFolder);
-            ClubConsolidationSummary consolidation = rfetmClubConsolidationRunner.run(
-                    teamsFolderPath, season, arguments.rfetmClubConsolidationMode());
-            LOGGER.info("RFETM club consolidation finished: {}", consolidation);
-        }
     }
 
     private ImportSource traverseSelectedSource(String source, Path actasFolderPath, String season)

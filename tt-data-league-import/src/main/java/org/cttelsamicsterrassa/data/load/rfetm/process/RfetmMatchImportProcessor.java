@@ -38,25 +38,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Stores the match aggregate of a report: the match itself, its lineups, its games, the set scores
- * of each game and the members of each doubles pair.
- *
- * <p>Runs after {@link RfetmTeamImportProcessor} and {@link RfetmPlayerImportProcessor}, whose rows it looks
- * up rather than creates. It is idempotent through the match natural key: if the match is already
- * stored, the report is left alone, so re-running a season neither duplicates nor rewrites.</p>
- *
- * <h2>Identity decisions</h2>
- * <ul>
- *   <li>Competition comes from the directory path, not from the payload's generic
- *       {@code competicion} field.</li>
- *   <li>Singles players are resolved through the lineup letter recorded on the game.</li>
- *   <li>Doubles players are resolved by exact name and licence against this match's own lineup.
- *       There is deliberately no fallback to a global name search: across tens of thousands of
- *       matches a name collision is close to certain, and a wrong licence is worse than a missing
- *       row. Unresolved players are logged and the pair member is left out.</li>
- * </ul>
- */
 @Component
 @Order(RfetmMatchImportProcessor.ORDER)
 public class RfetmMatchImportProcessor implements MatchContextProcessor {
@@ -238,7 +219,7 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
                 return;
             }
             Optional<PlayerSeason> playerSeason =
-                    playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, player.license(), season);
+                    playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.RFETM, player.license(), season);
             if (playerSeason.isEmpty()) {
                 LOGGER.warn("No player registered for licence {} in {}; lineup letter {} left out",
                         player.license(), season, letter);
@@ -372,7 +353,7 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
         if (player != null && participant.license().equals(player.getLicense())) {
             return player;
         }
-        return playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(ImportSource.RFETM, participant.license(), season)
+        return playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.RFETM, participant.license(), season)
                 .orElse(null);
     }
 

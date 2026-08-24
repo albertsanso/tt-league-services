@@ -37,13 +37,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/**
- * Stores an FCTT report's match, lineups, games, set scores, and doubles-pair members.
- *
- * <p>The match natural key comes from the directory competition and group, the payload round, and
- * the two source-scoped teams. An existing match is deliberately left unchanged so a
- * traversal can be safely re-run.</p>
- */
 @Component
 @Order(FcttMatchImportProcessor.ORDER)
 public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
@@ -196,7 +189,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
                 LOGGER.warn("FCTT lineup letter {} has no licence in {}", letter, context.matchReportFile());
                 return;
             }
-            playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(ImportSource.FCTT, player.license(), season)
+            playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.FCTT, player.license(), season)
                     .ifPresentOrElse(playerSeason -> {
                         byLetter.put(letter, playerSeason);
                         rankingByLetter.put(letter, player.ranking());
@@ -355,7 +348,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         if (inLineup != null && player.license().equals(inLineup.getLicense())) {
             return inLineup;
         }
-        return playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(ImportSource.FCTT, player.license(), season)
+        return playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.FCTT, player.license(), season)
                 .orElse(null);
     }
 

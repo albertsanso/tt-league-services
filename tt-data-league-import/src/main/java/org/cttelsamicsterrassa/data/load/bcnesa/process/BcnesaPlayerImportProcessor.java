@@ -1,36 +1,19 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
-import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
-import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
-import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
-import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParticipant;
-import org.cttelsamicsterrassa.data.load.shared.player.CanonicalPlayerResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
+
 import javax.inject.Inject;
 
-/**
- * Stores the players named in a BCNESA fixture's singles games, and their registration for that
- * season.
- *
- * <p>Unlike the RFETM import, this reads players from {@code partidos} rather than
- * {@code alineaciones}: a BCNESA file's {@code alineaciones} only ever covers the file's first
- * fixture (six entries, always), while every singles game in every fixture carries its own
- * participant licence and name. Reading from the games therefore covers every fixture, not just the
- * first.</p>
- *
- * <p>Doubles participants ({@code partidos[].tipo == "dobles"}) are imported too, allowing the
- * match processor to retain a pair member who does not appear in a singles game.</p>
- */
 @Component
 @Order(BcnesaPlayerImportProcessor.ORDER)
 public class BcnesaPlayerImportProcessor implements BcnesaMatchReportProcessor {
@@ -40,24 +23,11 @@ public class BcnesaPlayerImportProcessor implements BcnesaMatchReportProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BcnesaPlayerImportProcessor.class);
 
-    private final FederatedPlayerRepository playerRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
-    private final CanonicalPlayerResolver canonicalPlayerResolver;
-
-    public BcnesaPlayerImportProcessor(FederatedPlayerRepository playerRepository,
-                                       PlayerSeasonRepository playerSeasonRepository) {
-        this(playerRepository, playerSeasonRepository, null);
-    }
 
     @Inject
-    public BcnesaPlayerImportProcessor(FederatedPlayerRepository playerRepository,
-                                       PlayerSeasonRepository playerSeasonRepository,
-                                       PlayerRepository canonicalPlayerRepository) {
-        this.playerRepository = playerRepository;
+    public BcnesaPlayerImportProcessor(PlayerSeasonRepository playerSeasonRepository) {
         this.playerSeasonRepository = playerSeasonRepository;
-        this.canonicalPlayerResolver = canonicalPlayerRepository == null
-                ? null
-                : new CanonicalPlayerResolver(canonicalPlayerRepository);
     }
 
     @Override
@@ -78,7 +48,7 @@ public class BcnesaPlayerImportProcessor implements BcnesaMatchReportProcessor {
         if (participant == null) {
             return;
         }
-        importPlayer(participant.name(), participant.license(), season, context);
+        importPlayerSeason(participant.name(), participant.license(), season, context);
     }
 
     private void importDoublesParticipants(ActaParticipant participant,
@@ -89,40 +59,25 @@ public class BcnesaPlayerImportProcessor implements BcnesaMatchReportProcessor {
         }
         for (ActaLineupPlayer player : participant.doublesPlayers()) {
             if (player != null) {
-                importPlayer(player.name(), player.license(), season, context);
+                importPlayerSeason(player.name(), player.license(), season, context);
             }
         }
     }
 
-    private void importPlayer(String name, String license, Season season, BcnesaMatchReportContext context) {
+    private void importPlayerSeason(String name, String license, Season season, BcnesaMatchReportContext context) {
         if (isBlank(name) || isBlank(license)) {
             LOGGER.warn("Skipping participant without name or licence in {}", context.matchReportFile());
             return;
         }
 
-        Player canonicalPlayer = canonicalPlayerResolver == null
-                ? null
-                : canonicalPlayerResolver.resolveOrCreate(name);
-        FederatedPlayer federatedPlayer = playerRepository.findFederatedPlayerBySourceAndName(
-                        ImportSource.BCNESA, name)
-                .map(existing -> linkCanonicalPlayer(existing, canonicalPlayer))
-                .orElseGet(() -> FederatedPlayer.createNew(ImportSource.BCNESA, name, canonicalPlayer));
-        playerRepository.saveFederatedPlayer(federatedPlayer);
-
-        playerSeasonRepository.findPlayerSeasonByLicenseAndSeason(ImportSource.BCNESA, license, season)
+        playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.BCNESA, license, season)
                 .orElseGet(() -> {
                     PlayerSeason created = PlayerSeason.createNew(
-                            ImportSource.BCNESA, name, license, federatedPlayer, season);
+                            ImportSource.BCNESA, name, license, null, season);
                     playerSeasonRepository.savePlayerSeason(created);
                     LOGGER.debug("Created BCNESA player season {} {} ({})", name, season, license);
                     return created;
                 });
-    }
-
-    private FederatedPlayer linkCanonicalPlayer(FederatedPlayer federatedPlayer, Player canonicalPlayer) {
-                return canonicalPlayer == null || federatedPlayer.getPlayer().isPresent()
-                        ? federatedPlayer
-                        : federatedPlayer.withPlayer(canonicalPlayer);
     }
 
     private static boolean isBlank(String value) {

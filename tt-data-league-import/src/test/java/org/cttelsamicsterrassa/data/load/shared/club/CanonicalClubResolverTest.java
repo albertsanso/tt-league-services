@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.load.shared.club;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.CanonicalClubResolver;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
