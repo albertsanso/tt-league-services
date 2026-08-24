@@ -17,7 +17,7 @@ import java.util.UUID;
  */
 public interface PlayerSeasonRepository {
     Optional<PlayerSeason> findPlayerSeasonById(UUID id);
-    Optional<PlayerSeason> findPlayerSeasonByLicenseAndSeason(ImportSource source, String license, Season season);
+    Optional<PlayerSeason> findPlayerSeasonBySourceLicenseAndSeason(ImportSource source, String license, Season season);
     List<PlayerSeason> findAllPlayerSeasonsBySource(ImportSource source);
     List<PlayerSeason> findAllPlayerSeasonsByTeamIdsAndSource(Collection<UUID> teamIds, ImportSource source);
     Map<UUID, List<String>> findAllPlayerSeasonCompetitionsByTeamIdsAndSource(

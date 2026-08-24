@@ -59,7 +59,7 @@ class BcnesaImportProcessorsTest {
 
         processors = List.of(
                 new BcnesaTeamImportProcessor(teams, clubs, canonicalClubs),
-                new BcnesaPlayerImportProcessor(players, playerSeasons, canonicalPlayers),
+                new BcnesaPlayerImportProcessor(playerSeasons),
                 new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         doublesPairs));
 
@@ -103,8 +103,8 @@ class BcnesaImportProcessorsTest {
         assertEquals(8, players.byId.size());
         assertEquals(8, canonicalPlayers.byId.size());
         assertEquals(8, playerSeasons.byId.size());
-        assertTrue(playerSeasons.findPlayerSeasonByLicenseAndSeason(ImportSource.BCNESA, "7026", Season.of(2020)).isPresent());
-        assertTrue(playerSeasons.findPlayerSeasonByLicenseAndSeason(ImportSource.BCNESA, "878", Season.of(2020)).isPresent());
+        assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.BCNESA, "7026", Season.of(2020)).isPresent());
+        assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.BCNESA, "878", Season.of(2020)).isPresent());
     }
 
     @Test

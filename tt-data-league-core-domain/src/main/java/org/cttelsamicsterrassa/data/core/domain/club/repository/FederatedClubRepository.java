@@ -11,6 +11,10 @@ public interface FederatedClubRepository {
     Optional<FederatedClub> findFederatedClubById(UUID id);
     Optional<FederatedClub> findFederatedClubBySourceAndName(ImportSource source, String name);
 
+    default List<FederatedClub> findAllFederatedClubsBySource(ImportSource source) {
+        throw new UnsupportedOperationException("Complete source inventory is not supported");
+    }
+
     List<FederatedClub> findAllFederatedClubsByFragmentsInName(List<String> fragments);
     List<FederatedClub> findAllFederatedClubsBySourceAndFragmentsInName(
             ImportSource source, List<String> fragments);

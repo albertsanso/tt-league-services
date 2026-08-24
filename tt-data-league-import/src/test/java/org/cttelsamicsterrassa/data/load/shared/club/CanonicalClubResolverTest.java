@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.load.shared.club;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
+import org.cttelsamicsterrassa.data.load.shared.club.consolidate.CanonicalClubResolver;
 import org.junit.jupiter.api.Test;
 
 import java.util.LinkedHashMap;
@@ -49,6 +50,11 @@ class CanonicalClubResolverTest {
         @Override
         public Optional<Club> findClubByExactName(String name) {
             return clubs.values().stream().filter(club -> club.getName().equals(name)).findFirst();
+        }
+
+        @Override
+        public java.util.List<Club> findAllClubs() {
+            return clubs.values().stream().toList();
         }
 
         @Override

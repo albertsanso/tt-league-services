@@ -92,6 +92,7 @@ The application is launched with `--key=value` parameters:
 |--------------------------------| --- | --- |
 | `--source=<source>`            | No | `rfetm`, `bcnesa`, or `fctt`; defaults to `rfetm`. |
 | `--actas-folder=<path>`        | Yes | Root directory containing the source `actas-json` export. |
+| `--rfetm-teams-folder=<path>`  | No | Required only when `--source=rfetm` and `--consolidate-clubs*` are used; points to the RFETM `equipos-json` export. |
 | `--season=<YYYY-YYYY>`         | No | Imports only the specified season. When omitted, imports all available seasons. |
 | `--consolidate-clubs`          | No | Runs club consolidation in write mode after import. |
 | `--consolidate-clubs=write`    | No | Explicitly runs club consolidation in write mode. |
@@ -104,7 +105,8 @@ The source value is case-insensitive. Consolidation flags are opt-in and can
 be used independently or together. Unknown consolidation modes fail with an
 error; valid modes are `write`, `true`, or an empty value for write mode, and
 `report`. Only the parameters listed above are recognized; `--base-folder` is
-not an alias for `--actas-folder`.
+not an alias for `--actas-folder`. RFETM club consolidation reads team-to-club
+relationships from `--rfetm-teams-folder`.
 
 ## Launch modes
 
@@ -180,6 +182,7 @@ Club and player consolidation modes are independent:
 java -jar tt-data-league-import-runtime\target\tt-data-league-import-runtime-0.0.1-SNAPSHOT.jar `
   --source=rfetm `
   --actas-folder=C:\data\rfetm `
+  --rfetm-teams-folder=C:\data\rfetm\equipos-json `
   --consolidate-clubs=report `
   --consolidate-players=report
 ```
@@ -190,7 +193,8 @@ The runtime:
 
 1. Parses and validates the command-line arguments.
 2. Traverses the selected source, importing all seasons or the requested season.
-3. Runs requested club consolidation once after a successful traversal.
+3. Runs source-specific federated-club consolidation, then resolves the complete
+   source-scoped federated-club inventory to canonical clubs.
 4. Runs requested player consolidation after club consolidation.
 5. Logs the import and consolidation summaries.
 

@@ -2,98 +2,133 @@ package org.cttelsamicsterrassa.data.load.shared.club.consolidate;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 
-import java.util.List;
-import java.util.Objects;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-/**
- * Immutable matching policy: an exact key plus a classified comparison, never a bare boolean.
- */
-public final class ClubNameMatcher {
+public class ClubNameMatcher {
 
-    public static final double FUZZY_ACCEPTANCE_THRESHOLD = 0.85;
-    public static final int MIN_SIGNIFICANT_TOKENS = 2;
+    public static final double FUZZY_ACCEPTANCE_THRESHOLD = 0.80d;
+
+    private static final Set<String> STOP_WORDS = Set.of(
+            "club", "tennis", "taula", "tenis", "mesa", "de", "del", "dels", "la", "les", "els", "ctt", "tt");
 
     private final ClubNameNormalizer normalizer;
 
     public ClubNameMatcher(ClubNameNormalizer normalizer) {
-        this.normalizer = Objects.requireNonNull(normalizer, "normalizer");
-    }
-
-    public String exactKey(ImportSource source, String name) {
-        return normalizer.exactKey(source, name);
-    }
-
-    public ClubNameParts parts(ImportSource source, String name) {
-        return normalizer.parts(source, name);
-    }
-
-    public String preferredDisplayName(ImportSource source, List<String> names) {
-        return normalizer.preferredDisplayName(source, names);
+        this.normalizer = normalizer;
     }
 
     public ClubNameComparison compare(ImportSource source, String left, String right) {
         String leftKey = normalizer.exactKey(source, left);
         String rightKey = normalizer.exactKey(source, right);
-        List<String> leftTokens = normalizer.significantTokens(source, left);
-        List<String> rightTokens = normalizer.significantTokens(source, right);
-        if (leftKey.equals(rightKey) && !leftKey.isEmpty()) {
-            return new ClubNameComparison(leftKey, rightKey, leftTokens, rightTokens, 1.0, ClubNameMatchClass.EXACT);
+
+        if (leftKey.equals(rightKey)) {
+            return new ClubNameComparison(ClubNameMatchClass.EXACT, 1.0d, leftKey, rightKey);
         }
-        if (leftTokens.size() < MIN_SIGNIFICANT_TOKENS || rightTokens.size() < MIN_SIGNIFICANT_TOKENS) {
-            return new ClubNameComparison(leftKey, rightKey, leftTokens, rightTokens, 0.0, ClubNameMatchClass.REJECTED_SHORT);
+        if (leftKey.length() < 3 || rightKey.length() < 3
+                || tokenCount(leftKey) < 2 || tokenCount(rightKey) < 2) {
+            return new ClubNameComparison(ClubNameMatchClass.REJECTED_SHORT, similarity(leftKey, rightKey), leftKey, rightKey);
         }
-        if (leftTokens.size() != rightTokens.size()) {
+        if (!sharesSignificantToken(leftKey, rightKey)) {
             return new ClubNameComparison(
-                    leftKey, rightKey, leftTokens, rightTokens, score(leftKey, rightKey), ClubNameMatchClass.REJECTED_TOKEN_MISMATCH);
+                    ClubNameMatchClass.REJECTED_TOKEN_MISMATCH,
+                    similarity(leftKey, rightKey),
+                    leftKey,
+                    rightKey);
         }
-        double score = score(leftKey, rightKey);
-        if (tokensCompatible(leftTokens, rightTokens) && score >= FUZZY_ACCEPTANCE_THRESHOLD) {
-            return new ClubNameComparison(leftKey, rightKey, leftTokens, rightTokens, score, ClubNameMatchClass.FUZZY_CANDIDATE);
+
+        double score = similarity(leftKey, rightKey);
+        if (score >= FUZZY_ACCEPTANCE_THRESHOLD) {
+            return new ClubNameComparison(ClubNameMatchClass.FUZZY_ACCEPTED, score, leftKey, rightKey);
         }
-        if (score < FUZZY_ACCEPTANCE_THRESHOLD) {
-            return new ClubNameComparison(leftKey, rightKey, leftTokens, rightTokens, score, ClubNameMatchClass.REJECTED_BELOW_THRESHOLD);
-        }
-        return new ClubNameComparison(
-                leftKey, rightKey, leftTokens, rightTokens, score, ClubNameMatchClass.REJECTED_TOKEN_MISMATCH);
+        return new ClubNameComparison(ClubNameMatchClass.REJECTED_BELOW_THRESHOLD, score, leftKey, rightKey);
     }
 
-    private static boolean tokensCompatible(List<String> left, List<String> right) {
-        List<String> remaining = new java.util.ArrayList<>(right);
-        for (String token : left) {
-            int matchIndex = bestCompatibleIndex(token, remaining);
-            if (matchIndex < 0) {
-                return false;
-            }
-            remaining.remove(matchIndex);
+    private static boolean sharesSignificantToken(String left, String right) {
+        Set<String> leftTokens = significantTokens(left);
+        Set<String> rightTokens = significantTokens(right);
+        if (leftTokens.isEmpty() || rightTokens.isEmpty()) {
+            return false;
         }
-        return remaining.isEmpty();
+        return leftTokens.stream().anyMatch(rightTokens::contains);
     }
 
-    private static int bestCompatibleIndex(String token, List<String> candidates) {
-        int bestIndex = -1;
-        double bestScore = -1;
-        for (int i = 0; i < candidates.size(); i++) {
-            double tokenScore = score(token, candidates.get(i));
-            if (tokenScore >= FUZZY_ACCEPTANCE_THRESHOLD && tokenScore > bestScore) {
-                bestScore = tokenScore;
-                bestIndex = i;
-            }
-        }
-        return bestIndex;
+    private static Set<String> significantTokens(String key) {
+        return Arrays.stream(key.split("\\s+"))
+                .map(token -> token.toLowerCase(Locale.ROOT))
+                .filter(token -> token.length() > 1)
+                .filter(token -> !STOP_WORDS.contains(token))
+                .collect(Collectors.toCollection(HashSet::new));
     }
 
-    static double score(String left, String right) {
+    private static int tokenCount(String key) {
+        return (int) Arrays.stream(key.split("\\s+"))
+                .filter(token -> !token.isBlank())
+                .count();
+    }
+
+    private static double similarity(String left, String right) {
         if (left.isEmpty() && right.isEmpty()) {
-            return 1.0;
+            return 1.0d;
         }
-        int max = Math.max(left.length(), right.length());
-        if (max == 0) {
-            return 1.0;
-        }
-        return 1.0 - ((double) levenshtein(left, right) / max);
+        String leftSignature = significantTokens(left).stream().sorted().collect(Collectors.joining(" "));
+        String rightSignature = significantTokens(right).stream().sorted().collect(Collectors.joining(" "));
+        return 0.25d * levenshteinSimilarity(left, right)
+                + 0.375d * jaccardSimilarity(leftSignature, rightSignature)
+                + 0.375d * cosineSimilarity(leftSignature, rightSignature);
     }
 
-    static int levenshtein(String left, String right) {
+    private static double levenshteinSimilarity(String left, String right) {
+        int maxLength = Math.max(left.length(), right.length());
+        return maxLength == 0 ? 1.0d : 1.0d - ((double) levenshteinDistance(left, right) / maxLength);
+    }
+
+    private static double jaccardSimilarity(String left, String right) {
+        Set<String> leftNgrams = characterNgrams(left);
+        Set<String> rightNgrams = characterNgrams(right);
+        Set<String> union = new HashSet<>(leftNgrams);
+        union.addAll(rightNgrams);
+        if (union.isEmpty()) {
+            return left.equals(right) ? 1.0d : 0.0d;
+        }
+        Set<String> intersection = new HashSet<>(leftNgrams);
+        intersection.retainAll(rightNgrams);
+        return (double) intersection.size() / union.size();
+    }
+
+    private static double cosineSimilarity(String left, String right) {
+        Map<String, Integer> leftNgrams = characterNgramCounts(left);
+        Map<String, Integer> rightNgrams = characterNgramCounts(right);
+        if (leftNgrams.isEmpty() || rightNgrams.isEmpty()) {
+            return left.equals(right) ? 1.0d : 0.0d;
+        }
+        int dot = leftNgrams.keySet().stream()
+                .mapToInt(ngram -> leftNgrams.get(ngram) * rightNgrams.getOrDefault(ngram, 0))
+                .sum();
+        double leftMagnitude = Math.sqrt(leftNgrams.values().stream().mapToInt(value -> value * value).sum());
+        double rightMagnitude = Math.sqrt(rightNgrams.values().stream().mapToInt(value -> value * value).sum());
+        return dot / (leftMagnitude * rightMagnitude);
+    }
+
+    private static Set<String> characterNgrams(String value) {
+        return characterNgramCounts(value).keySet();
+    }
+
+    private static Map<String, Integer> characterNgramCounts(String value) {
+        Map<String, Integer> counts = new HashMap<>();
+        String padded = "  " + value + "  ";
+        for (int i = 0; i <= padded.length() - 3; i++) {
+            counts.merge(padded.substring(i, i + 3), 1, Integer::sum);
+        }
+        return counts;
+    }
+
+    private static int levenshteinDistance(String left, String right) {
         int[] previous = new int[right.length() + 1];
         int[] current = new int[right.length() + 1];
         for (int j = 0; j <= right.length(); j++) {
@@ -103,7 +138,9 @@ public final class ClubNameMatcher {
             current[0] = i;
             for (int j = 1; j <= right.length(); j++) {
                 int cost = left.charAt(i - 1) == right.charAt(j - 1) ? 0 : 1;
-                current[j] = Math.min(Math.min(current[j - 1] + 1, previous[j] + 1), previous[j - 1] + cost);
+                current[j] = Math.min(
+                        Math.min(current[j - 1] + 1, previous[j] + 1),
+                        previous[j - 1] + cost);
             }
             int[] swap = previous;
             previous = current;

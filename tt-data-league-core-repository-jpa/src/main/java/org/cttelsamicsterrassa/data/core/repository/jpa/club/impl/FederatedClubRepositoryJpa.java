@@ -47,6 +47,14 @@ public class FederatedClubRepositoryJpa implements FederatedClubRepository {
     }
 
     @Override
+    public List<FederatedClub> findAllFederatedClubsBySource(ImportSource source) {
+        Source jpaSource = Source.valueOf(Objects.requireNonNull(source, "source must not be null").name());
+        return clubRepositoryHelper.findAllBySource(jpaSource, Sort.by("name", "id")).stream()
+                .map(clubJPAToClubMapper)
+                .toList();
+    }
+
+    @Override
     public List<FederatedClub> findAllFederatedClubsByFragmentsInName(List<String> fragments) {
         if (fragments == null || fragments.isEmpty()) {
             return List.of();

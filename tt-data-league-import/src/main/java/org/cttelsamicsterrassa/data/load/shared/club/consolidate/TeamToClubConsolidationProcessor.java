@@ -1,73 +1,58 @@
 package org.cttelsamicsterrassa.data.load.shared.club.consolidate;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
+import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.load.shared.club.CanonicalClubResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import javax.inject.Inject;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.EnumSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Source-scoped historical repair: attach equivalent {@link Team} registrations to one
- * canonical {@link FederatedClub} without merging or deleting season rows.
- */
 @Component
 public class TeamToClubConsolidationProcessor {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TeamToClubConsolidationProcessor.class);
 
-    private static final Set<ImportSource> AUTOMATIC_SOURCES = EnumSet.of(ImportSource.FCTT, ImportSource.BCNESA);
-
     private final FederatedClubRepository federatedClubRepository;
     private final TeamRepository teamRepository;
-    private final ClubNameMatcher matcher;
     private final CanonicalClubResolver canonicalClubResolver;
+    private final ClubNameNormalizer normalizer;
+    private final ClubNameMatcher matcher;
+    private final CommonTermClubResolver commonTermClubResolver;
 
-    public TeamToClubConsolidationProcessor(FederatedClubRepository federatedClubRepository, TeamRepository teamRepository) {
-        this(federatedClubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()), null);
-    }
-
-    @Inject
     public TeamToClubConsolidationProcessor(FederatedClubRepository federatedClubRepository,
                                             TeamRepository teamRepository,
-                                            ClubRepository canonicalClubRepository) {
-        this(federatedClubRepository, teamRepository, new ClubNameMatcher(new ClubNameNormalizer()),
-                new CanonicalClubResolver(canonicalClubRepository));
+                                            ClubRepository clubRepository) {
+        this(federatedClubRepository, teamRepository, clubRepository,
+                new ClubNameNormalizer(), new CommonTermClubResolver());
     }
 
-    TeamToClubConsolidationProcessor(FederatedClubRepository federatedClubRepository,
-                                     TeamRepository teamRepository,
-                                     ClubNameMatcher matcher) {
-        this(federatedClubRepository, teamRepository, matcher, null);
-    }
-
+    @Autowired
     private TeamToClubConsolidationProcessor(FederatedClubRepository federatedClubRepository,
                                              TeamRepository teamRepository,
-                                             ClubNameMatcher matcher,
-                                             CanonicalClubResolver canonicalClubResolver) {
-        this.federatedClubRepository = Objects.requireNonNull(federatedClubRepository, "clubRepository");
-        this.teamRepository = Objects.requireNonNull(teamRepository, "teamRepository");
-        this.matcher = Objects.requireNonNull(matcher, "matcher");
-        this.canonicalClubResolver = canonicalClubResolver;
+                                             ClubRepository clubRepository,
+                                             ClubNameNormalizer normalizer,
+                                             CommonTermClubResolver commonTermClubResolver) {
+        this.federatedClubRepository = federatedClubRepository;
+        this.teamRepository = teamRepository;
+        this.canonicalClubResolver = new CanonicalClubResolver(clubRepository);
+        this.normalizer = normalizer;
+        this.matcher = new ClubNameMatcher(normalizer);
+        this.commonTermClubResolver = commonTermClubResolver;
     }
 
     public ClubConsolidationSummary consolidate(ImportSource source) {
@@ -75,321 +60,263 @@ public class TeamToClubConsolidationProcessor {
     }
 
     public ClubConsolidationSummary consolidate(ImportSource source, ConsolidationMode mode) {
-        Objects.requireNonNull(source, "source");
-        Objects.requireNonNull(mode, "mode");
-        if (!AUTOMATIC_SOURCES.contains(source)) {
-            LOGGER.info("Skipping club consolidation for {}; automatic matching is disabled", source);
-            return ClubConsolidationSummary.disabled(source,
-                    "Automatic consolidation is disabled for " + source
-                            + " unless a source-specific identity policy is supplied");
+        Objects.requireNonNull(source, "source must not be null");
+        Objects.requireNonNull(mode, "mode must not be null");
+        List<Team> sourceTeams = teamRepository.findAllTeamsBySource(source).stream()
+                .sorted(Comparator.comparing(Team::getName, Comparator.nullsFirst(String::compareTo))
+                        .thenComparing(team -> team.getId().toString()))
+                .toList();
+
+        if (source == ImportSource.RFETM) {
+            return new ClubConsolidationSummary(
+                    source,
+                    mode,
+                    sourceTeams.size(),
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    List.of(),
+                    List.of(),
+                    List.of(new ConsolidationWarning("RFETM requires the team-folder consolidation processor")));
         }
 
-        List<Team> registrations = teamRepository.findAllTeamsBySource(source);
-        ClubConsolidationSummary.Builder summary = ClubConsolidationSummary.builder(source)
-                .scannedRegistrations(registrations.size());
-
+        List<ConsolidationWarning> warnings = new ArrayList<>();
+        List<ConsolidationWarning> errors = new ArrayList<>();
         Map<String, List<Team>> exactGroups = new LinkedHashMap<>();
-        for (Team registration : registrations) {
-            if (registration.getName() == null || registration.getName().isBlank()) {
-                summary.warning(new ConsolidationWarning(source, "Blank team name",
-                        List.of(registration.getId()), List.of(String.valueOf(registration.getName()))));
+        for (Team team : sourceTeams) {
+            String key = normalizer.exactKey(source, team.getName());
+            if (key.isBlank()) {
+                warnings.add(new ConsolidationWarning("Skipped blank normalized key for team " + team.getId()));
                 continue;
             }
-            exactGroups.computeIfAbsent(
-                            matcher.exactKey(source, registration.getName()),
-                            key -> new ArrayList<>())
-                    .add(registration);
+            exactGroups.computeIfAbsent(key, ignored -> new ArrayList<>()).add(team);
         }
 
-        int multiMemberExactGroups = 0;
-        List<NameGroup> groups = new ArrayList<>();
-        for (Map.Entry<String, List<Team>> entry : exactGroups.entrySet()) {
-            if (entry.getKey().isEmpty()) {
-                summary.warning(new ConsolidationWarning(source, "Name collapsed to an empty exact key",
-                        ids(entry.getValue()), names(entry.getValue())));
-                continue;
-            }
-            if (entry.getValue().size() > 1) {
-                multiMemberExactGroups++;
-            }
-            groups.add(new NameGroup(entry.getKey(), canonicalDisplayName(entry.getValue()), entry.getValue()));
-        }
-        summary.exactGroups(multiMemberExactGroups);
-
-        List<FuzzyPair> pairs = acceptMutualFuzzyPairs(source, groups, summary);
-        summary.acceptedFuzzyGroups(pairs.size());
-        Set<String> paired = pairs.stream()
-                .flatMap(pair -> java.util.stream.Stream.of(pair.left().exactKey(), pair.right().exactKey()))
+        List<CommonTermClubResolver.CommonTermGroup> commonTermGroups =
+                commonTermClubResolver.resolve(source, exactGroups.values().stream()
+                        .filter(members -> members.size() == 1)
+                        .flatMap(List::stream)
+                        .toList());
+        Set<Team> commonTermMembers = commonTermGroups.stream()
+                .flatMap(group -> group.members().stream())
                 .collect(Collectors.toSet());
+        exactGroups.values().removeIf(members -> members.stream().anyMatch(commonTermMembers::contains));
 
-        for (NameGroup group : groups) {
-            if (!paired.contains(group.exactKey())) {
-                applyCanonicalClub(source, group.members(), group.representativeName(), matchingMode(source, group.members()),
-                        mode, summary);
+        List<Group> baseGroups = exactGroups.entrySet().stream()
+                .map(entry -> Group.exact(entry.getKey(), entry.getValue(),
+                        normalizer.preferredDisplayName(source,
+                                entry.getValue().stream().map(Team::getName).toList())))
+                .collect(Collectors.toCollection(ArrayList::new));
+        commonTermGroups.stream()
+                .map(group -> Group.commonTerm(group.normalizedTerm(), group.members(), group.canonicalDisplayName()))
+                .forEach(baseGroups::add);
+        baseGroups = baseGroups.stream()
+                .sorted(Comparator.comparing(Group::normalizedKey).thenComparing(Group::displayName))
+                .toList();
+
+        int exactGroupsCount = (int) baseGroups.stream()
+                .filter(group -> group.matchRule().equals("exact-key") && group.members().size() > 1)
+                .count();
+        FuzzyMergeResult fuzzyMergeResult = mergeMutualBestFuzzy(source, baseGroups, warnings);
+
+        int clubsCreated = 0;
+        int registrationsReassociated = 0;
+        int alreadyCorrect = 0;
+        List<ConsolidatedClub> consolidations = new ArrayList<>();
+
+        for (Group group : fuzzyMergeResult.groups()) {
+            List<Team> members = group.members().stream()
+                    .sorted(Comparator.comparing(Team::getName).thenComparing(team -> team.getId().toString()))
+                    .toList();
+            String canonicalDisplayName = group.matchRule().equals("common-term")
+                    ? group.displayName()
+                    : normalizer.preferredDisplayName(source, members.stream().map(Team::getName).toList());
+            if (canonicalDisplayName.isBlank()) {
+                warnings.add(new ConsolidationWarning("Skipped blank canonical name for key " + group.normalizedKey()));
+                continue;
             }
+
+            Set<FederatedClub> existingDistinct = members.stream()
+                    .map(team -> team.getFederatedClub().orElse(null))
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toCollection(LinkedHashSet::new));
+
+            /*
+            if (members.size() == 1 && existingDistinct.isEmpty()) {
+                warnings.add(new ConsolidationWarning(
+                        "Rejected singleton team without an approved match: " + members.getFirst().getId()));
+                continue;
+            }*/
+
+            if (existingDistinct.size() > 1) {
+                warnings.add(new ConsolidationWarning(
+                        "Conflicting existing federated clubs for key " + group.normalizedKey()));
+                continue;
+            }
+
+            FederatedClub target = existingDistinct.stream().findFirst().orElse(null);
+            if (target == null) {
+                target = federatedClubRepository.findFederatedClubBySourceAndName(source, canonicalDisplayName).orElse(null);
+            }
+            if (target == null) {
+                clubsCreated++;
+                if (mode == ConsolidationMode.WRITE) {
+                    target = FederatedClub.createNew(source, canonicalDisplayName);
+                    federatedClubRepository.saveFederatedClub(target);
+                } else {
+                    target = FederatedClub.createExisting(UUID.randomUUID(), source, canonicalDisplayName);
+                }
+            }
+
+            if (mode == ConsolidationMode.WRITE && !target.getName().equals(canonicalDisplayName)) {
+                target.modifyName(canonicalDisplayName);
+                federatedClubRepository.saveFederatedClub(target);
+            }
+
+            for (Team member : members) {
+                UUID currentId = member.getFederatedClub().map(FederatedClub::getId).orElse(null);
+                UUID targetId = target.getId();
+                if (Objects.equals(currentId, targetId)) {
+                    alreadyCorrect++;
+                    continue;
+                }
+                registrationsReassociated++;
+                if (mode == ConsolidationMode.WRITE) {
+                    teamRepository.saveTeam(member.withFederatedClub(target));
+                }
+            }
+
+            consolidations.add(new ConsolidatedClub(
+                    source,
+                    group.normalizedKey(),
+                    canonicalDisplayName,
+                    group.matchRule(),
+                    group.confidence(),
+                    members.stream().map(Team::getId).toList()));
         }
-        for (FuzzyPair pair : pairs) {
-            List<Team> combined = concat(pair.left().members(), pair.right().members());
-            applyCanonicalClub(source, combined, canonicalDisplayName(combined), MatchingMode.FUZZY, mode, summary);
-        }
-        ClubConsolidationSummary result = summary.build();
-        LOGGER.info("Club consolidation for {}: {}", source, result);
-        return result;
+
+        ClubConsolidationSummary summary = new ClubConsolidationSummary(
+                source,
+                mode,
+                sourceTeams.size(),
+                exactGroupsCount,
+                fuzzyMergeResult.acceptedFuzzyGroups(),
+                clubsCreated,
+                0,
+                registrationsReassociated,
+                alreadyCorrect,
+                List.copyOf(consolidations),
+                List.copyOf(warnings),
+                List.copyOf(errors));
+        LOGGER.info("Club consolidation finished for {} in {} mode: {}", source, mode, summary);
+        return summary;
     }
 
-    private List<FuzzyPair> acceptMutualFuzzyPairs(ImportSource source,
-                                                   List<NameGroup> groups,
-                                                   ClubConsolidationSummary.Builder summary) {
-        record ScoredPair(NameGroup left, NameGroup right, double score) {
-        }
-        List<ScoredPair> candidates = new ArrayList<>();
+    private FuzzyMergeResult mergeMutualBestFuzzy(ImportSource source,
+                                                  List<Group> groups,
+                                                  List<ConsolidationWarning> warnings) {
+        Map<Integer, Candidate> bestCandidates = new LinkedHashMap<>();
         for (int i = 0; i < groups.size(); i++) {
             for (int j = i + 1; j < groups.size(); j++) {
-                NameGroup left = groups.get(i);
-                NameGroup right = groups.get(j);
-                ClubNameComparison comparison = matcher.compare(source, left.representativeName(), right.representativeName());
+                Group left = groups.get(i);
+                Group right = groups.get(j);
+                ClubNameComparison comparison = matcher.compare(source, left.displayName(), right.displayName());
                 if (comparison.fuzzyCandidate()) {
-                    candidates.add(new ScoredPair(left, right, comparison.score()));
-                } else if (shouldWarn(comparison)) {
-                    summary.warning(new ConsolidationWarning(source, warningReason(comparison),
-                            ids(concat(left.members(), right.members())),
-                            names(concat(left.members(), right.members()))));
+                    registerCandidate(bestCandidates, i, j, comparison.score());
+                    registerCandidate(bestCandidates, j, i, comparison.score());
+                    continue;
+                }
+                if (!comparison.exact()) {
+                    warnings.add(new ConsolidationWarning(rejectionReason(left, right, comparison)));
                 }
             }
         }
 
-        Map<String, List<ScoredPair>> byKey = new LinkedHashMap<>();
-        for (ScoredPair candidate : candidates) {
-            byKey.computeIfAbsent(candidate.left().exactKey(), key -> new ArrayList<>()).add(candidate);
-            byKey.computeIfAbsent(candidate.right().exactKey(), key -> new ArrayList<>()).add(candidate);
+        boolean[] consumed = new boolean[groups.size()];
+        int acceptedFuzzyGroups = 0;
+        List<Group> merged = new ArrayList<>();
+        for (int i = 0; i < groups.size(); i++) {
+            if (consumed[i]) {
+                continue;
+            }
+            Candidate leftBest = bestCandidates.get(i);
+            if (leftBest == null || leftBest.tie()) {
+                consumed[i] = true;
+                merged.add(groups.get(i));
+                continue;
+            }
+            Candidate rightBest = bestCandidates.get(leftBest.otherIndex());
+            if (rightBest == null || rightBest.tie() || rightBest.otherIndex() != i || consumed[leftBest.otherIndex()]) {
+                consumed[i] = true;
+                merged.add(groups.get(i));
+                continue;
+            }
+
+            consumed[i] = true;
+            consumed[leftBest.otherIndex()] = true;
+            Group mergedGroup = Group.fuzzy(groups.get(i), groups.get(leftBest.otherIndex()), leftBest.score());
+            merged.add(mergedGroup);
+            acceptedFuzzyGroups++;
         }
 
-        List<FuzzyPair> accepted = new ArrayList<>();
-        Set<String> paired = new java.util.HashSet<>();
-        for (NameGroup group : groups) {
-            if (paired.contains(group.exactKey())) {
-                continue;
-            }
-            List<ScoredPair> options = byKey.getOrDefault(group.exactKey(), List.of());
-            if (options.isEmpty()) {
-                continue;
-            }
-            double best = options.stream().mapToDouble(ScoredPair::score).max().orElse(0);
-            List<ScoredPair> bestOptions = options.stream().filter(option -> option.score() == best).toList();
-            if (bestOptions.size() != 1) {
-                summary.warning(new ConsolidationWarning(source, "Ambiguous fuzzy match",
-                        ids(group.members()), names(group.members())));
-                continue;
-            }
-            ScoredPair bestPair = bestOptions.getFirst();
-            NameGroup other = bestPair.left().exactKey().equals(group.exactKey()) ? bestPair.right() : bestPair.left();
-            List<ScoredPair> otherOptions = byKey.getOrDefault(other.exactKey(), List.of());
-            double otherBest = otherOptions.stream().mapToDouble(ScoredPair::score).max().orElse(0);
-            List<ScoredPair> otherBestOptions = otherOptions.stream().filter(option -> option.score() == otherBest).toList();
-            boolean mutual = otherBestOptions.size() == 1
-                    && (otherBestOptions.getFirst().left().exactKey().equals(group.exactKey())
-                    || otherBestOptions.getFirst().right().exactKey().equals(group.exactKey()));
-            if (!mutual) {
-                summary.warning(new ConsolidationWarning(source, "Fuzzy match is not a mutual best match",
-                        ids(concat(group.members(), other.members())),
-                        names(concat(group.members(), other.members()))));
-                continue;
-            }
-            if (hasConflictingClubs(concat(group.members(), other.members()))) {
-                summary.warning(new ConsolidationWarning(source, "Conflicting associated clubs",
-                        ids(concat(group.members(), other.members())),
-                        names(concat(group.members(), other.members()))));
-                continue;
-            }
-            accepted.add(new FuzzyPair(group, other));
-            paired.add(group.exactKey());
-            paired.add(other.exactKey());
-        }
-        return accepted;
+        merged.sort(Comparator.comparing(Group::normalizedKey).thenComparing(Group::displayName));
+        return new FuzzyMergeResult(List.copyOf(merged), acceptedFuzzyGroups);
     }
 
-    private void applyCanonicalClub(ImportSource source,
-                                    List<Team> members,
-                                    String representativeName,
-                                    MatchingMode matchingMode,
-                                    ConsolidationMode mode,
-                                    ClubConsolidationSummary.Builder summary) {
-        if (hasConflictingClubs(members)) {
-            summary.warning(new ConsolidationWarning(source, "Conflicting associated clubs", ids(members), names(members)));
+    private static String rejectionReason(Group left, Group right, ClubNameComparison comparison) {
+        return switch (comparison.classification()) {
+            case REJECTED_SHORT -> "Rejected short candidate: " + left.displayName() + " <-> " + right.displayName();
+            case REJECTED_TOKEN_MISMATCH -> "Rejected candidate due to tokens: " + left.displayName() + " <-> " + right.displayName();
+            case REJECTED_BELOW_THRESHOLD ->
+                    "Rejected candidate below threshold: " + left.displayName() + " <-> " + right.displayName()
+                            + " score=" + comparison.score();
+            default -> "Rejected candidate: " + left.displayName() + " <-> " + right.displayName();
+        };
+    }
+
+    private static void registerCandidate(Map<Integer, Candidate> bestCandidates, int owner, int other, double score) {
+        Candidate current = bestCandidates.get(owner);
+        if (current == null || score > current.score()) {
+            bestCandidates.put(owner, new Candidate(other, score, false));
             return;
         }
+        if (Double.compare(score, current.score()) == 0) {
+            bestCandidates.put(owner, new Candidate(current.otherIndex(), current.score(), true));
+        }
+    }
 
-        Optional<FederatedClub> agreed = uniqueAssociatedClub(members);
-        FederatedClub canonical;
-        boolean created = false;
-        if (agreed.isPresent()) {
-            canonical = agreed.get();
-            if (!canonical.getName().equals(representativeName)) {
-                if (mode == ConsolidationMode.WRITE) {
-                    canonical.modifyName(representativeName);
-                    federatedClubRepository.saveFederatedClub(canonical);
-                }
-                LOGGER.info("Canonicalized club {} name from {} to {}", canonical.getId(), canonical.getName(), representativeName);
-            }
-        } else {
-            String clubName = representativeName;
-            Optional<FederatedClub> existing = federatedClubRepository.findFederatedClubBySourceAndName(source, clubName);
-            if (existing.isPresent()) {
-                canonical = existing.get();
-            } else if (mode == ConsolidationMode.WRITE) {
-                canonical = FederatedClub.createNew(source, clubName);
-                federatedClubRepository.saveFederatedClub(canonical);
-                created = true;
-                summary.incrementClubsCreated();
-                LOGGER.info("Created canonical club {} ({}) for {}", canonical.getId(), clubName, source);
-            } else {
-                canonical = FederatedClub.createNew(source, clubName);
-                created = true;
-                summary.incrementClubsCreated();
-            }
+    private record Candidate(int otherIndex, double score, boolean tie) {
+    }
+
+    private record Group(String normalizedKey,
+                         String displayName,
+                         List<Team> members,
+                         String matchRule,
+                         double confidence) {
+        static Group exact(String key, List<Team> members, String displayName) {
+            return new Group(key, displayName, List.copyOf(members), "exact-key", 1.0d);
         }
 
-        FederatedClub linkedClub = linkCanonicalClub(canonical, representativeName, mode);
-        if (canonical.getClub().isEmpty() && linkedClub.getClub().isPresent()) {
-            summary.incrementCanonicalLinksCreated();
-        }
-        int reassociatedHere = 0;
-        for (Team member : members) {
-            if (member.getFederatedClub().map(club -> club.getId().equals(linkedClub.getId())).orElse(false)) {
-                summary.incrementAlreadyCorrect();
-                continue;
-            }
-            if (mode == ConsolidationMode.WRITE) {
-                Team updated = member.withFederatedClub(linkedClub);
-                teamRepository.saveTeam(updated);
-            }
-            summary.incrementReassociated();
-            reassociatedHere++;
-            LOGGER.info("Reassociated team {} ({}) to club {} ({})",
-                    member.getId(), member.getName(), canonical.getId(), canonical.getName());
+        static Group commonTerm(String term, List<Team> members, String displayName) {
+            return new Group(term, displayName, List.copyOf(members), "common-term", 1.0d);
         }
 
-        if (created || reassociatedHere > 0) {
-            summary.consolidation(new ConsolidatedClub(
-                    source, canonical.getName(), canonical.getId(), matchingMode, ids(members), names(members)));
+        static Group fuzzy(Group left, Group right, double confidence) {
+            List<Team> combined = new ArrayList<>(left.members());
+            combined.addAll(right.members());
+            String key = left.normalizedKey().compareTo(right.normalizedKey()) <= 0
+                    ? left.normalizedKey()
+                    : right.normalizedKey();
+            String display = left.displayName().compareTo(right.displayName()) <= 0
+                    ? left.displayName()
+                    : right.displayName();
+            return new Group(key, display, List.copyOf(combined), "fuzzy-mutual-best", confidence);
         }
-
     }
 
-    private FederatedClub linkCanonicalClub(FederatedClub federatedClub,
-                                             String canonicalName,
-                                             ConsolidationMode mode) {
-        if (canonicalClubResolver == null || federatedClub.getClub().isPresent()) {
-            return federatedClub;
-        }
-        Club canonicalClub = mode == ConsolidationMode.WRITE
-                ? canonicalClubResolver.resolveOrCreate(canonicalName)
-                : canonicalClubResolver.findOrCreateForReport(canonicalName);
-        FederatedClub linked = federatedClub.withClub(canonicalClub);
-        if (mode == ConsolidationMode.WRITE) {
-            federatedClubRepository.saveFederatedClub(linked);
-        }
-        return linked;
-    }
-
-    private static boolean shouldWarn(ClubNameComparison comparison) {
-        return switch (comparison.classification()) {
-            case REJECTED_SHORT, REJECTED_BELOW_THRESHOLD -> true;
-            case REJECTED_TOKEN_MISMATCH -> comparison.leftTokens().stream().anyMatch(comparison.rightTokens()::contains);
-            default -> false;
-        };
-    }
-
-    private static String warningReason(ClubNameComparison comparison) {
-        return switch (comparison.classification()) {
-            case REJECTED_SHORT -> "Rejected short or one-token club name";
-            case REJECTED_BELOW_THRESHOLD -> "Fuzzy score below threshold";
-            case REJECTED_TOKEN_MISMATCH -> "Different significant tokens";
-            default -> comparison.classification().name();
-        };
-    }
-
-    private static boolean hasConflictingClubs(List<Team> members) {
-        return associatedClubIds(members).size() > 1;
-    }
-
-    private static Optional<FederatedClub> uniqueAssociatedClub(List<Team> members) {
-        List<FederatedClub> clubs = members.stream()
-                .map(Team::getFederatedClub)
-                .flatMap(Optional::stream)
-                .toList();
-        if (clubs.isEmpty()) {
-            return Optional.empty();
-        }
-        UUID first = clubs.getFirst().getId();
-        if (clubs.stream().allMatch(club -> first.equals(club.getId()))) {
-            return Optional.of(selectAssociatedClub(members));
-        }
-        return Optional.empty();
-    }
-
-    private static FederatedClub selectAssociatedClub(List<Team> members) {
-        return members.stream()
-                .filter(member -> member.getFederatedClub().isPresent())
-                .sorted(registrationOrder())
-                .map(member -> member.getFederatedClub().orElseThrow())
-                .findFirst()
-                .orElseThrow();
-    }
-
-    private static String representativeName(List<Team> members) {
-        return members.stream()
-                .sorted(registrationOrder())
-                .map(Team::getName)
-                .findFirst()
-                .orElseThrow();
-    }
-
-    private String canonicalDisplayName(List<Team> members) {
-        return matcher.preferredDisplayName(members.getFirst().getSource(), names(members));
-    }
-
-    private MatchingMode matchingMode(ImportSource source, List<Team> members) {
-        return members.stream()
-                .map(Team::getName)
-                .map(name -> matcher.parts(source, name).appliedRules())
-                .anyMatch(rules -> !rules.isEmpty()) ? MatchingMode.RULED_VARIANT : MatchingMode.EXACT;
-    }
-
-    private static Comparator<Team> registrationOrder() {
-        return Comparator.comparing((Team member) -> Optional.ofNullable(member.getSeason())
-                        .map(Season::toString)
-                        .orElse(""))
-                .thenComparing(member -> Optional.ofNullable(member.getName()).orElse(""))
-                .thenComparing(Team::getId);
-    }
-
-    private static Set<UUID> associatedClubIds(List<Team> members) {
-        return members.stream()
-                .map(Team::getFederatedClub)
-                .flatMap(Optional::stream)
-                .map(FederatedClub::getId)
-                .collect(Collectors.toSet());
-    }
-
-    private static List<UUID> ids(List<Team> members) {
-        return members.stream().map(Team::getId).toList();
-    }
-
-    private static List<String> names(List<Team> members) {
-        return members.stream().map(Team::getName).toList();
-    }
-
-    private static List<Team> concat(List<Team> left, List<Team> right) {
-        List<Team> combined = new ArrayList<>(left.size() + right.size());
-        combined.addAll(left);
-        combined.addAll(right);
-        return combined;
-    }
-
-    private record NameGroup(String exactKey, String representativeName, List<Team> members) {
-    }
-
-    private record FuzzyPair(NameGroup left, NameGroup right) {
+    private record FuzzyMergeResult(List<Group> groups, int acceptedFuzzyGroups) {
     }
 }

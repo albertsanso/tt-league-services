@@ -1,208 +1,178 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
-import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ClubConsolidationSummary;
-import org.cttelsamicsterrassa.data.load.shared.club.CanonicalClubResolver;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidatedClub;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationWarning;
-import org.cttelsamicsterrassa.data.load.shared.club.consolidate.MatchingMode;
-import org.cttelsamicsterrassa.data.load.shared.parse.team.Team;
 import org.cttelsamicsterrassa.data.load.shared.parse.team.TeamParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import javax.inject.Inject;
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
-import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 @Component
 public class RfetmClubConsolidationProcessor {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(RfetmClubConsolidationProcessor.class);
 
-    private static final Pattern TEAMS_FILE_NAME_PATTERN = Pattern.compile("\\d{4}-\\d{4}\\.json");
-
-    private final FederatedClubRepository clubRepository;
+    private final FederatedClubRepository federatedClubRepository;
     private final TeamRepository teamRepository;
-    private final CanonicalClubResolver canonicalClubResolver;
-
     private final TeamParser teamParser;
-
-    public RfetmClubConsolidationProcessor(FederatedClubRepository clubRepository,
+    @Autowired
+    public RfetmClubConsolidationProcessor(FederatedClubRepository federatedClubRepository,
                                            TeamRepository teamRepository,
                                            TeamParser teamParser) {
-        this(clubRepository, teamRepository, teamParser, null);
-    }
-
-    @Inject
-    public RfetmClubConsolidationProcessor(FederatedClubRepository clubRepository,
-                                           TeamRepository teamRepository,
-                                           TeamParser teamParser,
-                                           ClubRepository canonicalClubRepository) {
-        this.clubRepository = clubRepository;
+        this.federatedClubRepository = federatedClubRepository;
         this.teamRepository = teamRepository;
         this.teamParser = teamParser;
-        this.canonicalClubResolver = canonicalClubRepository == null
-                ? null : new CanonicalClubResolver(canonicalClubRepository);
     }
 
-    public ClubConsolidationSummary process(Path teamsFolderPath) {
-        return process(teamsFolderPath, null);
+    public ClubConsolidationSummary process(Path teamsFolder) {
+        return process(teamsFolder, ConsolidationMode.WRITE);
     }
 
-    public ClubConsolidationSummary process(Path teamsFolderPath, String season) {
-        return process(teamsFolderPath, season, ConsolidationMode.WRITE);
-    }
+    public ClubConsolidationSummary process(Path teamsFolder, ConsolidationMode mode) {
+        Objects.requireNonNull(mode, "mode must not be null");
+        List<ConsolidationWarning> warnings = new ArrayList<>();
+        List<ConsolidationWarning> errors = new ArrayList<>();
+        List<ConsolidatedClub> consolidations = new ArrayList<>();
+        int scanned = 0;
+        int clubsCreated = 0;
+        int canonicalLinksCreated = 0;
+        int reassociated = 0;
+        int alreadyCorrect = 0;
+        List<String> createdClubNames = new ArrayList<>();
 
-    public ClubConsolidationSummary process(Path teamsFolderPath, String season, ConsolidationMode mode) {
-        Objects.requireNonNull(teamsFolderPath, "teamsFolderPath");
-        Objects.requireNonNull(mode, "mode");
-        Map<SeasonTeamNameKey, String> clubNamesDictionary = loadClubAndTeamNamesDictionary(teamsFolderPath, season);
-        List<org.cttelsamicsterrassa.data.core.domain.club.model.Team> registrations =
-                teamRepository.findAllTeamsBySource(ImportSource.RFETM);
-        ClubConsolidationSummary.Builder summary = ClubConsolidationSummary.builder(ImportSource.RFETM)
-                .scannedRegistrations(registrations.size());
-        Map<String, ClubResolution> clubsByName = new HashMap<>();
-        Map<UUID, FederatedClub> clubs = new HashMap<>();
-        Map<UUID, List<org.cttelsamicsterrassa.data.core.domain.club.model.Team>> associatedTeams = new HashMap<>();
-        Map<UUID, Boolean> changedClubs = new HashMap<>();
+        List<Team> sourceTeams = teamRepository.findAllTeamsBySource(ImportSource.RFETM);
+        Map<String, List<Team>> teamsByName = new LinkedHashMap<>();
+        for (Team team : sourceTeams) {
+            teamsByName.computeIfAbsent(team.getName(), ignored -> new ArrayList<>()).add(team);
+        }
 
-        registrations.forEach(team -> {
-            String clubName = clubNamesDictionary.get(new SeasonTeamNameKey(team.getSeason(), team.getName()));
-            if (clubName != null) {
-                ClubResolution resolution = clubsByName.computeIfAbsent(
-                        clubName, name -> findOrCreateClub(name, team.getSeason(), mode, summary));
-                FederatedClub club = linkCanonicalClub(resolution.club(), clubName, mode);
-                if (resolution.club().getClub().isEmpty() && club.getClub().isPresent()) {
-                    summary.incrementCanonicalLinksCreated();
-                    resolution = new ClubResolution(club, resolution.created());
-                    clubsByName.put(clubName, resolution);
-                }
-                clubs.put(club.getId(), club);
-                associatedTeams.computeIfAbsent(club.getId(), ignored -> new ArrayList<>()).add(team);
-                if (resolution.created()) {
-                    changedClubs.put(club.getId(), true);
-                }
+        Map<String, FederatedClub> clubCache = new LinkedHashMap<>();
+        Map<String, List<Team>> membersByClub = new LinkedHashMap<>();
 
-                if (team.getFederatedClub().map(associatedClub -> associatedClub.getId().equals(club.getId())).orElse(false)) {
-                    summary.incrementAlreadyCorrect();
-                    return;
-                }
-                if (mode == ConsolidationMode.WRITE) {
-                    teamRepository.saveTeam(team.withFederatedClub(club));
-                }
-                summary.incrementReassociated();
-                changedClubs.put(club.getId(), true);
-                LOGGER.info("Reassociated RFETM team {} ({}) to club {} ({})",
-                        team.getId(), team.getName(), club.getId(), club.getName());
-            } else {
-                summary.warning(new ConsolidationWarning(ImportSource.RFETM, "No club name found for team",
-                        List.of(team.getId()), List.of(team.getName())));
-                LOGGER.warn("No club name found for team: {} in season: {}", team.getName(), team.getSeason());
+        for (Path file : listTeamFiles(teamsFolder, warnings)) {
+            List<org.cttelsamicsterrassa.data.load.shared.parse.team.Team> parsedRows;
+            try {
+                parsedRows = teamParser.parse(file);
+            } catch (RuntimeException e) {
+                warnings.add(new ConsolidationWarning("Skipping unreadable team file " + file + ": " + e.getMessage()));
+                continue;
             }
-        });
+            for (org.cttelsamicsterrassa.data.load.shared.parse.team.Team row : parsedRows) {
+                scanned++;
+                String clubName = row.clubName();
+                String teamName = row.teamName();
 
-        for (Map.Entry<UUID, List<org.cttelsamicsterrassa.data.core.domain.club.model.Team>> entry
-                : associatedTeams.entrySet()) {
-            if (changedClubs.getOrDefault(entry.getKey(), false)) {
-                FederatedClub club = clubs.get(entry.getKey());
-                List<org.cttelsamicsterrassa.data.core.domain.club.model.Team> teams = entry.getValue();
-                summary.consolidation(new ConsolidatedClub(
-                        ImportSource.RFETM,
-                        club.getName(),
-                        club.getId(),
-                        MatchingMode.EXACT,
-                        teams.stream().map(org.cttelsamicsterrassa.data.core.domain.club.model.Team::getId).toList(),
-                        teams.stream().map(org.cttelsamicsterrassa.data.core.domain.club.model.Team::getName).toList()));
-            }
-        }
-        ClubConsolidationSummary result = summary.build();
-        LOGGER.info("RFETM club consolidation: {}", result);
-        return result;
-    }
-
-    private FederatedClub linkCanonicalClub(FederatedClub federatedClub,
-                                             String canonicalName,
-                                             ConsolidationMode mode) {
-        if (canonicalClubResolver == null || federatedClub.getClub().isPresent()) {
-            return federatedClub;
-        }
-        Club canonicalClub = mode == ConsolidationMode.WRITE
-                ? canonicalClubResolver.resolveOrCreate(canonicalName)
-                : canonicalClubResolver.findOrCreateForReport(canonicalName);
-        FederatedClub linked = federatedClub.withClub(canonicalClub);
-        if (mode == ConsolidationMode.WRITE) {
-            clubRepository.saveFederatedClub(linked);
-        }
-        return linked;
-    }
-
-    private Map<SeasonTeamNameKey, String> loadClubAndTeamNamesDictionary(Path teamsFolderPath, String season) {
-        List<Team> teamsListForAllSeasons = loadListOfTeams(teamsFolderPath, season);
-        return buildClubNamesMap(teamsListForAllSeasons);
-    }
-
-    private List<Team> loadListOfTeams(Path teamsFolderPath, String season) {
-        List<Team> teams = new ArrayList<>();
-        try (DirectoryStream<Path> stream = Files.newDirectoryStream(teamsFolderPath)) {
-            for (Path pathEntry : stream) {
-                String fileName = pathEntry.getFileName().toString();
-                // Consolidation always analyses the complete RFETM inventory. The
-                // season argument limits traversal, not the repair inventory.
-                if (TEAMS_FILE_NAME_PATTERN.matcher(fileName).matches()) {
-                    teams.addAll(teamParser.parse(pathEntry));
-                }
-            }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-        return teams;
-    }
-
-    private ClubResolution findOrCreateClub(String clubName,
-                                            Season season,
-                                            ConsolidationMode mode,
-                                            ClubConsolidationSummary.Builder summary) {
-        return clubRepository.findFederatedClubBySourceAndName(ImportSource.RFETM, clubName)
-                .map(club -> new ClubResolution(club, false))
-                .orElseGet(() -> {
-                    LOGGER.warn("No club found for club name: {} in season: {}", clubName, season);
-                    FederatedClub newClub = FederatedClub.createNew(ImportSource.RFETM, clubName);
-                    if (mode == ConsolidationMode.WRITE) {
-                        clubRepository.saveFederatedClub(newClub);
+                FederatedClub federatedClub = clubCache.get(clubName);
+                if (!clubCache.containsKey(clubName)) {
+                    federatedClub = federatedClubRepository
+                            .findFederatedClubBySourceAndName(ImportSource.RFETM, clubName)
+                            .orElse(null);
+                    if (federatedClub == null) {
+                        createdClubNames.add(clubName);
+                        if (mode == ConsolidationMode.WRITE) {
+                            federatedClub = FederatedClub.createNew(ImportSource.RFETM, clubName);
+                            federatedClubRepository.saveFederatedClub(federatedClub);
+                        } else {
+                            federatedClub = FederatedClub.createExisting(
+                                    java.util.UUID.randomUUID(), ImportSource.RFETM, clubName);
+                        }
                     }
-                    summary.incrementClubsCreated();
-                    return new ClubResolution(newClub, true);
-                });
+                    clubCache.put(clubName, federatedClub);
+                }
+
+                List<Team> matches = teamsByName.getOrDefault(teamName, List.of());
+                if (matches.isEmpty()) {
+                    warnings.add(new ConsolidationWarning("No RFETM team registration found for " + teamName));
+                }
+                if (federatedClub != null) {
+                    membersByClub.computeIfAbsent(clubName, ignored -> new ArrayList<>()).addAll(matches);
+                }
+
+                FederatedClub resolvedClub = federatedClub;
+                for (Team match : matches) {
+                    if (resolvedClub == null) {
+                        continue;
+                    }
+                    if (match.getFederatedClub().map(existing -> Objects.equals(existing.getId(), resolvedClub.getId())).orElse(false)) {
+                        alreadyCorrect++;
+                        continue;
+                    }
+                    reassociated++;
+                    if (mode == ConsolidationMode.WRITE) {
+                        teamRepository.saveTeam(match.withFederatedClub(resolvedClub));
+                    }
+                }
+            }
+        }
+
+        clubsCreated = (int) createdClubNames.stream().distinct().count();
+
+        for (Map.Entry<String, List<Team>> entry : membersByClub.entrySet()) {
+            List<Team> members = entry.getValue().stream()
+                    .map(Team::getId)
+                    .distinct()
+                    .map(id -> sourceTeams.stream().filter(team -> team.getId().equals(id)).findFirst().orElse(null))
+                    .filter(Objects::nonNull)
+                    .toList();
+            consolidations.add(new ConsolidatedClub(
+                    ImportSource.RFETM,
+                    entry.getKey(),
+                    entry.getKey(),
+                    "team-folder",
+                    1.0d,
+                    members.stream().map(Team::getId).toList()));
+        }
+        consolidations.sort(Comparator.comparing(ConsolidatedClub::canonicalDisplayName));
+
+        ClubConsolidationSummary summary = new ClubConsolidationSummary(
+                ImportSource.RFETM,
+                mode,
+                scanned,
+                0,
+                0,
+                clubsCreated,
+                canonicalLinksCreated,
+                reassociated,
+                alreadyCorrect,
+                List.copyOf(consolidations),
+                List.copyOf(warnings),
+                List.copyOf(errors));
+        LOGGER.info("RFETM team-folder consolidation finished for {} in {} mode: {}", teamsFolder, mode, summary);
+        return summary;
     }
 
-    private Map<SeasonTeamNameKey, String> buildClubNamesMap(List<Team> teams) {
-        return teams.stream()
-                .collect(java.util.stream.Collectors.toMap(
-                        team -> new SeasonTeamNameKey(Season.fromFormatted(team.season()), team.teamName()),
-                        Team::clubName,
-                        (existing, replacement) -> existing // In case of duplicates, keep the existing value
-                ));
+    private static List<Path> listTeamFiles(Path teamsFolder, List<ConsolidationWarning> warnings) {
+        if (teamsFolder == null || !Files.isDirectory(teamsFolder)) {
+            warnings.add(new ConsolidationWarning("RFETM teams folder is not a directory: " + teamsFolder));
+            return List.of();
+        }
+        try (Stream<Path> stream = Files.list(teamsFolder)) {
+            return stream
+                    .filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".json"))
+                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                    .toList();
+        } catch (IOException e) {
+            warnings.add(new ConsolidationWarning("Cannot list RFETM team files in " + teamsFolder + ": " + e.getMessage()));
+            return List.of();
+        }
     }
-
-    private record SeasonTeamNameKey(Season season, String teamName) {}
-
-    private record ClubResolution(FederatedClub club, boolean created) {}
-
 }

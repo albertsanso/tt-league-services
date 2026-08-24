@@ -60,6 +60,16 @@ public final class InMemoryRepositories {
         }
 
         @Override
+        public List<FederatedClub> findAllFederatedClubsBySource(ImportSource source) {
+            return byId.values().stream()
+                    .filter(club -> Objects.equals(club.getSource(), source))
+                    .sorted(java.util.Comparator.comparing(FederatedClub::getName,
+                                    java.util.Comparator.nullsFirst(String::compareTo))
+                            .thenComparing(club -> club.getId().toString()))
+                    .toList();
+        }
+
+        @Override
         public void saveFederatedClub(FederatedClub club) {
             byId.put(club.getId(), club);
         }
@@ -112,6 +122,13 @@ public final class InMemoryRepositories {
                 throw new IllegalStateException("Multiple canonical clubs found for name: " + name);
             }
             return matches.stream().findFirst();
+        }
+
+        @Override
+        public List<Club> findAllClubs() {
+            return byId.values().stream()
+                    .sorted(java.util.Comparator.comparing(Club::getName).thenComparing(club -> club.getId().toString()))
+                    .toList();
         }
 
         @Override
@@ -282,7 +299,7 @@ public final class InMemoryRepositories {
         }
 
         @Override
-        public Optional<PlayerSeason> findPlayerSeasonByLicenseAndSeason(ImportSource source, String license, Season season) {
+        public Optional<PlayerSeason> findPlayerSeasonBySourceLicenseAndSeason(ImportSource source, String license, Season season) {
             return byId.values().stream()
                     .filter(ps -> Objects.equals(ps.getSource(), source)
                             && Objects.equals(ps.getLicense(), license)
