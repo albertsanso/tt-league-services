@@ -1,7 +1,5 @@
 package org.cttelsamicsterrassa.data.load.rfetm.process;
 
-import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
-import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -66,12 +64,6 @@ public class RfetmPlayerImportProcessor implements MatchContextProcessor {
                     LOGGER.debug("Created player season {} {} ({})", name, season, license);
                     return created;
                 });
-    }
-
-    private FederatedPlayer linkCanonicalPlayer(FederatedPlayer federatedPlayer, Player canonicalPlayer) {
-        return canonicalPlayer == null || federatedPlayer.getPlayer().isPresent()
-                ? federatedPlayer
-                : federatedPlayer.withPlayer(canonicalPlayer);
     }
 
     private static List<ActaLineupPlayer> players(Acta acta) {

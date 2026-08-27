@@ -32,11 +32,11 @@ public class RfetmTeamImportProcessor implements MatchContextProcessor {
     @Override
     public void process(MatchReportContext context) {
         Season season = context.toSeason();
-        importClub(context.homeTeam(), homeTeam(context), season);
-        importClub(context.awayTeam(), awayTeam(context), season);
+        importTeam(context.homeTeam(), homeTeam(context), season);
+        importTeam(context.awayTeam(), awayTeam(context), season);
     }
 
-    private void importClub(RfetmClubKey key, ActaTeam team, Season season) {
+    private void importTeam(RfetmClubKey key, ActaTeam team, Season season) {
         String name = team != null ? team.name() : key.name();
 
         teamRepository.findTeamByNameAndSeasonAndSource(name, season, ImportSource.RFETM)
