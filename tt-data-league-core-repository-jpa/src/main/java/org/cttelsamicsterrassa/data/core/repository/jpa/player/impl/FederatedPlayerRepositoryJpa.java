@@ -47,6 +47,18 @@ public class FederatedPlayerRepositoryJpa implements FederatedPlayerRepository {
     }
 
     @Override
+    public Optional<FederatedPlayer> findFederatedPlayerBySourceAndLicenseId(ImportSource source, String licenseId) {
+        Source jpaSource = Source.valueOf(Objects.requireNonNull(source, "source must not be null").name());
+        List<FederatedPlayerJPA> matches =
+                federatedPlayerRepositoryHelper.findAllBySourceAndLicenseId(jpaSource, licenseId);
+        if (matches.size() > 1) {
+            throw new IllegalStateException(
+                    "Multiple federated players found for source and licenseId: " + source + ", " + licenseId);
+        }
+        return matches.stream().map(federatedPlayerJPAToFederatedPlayerMapper).findFirst();
+    }
+
+    @Override
     public void saveFederatedPlayer(FederatedPlayer player) {
         federatedPlayerRepositoryHelper.save(federatedPlayerToFederatedPlayerJPAMapper.apply(player));
     }

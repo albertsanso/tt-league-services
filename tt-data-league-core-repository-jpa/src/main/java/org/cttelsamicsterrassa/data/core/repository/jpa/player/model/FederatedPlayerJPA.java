@@ -26,6 +26,7 @@ import java.util.UUID;
         indexes = {
                 @Index(name="idx_federated_player_name", columnList="name"),
                 @Index(name="idx_federated_player_source_name", columnList="source,name"),
+                @Index(name="idx_federated_player_source_license", columnList="source,license_id"),
                 @Index(name="idx_federated_player_player_id", columnList="player_id")
         }
 )
@@ -39,6 +40,9 @@ public class FederatedPlayerJPA {
 
     @Column(name = "name", nullable = false, length = 255)
     private String name;
+
+    @Column(name = "license_id", length = 20)
+    private String licenseId;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "player_id", nullable = true)

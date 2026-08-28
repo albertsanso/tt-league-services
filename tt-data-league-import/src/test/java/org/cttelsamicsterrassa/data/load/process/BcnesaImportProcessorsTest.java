@@ -58,7 +58,7 @@ class BcnesaImportProcessorsTest {
         doublesPairs = new InMemoryRepositories.DoublesPairs();
 
         processors = List.of(
-                new BcnesaTeamImportProcessor(teams, clubs, canonicalClubs),
+                new BcnesaTeamImportProcessor(teams),
                 new BcnesaPlayerImportProcessor(playerSeasons),
                 new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                         doublesPairs));

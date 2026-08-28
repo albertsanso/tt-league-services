@@ -10,6 +10,7 @@ import java.util.function.Function;
 public class PlayerJPAToPlayerMapper implements Function<PlayerJPA, Player> {
     @Override
     public Player apply(PlayerJPA playerJPA) {
-        return playerJPA == null ? null : Player.createExisting(playerJPA.getId(), playerJPA.getName());
+        return playerJPA == null ? null : Player.createExisting(
+                playerJPA.getId(), playerJPA.getName(), playerJPA.getLicenseId());
     }
 }

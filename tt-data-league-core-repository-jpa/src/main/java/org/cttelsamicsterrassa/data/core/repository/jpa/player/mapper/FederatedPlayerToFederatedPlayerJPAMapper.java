@@ -22,6 +22,7 @@ public class FederatedPlayerToFederatedPlayerJPAMapper implements Function<Feder
         playerJPA.setId(player.getId());
         playerJPA.setSource(player.getSource() != null ? Source.valueOf(player.getSource().name()) : null);
         playerJPA.setName(player.getName());
+        playerJPA.setLicenseId(player.getLicenseId());
         playerJPA.setPlayer(player.getPlayer().map(playerToPlayerJPAMapper).orElse(null));
         return playerJPA;
     }

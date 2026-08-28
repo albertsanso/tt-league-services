@@ -24,4 +24,8 @@ public record ActaParticipant(
     public ActaParticipant {
         doublesPlayers = doublesPlayers == null ? List.of() : List.copyOf(doublesPlayers);
     }
+
+    public String licenseId() {
+        return license;
+    }
 }

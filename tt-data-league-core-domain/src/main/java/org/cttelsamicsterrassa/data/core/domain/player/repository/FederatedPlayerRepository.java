@@ -13,6 +13,7 @@ import java.util.UUID;
 public interface FederatedPlayerRepository {
     Optional<FederatedPlayer> findFederatedPlayerById(UUID id);
     Optional<FederatedPlayer> findFederatedPlayerBySourceAndName(ImportSource source, String name);
+    Optional<FederatedPlayer> findFederatedPlayerBySourceAndLicenseId(ImportSource source, String licenseId);
     void saveFederatedPlayer(FederatedPlayer player);
     void deleteFederatedPlayerById(UUID id);
 

@@ -21,31 +21,31 @@ public class PlayerSeason extends Entity {
     private final UUID id;
     private final ImportSource source;
     private String name;
-    private final String license;
+    private final String licenseId;
     private final Optional<FederatedPlayer> federatedPlayer;
     private final Season season;
 
-    private PlayerSeason(UUID id, ImportSource source, String name, String license, Season season, FederatedPlayer player) {
+    private PlayerSeason(UUID id, ImportSource source, String name, String licenseId, Season season, FederatedPlayer player) {
         this.id = id;
         this.source = source;
         this.name = name;
-        this.license = license;
+        this.licenseId = licenseId;
         this.federatedPlayer = Optional.ofNullable(player);
         this.season = season;
     }
 
-    public static PlayerSeason createNew(ImportSource source, String name, String license, FederatedPlayer player, Season season) {
-        PlayerSeason playerSeason = new PlayerSeason(UUID.randomUUID(), source, name, license, season, player);
+    public static PlayerSeason createNew(ImportSource source, String name, String licenseId, FederatedPlayer player, Season season) {
+        PlayerSeason playerSeason = new PlayerSeason(UUID.randomUUID(), source, name, licenseId, season, player);
         playerSeason.publishPlayerSeasonCreatedEvent();
         return playerSeason;
     }
 
-    public static PlayerSeason createExisting(UUID id, ImportSource source, String name, String license, FederatedPlayer player, Season season) {
-        return of(id, source, name, license, player, season);
+    public static PlayerSeason createExisting(UUID id, ImportSource source, String name, String licenseId, FederatedPlayer player, Season season) {
+        return of(id, source, name, licenseId, player, season);
     }
 
-    private static PlayerSeason of(UUID id, ImportSource source, String name, String license, FederatedPlayer player, Season season) {
-        return new PlayerSeason(id, source, name, license, season, player);
+    private static PlayerSeason of(UUID id, ImportSource source, String name, String licenseId, FederatedPlayer player, Season season) {
+        return new PlayerSeason(id, source, name, licenseId, season, player);
     }
 
     public void modifyName(String name) {
@@ -57,7 +57,7 @@ public class PlayerSeason extends Entity {
         if (sameFederatedPlayer(player)) {
             return this;
         }
-        return of(id, source, name, license, player, season);
+        return of(id, source, name, licenseId, player, season);
     }
 
     private boolean sameFederatedPlayer(FederatedPlayer other) {
@@ -71,7 +71,7 @@ public class PlayerSeason extends Entity {
 
     private void publishPlayerSeasonCreatedEvent() {
         publishEvent(PlayerSeasonCreatedEvent.of(
-                this.id, this.name, this.season, this.license, this.source, federatedPlayer.orElse(null)));
+                this.id, this.name, this.season, this.licenseId, this.source, federatedPlayer.orElse(null)));
     }
 
     private void publishPlayerSeasonNameModifiedEvent(String name) {
@@ -102,7 +102,13 @@ public class PlayerSeason extends Entity {
         return season;
     }
 
+    public String getLicenseId() {
+        return licenseId;
+    }
+
+    /** @deprecated use {@link #getLicenseId()} */
+    @Deprecated
     public String getLicense() {
-        return license;
+        return licenseId;
     }
 }

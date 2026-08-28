@@ -11,4 +11,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 public record ActaPerson(
         @JsonProperty("nombre") String name,
         @JsonProperty("licencia") String license) {
+
+    public String licenseId() {
+        return license;
+    }
 }

@@ -37,7 +37,7 @@ public class PlayerSeasonRepositoryJpa implements PlayerSeasonRepository {
     @Override
     public Optional<PlayerSeason> findPlayerSeasonBySourceLicenseAndSeason(ImportSource source, String license, Season season) {
         Source jpaSource = mapFromImportSourceToSource(source);
-        return playerSeasonRepositoryHelper.findBySourceAndLicenseAndSeason(jpaSource, license, season.toString())
+        return playerSeasonRepositoryHelper.findBySourceAndLicenseIdAndSeason(jpaSource, license, season.toString())
                 .map(playerSeasonJPAToPlayerSeasonMapper);
     }
 

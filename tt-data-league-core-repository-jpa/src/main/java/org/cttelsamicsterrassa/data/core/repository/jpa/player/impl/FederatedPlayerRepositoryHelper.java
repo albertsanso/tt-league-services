@@ -10,4 +10,5 @@ import java.util.UUID;
 
 public interface FederatedPlayerRepositoryHelper extends JpaRepository<FederatedPlayerJPA, UUID>, JpaSpecificationExecutor<FederatedPlayerJPA> {
     List<FederatedPlayerJPA> findAllBySourceAndName(Source source, String name);
+    List<FederatedPlayerJPA> findAllBySourceAndLicenseId(Source source, String licenseId);
 }

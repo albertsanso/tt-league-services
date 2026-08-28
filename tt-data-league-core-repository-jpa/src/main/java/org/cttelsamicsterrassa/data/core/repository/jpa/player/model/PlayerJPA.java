@@ -20,8 +20,7 @@ import java.util.UUID;
 @AllArgsConstructor
 @Table(
         name = "player",
-        indexes = @Index(name = "idx_player_name", columnList = "name"),
-        uniqueConstraints = @UniqueConstraint(name = "uk_player_name", columnNames = "name")
+        indexes = @Index(name = "idx_player_name", columnList = "name")
 )
 public class PlayerJPA {
     @Id
@@ -29,4 +28,7 @@ public class PlayerJPA {
 
     @Column(name = "name", nullable = false, length = 255)
     private String name;
+
+    @Column(name = "license_id", length = 20)
+    private String licenseId;
 }

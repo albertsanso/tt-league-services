@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.UUID;
 
 public interface PlayerSeasonRepositoryHelper extends JpaRepository<PlayerSeasonJPA, UUID> {
-    Optional<PlayerSeasonJPA> findBySourceAndLicenseAndSeason(Source source, String license, String season);
+    Optional<PlayerSeasonJPA> findBySourceAndLicenseIdAndSeason(Source source, String licenseId, String season);
     List<PlayerSeasonJPA> findAllBySource(Source source);
 
     @Query("""

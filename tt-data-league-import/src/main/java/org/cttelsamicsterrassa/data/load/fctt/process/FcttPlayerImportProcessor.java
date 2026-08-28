@@ -41,18 +41,18 @@ public class FcttPlayerImportProcessor implements FcttMatchReportProcessor {
     }
 
     private void importPlayerSeason(ActaLineupPlayer lineupPlayer, Season season, FcttMatchReportContext context) {
-        if (isBlank(lineupPlayer.name()) || isBlank(lineupPlayer.license())) {
+        if (isBlank(lineupPlayer.name()) || isBlank(lineupPlayer.licenseId())) {
             LOGGER.warn("Skipping FCTT player without name or licence in {}", context.matchReportFile());
             return;
         }
 
-        playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.FCTT, lineupPlayer.license(), season)
+        playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.FCTT, lineupPlayer.licenseId(), season)
                 .orElseGet(() -> {
                     PlayerSeason created = PlayerSeason.createNew(
-                            ImportSource.FCTT, lineupPlayer.name(), lineupPlayer.license(), null, season);
+                            ImportSource.FCTT, lineupPlayer.name(), lineupPlayer.licenseId(), null, season);
                     playerSeasonRepository.savePlayerSeason(created);
                     LOGGER.debug("Created FCTT player season {} {} ({})",
-                            lineupPlayer.name(), season, lineupPlayer.license());
+                            lineupPlayer.name(), season, lineupPlayer.licenseId());
                     return created;
                 });
     }

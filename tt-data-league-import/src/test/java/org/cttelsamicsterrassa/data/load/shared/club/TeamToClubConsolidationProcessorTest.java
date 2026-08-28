@@ -162,6 +162,44 @@ class TeamToClubConsolidationProcessorTest {
     }
 
     @Test
+    void reusesPersistedClubWhenLaterSeasonNameIsOnlyAVariant() {
+        FederatedClub persisted = FederatedClub.createNew(ImportSource.FCTT, "HORTITEC ALZIRA TT");
+        clubs.saveFederatedClub(persisted);
+        saveSeason(ImportSource.FCTT, "HORTITEC ALZIRA", Season.of(2024), null);
+
+        ClubConsolidationSummary summary = processor.consolidate(ImportSource.FCTT);
+
+        assertEquals(0, summary.clubsCreated());
+        assertEquals(1, summary.registrationsReassociated());
+        assertEquals(persisted.getId(), teams.findAllTeamsBySource(ImportSource.FCTT).getFirst()
+                .getFederatedClub().orElseThrow().getId());
+    }
+
+    @Test
+    void linksOnlyUnassignedTeamsWhenExistingAssociationsConflict() {
+        FederatedClub left = FederatedClub.createNew(ImportSource.FCTT, "CLUB VILANOVA");
+        FederatedClub target = FederatedClub.createNew(ImportSource.FCTT, "CTT VILANOVA");
+        clubs.saveFederatedClub(left);
+        clubs.saveFederatedClub(target);
+        Team leftTeam = saveSeason(ImportSource.FCTT, "CTT VILANOVA A", Season.of(2023), left);
+        Team targetTeam = saveSeason(ImportSource.FCTT, "CTT VILANOVA B", Season.of(2024), target);
+        Team unassignedTeam = saveSeason(ImportSource.FCTT, "CTT VILANOVA C", Season.of(2025), null);
+
+        ClubConsolidationSummary summary = processor.consolidate(ImportSource.FCTT);
+
+        assertEquals(0, summary.clubsCreated());
+        assertEquals(1, summary.registrationsReassociated());
+        assertTrue(summary.warnings().stream().anyMatch(warning ->
+                warning.reason().contains("Conflicting existing federated clubs")));
+        assertEquals(left.getId(), teams.findTeamById(leftTeam.getId()).orElseThrow()
+                .getFederatedClub().orElseThrow().getId());
+        assertEquals(target.getId(), teams.findTeamById(targetTeam.getId()).orElseThrow()
+                .getFederatedClub().orElseThrow().getId());
+        assertEquals(target.getId(), teams.findTeamById(unassignedTeam.getId()).orElseThrow()
+                .getFederatedClub().orElseThrow().getId());
+    }
+
+    @Test
     void secondRunIsIdempotent() {
         saveSeason(ImportSource.FCTT, "HORTITEC ALZIRA TT", Season.of(2023), null);
         saveSeason(ImportSource.FCTT, "HORTITEC ALZIRA", Season.of(2024), null);

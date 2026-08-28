@@ -14,13 +14,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -38,11 +36,6 @@ public class PlayerSeasonConsolidationProcessor {
 
     @Autowired
     public PlayerSeasonConsolidationProcessor(FederatedPlayerRepository federatedPlayerRepository,
-                                              PlayerSeasonRepository playerSeasonRepository) {
-        this(federatedPlayerRepository, playerSeasonRepository, null);
-    }
-
-    public PlayerSeasonConsolidationProcessor(FederatedPlayerRepository federatedPlayerRepository,
                                               PlayerSeasonRepository playerSeasonRepository,
                                               PlayerRepository canonicalPlayerRepository) {
         this.federatedPlayerRepository = federatedPlayerRepository;
@@ -54,22 +47,39 @@ public class PlayerSeasonConsolidationProcessor {
         return consolidate(source, ConsolidationMode.WRITE);
     }
 
+    public PlayerConsolidationSummary consolidate2(ImportSource source) {
+        List<PlayerSeason> playerSeasons = playerSeasonRepository.findAllPlayerSeasonsBySource(source);
+        Map<PlayerIdentity, List<PlayerSeason>> groups = new LinkedHashMap<>();
+        List<ConsolidationWarning> warnings = new ArrayList<>();
+        List<ConsolidationWarning> errors = new ArrayList<>();
+
+        for (PlayerSeason playerSeason : playerSeasons) {
+            String licenseId = playerSeason.getLicenseId() == null ? "" : playerSeason.getLicenseId().trim();
+            if (licenseId.isBlank()) {
+                warnings.add(new ConsolidationWarning("Skipped blank licenseId for " + playerSeason.getId()));
+                continue;
+            }
+            groups.computeIfAbsent(new PlayerIdentity(source, licenseId), ignored -> new ArrayList<>()).add(playerSeason);
+        }
+
+        return null;
+    }
     public PlayerConsolidationSummary consolidate(ImportSource source, ConsolidationMode mode) {
         List<PlayerSeason> seasons = playerSeasonRepository.findAllPlayerSeasonsBySource(source).stream()
-                .sorted(Comparator.comparing(PlayerSeason::getName, Comparator.nullsFirst(String::compareTo))
+                .sorted(Comparator.comparing(PlayerSeason::getLicenseId, Comparator.nullsFirst(String::compareTo))
                         .thenComparing(playerSeason -> playerSeason.getId().toString()))
                 .toList();
 
-        Map<String, List<PlayerSeason>> groups = new LinkedHashMap<>();
+        Map<PlayerIdentity, List<PlayerSeason>> groups = new LinkedHashMap<>();
         List<ConsolidationWarning> warnings = new ArrayList<>();
         List<ConsolidationWarning> errors = new ArrayList<>();
         for (PlayerSeason playerSeason : seasons) {
-            String key = exactPlayerKey(playerSeason.getName());
-            if (key.isBlank()) {
-                warnings.add(new ConsolidationWarning("Skipped blank normalized player key for " + playerSeason.getId()));
+            String licenseId = playerSeason.getLicenseId() == null ? "" : playerSeason.getLicenseId().trim();
+            if (licenseId.isBlank()) {
+                warnings.add(new ConsolidationWarning("Skipped blank licenseId for " + playerSeason.getId()));
                 continue;
             }
-            groups.computeIfAbsent(key, ignored -> new ArrayList<>()).add(playerSeason);
+            groups.computeIfAbsent(new PlayerIdentity(source, licenseId), ignored -> new ArrayList<>()).add(playerSeason);
         }
 
         int exactGroups = (int) groups.values().stream().filter(group -> group.size() > 1).count();
@@ -83,6 +93,7 @@ public class PlayerSeasonConsolidationProcessor {
                     .sorted(Comparator.comparing((PlayerSeason playerSeason) -> playerSeason.getSeason().start())
                             .thenComparing(playerSeason -> playerSeason.getId().toString()))
                     .toList();
+            String licenseId = members.get(0).getLicenseId().trim();
             String canonicalDisplayName = preferredDisplayName(members.stream().map(PlayerSeason::getName).toList());
             Set<FederatedPlayer> existing = members.stream()
                     .map(playerSeason -> playerSeason.getFederatedPlayer().orElse(null))
@@ -91,17 +102,20 @@ public class PlayerSeasonConsolidationProcessor {
 
             if (existing.size() > 1) {
                 warnings.add(new ConsolidationWarning("Conflicting existing federated players for " + canonicalDisplayName));
-                continue;
+                //continue;
             }
 
             FederatedPlayer target = existing.stream().findFirst().orElse(null);
             if (target == null) {
-                target = federatedPlayerRepository.findFederatedPlayerBySourceAndName(source, canonicalDisplayName).orElse(null);
+                target = federatedPlayerRepository
+                        .findFederatedPlayerBySourceAndLicenseId(source, licenseId)
+                        .orElse(null);
             }
             if (target == null) {
                 playersCreated++;
                 if (mode == ConsolidationMode.WRITE) {
-                    target = FederatedPlayer.createNew(source, canonicalDisplayName);
+                    target = FederatedPlayer.createNew(
+                            source, canonicalDisplayName, licenseId);
                     federatedPlayerRepository.saveFederatedPlayer(target);
                 }
             }
@@ -110,12 +124,17 @@ public class PlayerSeasonConsolidationProcessor {
                 target.modifyName(canonicalDisplayName);
                 federatedPlayerRepository.saveFederatedPlayer(target);
             }
+            if (target != null && mode == ConsolidationMode.WRITE
+                    && target.getLicenseId() == null) {
+                target = target.withLicenseId(licenseId);
+                federatedPlayerRepository.saveFederatedPlayer(target);
+            }
 
+            /* Canonical assignation to the Federated Player if it doesn't have one yet, or Player creation */
             if (target != null && canonicalPlayerRepository != null && target.getPlayer().isEmpty()) {
-                Player canonical = canonicalPlayerRepository.findPlayerByExactName(canonicalDisplayName)
-                        .orElseGet(() -> mode == ConsolidationMode.WRITE
-                                ? createAndStoreCanonicalPlayer(canonicalDisplayName)
-                                : Player.createExisting(UUID.randomUUID(), canonicalDisplayName));
+                Player canonical = mode == ConsolidationMode.WRITE
+                        ? createAndStoreCanonicalPlayer(canonicalDisplayName, licenseId)
+                        : Player.createExisting(UUID.randomUUID(), canonicalDisplayName, licenseId);
                 if (mode == ConsolidationMode.WRITE) {
                     federatedPlayerRepository.saveFederatedPlayer(target.withPlayer(canonical));
                 }
@@ -151,8 +170,8 @@ public class PlayerSeasonConsolidationProcessor {
         return summary;
     }
 
-    private Player createAndStoreCanonicalPlayer(String canonicalDisplayName) {
-        Player created = Player.createNew(canonicalDisplayName);
+    private Player createAndStoreCanonicalPlayer(String canonicalDisplayName, String licenseId) {
+        Player created = Player.createNew(canonicalDisplayName, licenseId);
         canonicalPlayerRepository.savePlayer(created);
         return created;
     }
@@ -181,17 +200,6 @@ public class PlayerSeasonConsolidationProcessor {
         return candidate.replaceAll("\\s+", " ");
     }
 
-    private static String exactPlayerKey(String name) {
-        String display = normalizeDisplay(name);
-        return stripAccents(display)
-                .toLowerCase(Locale.ROOT)
-                .replaceAll("[^\\p{Alnum}\\s]", " ")
-                .replaceAll("\\s+", " ")
-                .trim();
-    }
-
-    private static String stripAccents(String text) {
-        return Normalizer.normalize(text, Normalizer.Form.NFD)
-                .replaceAll("\\p{M}+", "");
+    private record PlayerIdentity(ImportSource source, String licenseId) {
     }
 }

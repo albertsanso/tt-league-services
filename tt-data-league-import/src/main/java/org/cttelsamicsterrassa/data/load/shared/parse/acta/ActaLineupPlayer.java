@@ -16,4 +16,8 @@ public record ActaLineupPlayer(
         @JsonProperty("nombre") String name,
         @JsonProperty("licencia") String license,
         @JsonProperty("ranking") Double ranking) {
+
+    public String licenseId() {
+        return license;
+    }
 }

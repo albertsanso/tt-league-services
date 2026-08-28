@@ -50,18 +50,18 @@ public class RfetmPlayerImportProcessor implements MatchContextProcessor {
 
     private void importPlayer(ActaLineupPlayer lineupPlayer, Season season, MatchReportContext context) {
         String name = lineupPlayer.name();
-        String license = lineupPlayer.license();
-        if (isBlank(name) || isBlank(license)) {
+        String licenseId = lineupPlayer.licenseId();
+        if (isBlank(name) || isBlank(licenseId)) {
             LOGGER.warn("Skipping lineup entry without name or licence in {}", context.matchReportFile());
             return;
         }
 
-        playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.RFETM, license, season)
+        playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.RFETM, licenseId, season)
                 .orElseGet(() -> {
                     PlayerSeason created = PlayerSeason.createNew(
-                            ImportSource.RFETM, name, license, null, season);
+                            ImportSource.RFETM, name, licenseId, null, season);
                     playerSeasonRepository.savePlayerSeason(created);
-                    LOGGER.debug("Created player season {} {} ({})", name, season, license);
+                    LOGGER.debug("Created player season {} {} ({})", name, season, licenseId);
                     return created;
                 });
     }

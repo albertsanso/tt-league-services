@@ -76,24 +76,28 @@ The `federatedClub` association is `@ManyToOne(fetch = LAZY)` with no cascade.
 
 ### `player`
 
-Season-independent canonical player identity.
+Season-independent canonical player identity. `license_id` stores the imported
+source licence when available.
 
 | Column | Type | Null | Key/index |
 | --- | --- | --- | --- |
 | `id` | `UUID` | No | Primary key |
 | `name` | `VARCHAR(255)` | No | Unique; `idx_player_name` |
+| `license_id` | `VARCHAR(20)` | Yes | — |
 
 The table constraint is `uk_player_name`.
 
 ### `federated_player`
 
 Source-specific player identity, optionally linked to a canonical `player`.
+`license_id` stores the imported source licence when available.
 
 | Column | Type | Null | Key/index |
 | --- | --- | --- | --- |
 | `id` | `UUID` | No | Primary key |
 | `source` | `VARCHAR(20)` | No | — |
 | `name` | `VARCHAR(255)` | No | — |
+| `license_id` | `VARCHAR(20)` | Yes | `idx_federated_player_source_license` with `source` |
 | `player_id` | `UUID` | Yes | FK to `player`; `idx_federated_player_player_id` |
 
 There is no table-level unique constraint on `(source, name)`. The indexes
@@ -103,20 +107,20 @@ unscoped and source-scoped searches. The `player` association is
 
 ### `player_season`
 
-Season-specific player registration. `license` is the source-system
-registration identifier; it is not stored on `player` or `federated_player`.
+Season-specific player registration. `license_id` is the source-system
+registration identifier.
 
 | Column | Type | Null | Key/index |
 | --- | --- | --- | --- |
 | `id` | `UUID` | No | Primary key |
 | `source` | `VARCHAR(20)` | No | — |
 | `name` | `VARCHAR(255)` | No | `idx_player_season_name` |
-| `license` | `VARCHAR(20)` | No | — |
+| `license_id` | `VARCHAR(20)` | No | — |
 | `season` | `VARCHAR(10)` | Yes | `idx_player_season_season_license` |
 | `federated_player_id` | `UUID` | Yes | FK to `federated_player`; `idx_player_season_federated_player_id` |
 
 The unique constraint `uk_player_season_source_season_license` covers
-`(source, season, name, license)`. The `federatedPlayer` association is
+`(source, season, name, license_id)`. The `federatedPlayer` association is
 `@ManyToOne(fetch = LAZY)` with no cascade.
 
 ### `match_record`

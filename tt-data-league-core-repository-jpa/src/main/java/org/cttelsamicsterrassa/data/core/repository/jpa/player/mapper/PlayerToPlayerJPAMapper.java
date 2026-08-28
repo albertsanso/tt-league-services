@@ -10,6 +10,6 @@ import java.util.function.Function;
 public class PlayerToPlayerJPAMapper implements Function<Player, PlayerJPA> {
     @Override
     public PlayerJPA apply(Player player) {
-        return player == null ? null : new PlayerJPA(player.getId(), player.getName());
+        return player == null ? null : new PlayerJPA(player.getId(), player.getName(), player.getLicenseId());
     }
 }

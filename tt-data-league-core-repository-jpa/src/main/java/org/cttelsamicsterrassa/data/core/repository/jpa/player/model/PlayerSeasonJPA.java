@@ -28,12 +28,12 @@ import java.util.UUID;
         name = "player_season",
         indexes = {
                 @Index(name = "idx_player_season_name", columnList = "name"),
-                @Index(name = "idx_player_season_season_license", columnList = "season,license"),
+                @Index(name = "idx_player_season_season_license", columnList = "season,license_id"),
                 @Index(name = "idx_player_season_federated_player_id", columnList = "federated_player_id")
         },
         uniqueConstraints = {
                 @UniqueConstraint(name = "uk_player_season_source_season_license",
-                        columnNames = {"source", "season", "name", "license"})
+                        columnNames = {"source", "season", "name", "license_id"})
         }
 )
 public class PlayerSeasonJPA {
@@ -46,8 +46,8 @@ public class PlayerSeasonJPA {
 
     @Column(name = "name", nullable = false, length = 255)
     private String name;
-    @Column(name = "license", nullable = false, length = 20)
-    private String license;
+    @Column(name = "license_id", nullable = false, length = 20)
+    private String licenseId;
     @Column(length = 10)
     private String season;
 

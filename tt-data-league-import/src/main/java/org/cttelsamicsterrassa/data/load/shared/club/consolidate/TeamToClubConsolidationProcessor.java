@@ -66,7 +66,6 @@ public class TeamToClubConsolidationProcessor {
                 .sorted(Comparator.comparing(Team::getName, Comparator.nullsFirst(String::compareTo))
                         .thenComparing(team -> team.getId().toString()))
                 .toList();
-
         if (source == ImportSource.RFETM) {
             return new ClubConsolidationSummary(
                     source,
@@ -83,6 +82,10 @@ public class TeamToClubConsolidationProcessor {
                     List.of(new ConsolidationWarning("RFETM requires the team-folder consolidation processor")));
         }
 
+        List<FederatedClub> sourceClubs = federatedClubRepository.findAllFederatedClubsBySource(source).stream()
+                .sorted(Comparator.comparing(FederatedClub::getName, Comparator.nullsFirst(String::compareTo))
+                        .thenComparing(club -> club.getId().toString()))
+                .toList();
         List<ConsolidationWarning> warnings = new ArrayList<>();
         List<ConsolidationWarning> errors = new ArrayList<>();
         Map<String, List<Team>> exactGroups = new LinkedHashMap<>();
@@ -151,15 +154,20 @@ public class TeamToClubConsolidationProcessor {
                 continue;
             }*/
 
-            if (existingDistinct.size() > 1) {
+            boolean conflictingExistingClubs = existingDistinct.size() > 1;
+            if (conflictingExistingClubs) {
                 warnings.add(new ConsolidationWarning(
                         "Conflicting existing federated clubs for key " + group.normalizedKey()));
-                continue;
             }
 
-            FederatedClub target = existingDistinct.stream().findFirst().orElse(null);
-            if (target == null) {
-                target = federatedClubRepository.findFederatedClubBySourceAndName(source, canonicalDisplayName).orElse(null);
+            FederatedClub target = conflictingExistingClubs
+                    ? findPersistedClub(source, canonicalDisplayName, sourceClubs, warnings)
+                    : existingDistinct.stream().findFirst().orElse(null);
+            if (!conflictingExistingClubs && target == null) {
+                target = findPersistedClub(source, canonicalDisplayName, sourceClubs, warnings);
+            }
+            if (target == null && conflictingExistingClubs) {
+                continue;
             }
             if (target == null) {
                 clubsCreated++;
@@ -171,12 +179,16 @@ public class TeamToClubConsolidationProcessor {
                 }
             }
 
-            if (mode == ConsolidationMode.WRITE && !target.getName().equals(canonicalDisplayName)) {
+            if (mode == ConsolidationMode.WRITE && !conflictingExistingClubs
+                    && !target.getName().equals(canonicalDisplayName)) {
                 target.modifyName(canonicalDisplayName);
                 federatedClubRepository.saveFederatedClub(target);
             }
 
             for (Team member : members) {
+                if (conflictingExistingClubs && member.getFederatedClub().isPresent()) {
+                    continue;
+                }
                 UUID currentId = member.getFederatedClub().map(FederatedClub::getId).orElse(null);
                 UUID targetId = target.getId();
                 if (Objects.equals(currentId, targetId)) {
@@ -213,6 +225,44 @@ public class TeamToClubConsolidationProcessor {
                 List.copyOf(errors));
         LOGGER.info("Club consolidation finished for {} in {} mode: {}", source, mode, summary);
         return summary;
+    }
+
+    private FederatedClub findPersistedClub(ImportSource source,
+                                            String teamName,
+                                            List<FederatedClub> sourceClubs,
+                                            List<ConsolidationWarning> warnings) {
+        FederatedClub exactMatch = federatedClubRepository
+                .findFederatedClubBySourceAndName(source, teamName)
+                .orElse(null);
+        return exactMatch != null ? exactMatch : findExistingClub(source, teamName, sourceClubs, warnings);
+    }
+
+    private FederatedClub findExistingClub(ImportSource source,
+                                           String teamName,
+                                           List<FederatedClub> sourceClubs,
+                                           List<ConsolidationWarning> warnings) {
+        List<ClubCandidate> candidates = sourceClubs.stream()
+                .map(club -> new ClubCandidate(club, matcher.compare(source, teamName, club.getName())))
+                .filter(candidate -> candidate.comparison().exact() || candidate.comparison().fuzzyCandidate())
+                .sorted(Comparator.comparingDouble((ClubCandidate candidate) -> candidate.comparison().score()).reversed()
+                        .thenComparing(candidate -> candidate.club().getName(),
+                                Comparator.nullsFirst(String::compareTo))
+                        .thenComparing(candidate -> candidate.club().getId().toString()))
+                .toList();
+        if (candidates.isEmpty()) {
+            return null;
+        }
+        ClubCandidate best = candidates.getFirst();
+        List<ClubCandidate> equallyGood = candidates.stream()
+                .filter(candidate -> Double.compare(candidate.comparison().score(),
+                        best.comparison().score()) == 0)
+                .toList();
+        if (equallyGood.size() > 1) {
+            warnings.add(new ConsolidationWarning(
+                    "Ambiguous existing federated-club match for " + teamName));
+            return null;
+        }
+        return best.club();
     }
 
     private FuzzyMergeResult mergeMutualBestFuzzy(ImportSource source,
@@ -289,6 +339,9 @@ public class TeamToClubConsolidationProcessor {
     }
 
     private record Candidate(int otherIndex, double score, boolean tie) {
+    }
+
+    private record ClubCandidate(FederatedClub club, ClubNameComparison comparison) {
     }
 
     private record Group(String normalizedKey,

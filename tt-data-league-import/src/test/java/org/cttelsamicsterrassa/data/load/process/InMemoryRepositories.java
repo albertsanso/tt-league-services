@@ -252,6 +252,11 @@ public final class InMemoryRepositories {
             }
 
             @Override
+            public Optional<Player> findFirstPlayerByNameFragments(List<String> fragments) {
+                return Optional.empty();
+            }
+
+            @Override
             public void savePlayer(Player player) {
                 byId.put(player.getId(), player);
             }
@@ -271,6 +276,20 @@ public final class InMemoryRepositories {
             if (matches.size() > 1) {
                 throw new IllegalStateException(
                         "Multiple federated players found for source and name: " + source + ", " + name);
+            }
+            return matches.stream().findFirst();
+        }
+
+        @Override
+        public Optional<FederatedPlayer> findFederatedPlayerBySourceAndLicenseId(ImportSource source, String licenseId) {
+            Objects.requireNonNull(source, "source must not be null");
+            List<FederatedPlayer> matches = byId.values().stream()
+                    .filter(player -> Objects.equals(player.getSource(), source)
+                            && Objects.equals(player.getLicenseId(), licenseId))
+                    .toList();
+            if (matches.size() > 1) {
+                throw new IllegalStateException(
+                        "Multiple federated players found for source and licenseId: " + source + ", " + licenseId);
             }
             return matches.stream().findFirst();
         }

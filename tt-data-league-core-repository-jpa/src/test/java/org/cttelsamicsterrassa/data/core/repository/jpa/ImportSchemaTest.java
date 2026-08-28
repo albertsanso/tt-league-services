@@ -158,6 +158,20 @@ class ImportSchemaTest {
     }
 
     @Test
+    void findsAPlayerByItsSourceScopedLicenseId() {
+        FederatedPlayer rfetm = FederatedPlayer.createNew(ImportSource.RFETM, "RFETM PLAYER", "LIC-1");
+        FederatedPlayer bcnesa = FederatedPlayer.createNew(ImportSource.BCNESA, "BCNESA PLAYER", "LIC-1");
+        playerRepository.saveFederatedPlayer(rfetm);
+        playerRepository.saveFederatedPlayer(bcnesa);
+
+        FederatedPlayer found =
+                playerRepository.findFederatedPlayerBySourceAndLicenseId(ImportSource.BCNESA, "LIC-1").orElseThrow();
+
+        assertEquals(bcnesa.getId(), found.getId());
+        assertEquals(ImportSource.BCNESA, found.getSource());
+    }
+
+    @Test
     void roundTripsCanonicalPlayerAndFederatedAssociation() {
         Player canonical = Player.createNew("CANONICAL PLAYER");
         canonicalPlayerRepository.savePlayer(canonical);

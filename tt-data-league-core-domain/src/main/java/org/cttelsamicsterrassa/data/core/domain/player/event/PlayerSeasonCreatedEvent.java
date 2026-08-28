@@ -44,6 +44,10 @@ public class PlayerSeasonCreatedEvent extends DomainEvent {
         return license;
     }
 
+    public String getLicenseId() {
+        return license;
+    }
+
     public ImportSource getSource() {
         return source;
     }

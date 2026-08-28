@@ -48,7 +48,7 @@ public class BcnesaPlayerImportProcessor implements BcnesaMatchReportProcessor {
         if (participant == null) {
             return;
         }
-        importPlayerSeason(participant.name(), participant.license(), season, context);
+        importPlayerSeason(participant.name(), participant.licenseId(), season, context);
     }
 
     private void importDoublesParticipants(ActaParticipant participant,
@@ -59,7 +59,7 @@ public class BcnesaPlayerImportProcessor implements BcnesaMatchReportProcessor {
         }
         for (ActaLineupPlayer player : participant.doublesPlayers()) {
             if (player != null) {
-                importPlayerSeason(player.name(), player.license(), season, context);
+                importPlayerSeason(player.name(), player.licenseId(), season, context);
             }
         }
     }

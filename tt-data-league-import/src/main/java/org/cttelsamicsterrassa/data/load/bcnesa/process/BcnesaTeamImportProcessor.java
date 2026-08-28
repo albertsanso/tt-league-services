@@ -6,6 +6,8 @@ import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRep
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeam;
+import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
@@ -27,12 +29,6 @@ public class BcnesaTeamImportProcessor implements BcnesaMatchReportProcessor {
     @Inject
     public BcnesaTeamImportProcessor(TeamRepository teamRepository) {
         this.teamRepository = teamRepository;
-    }
-
-    public BcnesaTeamImportProcessor(TeamRepository teamRepository,
-                                     FederatedClubRepository ignoredFederatedClubRepository,
-                                     ClubRepository ignoredCanonicalClubRepository) {
-        this(teamRepository);
     }
 
     @Override

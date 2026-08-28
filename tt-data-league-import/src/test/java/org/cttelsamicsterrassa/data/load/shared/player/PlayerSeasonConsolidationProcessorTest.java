@@ -46,13 +46,13 @@ class PlayerSeasonConsolidationProcessorTest {
     }
 
     @Test
-    void consolidatesExactNamesWithoutChangingRegistrationIdentity() {
+    void consolidatesSameSourceLicenseWithoutChangingRegistrationIdentity() {
         InMemoryRepositories.Players players = new InMemoryRepositories.Players();
         InMemoryRepositories.PlayerSeasons seasons = new InMemoryRepositories.PlayerSeasons();
         PlayerSeason first = save(seasons, "John Doe", "1", Season.of(2023), null);
-        PlayerSeason second = save(seasons, "DOE, JOHN", "2", Season.of(2024), null);
+        PlayerSeason second = save(seasons, "Different Name", "1", Season.of(2024), null);
 
-        PlayerConsolidationSummary summary = new PlayerSeasonConsolidationProcessor(players, seasons)
+        PlayerConsolidationSummary summary = new PlayerSeasonConsolidationProcessor(players, seasons, null)
                 .consolidate(ImportSource.FCTT);
 
         assertEquals(1, summary.exactGroups());
@@ -60,10 +60,25 @@ class PlayerSeasonConsolidationProcessorTest {
         assertEquals(first.getId(), seasons.findPlayerSeasonById(first.getId()).orElseThrow().getId());
         assertEquals(second.getId(), seasons.findPlayerSeasonById(second.getId()).orElseThrow().getId());
         assertEquals("1", seasons.findPlayerSeasonById(first.getId()).orElseThrow().getLicense());
-        assertEquals("2", seasons.findPlayerSeasonById(second.getId()).orElseThrow().getLicense());
+        assertEquals("1", seasons.findPlayerSeasonById(second.getId()).orElseThrow().getLicense());
         assertEquals(1, players.byId.size());
         assertEquals(seasons.findPlayerSeasonById(first.getId()).orElseThrow().getFederatedPlayer().orElseThrow().getId(),
                 seasons.findPlayerSeasonById(second.getId()).orElseThrow().getFederatedPlayer().orElseThrow().getId());
+    }
+
+    @Test
+    void doesNotConsolidateSameNameWithDifferentLicenses() {
+        InMemoryRepositories.Players players = new InMemoryRepositories.Players();
+        InMemoryRepositories.PlayerSeasons seasons = new InMemoryRepositories.PlayerSeasons();
+        save(seasons, "Jane Doe", "1", Season.of(2023), null);
+        save(seasons, "Jane Doe", "2", Season.of(2024), null);
+
+        PlayerConsolidationSummary summary = new PlayerSeasonConsolidationProcessor(players, seasons, null)
+                .consolidate(ImportSource.FCTT);
+
+        assertEquals(0, summary.exactGroups());
+        assertEquals(2, summary.playersCreated());
+        assertEquals(2, players.byId.size());
     }
 
     @Test
@@ -71,10 +86,10 @@ class PlayerSeasonConsolidationProcessorTest {
         InMemoryRepositories.Players players = new InMemoryRepositories.Players();
         InMemoryRepositories.PlayerSeasons seasons = new InMemoryRepositories.PlayerSeasons();
         save(seasons, "Jane Doe", "1", Season.of(2023), null);
-        save(seasons, "Jane Doe", "2", Season.of(2024), null);
-        PlayerSeason otherSource = PlayerSeason.createNew(ImportSource.BCNESA, "Jane Doe", "4", null, Season.of(2023));
+        save(seasons, "Jane Doe", "1", Season.of(2024), null);
+        PlayerSeason otherSource = PlayerSeason.createNew(ImportSource.BCNESA, "Jane Doe", "1", null, Season.of(2023));
         seasons.savePlayerSeason(otherSource);
-        PlayerSeasonConsolidationProcessor processor = new PlayerSeasonConsolidationProcessor(players, seasons);
+        PlayerSeasonConsolidationProcessor processor = new PlayerSeasonConsolidationProcessor(players, seasons, null);
 
         PlayerConsolidationSummary first = processor.consolidate(ImportSource.FCTT);
         PlayerConsolidationSummary second = processor.consolidate(ImportSource.FCTT);
@@ -111,22 +126,22 @@ class PlayerSeasonConsolidationProcessorTest {
     void skipsConflictingPlayersAndReportModeDoesNotWrite() {
         InMemoryRepositories.Players players = new InMemoryRepositories.Players();
         InMemoryRepositories.PlayerSeasons seasons = new InMemoryRepositories.PlayerSeasons();
-        FederatedPlayer left = FederatedPlayer.createNew(ImportSource.RFETM, "John Doe");
-        FederatedPlayer right = FederatedPlayer.createNew(ImportSource.RFETM, "Different Player");
+        FederatedPlayer left = FederatedPlayer.createNew(ImportSource.RFETM, "John Doe", "1");
+        FederatedPlayer right = FederatedPlayer.createNew(ImportSource.RFETM, "Different Player", "1");
         players.saveFederatedPlayer(left);
         players.saveFederatedPlayer(right);
         save(seasons, ImportSource.RFETM, "John Doe", "1", Season.of(2023), left);
-        save(seasons, ImportSource.RFETM, " john   doe ", "2", Season.of(2024), right);
+        save(seasons, ImportSource.RFETM, " john   doe ", "1", Season.of(2024), right);
 
-        PlayerConsolidationSummary conflict = new PlayerSeasonConsolidationProcessor(players, seasons)
+        PlayerConsolidationSummary conflict = new PlayerSeasonConsolidationProcessor(players, seasons, null)
                 .consolidate(ImportSource.RFETM);
         assertTrue(conflict.warnings().stream().anyMatch(warning -> warning.reason().contains("Conflicting")));
 
         InMemoryRepositories.Players reportPlayers = new InMemoryRepositories.Players();
         InMemoryRepositories.PlayerSeasons reportSeasons = new InMemoryRepositories.PlayerSeasons();
         save(reportSeasons, ImportSource.RFETM, "John Doe", "1", Season.of(2023), null);
-        save(reportSeasons, ImportSource.RFETM, " john   doe ", "2", Season.of(2024), null);
-        PlayerConsolidationSummary report = new PlayerSeasonConsolidationProcessor(reportPlayers, reportSeasons)
+        save(reportSeasons, ImportSource.RFETM, " john   doe ", "1", Season.of(2024), null);
+        PlayerConsolidationSummary report = new PlayerSeasonConsolidationProcessor(reportPlayers, reportSeasons, null)
                 .consolidate(ImportSource.RFETM, ConsolidationMode.REPORT);
         assertEquals(1, report.playersCreated());
         assertEquals(0, reportPlayers.byId.size());

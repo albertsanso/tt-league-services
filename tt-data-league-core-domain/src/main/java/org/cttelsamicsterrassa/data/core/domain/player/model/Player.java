@@ -14,20 +14,34 @@ import java.util.UUID;
 public class Player extends Entity {
     private final UUID id;
     private String name;
+    private final String licenseId;
 
     private Player(UUID id, String name) {
+        this(id, name, null);
+    }
+
+    private Player(UUID id, String name, String licenseId) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.name = validateName(name);
+        this.licenseId = licenseId;
     }
 
     public static Player createNew(String name) {
-        Player player = new Player(UUID.randomUUID(), name);
+        return createNew(name, null);
+    }
+
+    public static Player createNew(String name, String licenseId) {
+        Player player = new Player(UUID.randomUUID(), name, licenseId);
         player.publishPlayerCreatedEvent();
         return player;
     }
 
     public static Player createExisting(UUID id, String name) {
-        return new Player(id, name);
+        return createExisting(id, name, null);
+    }
+
+    public static Player createExisting(UUID id, String name, String licenseId) {
+        return new Player(id, name, licenseId);
     }
 
     public void modifyName(String newName) {
@@ -48,6 +62,17 @@ public class Player extends Entity {
 
     public String getName() {
         return name;
+    }
+
+    public String getLicenseId() {
+        return licenseId;
+    }
+
+    public Player withLicenseId(String licenseId) {
+        if (Objects.equals(this.licenseId, licenseId)) {
+            return this;
+        }
+        return new Player(id, name, licenseId);
     }
 
     private static String validateName(String name) {

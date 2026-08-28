@@ -22,6 +22,7 @@ public class FederatedPlayerJPAToFederatedPlayerMapper implements Function<Feder
                 playerJPA.getId(),
                 playerJPA.getSource() != null ? ImportSource.valueOf(playerJPA.getSource().name()) : null,
                 playerJPA.getName(),
+                playerJPA.getLicenseId(),
                 playerJPAToPlayerMapper.apply(playerJPA.getPlayer())
         );
     }

@@ -71,8 +71,9 @@ public class ClubController {
             return ResponseEntity.ok(ClubDetailsDto.fromObject(details));
         }
 
-        DomainQueryResponse<FederatedClubDetailsReadModel> legacyResponse =
-                queryBus.push(new FindFederatedClubDetailsQuery(id));
+        //DomainQueryResponse<FederatedClubDetailsReadModel> legacyResponse = queryBus.push(new FindFederatedClubDetailsQuery(id));
+        DomainQueryResponse<ClubDetailsReadModel> legacyResponse = queryBus.push(new FindClubDetailsQuery(id));
+
         return legacyResponse.isSuccess()
                 ? ResponseEntity.ok(ClubDetailsDto.fromObject(legacyResponse.getResponse()))
                 : ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage("Club not found: " + id));

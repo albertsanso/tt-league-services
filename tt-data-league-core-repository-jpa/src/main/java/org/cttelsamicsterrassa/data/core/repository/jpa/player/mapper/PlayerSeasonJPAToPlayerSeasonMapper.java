@@ -27,7 +27,7 @@ public class PlayerSeasonJPAToPlayerSeasonMapper implements Function<PlayerSeaso
                 playerSeasonJPA.getId(),
                 source,
                 playerSeasonJPA.getName(),
-                playerSeasonJPA.getLicense(),
+                playerSeasonJPA.getLicenseId(),
                 federatedPlayerJPAToFederatedPlayerMapper.apply(playerSeasonJPA.getFederatedPlayer()),
                 Season.fromFormatted(playerSeasonJPA.getSeason())
         );
