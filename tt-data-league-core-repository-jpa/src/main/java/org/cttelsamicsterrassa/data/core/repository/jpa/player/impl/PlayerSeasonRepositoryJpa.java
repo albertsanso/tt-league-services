@@ -50,6 +50,15 @@ public class PlayerSeasonRepositoryJpa implements PlayerSeasonRepository {
     }
 
     @Override
+    public List<PlayerSeason> findAllPlayerSeasonsByFederatedPlayerIds(Collection<UUID> federatedPlayerIds) {
+        if (federatedPlayerIds == null || federatedPlayerIds.isEmpty()) {
+            return List.of();
+        }
+        return playerSeasonRepositoryHelper.findAllByFederatedPlayerIds(federatedPlayerIds).stream()
+                .map(playerSeasonJPAToPlayerSeasonMapper).toList();
+    }
+
+    @Override
     public List<PlayerSeason> findAllPlayerSeasonsByTeamIdsAndSource(
             Collection<UUID> teamIds,
             ImportSource source) {

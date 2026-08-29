@@ -10,5 +10,14 @@ import java.util.UUID;
  */
 public interface LineupRepository {
     List<Lineup> findLineupsByMatchId(UUID matchId);
+
+    default List<Lineup> findAllLineupsByPlayerSeasonIds(List<UUID> playerSeasonIds) {
+        return List.of();
+    }
+
+    default List<Lineup> findAllLineupsByPlayerSeasonIds(List<UUID> playerSeasonIds, int maxResults) {
+        return findAllLineupsByPlayerSeasonIds(playerSeasonIds).stream().limit(maxResults).toList();
+    }
+
     void saveLineups(List<Lineup> lineups);
 }

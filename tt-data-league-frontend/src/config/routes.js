@@ -1,26 +1,16 @@
 const CLUB_DETAIL_QUERY_KEYS = ['view', 'season', 'source', 'competition']
+const PLAYER_DETAIL_QUERY_KEYS = ['season', 'source', 'competition']
 
-function normalizeClubDetailSearch(search) {
-  if (!search) {
-    return ''
-  }
-
+function withSearch(path, search, keys = CLUB_DETAIL_QUERY_KEYS) {
+  if (!search) return path
   const rawSearch = typeof search === 'string' ? search : search.toString()
   const params = new URLSearchParams(rawSearch.replace(/^\?/, ''))
   const normalized = new URLSearchParams()
-
-  CLUB_DETAIL_QUERY_KEYS.forEach((key) => {
+  keys.forEach((key) => {
     const value = params.get(key)
-    if (value != null && value !== '') {
-      normalized.set(key, value)
-    }
+    if (value != null && value !== '') normalized.set(key, value)
   })
-
-  return normalized.toString()
-}
-
-function withSearch(path, search) {
-  const query = normalizeClubDetailSearch(search)
+  const query = normalized.toString()
   return query ? `${path}?${query}` : path
 }
 
@@ -39,12 +29,20 @@ export const routePaths = {
     `/clubs/${encodeURIComponent(clubId)}/edit`,
     returnSearch,
   ),
-  players: (clubId) => `/jugadors?clubId=${encodeURIComponent(clubId)}`,
+  players: (clubId) => clubId
+    ? `/jugadors?clubId=${encodeURIComponent(clubId)}`
+    : '/jugadors',
+  playerDetails: (playerId, returnSearch = '') => withSearch(
+    `/jugadors/${encodeURIComponent(playerId)}`,
+    returnSearch,
+    PLAYER_DETAIL_QUERY_KEYS,
+  ),
   matches: (clubId) => `/partits?clubId=${encodeURIComponent(clubId)}`,
 }
 
 const generalBreadcrumb = () => ({ label: 'General', path: routePaths.home })
 const clubsBreadcrumb = () => ({ label: 'Cerca de clubs', path: routePaths.clubs })
+const playersBreadcrumb = () => ({ label: 'Cerca de jugadors', path: routePaths.players() })
 
 function clubDetailBreadcrumb() {
   return [
@@ -60,6 +58,14 @@ function clubChildBreadcrumb({ clubId }, search, label) {
     clubsBreadcrumb(),
     { label: 'Detall del club', path: routePaths.clubDetails(clubId, search) },
     { label },
+  ]
+}
+
+function playerDetailBreadcrumb() {
+  return [
+    generalBreadcrumb(),
+    playersBreadcrumb(),
+    { label: 'Detall del jugador' },
   ]
 }
 
@@ -91,6 +97,14 @@ export const routesMeta = [
     breadcrumb: (params, search) => clubChildBreadcrumb(params, search, 'Detall de competició'),
   },
   { path: '/jugadors', label: 'Cerca de jugadors', section: 'General', auth: true, permission: 'players:read' },
+  {
+    path: '/jugadors/:playerId',
+    label: 'Detall del jugador',
+    section: 'General',
+    auth: true,
+    permission: 'players:read',
+    breadcrumb: playerDetailBreadcrumb,
+  },
   { path: '/partits', label: 'Cerca de partits', section: 'General', auth: true, permission: 'matches:read' },
   { path: '/cerca', label: 'Resultats de cerca', section: 'General', auth: true },
   { path: '/settings', label: 'Configuració', section: 'General', auth: true },
@@ -111,6 +125,9 @@ export function getRouteMeta(pathname) {
     }
     if (route.path === '/clubs/:clubId/competition/:season/:competition') {
       return /^\/clubs\/[^/]+\/competition\/[^/]+\/[^/]+$/.test(pathname)
+    }
+    if (route.path === '/jugadors/:playerId') {
+      return /^\/jugadors\/[^/]+$/.test(pathname)
     }
   })
 
@@ -144,6 +161,7 @@ function getRouteParameters(pathname, routePath) {
     '/clubs/:clubId': /^\/clubs\/([^/]+)$/,
     '/clubs/:clubId/competition/:season/:competition':
       /^\/clubs\/([^/]+)\/competition\/([^/]+)\/([^/]+)$/,
+    '/jugadors/:playerId': /^\/jugadors\/([^/]+)$/,
   }
   const match = patterns[routePath]?.exec(pathname)
 
@@ -157,6 +175,11 @@ function getRouteParameters(pathname, routePath) {
       season: decodeRouteParameter(match[2]),
       competition: decodeRouteParameter(match[3]),
     }
+
+  }
+
+  if (routePath === '/jugadors/:playerId') {
+    return { playerId: decodeRouteParameter(match[1]) }
   }
 
   return { clubId: decodeRouteParameter(match[1]) }

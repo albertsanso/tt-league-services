@@ -84,6 +84,32 @@ public class FederatedPlayerRepositoryJpa implements FederatedPlayerRepository {
                 .toList();
     }
 
+    @Override
+    public List<FederatedPlayer> findAllFederatedPlayersByPlayerId(UUID playerId) {
+        if (playerId == null) {
+            return List.of();
+        }
+        return federatedPlayerRepositoryHelper.findAllByPlayer_IdOrderBySourceAscNameAscIdAsc(playerId)
+                .stream().map(federatedPlayerJPAToFederatedPlayerMapper).toList();
+    }
+
+    @Override
+    public List<FederatedPlayer> findAllFederatedPlayersBySourceAndFragmentsInName(
+            ImportSource source, List<String> fragments) {
+        if (source == null) {
+            return findAllFederatedPlayersByFragmentsInName(fragments);
+        }
+        if (fragments == null || fragments.isEmpty()) {
+            return List.of();
+        }
+        Specification<FederatedPlayerJPA> specification = (root, query, criteriaBuilder) ->
+                criteriaBuilder.and(
+                        criteriaBuilder.equal(root.get("source"), Source.valueOf(source.name())),
+                        createNameFragmentsPredicate(root, criteriaBuilder, fragments, false));
+        return federatedPlayerRepositoryHelper.findAll(specification, Sort.by("name").and(Sort.by("id")))
+                .stream().map(federatedPlayerJPAToFederatedPlayerMapper).toList();
+    }
+
     private Predicate createNameFragmentsPredicate(
             Root<FederatedPlayerJPA> root,
             CriteriaBuilder criteriaBuilder,

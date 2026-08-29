@@ -39,4 +39,10 @@ describe('route configuration', () => {
     expect(getRouteMeta('/clubs/club-id/competition/2024/Preferent').label).toBe('Detall de competició')
     expect(getRouteMeta('/clubs-other').label).toBe('Overview')
   })
+
+  it('builds and recognizes canonical player detail paths', () => {
+    expect(routePaths.playerDetails('player/id', '?source=RFETM&season=2025&other=x'))
+      .toBe('/jugadors/player%2Fid?season=2025&source=RFETM')
+    expect(getRouteMeta('/jugadors/player%2Fid').label).toBe('Detall del jugador')
+  })
 })

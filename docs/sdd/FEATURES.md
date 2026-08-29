@@ -62,6 +62,40 @@ Any open questions, design decisions, or links.
 
 ## Done
 
+### [FEAT-011] Player Search and Player Detail
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large (> 8h)
+- **Depends on:** FEAT-001, FEAT-002, FEAT-009
+
+#### Goal
+Enable users to search for players and inspect their canonical identity, season registrations, clubs, competitions, and match-related information from the application.
+
+##### Player search
+- Users can search for players by name or other identifying information.
+- Search results are displayed in a list with clear loading, empty, validation, and error states.
+- Selecting a player from the search results navigates to a dedicated Player detail view.
+- Any role can search for players, but only administrators can modify player details, and this is enforced by the backend.
+
+##### Player detail view
+- Displays the player's canonical identity, source and season context, season registrations, associated clubs, competition references, and relevant match summaries.
+- The detail view is accessible and responsive across supported screen sizes.
+- Display a group of actions that the user can take on the player (e.g., view matches, view clubs, etc.) based on their access level.
+- Player detail modification action is available only to administrators and is enforced by the backend.
+
+#### Acceptance Criteria
+- [x] Users can search for players by name with clear loading, empty, validation, and error states, while preserving explicit source scoping where source identity affects matching.
+- [x] Selecting a player opens a dedicated detail view identified by the canonical Player UUID rather than an ambiguous name.
+- [x] The Player detail view presents the player's identity, source and season context, season registrations, associated clubs, competition references, and relevant match summaries.
+- [x] Source, season, and competition filters are explicit, interdependent, URL-persisted, and do not mix records from different source or season contexts.
+- [x] Player search and detail views provide accessible navigation, responsive layouts, and stable loading, not-found, empty, retry, and unauthorized states.
+- [x] REST/API adapters, frontend consumers, domain queries, persistence adapters, tests, and relevant documentation expose the agreed player search/detail contracts consistently without adding external identifiers to Player or FederatedPlayer.
+
+#### Feature Details
+→ See [FEAT-011-DETAILS.md](./FEAT-011-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
 ### [FEAT-010] club search returns canonical club entities with full details
 - **Status:** done
 - **Priority:** medium

@@ -23,6 +23,10 @@ public interface PlayerSeasonRepository {
     Map<UUID, List<String>> findAllPlayerSeasonCompetitionsByTeamIdsAndSource(
             Collection<UUID> teamIds,
             ImportSource source);
+
+    default List<PlayerSeason> findAllPlayerSeasonsByFederatedPlayerIds(Collection<UUID> federatedPlayerIds) {
+        return List.of();
+    }
     void savePlayerSeason(PlayerSeason playerSeason);
     void deletePlayerSeasonById(UUID id);
 }

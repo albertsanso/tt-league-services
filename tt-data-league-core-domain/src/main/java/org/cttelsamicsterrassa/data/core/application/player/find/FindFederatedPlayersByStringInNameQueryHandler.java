@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlaye
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import java.util.Comparator;
 import java.util.List;
 
 @Named
@@ -21,10 +22,20 @@ public class FindFederatedPlayersByStringInNameQueryHandler extends DomainQueryH
 
     @Override
     public DomainQueryResponse<List<FederatedPlayer>> handle(FindFederatedPlayersByStringInNameQuery findPlayersByStringInNameQuery) {
+        String search = findPlayersByStringInNameQuery.getStringToSearch();
+        if (search == null || search.trim().length() < 2) {
+            return DomainQueryResponse.failResponse(List.of());
+        }
         return DomainQueryResponse.sucessResponse(
-            playerRepository.findAllFederatedPlayersByFragmentsInName(
-                    List.of(findPlayersByStringInNameQuery.getStringToSearch().split(" ")))
-                .stream().toList()
+            playerRepository.findAllFederatedPlayersBySourceAndFragmentsInName(
+                    findPlayersByStringInNameQuery.getSource(), List.of(search.trim().split("\\s+")))
+                .stream()
+                .sorted(Comparator.comparing(FederatedPlayer::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
+                        .thenComparing(FederatedPlayer::getName, Comparator.nullsLast(String::compareTo))
+                        .thenComparing(player -> player.getSource() == null ? null : player.getSource().name(),
+                                Comparator.nullsLast(String::compareTo))
+                        .thenComparing(FederatedPlayer::getId))
+                .toList()
         );
     }
 }

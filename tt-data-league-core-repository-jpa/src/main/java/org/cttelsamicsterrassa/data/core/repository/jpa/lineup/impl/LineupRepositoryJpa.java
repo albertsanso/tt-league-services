@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 
 @Transactional
 @Component
@@ -26,6 +27,25 @@ public class LineupRepositoryJpa implements LineupRepository {
                 .stream()
                 .map(lineupJPAToLineupMapper)
                 .toList();
+    }
+
+    @Override
+    public List<Lineup> findAllLineupsByPlayerSeasonIds(List<UUID> playerSeasonIds) {
+        if (playerSeasonIds == null || playerSeasonIds.isEmpty()) {
+            return List.of();
+        }
+        return lineupRepositoryHelper.findAllByPlayerSeasonIds(playerSeasonIds).stream()
+                .map(lineupJPAToLineupMapper).toList();
+    }
+
+    @Override
+    public List<Lineup> findAllLineupsByPlayerSeasonIds(List<UUID> playerSeasonIds, int maxResults) {
+        if (playerSeasonIds == null || playerSeasonIds.isEmpty() || maxResults <= 0) {
+            return List.of();
+        }
+        return lineupRepositoryHelper.findAllByPlayerSeasonIds(
+                        playerSeasonIds, PageRequest.of(0, maxResults)).stream()
+                .map(lineupJPAToLineupMapper).toList();
     }
 
     @Override

@@ -18,4 +18,15 @@ public interface FederatedPlayerRepository {
     void deleteFederatedPlayerById(UUID id);
 
     List<FederatedPlayer> findAllFederatedPlayersByFragmentsInName(List<String> split);
+
+    default List<FederatedPlayer> findAllFederatedPlayersBySourceAndFragmentsInName(
+            ImportSource source, List<String> fragments) {
+        return findAllFederatedPlayersByFragmentsInName(fragments).stream()
+                .filter(player -> source == null || source.equals(player.getSource()))
+                .toList();
+    }
+
+    default List<FederatedPlayer> findAllFederatedPlayersByPlayerId(UUID playerId) {
+        return List.of();
+    }
 }

@@ -16,6 +16,16 @@ public interface PlayerSeasonRepositoryHelper extends JpaRepository<PlayerSeason
     List<PlayerSeasonJPA> findAllBySource(Source source);
 
     @Query("""
+            select distinct player from PlayerSeasonJPA player
+            join fetch player.federatedPlayer federated
+            left join fetch federated.player canonical
+            where federated.id in :federatedPlayerIds
+            order by player.season asc, player.source asc, player.name asc, player.id asc
+            """)
+    List<PlayerSeasonJPA> findAllByFederatedPlayerIds(
+            @Param("federatedPlayerIds") Collection<UUID> federatedPlayerIds);
+
+    @Query("""
             select distinct player from LineupJPA l
             join l.player player
             where l.team.id in :teamIds

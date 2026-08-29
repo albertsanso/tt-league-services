@@ -28,7 +28,7 @@ export const navigationSections = [
       {
         id: 'jugadors',
         label: 'Cerca de jugadors',
-        path: '/jugadors',
+        path: routePaths.players(),
         icon: Users,
       },
       {
