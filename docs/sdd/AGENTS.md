@@ -7,10 +7,11 @@ repository or module `AGENTS.md` files for application code.
 
 - `FEATURES.md` is the authoritative feature registry.
 - `task-management.md` defines the registry template and statuses.
-- `FEAT-NNN-DETAILS.md` contains one feature's plan, guidelines, and notes.
+- `FEAT-XXXXX-DETAILS.md` contains one feature's plan, guidelines, and notes.
 
-Use unique headings `### [FEAT-NNN] Title`, matching details filenames and
-relative links. Never reuse an ID. Preserve the existing Markdown structure.
+Use unique headings `### [FEAT-XXXXX] Title`, matching details filenames and
+relative links. IDs are five-digit zero-padded values; never reuse an ID.
+Preserve the existing Markdown structure.
 
 ## Status workflow
 

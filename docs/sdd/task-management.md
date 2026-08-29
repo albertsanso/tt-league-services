@@ -14,16 +14,16 @@ This file governs **requirements and planning artifacts only**.
 | Artifact | Purpose |
 |----------|---------|
 | `FEATURES.md` | Single registry: what exists, its status, priority, and a pointer to details |
-| `FEAT-NNN-DETAILS.md` | Deep dive: build plan steps, implementation guidelines, notes |
+| `FEAT-XXXXX-DETAILS.md` | Deep dive: build plan steps, implementation guidelines, notes |
 
 If `FEATURES.md` and a details file disagree, **`FEATURES.md` wins** for status, priority, and acceptance criteria unless a human explicitly reconciles them.
 
 ## Feature identity and filenames
 
-- Registry entries use the heading form: `### [FEAT-NNN] Short title` (three-digit zero-padded ID, e.g. `FEAT-001`).
-- Details file name must match: `FEAT-NNN-DETAILS.md` in the same directory as `FEATURES.md`.
-- Link from the registry using a relative path: `[FEAT-NNN-DETAILS.md](./FEAT-NNN-DETAILS.md)`.
-- When adding a **new** feature, pick the next unused `NNN` (scan existing headings and `FEAT-*-DETAILS.md` files; do not reuse IDs).
+- Registry entries use the heading form: `### [FEAT-XXXXX] Short title` (five-digit zero-padded ID, e.g. `FEAT-00001`).
+- Details file name must match: `FEAT-XXXXX-DETAILS.md` in the same directory as `FEATURES.md`.
+- Link from the registry using a relative path: `[FEAT-XXXXX-DETAILS.md](./FEAT-XXXXX-DETAILS.md)`.
+- When adding a **new** feature, pick the next unused five-digit ID (scan existing headings and `FEAT-*-DETAILS.md` files; do not reuse IDs).
 
 ---
 
@@ -34,7 +34,7 @@ If `FEATURES.md` and a details file disagree, **`FEATURES.md` wins** for status,
 Copy this block to add a new feature under `## Backlog` in `FEATURES.md`:
 
 ```markdown
-### [FEAT-000] Feature Name
+### [FEAT-00000] Feature Name
 - **Status:** idea
 - **Priority:** low | medium | high
 - **Effort:** small (< 2h) | medium (2–8h) | large (> 8h)
@@ -48,7 +48,7 @@ One sentence: what problem does this solve for the user?
 - [ ] Criterion 2
 
 #### Feature Details
-→ See [FEAT-000-DETAILS.md](./FEAT-000-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00000-DETAILS.md](./FEAT-00000-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 ```
 
 ### Feature details file
@@ -76,7 +76,7 @@ Use **only** these literals in `- **Status:** …` (lowercase, hyphenated where 
 | Status | Meaning |
 |--------|---------|
 | `idea` | Captured; no committed build plan in the details file yet |
-| `planned` | Build plan drafted in `FEAT-NNN-DETAILS.md` |
+| `planned` | Build plan drafted in `FEAT-XXXXX-DETAILS.md` |
 | `ready` | Plan is approved for implementation; code work may start (see root `AGENTS.md`) |
 | `in-progress` | Implementation underway |
 | `done` | Shipped; registry entry is closed |
@@ -94,7 +94,7 @@ The file has three feature sections (in this **top-to-bottom order**):
 2. `## Backlog`
 3. `## Done`
 
-**Rule:** Each feature block (from `### [FEAT-NNN]` through the closing `---` before the next heading or section) must live under **exactly one** of these sections, determined by **Status**:
+**Rule:** Each feature block (from `### [FEAT-XXXXX]` through the closing `---` before the next heading or section) must live under **exactly one** of these sections, determined by **Status**:
 
 | Status | Section |
 |--------|---------|
@@ -106,7 +106,7 @@ When you change a feature’s status, **move the entire block** (heading, metada
 
 **Ordering within a section:**
 
-- **`## Done`:** Sort feature blocks by **`FEAT-NNN` id in descending alphabetical order** (lexicographic descending on the full id string, e.g. `FEAT-008` above `FEAT-007`, … down to `FEAT-001`). When moving a feature to **Done**, insert it in this order (do not append only at the top or bottom unless that happens to match the sort).
+- **`## Done`:** Sort feature blocks by **`FEAT-XXXXX` id in descending alphabetical order** (lexicographic descending on the full id string, e.g. `FEAT-00008` above `FEAT-00007`, … down to `FEAT-00001`). When moving a feature to **Done**, insert it in this order (do not append only at the top or bottom unless that happens to match the sort).
 - **In Progress** and **Backlog:** No strict rule unless the human requests it; default to chronological (newest items near the top or bottom consistently with surrounding entries—match the prevailing pattern in the file).
 
 ---
@@ -115,15 +115,15 @@ When you change a feature’s status, **move the entire block** (heading, metada
 
 ### 1. New feature (`idea`)
 
-1. Append (or place per file convention) a new `### [FEAT-NNN]` block under **Backlog** using the template in [Templates](#templates).
+1. Append (or place per file convention) a new `### [FEAT-XXXXX]` block under **Backlog** using the template in [Templates](#templates).
 2. Add a related entry for the feature under `## Main index`, using the feature ID and title and linking to its registry heading.
 3. Set `- **Status:** idea`.
-4. Either add a stub `FEAT-NNN-DETAILS.md` with placeholder headings (`# Build Plan`, `# Implementation Guidelines`, `# Notes`) or omit the file until moving to `planned`—but the registry link should still point to `./FEAT-NNN-DETAILS.md` when the file exists.
-5. Fill **Goal** and initial **Acceptance Criteria**; use `Depends on:` for other `FEAT-NNN` IDs or external deps.
+4. Either add a stub `FEAT-XXXXX-DETAILS.md` with placeholder headings (`# Build Plan`, `# Implementation Guidelines`, `# Notes`) or omit the file until moving to `planned`—but the registry link should still point to `./FEAT-XXXXX-DETAILS.md` when the file exists.
+5. Fill **Goal** and initial **Acceptance Criteria**; use `Depends on:` for other `FEAT-XXXXX` IDs or external deps.
 
 ### 2. Plan written (`planned`)
 
-1. Create or update `FEAT-NNN-DETAILS.md` with a concrete **Build Plan** (numbered steps, file paths, contracts as needed).
+1. Create or update `FEAT-XXXXX-DETAILS.md` with a concrete **Build Plan** (numbered steps, file paths, contracts as needed).
 2. Set status to `planned` in `FEATURES.md`.
 3. Keep the feature under **Backlog** (not `in-progress` / **Done**).
 
@@ -137,12 +137,12 @@ When you change a feature’s status, **move the entire block** (heading, metada
 
 1. Set status to `in-progress`.
 2. Move the whole feature block to **In Progress**.
-3. Update `FEAT-NNN-DETAILS.md` if the plan changes (see [Editing details](#editing-details)).
+3. Update `FEAT-XXXXX-DETAILS.md` if the plan changes (see [Editing details](#editing-details)).
 
 ### 5. Shipped (`done`)
 
 1. Set status to `done`.
-2. Move the block to **Done**, placing it in **descending `FEAT-NNN` order** (see [Section placement](#section-placement-in-featuresmd) — **Done** sorting rule).
+2. Move the block to **Done**, placing it in **descending `FEAT-XXXXX` order** (see [Section placement](#section-placement-in-featuresmd) — **Done** sorting rule).
 3. Align acceptance checkboxes in `FEATURES.md` with reality (check completed items).
 4. Add a short **Notes** or “Shipped” line in details if useful; avoid large rewrites unless requested.
 
@@ -150,7 +150,7 @@ When you change a feature’s status, **move the entire block** (heading, metada
 
 1. Set status to `blocked`.
 2. Keep the block under **Backlog** (blocked is not “in progress” unless the team explicitly wants it in **In Progress**—**default: Backlog**).
-3. In `FEAT-NNN-DETAILS.md`, under **Notes**, state what blocks progress and what unblocks it.
+3. In `FEAT-XXXXX-DETAILS.md`, under **Notes**, state what blocks progress and what unblocks it.
 
 ---
 
@@ -159,7 +159,7 @@ When you change a feature’s status, **move the entire block** (heading, metada
 **Create** the file when:
 
 - Status moves to `planned` or earlier if the human wants a running doc; or
-- You split a large feature and need a place for steps—still one file per `FEAT-NNN`.
+- You split a large feature and need a place for steps—still one file per `FEAT-XXXXX`.
 
 **Recommended structure** (adapt to existing files):
 
@@ -197,8 +197,8 @@ When you change a feature’s status, **move the entire block** (heading, metada
 
 - [ ] Status is one of the six allowed values.
 - [ ] Feature block sits under **In Progress**, **Backlog**, or **Done** according to the table above.
-- [ ] **`## Done`** entries are ordered by **`FEAT-NNN` descending** (alphabetical descending on the id).
-- [ ] `FEAT-NNN` in the heading matches `FEAT-NNN-DETAILS.md`.
+- [ ] **`## Done`** entries are ordered by **`FEAT-XXXXX` descending** (alphabetical descending on the id).
+- [ ] `FEAT-XXXXX` in the heading matches `FEAT-XXXXX-DETAILS.md`.
 - [ ] Every feature has a corresponding entry under `## Main index`.
 - [ ] Details file has a **Build Plan** before or when status is `planned` or later.
 - [ ] Blockers documented in details **Notes** when `blocked`.

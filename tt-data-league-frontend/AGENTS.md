@@ -4,7 +4,7 @@
 
 This module is the TT League single-page application. It is a React 19
 application built with Vite and JavaScript/JSX. The current frontend delivers
-the FEAT-001 dashboard shell, overview, search placeholders, and settings
+the FEAT-00001 dashboard shell, overview, search placeholders, and settings
 page; treat the existing UI as an evolving product surface rather than as a
 second implementation of backend business rules.
 
@@ -118,7 +118,7 @@ mvn test
 ```
 
 Do not add a test framework or new build tool unless the task requires it.
-The current FEAT-001 module does not define component tests; when adding
+The current FEAT-00001 module does not define component tests; when adding
 substantial stateful or API behavior, introduce focused tests only as part of
 that feature's agreed implementation.
 

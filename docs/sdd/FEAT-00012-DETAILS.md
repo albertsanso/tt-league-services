@@ -3,7 +3,7 @@
 ## 1. Confirm the remaining player history contract
 
 1. Preserve the existing canonical-player search and detail contracts from
-   FEAT-009 and FEAT-011, including UUID navigation and explicit source and
+   FEAT-00009 and FEAT-00011, including UUID navigation and explicit source and
    season context.
 2. Define the remaining read-model fields for source, season, competition,
    match date, opponent, result, score, and the three history metrics:
@@ -83,7 +83,7 @@
    reactor with `mvn test`. Manually verify duplicate names across sources,
    unlinked search results, direct and refreshed detail URLs, all-source and
    all-season views, and representative screen sizes.
-5. Check the FEAT-012 acceptance criteria in
+5. Check the FEAT-00012 acceptance criteria in
    `docs/sdd/FEATURES.md` only after implementation evidence exists; keep the
    feature `in-progress` until the remaining criteria are complete.
 
@@ -106,7 +106,7 @@
 
 # Notes
 
-- FEAT-009 and FEAT-011 are prerequisites and remain listed as dependencies in
+- FEAT-00009 and FEAT-00011 are prerequisites and remain listed as dependencies in
   `docs/sdd/FEATURES.md`.
 - The registry currently records the search/detail foundation and the initial
   visualization work as complete. The remaining scope is the enhanced chart

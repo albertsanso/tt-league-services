@@ -111,7 +111,7 @@
   Existing source-scoped FederatedClub consolidation, including its
   source-specific fuzzy/rules behavior, remains unchanged and non-destructive.
 - This repository owns the manually applied PostgreSQL migration under
-  `docs/migrations/FEAT-008-canonical-club.sql`. It includes prechecks,
+  `docs/migrations/FEAT-00008-canonical-club.sql`. It includes prechecks,
   backfill-safe nullable steps, and preservation/integrity postchecks.
   Hibernate `ddl-auto: update` is not a migration.
 
@@ -125,4 +125,4 @@
 - Existing source-specific rules and the opt-in consolidation behavior
   described in
   `docs/implementation-plans/consolidate-unique-club-processor.md` remain
-  applicable unless an explicit FEAT-008 decision supersedes them.
+  applicable unless an explicit FEAT-00008 decision supersedes them.

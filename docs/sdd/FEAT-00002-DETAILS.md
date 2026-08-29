@@ -132,7 +132,7 @@
   dependency decision approves it.
 - Keep API calls behind focused hooks or API helpers. Every request needs
   explicit loading, success, empty, error, and cancellation behavior where
-  applicable; authentication errors must not fall back to FEAT-001 mock data.
+  applicable; authentication errors must not fall back to FEAT-00001 mock data.
 - Preserve public backend routes while adding the target `/auth/me` contract,
   and document any persistence schema changes in
   `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md`.
@@ -142,7 +142,7 @@
 
 # Notes
 
-- This feature depends on the frontend shell and route structure delivered by FEAT-001.
+- This feature depends on the frontend shell and route structure delivered by FEAT-00001.
 - Implemented: `/api/v1/auth/me` is available while `/api/v1/user/me` remains
   compatible; JWT signing is stable and environment-driven; roles and
   permissions are persisted and enforced; and recovery uses hashed,

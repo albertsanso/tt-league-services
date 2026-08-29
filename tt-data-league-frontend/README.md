@@ -1,7 +1,7 @@
 # TT League Frontend
 
 SPA React/Vite per a la capa d'interfície del projecte TT League. Implementa el
-dashboard inicial (FEAT-001) amb shell de navegació, overview i pàgines bàsiques.
+dashboard inicial (FEAT-00001) amb shell de navegació, overview i pàgines bàsiques.
 
 ## Requisits
 
@@ -44,4 +44,4 @@ mvn -pl tt-data-league-frontend -am test
 ```
 
 Aquest mòdul executa `npm ci`, `npm run lint` i `npm run build` durant el pipeline
-Maven. Les proves de components no formen part de FEAT-001.
+Maven. Les proves de components no formen part de FEAT-00001.

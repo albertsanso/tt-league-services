@@ -9,11 +9,11 @@
      otherwise.
    - Define how globally unique canonical names are established when existing
      sources contain duplicate, differently spelled, or blank names.
-   - Confirm that the FEAT-006 rename migration has been applied before this
+   - Confirm that the FEAT-00006 rename migration has been applied before this
      feature migration. This feature must not reintroduce the legacy `player`
      table as the federated entity.
    - Use the repository-owned manual PostgreSQL migration location
-     `docs/migrations/FEAT-009-canonical-player.sql`; Hibernate schema update is
+     `docs/migrations/FEAT-00009-canonical-player.sql`; Hibernate schema update is
      not a data migration.
 
 2. **Add the canonical domain model and contracts.**
@@ -125,7 +125,7 @@
 - The canonical `Player` name is globally unique and exact-name matching is the
   only automatic cross-source linking rule. The `(source, name)` index on
   `FederatedPlayer` remains non-unique and is used only for scoped lookup.
-- The FEAT-006 migration that renamed the legacy federated table and
+- The FEAT-00006 migration that renamed the legacy federated table and
   `PlayerSeason` canonical-player column is a prerequisite. This feature adds
   the canonical `Player` table and the `FederatedPlayer.player_id` association;
   it must not rename PlayerSeason-targeting `player_id` columns.

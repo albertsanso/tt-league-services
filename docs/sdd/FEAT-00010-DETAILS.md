@@ -69,7 +69,7 @@
    - Update `docs/sdd/FEATURES.md` when the canonical response contract is
      approved, keeping the feature status and acceptance criteria synchronized.
    - Update API/OpenAPI documentation for the final response shape.
-   - Confirm the FEAT-008 schema migration and canonical club data are available
+   - Confirm the FEAT-00008 schema migration and canonical club data are available
      before relying on the new queries; add a migration only if this feature
      introduces a schema change.
    - Run `mvn -pl tt-data-league-api-rest -am test` and then `mvn test`.
@@ -99,12 +99,12 @@
 
 # Notes
 
-- FEAT-010 is marked `done` in `docs/sdd/FEATURES.md`.
+- FEAT-00010 is marked `done` in `docs/sdd/FEATURES.md`.
 - The registry currently requires canonical `Club` UUIDs for search results,
-  while FEAT-008 documentation states that existing route and DTO identifiers
+  while FEAT-00008 documentation states that existing route and DTO identifiers
   remain `FederatedClub` UUIDs. This compatibility decision must be resolved
   before implementation.
-- The FEAT-008 schema migration is a prerequisite for canonical club data. This
+- The FEAT-00008 schema migration is a prerequisite for canonical club data. This
   feature should not rename or redirect PlayerSeason, match, lineup, or other
   historical foreign-key columns.
 - Canonical club search and detail responses use `Club` UUIDs and retain all

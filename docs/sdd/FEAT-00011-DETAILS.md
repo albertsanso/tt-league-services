@@ -109,9 +109,9 @@
 # Notes
 
 - This feature follows the search/detail and filter/navigation patterns delivered
-  by FEAT-003 and FEAT-004, adapting them to canonical Player and
+  by FEAT-00003 and FEAT-00004, adapting them to canonical Player and
   source-scoped FederatedPlayer/PlayerSeason data.
-- FEAT-009 provides the canonical Player entity and is a prerequisite for
+- FEAT-00009 provides the canonical Player entity and is a prerequisite for
   UUID-based player detail navigation.
 - The exact player match-summary and roster fields should be confirmed against
   the existing domain and persistence contracts before implementation begins.

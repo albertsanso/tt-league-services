@@ -162,7 +162,7 @@
   parameters are navigation state, not a second server-side source of truth.
 - Never resolve a club or player by an unscoped name. Use UUIDs for club
   navigation and explicit season/source scope for roster and match queries.
-- Preserve the existing Club edit endpoint and behavior. FEAT-004 changes its
+- Preserve the existing Club edit endpoint and behavior. FEAT-00004 changes its
   presentation and return navigation, not its authorization or domain
   semantics.
 - No schema migration is expected for read-only competition summaries or
@@ -171,7 +171,7 @@
 
 # Notes
 
-- FEAT-004 depends on FEAT-003, which already provides the Club search/detail
+- FEAT-00004 depends on FEAT-00003, which already provides the Club search/detail
   API, frontend API normalization, `ClubDetailPage`, admin edit flow, route
   guards, and the frontend test/build setup.
 - The current `ClubDetailPage` still renders action links and the
@@ -183,12 +183,12 @@
   exposed. Confirm the exact roster and match row fields before moving the
   feature from `planned` to `ready`.
 - `FEATURES.md` remains authoritative for this feature’s status and acceptance
-  criteria. Keep FEAT-004 under `Backlog` while the read contracts and the
+  criteria. Keep FEAT-00004 under `Backlog` while the read contracts and the
   roster/match tab scope remain unresolved; move it to `ready` only after the
   contract is approved.
 - The scoped roster and competition-detail read contracts are now implemented
   without changing Club or Player identity or the persistence schema. The
-  feature registry records FEAT-004 as shipped.
+  feature registry records FEAT-00004 as shipped.
 - The Club detail response is source-scoped by the selected Club identity. The
   source filter still exposes an explicit all-sources choice and derives its
   available values from the complete normalized response, so source-scoped

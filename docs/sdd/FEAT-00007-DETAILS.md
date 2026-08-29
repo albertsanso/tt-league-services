@@ -68,6 +68,6 @@
   `Breadcrumb` derives items from `location.pathname` only. The competition
   detail metadata currently uses `/clubs` as the Club detail link, so dynamic
   route links and return-state handling need correction together.
-- `FEATURES.md` is authoritative for status and acceptance criteria. FEAT-007
+- `FEATURES.md` is authoritative for status and acceptance criteria. FEAT-00007
   is shipped with centralized dynamic route helpers, preserved Club detail
   query state, accessible breadcrumbs, and nested Club navigation matching.

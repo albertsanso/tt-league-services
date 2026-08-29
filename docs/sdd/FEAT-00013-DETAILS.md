@@ -3,7 +3,7 @@
 ## 1. Reproduce and catalogue the remaining detail-page defects
 
 1. Review the current player-detail route, API normalization, read models, and
-   REST DTOs to identify discrepancies between the documented FEAT-011/FEAT-012
+   REST DTOs to identify discrepancies between the documented FEAT-00011/FEAT-00012
    contract and the behavior currently presented to users.
 2. Reproduce each defect with source-, season-, and competition-scoped data,
    including all-source/all-season selections, players with no history, and
@@ -98,7 +98,7 @@
 
 # Notes
 
-- FEAT-011 and FEAT-012 provide the player search/detail and canonical-player
+- FEAT-00011 and FEAT-00012 provide the player search/detail and canonical-player
   foundations; this feature is limited to correcting remaining detail behavior
   and regressions rather than redesigning the player domain.
 - The detail visualization exposes only line, bar, and connected scatter

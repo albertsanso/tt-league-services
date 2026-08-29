@@ -120,11 +120,11 @@
   the JPA schema. Do not redirect match or lineup foreign keys to a club row.
 - Surface migration and lookup ambiguity as explicit failures or warnings;
   never resolve an unscoped exact name by choosing the first row.
-- Keep edits limited to FEAT-005 and preserve unrelated worktree changes.
+- Keep edits limited to FEAT-00005 and preserve unrelated worktree changes.
 
 # Notes
 
-- `FEATURES.md` is the authoritative registry and should move FEAT-005 from
+- `FEATURES.md` is the authoritative registry and should move FEAT-00005 from
   `idea` to `planned` now that this build plan exists. It remains in Backlog;
   implementation should wait until the plan is approved and the migration
   ownership/location is decided.
@@ -134,9 +134,9 @@
   in older implementation notes.
 - The current repository exposes `findClubByName` and the create handler uses
   it despite the `(source, name)` uniqueness rule. This is a correctness issue
-  in the FEAT-005 scope, not a reason to add a second uniqueness mechanism.
+  in the FEAT-00005 scope, not a reason to add a second uniqueness mechanism.
 - No versioned migration scripts or migration framework were found in the
-  repository. FEAT-005 cannot be marked `ready` until the deployment owner
+  repository. FEAT-00005 cannot be marked `ready` until the deployment owner
   confirms where the reviewed migration will live and how it will be applied.
 - Implementation was authorized without a deployment migration; the code and
   schema contract now target `federated_club` and `federated_club_id`, but the

@@ -133,7 +133,7 @@ defines how each of its sections is translated into frontend artifacts.
 # Implementation Guidelines
 
 - Treat `docs/frontend/theme-spec.md` and the theme sub-plan above as the
-  visual and interaction contract for FEAT-001.
+  visual and interaction contract for FEAT-00001.
 - Use the existing React, React Router, Tailwind CSS, and Lucide dependencies.
   Use React Context for shared UI state rather than adding Zustand or another
   state library.
@@ -151,7 +151,7 @@ defines how each of its sections is translated into frontend artifacts.
 
 # Notes
 
-- The current frontend is a Vite React starter. FEAT-001 replaces the starter
+- The current frontend is a Vite React starter. FEAT-00001 replaces the starter
   screen and does not require changes to the Java domain or API modules.
 - The existing Maven frontend plugin pins Node/npm and runs install and lint
   during the test phase; the production build runs during package preparation.
@@ -159,5 +159,5 @@ defines how each of its sections is translated into frontend artifacts.
   out of scope unless separately approved as a dependency decision.
 - Backend endpoints may not be available during skeleton development, so the
   overview uses deterministic mock statistics behind `useCommunityStats`.
-- FEAT-001 shipped with the starter screen replaced, route-level pages lazy
+- FEAT-00001 shipped with the starter screen replaced, route-level pages lazy
   loaded, and the documented npm/Maven validation commands passing.

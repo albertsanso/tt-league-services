@@ -81,7 +81,7 @@
    state. Keep the layout responsive at the existing desktop, tablet, and
    mobile breakpoints and use Catalan copy and semantic headings.
 4. Add reusable detail components only where they serve this feature, keeping
-   page composition separate from API normalization. Do not use FEAT-001 mock
+   page composition separate from API normalization. Do not use FEAT-00001 mock
    data as a fallback for a failed club request.
 
 ## 5. Wire club actions and edit flow
@@ -143,8 +143,8 @@
 
 # Notes
 
-- FEAT-001 provides the shell, centralized routes, responsive primitives, and
-  placeholder player/match pages. FEAT-002 provides the authenticated session,
+- FEAT-00001 provides the shell, centralized routes, responsive primitives, and
+  placeholder player/match pages. FEAT-00002 provides the authenticated session,
   permission checks, and forbidden state.
 - At planning time, the backend already exposed `ClubDto`, name search, UUID
   lookup, and the existing club-name command, but it did not expose a combined
@@ -154,9 +154,9 @@
   geography requires a separate domain and schema decision.
 - The feature added the minimum frontend component test setup and updated
   `package-lock.json` through npm.
-- FEAT-003 implementation is complete across the REST API, domain/JPA adapters,
+- FEAT-00003 implementation is complete across the REST API, domain/JPA adapters,
   and frontend routes and views. Frontend lint, tests, and build pass, and the
   affected backend Maven reactor passes.
 - Full `mvn test` remains blocked by seven existing import fixture assertions
   that report zero stored records in `tt-data-league-import`; those failures
-  are outside the FEAT-003 implementation scope.
+  are outside the FEAT-00003 implementation scope.

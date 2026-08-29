@@ -22,29 +22,29 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
-- [FEAT-013: Player details fixes](### [FEAT-013] Player details fixes)
-- [FEAT-012: Player search & detail - unique players](### [FEAT-012] Player search & detail - unique players)
-- [FEAT-011: Player Search and Player Detail](### [FEAT-011] Player Search and Player Detail)
-- [FEAT-010: Club search returns canonical club entities with full details](### [FEAT-010] Club search returns canonical club entities with full details)
-- [FEAT-009: Canonical player entity](### [FEAT-009] Canonical player entity)
-- [FEAT-008: Canonical club entity](### [FEAT-008] Canonical club entity)
-- [FEAT-007: fixes in breadcrumb and navigation](### [FEAT-007] fixes in breadcrumb and navigation)
-- [FEAT-006: Player entity rename to FederatedPlayer](### [FEAT-006] Player entity rename to FederatedPlayer)
-- [FEAT-005: Club entity rename to FederatedClub](### [FEAT-005] Club entity rename to FederatedClub)
-- [FEAT-004: Club detail redesign 1](### [FEAT-004] Club detail redesign 1)
-- [FEAT-003: Club search and club detail](### [FEAT-003] Club search and club detail)
-- [FEAT-002: Access control and secured navigation](### [FEAT-002] Access control and secured navigation)
-- [FEAT-001: Frontend application skeleton and theme](### [FEAT-001] Frontend application skeleton and theme)
+- [FEAT-00013: Player details fixes](### [FEAT-00013] Player details fixes)
+- [FEAT-00012: Player search & detail - unique players](### [FEAT-00012] Player search & detail - unique players)
+- [FEAT-00011: Player Search and Player Detail](### [FEAT-00011] Player Search and Player Detail)
+- [FEAT-00010: Club search returns canonical club entities with full details](### [FEAT-00010] Club search returns canonical club entities with full details)
+- [FEAT-00009: Canonical player entity](### [FEAT-00009] Canonical player entity)
+- [FEAT-00008: Canonical club entity](### [FEAT-00008] Canonical club entity)
+- [FEAT-00007: fixes in breadcrumb and navigation](### [FEAT-00007] fixes in breadcrumb and navigation)
+- [FEAT-00006: Player entity rename to FederatedPlayer](### [FEAT-00006] Player entity rename to FederatedPlayer)
+- [FEAT-00005: Club entity rename to FederatedClub](### [FEAT-00005] Club entity rename to FederatedClub)
+- [FEAT-00004: Club detail redesign 1](### [FEAT-00004] Club detail redesign 1)
+- [FEAT-00003: Club search and club detail](### [FEAT-00003] Club search and club detail)
+- [FEAT-00002: Access control and secured navigation](### [FEAT-00002] Access control and secured navigation)
+- [FEAT-00001: Frontend application skeleton and theme](### [FEAT-00001] Frontend application skeleton and theme)
 
 ## Backlog
 
 ## Done
 
-### [FEAT-013] Player details fixes
+### [FEAT-00013] Player details fixes
 - **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
-- **Depends on:** FEAT-011, FEAT-012
+- **Depends on:** FEAT-00011, FEAT-00012
 
 #### Goal
 Correct the remaining issues in the Player detail experience so users can reliably view player information and navigate through its related data.
@@ -68,15 +68,15 @@ Correct the remaining issues in the Player detail experience so users can reliab
 - [x] The Player detail plot and table are responsive and adjust to different screen sizes, while maintaining accessibility and usability.
 
 #### Feature Details
-→ See [FEAT-013-DETAILS.md](./FEAT-013-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00013-DETAILS.md](./FEAT-00013-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
-### [FEAT-012] Player search & detail - unique players
+### [FEAT-00012] Player search & detail - unique players
 - **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
-- **Depends on:** FEAT-009, FEAT-011
+- **Depends on:** FEAT-00009, FEAT-00011
 
 #### Goal
 Ensure player search and detail navigation represent each canonical player only once, while providing complete, filterable source- and season-scoped history.
@@ -142,15 +142,15 @@ Ensure player search and detail navigation represent each canonical player only 
 - [x] Malformed or unavailable statistics produce an explicit error or unavailable state at the API boundary and never render invalid percentages, counts, or averages.
 
 #### Feature Details
-→ See [FEAT-012-DETAILS.md](./FEAT-012-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00012-DETAILS.md](./FEAT-00012-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
-### [FEAT-011] Player Search and Player Detail
+### [FEAT-00011] Player Search and Player Detail
 - **Status:** done
 - **Priority:** medium
 - **Effort:** large (> 8h)
-- **Depends on:** FEAT-001, FEAT-002, FEAT-009
+- **Depends on:** FEAT-00001, FEAT-00002, FEAT-00009
 
 #### Goal
 Enable users to search for players and inspect their canonical identity, season registrations, clubs, competitions, and match-related information from the application.
@@ -176,15 +176,15 @@ Enable users to search for players and inspect their canonical identity, season 
 - [x] REST/API adapters, frontend consumers, domain queries, persistence adapters, tests, and relevant documentation expose the agreed player search/detail contracts consistently without adding external identifiers to Player or FederatedPlayer.
 
 #### Feature Details
-→ See [FEAT-011-DETAILS.md](./FEAT-011-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00011-DETAILS.md](./FEAT-00011-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
-### [FEAT-010] club search returns canonical club entities with full details
+### [FEAT-00010] club search returns canonical club entities with full details
 - **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
-- **Depends on:** FEAT-003, FEAT-008
+- **Depends on:** FEAT-00003, FEAT-00008
 
 #### Goal
 
@@ -201,15 +201,15 @@ source identifiers, competition summaries, and player counts.
 - [x] REST/API adapters, frontend consumers, tests, and relevant documentation expose the agreed canonical response contract consistently.
 
 #### Feature Details
-→ See [FEAT-010-DETAILS.md](./FEAT-010-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00010-DETAILS.md](./FEAT-00010-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
-### [FEAT-009] Canonical player entity
+### [FEAT-00009] Canonical player entity
 - **Status:** done
 - **Priority:** medium
 - **Effort:** large (> 8h)
-- **Depends on:** FEAT-006
+- **Depends on:** FEAT-00006
 
 #### Goal
 Establish a canonical, season-independent player entity that can be referenced consistently across seasons, imports, persistence, and APIs.
@@ -237,11 +237,11 @@ Establish a canonical, season-independent player entity that can be referenced c
 - [x] All tests, public API adapters, and documentation are updated to reflect the new entity structure without changing player routes, response field names, or registration semantics.
 
 #### Feature Details
-→ See [FEAT-009-DETAILS.md](./FEAT-009-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00009-DETAILS.md](./FEAT-00009-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
-### [FEAT-008] Canonical club entity
+### [FEAT-00008] Canonical club entity
 - **Status:** done
 - **Priority:** medium
 - **Effort:** large (> 8h)
@@ -270,9 +270,9 @@ Establish a canonical, season-independent club entity that can be referenced con
 - [x] All tests, public API adapters, and documentation are updated to reflect the new entity structure without changing existing functionality.
 
 #### Feature Details
-→ See [FEAT-008-DETAILS.md](./FEAT-008-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00008-DETAILS.md](./FEAT-00008-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
-### [FEAT-007] fixes in breadcrumb and navigation
+### [FEAT-00007] fixes in breadcrumb and navigation
 - **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
@@ -290,10 +290,10 @@ The Club detail breadcrumb is missing or incorrect in the frontend. After select
 - [x] Breadcrumbs and navigation remain accessible and responsive across supported screen sizes.
 
 #### Feature Details
-→ See [FEAT-007-DETAILS.md](./FEAT-007-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00007-DETAILS.md](./FEAT-00007-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 
-### [FEAT-006] Player entity rename to FederatedPlayer
+### [FEAT-00006] Player entity rename to FederatedPlayer
 - **Status:** done
 - **Priority:** medium
 - **Effort:** large (> 8h)
@@ -322,11 +322,11 @@ Rename the season-independent `Player` entity to `FederatedPlayer` throughout th
 - [ ] All migration scripts are updated to reflect the new table and canonical-player column names, with existing UUIDs, rows, registrations, and references preserved.
 
 #### Feature Details
-→ See [FEAT-006-DETAILS.md](./FEAT-006-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00006-DETAILS.md](./FEAT-00006-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
-### [FEAT-005] Club entity rename to FederatedClub
+### [FEAT-00005] Club entity rename to FederatedClub
 - **Status:** done
 - **Priority:** medium
 - **Effort:** large (> 8h)
@@ -355,20 +355,20 @@ Rename the `Club` entity to `FederatedClub` in the backend codebase.
 - [ ] All migration scripts are updated to reflect the new table and column names.
 
 #### Feature Details
-→ See [FEAT-005-DETAILS.md](./FEAT-005-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00005-DETAILS.md](./FEAT-00005-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
-### [FEAT-004] Club detail redesign 1
+### [FEAT-00004] Club detail redesign 1
 - **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
-- **Depends on:** FEAT-003
+- **Depends on:** FEAT-00003
 
 #### Goal
 Redesign the Club detail view to present club identity, navigation, filters, and competition summaries in a clear and consistent layout.
 
-Expand `docs/frontend/club-detail-view-mockup-spec.md` into an implementation sub-plan inside `FEAT-004-DETAILS.md`, then use that sub-plan to implement the application
+Expand `docs/frontend/club-detail-view-mockup-spec.md` into an implementation sub-plan inside `FEAT-00004-DETAILS.md`, then use that sub-plan to implement the application
 shell, overview page, responsive behavior, accessibility, and visual system.
 
 #### Behaviour
@@ -397,15 +397,15 @@ shell, overview page, responsive behavior, accessibility, and visual system.
 - [x] Each player in the Players tab displays the season associated with their registration.
 
 #### Feature Details
-See [FEAT-004-DETAILS.md](./FEAT-004-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+See [FEAT-00004-DETAILS.md](./FEAT-00004-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
-### [FEAT-003] Club search and club detail
+### [FEAT-00003] Club search and club detail
 - **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
-- **Depends on:** FEAT-001, FEAT-002
+- **Depends on:** FEAT-00001, FEAT-00002
 
 #### Goal
 Enable users to find clubs and inspect the relevant club information from the application.
@@ -437,15 +437,15 @@ Enable users to find clubs and inspect the relevant club information from the ap
 - [x] Search and detail views are accessible and responsive across supported screen sizes.
 
 #### Feature Details
-→ See [FEAT-003-DETAILS.md](./FEAT-003-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00003-DETAILS.md](./FEAT-00003-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
-### [FEAT-002] Access control and secured navigation
+### [FEAT-00002] Access control and secured navigation
 - **Status:** done
 - **Priority:** high
 - **Effort:** large (> 8h)
-- **Depends on:** FEAT-001
+- **Depends on:** FEAT-00001
 
 #### Goal
 Protect application routes and data while presenting users only with navigation options permitted by their access level.
@@ -472,11 +472,11 @@ The frontend integrates with backend authentication and authorization endpoints 
 - [x] Login page can allow a user registration flow, password reset, and account recovery.
 
 #### Feature Details
-→ See [FEAT-002-DETAILS.md](./FEAT-002-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00002-DETAILS.md](./FEAT-00002-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
-### [FEAT-001] Frontend application skeleton and theme
+### [FEAT-00001] Frontend application skeleton and theme
 - **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
@@ -485,16 +485,16 @@ The frontend integrates with backend authentication and authorization endpoints 
 #### Goal
 Create a basic frontend application skeleton with a consistent theme, including routing, state management, and UI components.
 Expand `docs/frontend/theme-spec.md` into an implementation sub-plan inside
-`FEAT-001-DETAILS.md`, then use that sub-plan to implement the application
+`FEAT-00001-DETAILS.md`, then use that sub-plan to implement the application
 shell, overview page, responsive behavior, accessibility, and visual system.
 
 #### Acceptance Criteria
 - [x] A frontend application skeleton is created with routing, state management, and UI components.
-- [x] `FEAT-001-DETAILS.md` contains an explicit sub-plan covering the sections and implementation requirements of `docs/frontend/theme-spec.md`.
+- [x] `FEAT-00001-DETAILS.md` contains an explicit sub-plan covering the sections and implementation requirements of `docs/frontend/theme-spec.md`.
 - [x] The application follows the theme specifications defined in `docs/frontend/theme-spec.md` and the expanded sub-plan.
 - [x] The application is responsive and works on different screen sizes, desktop and mobile.
 
 #### Feature Details
-→ See [FEAT-001-DETAILS.md](./FEAT-001-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+→ See [FEAT-00001-DETAILS.md](./FEAT-00001-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---

@@ -46,12 +46,12 @@ the reviewed legacy deployment migration to `federated_club`,
 `lineup.player_id`, `game.home_player_id`, `game.away_player_id`, and
 `doubles_pair.player_id` columns remain linked to `player_season`.
 Apply the manually owned PostgreSQL migration
-`docs/migrations/FEAT-008-canonical-club.sql` before launch. It creates the
+`docs/migrations/FEAT-00008-canonical-club.sql` before launch. It creates the
 canonical `club` table, adds the nullable `federated_club.club_id` link, and
 performs exact-name backfill and preservation checks. Do not use
 `ddl-auto: update` as a substitute for this migration.
 
-Apply `docs/migrations/FEAT-009-canonical-player.sql` after FEAT-008 and before
+Apply `docs/migrations/FEAT-00009-canonical-player.sql` after FEAT-00008 and before
 launching the updated runtime. It creates the canonical `player` table, adds
 the nullable `federated_player.player_id` link, and performs exact-name
 backfill and preservation checks.
