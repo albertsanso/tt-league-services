@@ -153,6 +153,39 @@ describe('PlayerDetailPage', () => {
     ))
   })
 
+  it('keeps the detail view visible while a selector request refreshes data', () => {
+    usePlayerDetails.mockReturnValue({ data: details, loading: true, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?source=RFETM')
+
+    expect(screen.getByRole('heading', { name: 'Anna Player' })).toBeInTheDocument()
+    expect(screen.queryByText('Carregant el jugador...')).not.toBeInTheDocument()
+    expect(screen.getByText('Actualitzant les dades del jugador...')).toHaveAttribute('role', 'status')
+  })
+
+  it('sizes the season selector for its longest label', () => {
+    renderPage('/players/player-id')
+
+    expect(screen.getByRole('group', { name: 'Temporada' }))
+      .toHaveStyle({ '--season-label-width': '20ch' })
+  })
+
+  it('places season across the first row and source beside competition on the second', () => {
+    renderPage('/players/player-id')
+
+    const filters = document.querySelector('.club-filters')
+    const season = screen.getByRole('group', { name: 'Temporada' })
+    const competition = screen.getByRole('combobox', { name: 'Competició' }).closest('label')
+    const source = filters.querySelector('.source-options')
+    expect(source).toBeInTheDocument()
+    expect(filters.contains(season)).toBe(true)
+    expect(filters.contains(competition)).toBe(true)
+    expect(season.compareDocumentPosition(competition) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(season.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(season).toHaveClass('season-slider')
+    expect(competition).toHaveClass('player-competition-filter')
+    expect(source).toHaveClass('source-options')
+  })
+
   it('omits the all-competitions value from the filtered request', async () => {
     usePlayerDetails.mockClear()
     renderPage('/players/player-id?view=opponents&source=FCTT&season=2024-2025&competition=Preferent')
@@ -200,12 +233,54 @@ describe('PlayerDetailPage', () => {
 
     const favorableTable = screen.getAllByRole('table')[0]
     expect(favorableTable.querySelectorAll('tbody tr')).toHaveLength(3)
-    expect(screen.getByText('Mostra 1 oponents més')).toBeInTheDocument()
+    const moreButton = screen.getByRole('button', { name: 'Mostra 1 oponents més' })
+    expect(moreButton).toBeInTheDocument()
 
-    fireEvent.click(screen.getByText('Mostra 1 oponents més'))
-    const more = screen.getByText('Mostra 1 oponents més').closest('details')
-    expect(more.querySelectorAll('tbody tr')).toHaveLength(1)
-    expect(more).toHaveTextContent('Club Beta')
+    fireEvent.click(moreButton)
+    expect(favorableTable.querySelectorAll('tbody tr')).toHaveLength(4)
+    expect(screen.queryByRole('button', { name: 'Mostra 1 oponents més' })).not.toBeInTheDocument()
+  })
+
+  it('sorts statistics by descending season', () => {
+    usePlayerDetails.mockReturnValue({
+      data: {
+        ...details,
+        statistics: [
+          { source: 'FCTT', season: '2022-2023', matchesPlayed: 1, wins: 1, losses: 0, winPercentage: 100 },
+          { source: 'FCTT', season: '2024-2025', matchesPlayed: 3, wins: 2, losses: 1, winPercentage: 66.7 },
+        ],
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+    renderPage('/players/player-id')
+
+    const rows = screen.getByRole('table').querySelectorAll('tbody tr')
+    expect(rows[0]).toHaveTextContent('2024-2025')
+    expect(rows[1]).toHaveTextContent('2022-2023')
+    const chartGroups = document.querySelectorAll('.history-bar-group')
+    expect(chartGroups[0]).toHaveTextContent('2022-2023')
+    expect(chartGroups[1]).toHaveTextContent('2024-2025')
+  })
+
+  it('sorts matches newest first and paginates after ten rows', () => {
+    const matches = Array.from({ length: 11 }, (_, index) => ({
+      ...details.matches[0],
+      id: `match-${index}`,
+      dateTime: new Date(Date.UTC(2025, 0, index + 1)).toISOString(),
+      awayTeam: `Club ${index}`,
+    }))
+    usePlayerDetails.mockReturnValue({ data: { ...details, matches }, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=matches')
+
+    expect(screen.getByRole('table').querySelectorAll('tbody tr')).toHaveLength(10)
+    expect(screen.getByRole('table').querySelector('tbody tr')).toHaveTextContent('Club 10')
+    expect(screen.getByText('Pàgina 1 de 2')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Següent' }))
+    expect(screen.getByRole('table').querySelectorAll('tbody tr')).toHaveLength(1)
+    expect(screen.getByRole('table').querySelector('tbody tr')).toHaveTextContent('Club 0')
   })
 
   it('removes the legacy detail sections from the player detail view', () => {

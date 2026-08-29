@@ -36,7 +36,7 @@ function useRequest(request, enabled, identity) {
   const retry = useCallback(() => setRetryKey((current) => current + 1), [])
   const current = enabled && state.key === requestKey
   return {
-    data: current ? state.data : null,
+    data: enabled ? state.data : null,
     loading: enabled && !current,
     error: current ? state.error : null,
     retry,

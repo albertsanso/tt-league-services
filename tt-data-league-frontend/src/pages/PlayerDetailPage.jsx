@@ -10,6 +10,14 @@ const VIEWS = {
   MATCHES: 'matches',
   OPPONENTS: 'opponents',
 }
+
+function compareSeasons(left, right) {
+  return String(right.season ?? '').localeCompare(String(left.season ?? ''), 'ca', { numeric: true })
+}
+
+function compareSeasonsAscending(left, right) {
+  return String(left.season ?? '').localeCompare(String(right.season ?? ''), 'ca', { numeric: true })
+}
 const OPPONENT_VIEWS = {
   CATEGORIZATION: 'categorization',
   SEARCH: 'search',
@@ -21,6 +29,7 @@ const CHART_LABELS = {
   'connected-scatter': 'Dispersió connectada',
 }
 const unique = (values) => [...new Set(values.filter(Boolean))].sort()
+const MATCHES_PER_PAGE = 10
 
 function PlayerDetailPage() {
   const { playerId } = useParams()
@@ -31,7 +40,7 @@ function PlayerDetailPage() {
   const { data, loading, error, retry } = usePlayerDetails(
     playerId, sourceFilter, seasonFilter, competitionFilter,
   )
-  if (loading) return <p className="club-state card" role="status">Carregant el jugador...</p>
+  if (loading && !data) return <p className="club-state card" role="status">Carregant el jugador...</p>
   if (error?.status === 404 || error?.status === 400) {
     return <section className="page-block" role="alert">
       <h1 className="page-title">Jugador no trobat</h1>
@@ -50,7 +59,12 @@ function PlayerDetailPage() {
       <button className="secondary-button" type="button" onClick={retry}>Reintenta</button>
     </section>
   }
-  return <PlayerDetailContent data={data} params={params} setParams={setParams} />
+  return (
+    <>
+      {loading ? <p className="visually-hidden" role="status" aria-live="polite">Actualitzant les dades del jugador...</p> : null}
+      <PlayerDetailContent data={data} params={params} setParams={setParams} />
+    </>
+  )
 }
 
 function PlayerDetailContent({ data, params, setParams }) {
@@ -75,6 +89,10 @@ function PlayerDetailContent({ data, params, setParams }) {
     ...data.matches.map((item) => item.season),
     ...data.statistics.filter((item) => !source || item.source === source).map((item) => item.season),
   ]).filter((item) => item !== '—')
+  const seasonLabelWidth = Math.max(
+    'Totes les temporades'.length,
+    ...seasons.map((item) => item.length),
+  )
   const selectedSeason = params.get('season')
   const season = selectedSeason === ALL ? '' : seasons.includes(selectedSeason) ? selectedSeason : ''
   const availableCompetitions = unique(data.competitions
@@ -126,20 +144,24 @@ function PlayerDetailContent({ data, params, setParams }) {
       </div>
       <div className="player-detail-controls">
       <div className="club-filters">
-        <fieldset className="club-filter source-options"><legend>Font</legend>
-          <label><input type="radio" name="player-source" checked={!source} onChange={() => update('source', ALL)} /> Totes les fonts</label>
-          {sources.map((item) => <label key={item}><input type="radio" name="player-source" value={item} checked={source === item} onChange={() => update('source', item)} /> {item}</label>)}
-        </fieldset>
-        <fieldset className="club-filter season-slider"><legend>Temporada</legend>
+        <fieldset className="club-filter season-slider" style={{ '--season-label-width': `${seasonLabelWidth}ch` }}><legend>Temporada</legend>
           <output htmlFor="player-season">{season || 'Totes les temporades'}</output>
           <input id="player-season" type="range" min="0" max={Math.max(seasons.length, 0)} step="1"
             value={season ? seasons.indexOf(season) : seasons.length}
             onChange={(event) => update('season', seasons[Number(event.target.value)] ?? ALL)}
             disabled={seasons.length === 0}
             aria-label="Selecciona la temporada" />
+          {seasons.length > 0 ? <div className="season-marks" aria-hidden="true">
+            {seasons.map((item) => <span key={item}>{item}</span>)}
+            <span>Totes</span>
+          </div> : null}
           <button className="filter-all-button" type="button" onClick={() => update('season', ALL)}>Totes les temporades</button>
         </fieldset>
-        <label className="club-filter"><span>Competició</span><select value={competition} onChange={(event) => update('competition', event.target.value)}>
+        <fieldset className="club-filter source-options"><legend>Font</legend>
+          <label><input type="radio" name="player-source" checked={!source} onChange={() => update('source', ALL)} /> Totes les fonts</label>
+          {sources.map((item) => <label key={item}><input type="radio" name="player-source" value={item} checked={source === item} onChange={() => update('source', item)} /> {item}</label>)}
+        </fieldset>
+        <label className="club-filter player-competition-filter"><span>Competició</span><select value={competition} onChange={(event) => update('competition', event.target.value)}>
           <option value="">Totes les competicions</option>{availableCompetitions.map((item) => <option key={item} value={item}>{item}</option>)}
         </select></label>
       </div>
@@ -151,7 +173,7 @@ function PlayerDetailContent({ data, params, setParams }) {
       </div>
       <div id="player-tabpanel" role="tabpanel" aria-labelledby={`player-${view}-tab`}>
         {view === VIEWS.STATISTICS ? <HistorySection statistics={statistics} competition={competition} matches={matches} chart={chart} update={update} /> : null}
-        {view === VIEWS.MATCHES ? <MatchHistoryPanel matches={matches} /> : null}
+        {view === VIEWS.MATCHES ? <MatchHistoryPanel key={`${source}-${season}-${competition}`} matches={matches} /> : null}
         {view === VIEWS.OPPONENTS ? <OpponentAnalysisPanel key={opponentView} matches={matches} opponentView={opponentView} update={update} /> : null}
       </div>
     </section>
@@ -159,7 +181,8 @@ function PlayerDetailContent({ data, params, setParams }) {
 }
 
 function HistorySection({ statistics, competition, matches, chart, update }) {
-  const values = competition ? aggregateCompetition(matches, competition) : statistics
+  const values = [...(competition ? aggregateCompetition(matches, competition) : statistics)].sort(compareSeasons)
+  const chartValues = [...values].sort(compareSeasonsAscending)
   return <section className="club-detail-section" aria-labelledby="player-history-title">
     <h2 id="player-history-title">Historial estadístic</h2>
     <label className="chart-type-selector">Tipus de gràfic
@@ -169,10 +192,10 @@ function HistorySection({ statistics, competition, matches, chart, update }) {
     </label>
     {values.length === 0 ? <p className="club-empty card" role="status">No hi ha dades estadístiques disponibles per als filtres seleccionats.</p> : (
       <>
-        {chart === 'connected-scatter' ? <ConnectedScatterPlot values={values} /> : (
+        {chart === 'connected-scatter' ? <ConnectedScatterPlot values={chartValues} /> : (
           <div className={`history-chart card chart-${chart}`} role="img" aria-label={`${CHART_LABELS[chart]} de partits i percentatge de victòries per temporada`}>
             <span className="chart-axis chart-axis-y">Valor (partits, %)</span>
-            {values.map((item, index) => <div className="history-bar-group" key={`${item.source}-${item.season}-${index}`}>
+            {chartValues.map((item, index) => <div className="history-bar-group" key={`${item.source}-${item.season}-${index}`}>
               <div className="history-bars" aria-hidden="true">
                 <span className="history-bar matches" style={{ height: `${Math.max(8, Math.min(100, item.matchesPlayed * 12))}%` }} />
                 <span className="history-bar wins" style={{ height: `${item.winPercentage == null ? 8 : Math.max(8, item.winPercentage)}%` }} />
@@ -200,23 +223,35 @@ function HistorySection({ statistics, competition, matches, chart, update }) {
 }
 
 function MatchHistoryPanel({ matches }) {
+  const [page, setPage] = useState(0)
+  const sortedMatches = [...matches].sort(compareMatches)
+  const pageCount = Math.ceil(sortedMatches.length / MATCHES_PER_PAGE)
+  const visibleMatches = sortedMatches.slice(page * MATCHES_PER_PAGE, (page + 1) * MATCHES_PER_PAGE)
+
   return <section className="club-detail-section" aria-labelledby="player-matches-title">
     <h2 id="player-matches-title">Partits</h2>
     {matches.length === 0 ? <p className="club-empty card" role="status">No hi ha partits per als filtres seleccionats.</p> : (
-      <div className="table-wrap">
-        <table className="history-table">
-          <caption>Historial de partits</caption>
-          <thead><tr><th>Data</th><th>Font</th><th>Temporada</th><th>Competició</th><th>Oponent</th><th>Resultat</th><th>Marcador</th></tr></thead>
-          <tbody>{matches.map((item) => <tr key={item.id}>
-            <td>{item.dateTime ? new Date(item.dateTime).toLocaleDateString('ca-ES') : '—'}</td>
-            <td>{item.source}</td>
-            <td>{item.season}</td>
-            <td>{item.competition}</td>
-            <td>{opponentName(item)}</td>
-            <td>{resultLabel(item.result)}</td>
-            <td>{scoreLabel(item)}</td>
-          </tr>)}</tbody>
-        </table>
+      <div className="match-history">
+        <div className="table-wrap">
+          <table className="history-table">
+            <caption>Historial de partits</caption>
+            <thead><tr><th>Data</th><th>Font</th><th>Temporada</th><th>Competició</th><th>Oponent</th><th>Resultat</th><th>Marcador</th></tr></thead>
+            <tbody>{visibleMatches.map((item) => <tr key={item.id}>
+              <td>{item.dateTime ? new Date(item.dateTime).toLocaleDateString('ca-ES') : '—'}</td>
+              <td>{item.source}</td>
+              <td>{item.season}</td>
+              <td>{item.competition}</td>
+              <td>{opponentName(item)}</td>
+              <td>{resultLabel(item.result)}</td>
+              <td>{scoreLabel(item)}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+        {pageCount > 1 ? <nav className="pagination" aria-label="Paginació de partits">
+          <button type="button" onClick={() => setPage((current) => current - 1)} disabled={page === 0}>Anterior</button>
+          <span aria-live="polite">Pàgina {page + 1} de {pageCount}</span>
+          <button type="button" onClick={() => setPage((current) => current + 1)} disabled={page === pageCount - 1}>Següent</button>
+        </nav> : null}
       </div>
     )}
   </section>
@@ -295,6 +330,7 @@ function OpponentCategoryTable({ id, title, empty, rows }) {
 }
 
 function OpponentTable({ rows, includeCategory = false, summaryText }) {
+  const [expanded, setExpanded] = useState(false)
   const maxVisible = 3
   const visibleRows = rows.slice(0, maxVisible)
   const hiddenRows = rows.slice(maxVisible)
@@ -314,12 +350,21 @@ function OpponentTable({ rows, includeCategory = false, summaryText }) {
     </table>
   return <div className="opponent-table">
     <p id={descriptionId} className="visually-hidden">{summaryText}</p>
-    <div className="table-wrap">{table(visibleRows)}</div>
-    {hiddenRows.length > 0 ? <details className="opponent-more">
-      <summary>Mostra {hiddenRows.length} oponents més</summary>
-      <div className="table-wrap">{table(hiddenRows)}</div>
-    </details> : null}
+    <div className="table-wrap">{table(expanded ? rows : visibleRows)}</div>
+    {hiddenRows.length > 0 && !expanded ? <div className="opponent-more">
+      <button type="button" onClick={() => setExpanded((current) => !current)}>
+        {`Mostra ${hiddenRows.length} oponents més`}
+      </button>
+    </div> : null}
   </div>
+}
+
+function compareMatches(left, right) {
+  if (!left.dateTime && !right.dateTime) return String(left.id).localeCompare(String(right.id))
+  if (!left.dateTime) return 1
+  if (!right.dateTime) return -1
+  return new Date(right.dateTime) - new Date(left.dateTime)
+    || String(left.id).localeCompare(String(right.id))
 }
 
 function winPercentage(item) {

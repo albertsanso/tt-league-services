@@ -40,11 +40,15 @@ describe('usePlayerDetails', () => {
     )
 
     await waitFor(() => expect(requests).toHaveLength(1))
+    requests[0].resolve(response('initial'))
+    await waitFor(() => expect(hook.result.current.data.name).toBe('initial'))
+
     hook.rerender({ source: 'FCTT' })
     await waitFor(() => expect(requests).toHaveLength(2))
 
+    expect(hook.result.current.data.name).toBe('initial')
+    expect(hook.result.current.loading).toBe(true)
     expect(requests[0].options.signal.aborted).toBe(true)
-    requests[0].resolve(response('stale'))
     requests[1].resolve(response('current'))
 
     await waitFor(() => expect(hook.result.current.data.name).toBe('current'))

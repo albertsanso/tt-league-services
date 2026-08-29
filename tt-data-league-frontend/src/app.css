@@ -1026,10 +1026,29 @@
 }
 
 .club-filters {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.75rem;
   padding-bottom: 0.5rem;
+}
+
+.season-slider {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  justify-self: stretch;
+  width: auto;
+}
+
+.player-competition-filter {
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: stretch;
+  width: 100%;
+}
+
+.source-options {
+  grid-column: 1;
+  grid-row: 2;
 }
 
 .club-filter {
@@ -1072,12 +1091,37 @@
 }
 
 .season-slider {
-  min-width: min(26rem, 100%);
+  min-width: 0;
 }
 
 .season-slider input[type='range'] {
   accent-color: var(--accent-primary);
-  min-width: 15rem;
+  width: 100%;
+  min-width: 0;
+}
+
+.season-marks {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+.season-marks span {
+  position: relative;
+  padding-top: 0.45rem;
+  text-align: center;
+}
+
+.season-marks span::before {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 1px;
+  height: 0.35rem;
+  background: var(--text-muted);
+  content: '';
 }
 
 .filter-all-button {
@@ -1192,10 +1236,11 @@
 
 .history-bar-group {
   display: flex;
-  flex: 1 0 8rem;
+  flex: 1 1 0;
   align-items: center;
   justify-content: end;
   min-height: 10rem;
+  min-width: 0;
   flex-direction: column;
   gap: 0.35rem;
   text-align: center;
@@ -1291,13 +1336,47 @@
 }
 
 .opponent-more {
+  display: grid;
+  justify-items: end;
   margin-top: 0.75rem;
 }
 
-.opponent-more summary {
+.opponent-more button {
+  border: 0;
+  padding: 0;
+  background: transparent;
   cursor: pointer;
-  color: var(--accent);
-  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-decoration: underline;
+}
+
+.opponent-more button:hover {
+  color: var(--text-primary);
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+  font-size: 0.8rem;
+}
+
+.pagination button {
+  border: 1px solid var(--border-strong);
+  border-radius: 0.4rem;
+  padding: 0.45rem 0.7rem;
+  font-size: inherit;
+  color: var(--text-primary);
+  background: var(--surface-card);
+  cursor: pointer;
+}
+
+.pagination button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .visually-hidden {
@@ -1664,6 +1743,17 @@
     display: none;
   }
 
+  .club-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .season-slider,
+  .source-options,
+  .player-competition-filter {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
 
 
   .app-content {
@@ -1758,6 +1848,14 @@
 
   .club-filters {
     padding-bottom: 0;
+  }
+
+  .source-options,
+  .season-slider,
+  .player-competition-filter {
+    grid-column: 1;
+    grid-row: auto;
+    justify-self: stretch;
   }
 
   .club-filter {
