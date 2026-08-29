@@ -51,6 +51,29 @@ function normalizeArray(value, field) {
   return value
 }
 
+function normalizeMatch(item) {
+  const homeTeam = text(item.homeTeam, 'un equip local')
+  const awayTeam = text(item.awayTeam, 'un equip visitant')
+  const playerTeam = text(item.playerTeam, 'l’equip del jugador')
+  if (playerTeam !== homeTeam && playerTeam !== awayTeam) {
+    throw new ApiError('La resposta no associa el jugador a cap equip del partit.', 502, item)
+  }
+  if (!['win', 'loss', 'draw'].includes(item.result)) {
+    throw new ApiError('La resposta no conté un resultat de partit vàlid.', 502, item)
+  }
+  return {
+    ...item,
+    id: text(item.id, 'un identificador de partit'),
+    season: item.season == null ? '—' : text(String(item.season), 'una temporada de partit'),
+    source: item.source == null ? '—' : text(item.source, 'la font del partit'),
+    competition: item.competition == null ? '—' : text(item.competition, 'una competició'),
+    homeTeam,
+    awayTeam,
+    playerTeam,
+    playerGamesWon: item.playerGamesWon == null ? null : integer(item.playerGamesWon, 'els jocs guanyats'),
+  }
+}
+
 export function normalizePlayerDetailsResponse(payload) {
   if (!payload || typeof payload !== 'object') {
     throw new ApiError('La resposta detallada del jugador no és vàlida.', 502, payload)
@@ -80,16 +103,7 @@ export function normalizePlayerDetailsResponse(payload) {
       source: item.source == null ? '—' : text(item.source, 'la font de la competició'),
       matchCount: Number(item.matchCount ?? 0),
     })),
-    matches: normalizeArray(payload.matches, 'partits').map((item) => ({
-      ...item,
-      id: text(item.id, 'un identificador de partit'),
-      season: item.season == null ? '—' : text(String(item.season), 'una temporada de partit'),
-      source: item.source == null ? '—' : text(item.source, 'la font del partit'),
-      competition: item.competition ?? '—',
-      homeTeam: text(item.homeTeam, 'un equip local'),
-      awayTeam: text(item.awayTeam, 'un equip visitant'),
-      playerGamesWon: item.playerGamesWon == null ? null : integer(item.playerGamesWon, 'els jocs guanyats'),
-    })),
+    matches: normalizeArray(payload.matches, 'partits').map(normalizeMatch),
     statistics: normalizeArray(payload.statistics, 'estadístiques').map((item) => ({
       source: item.source == null ? null : text(item.source, 'la font de les estadístiques'),
       season: item.season == null ? null : text(String(item.season), 'la temporada de les estadístiques'),

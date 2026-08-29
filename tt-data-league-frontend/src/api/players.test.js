@@ -14,7 +14,7 @@ describe('player API boundary', () => {
       competitions: [{ name: 'Preferent', season: '2025', source: 'RFETM', matchCount: 2 }],
       matches: [{
         id: 'match-id', competition: 'Preferent', season: '2025', source: 'RFETM',
-        homeTeam: 'Club Terrassa', awayTeam: 'Club Barcelona',
+        homeTeam: 'Club Terrassa', awayTeam: 'Club Barcelona', playerTeam: 'Club Terrassa', result: 'draw',
       }],
       statistics: [{
         source: 'RFETM', season: '2025-2026', matchesPlayed: 2, wins: 1, losses: 1,
@@ -26,6 +26,22 @@ describe('player API boundary', () => {
     expect(details.registrations[0].season).toBe('2025')
     expect(details.matches[0].homeTeam).toBe('Club Terrassa')
     expect(details.statistics[0].winPercentage).toBe(50)
+  })
+
+  it('rejects a match without a participating player team', () => {
+    expect(() => normalizePlayerDetailsResponse({
+      id: 'player-id',
+      name: 'Anna Player',
+      federatedPlayers: [],
+      registrations: [],
+      clubs: [],
+      competitions: [],
+      matches: [{
+        id: 'match-id', competition: 'Preferent', season: '2025', source: 'RFETM',
+        homeTeam: 'Club Terrassa', awayTeam: 'Club Barcelona', result: 'draw',
+      }],
+      statistics: [],
+    })).toThrow('equip del jugador')
   })
 
   it('encodes the source filter and session token', async () => {

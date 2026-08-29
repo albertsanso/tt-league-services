@@ -37,7 +37,7 @@ public record PlayerDetailsDto(
                         value.source() == null ? null : value.source().name(), value.competition(),
                         value.season() == null ? null : value.season().toString(), value.round(),
                         value.dateTime(), value.homeTeam(), value.awayTeam(), value.homeGamesWon(),
-                        value.awayGamesWon(), value.result(), value.playerGamesWon())).toList(),
+                        value.awayGamesWon(), value.result(), value.playerGamesWon(), value.playerTeam())).toList(),
                 details.statistics().stream().map(value -> new StatisticsDto(
                         value.source() == null ? null : value.source().name(),
                         value.season() == null ? null : value.season().toString(),
@@ -61,11 +61,18 @@ public record PlayerDetailsDto(
     public record MatchDto(
             UUID id, String source, String competition, String season, int round, ZonedDateTime dateTime,
             String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon, String result,
-            Integer playerGamesWon) {
+            Integer playerGamesWon, String playerTeam) {
         public MatchDto(UUID id, String source, String competition, String season, int round, ZonedDateTime dateTime,
                         String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon, String result) {
             this(id, source, competition, season, round, dateTime, homeTeam, awayTeam, homeGamesWon, awayGamesWon,
-                    result, null);
+                    result, null, null);
+        }
+
+        public MatchDto(UUID id, String source, String competition, String season, int round, ZonedDateTime dateTime,
+                        String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon, String result,
+                        Integer playerGamesWon) {
+            this(id, source, competition, season, round, dateTime, homeTeam, awayTeam, homeGamesWon, awayGamesWon,
+                    result, playerGamesWon, null);
         }
     }
 

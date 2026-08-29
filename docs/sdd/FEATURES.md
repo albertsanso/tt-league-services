@@ -22,6 +22,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00014: Define layout for Player details](### [FEAT-00014] Define layout for Player details)
 - [FEAT-00013: Player details fixes](### [FEAT-00013] Player details fixes)
 - [FEAT-00012: Player search & detail - unique players](### [FEAT-00012] Player search & detail - unique players)
 - [FEAT-00011: Player Search and Player Detail](### [FEAT-00011] Player Search and Player Detail)
@@ -36,9 +37,47 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00002: Access control and secured navigation](### [FEAT-00002] Access control and secured navigation)
 - [FEAT-00001: Frontend application skeleton and theme](### [FEAT-00001] Frontend application skeleton and theme)
 
-## Backlog
-
 ## Done
+
+### [FEAT-00014] Define layout for Player details
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-00011, FEAT-00012, FEAT-00013
+
+#### Summary
+Define a clear, accessible, and responsive layout for the Player details view so users can quickly understand player identity, context, history, and available actions.
+
+#### Context
+
+In Player details, the current selectors source, season and competition define the **player detail selector area**.
+The player detail selector area is followed by the **player detail content area**, which gives access to different views of the player's history and statistics.
+
+#### Goal
+
+Create the **player detail content area** as a tabbed interface providing access to different views while preserving the source and season context defined in the **player detail selector area**.
+
+The modifications on **player detail selector area** affect the **player detail content area** and all the different views contained in the tabbed interface.
+
+##### Player stats Tab
+Contains the current content of the Player details view, including the plot and table of player statistics.
+
+##### Player matches Tab
+Contains a table of the player's match history, with the ability to filter by source and season using the selectors in the **player detail selector area**. The table should include columns for match date, competition, opponent, result, and score.
+
+#### Player opponent analysis Tab
+Contains a table of the player's match history, grouped by opponent, with the ability to filter by source and season using the selectors in the **player detail selector area**. The table should include columns for opponent name, matches played, wins, draws, losses, and win percentage.
+
+#### Acceptance Criteria
+- [x] The Player details view is organized into a tabbed interface with tabs for Player stats, Player matches, and Player opponent analysis.
+- [x] The Player stats tab displays the current content of the Player details view, including the plot and table of player statistics.
+- [x] The Player matches tab displays a table of the player's match history, with columns for match date, competition, opponent, result, and score.
+- [x] The Player opponent analysis tab displays a table of the player's match history grouped by opponent, with columns for opponent name, matches played, wins, draws, losses, and win percentage.
+- [x] The source and season selectors in the **player detail selector area** affect the content displayed in all tabs of the **player detail content area**.
+- [x] The Player details view is accessible and responsive across supported screen sizes.
+
+#### Feature Details
+→ See [FEAT-00014-DETAILS.md](./FEAT-00014-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ### [FEAT-00013] Player details fixes
 - **Status:** done

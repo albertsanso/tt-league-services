@@ -1,9 +1,15 @@
 import { ArrowLeft } from 'lucide-react'
+import { useEffect } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { routePaths } from '../config/routes.js'
 import { usePlayerDetails } from '../hooks/usePlayers.js'
 
 const ALL = 'all'
+const VIEWS = {
+  STATISTICS: 'statistics',
+  MATCHES: 'matches',
+  OPPONENTS: 'opponents',
+}
 const CHART_TYPES = ['line', 'bar', 'connected-scatter']
 const CHART_LABELS = {
   line: 'Línies',
@@ -35,13 +41,26 @@ function PlayerDetailPage() {
       <button className="secondary-button" type="button" onClick={retry}>Reintenta</button>
     </section>
   }
-  const sources = unique(data.federatedPlayers.map((item) => item.source))
+  return <PlayerDetailContent data={data} params={params} setParams={setParams} />
+}
+
+function PlayerDetailContent({ data, params, setParams }) {
+  const requestedView = params.get('view')
+  const view = Object.values(VIEWS).includes(requestedView) ? requestedView : VIEWS.STATISTICS
+  const sources = unique([
+    ...data.federatedPlayers.map((item) => item.source),
+    ...data.registrations.map((item) => item.source),
+    ...data.competitions.map((item) => item.source),
+    ...data.matches.map((item) => item.source),
+  ]).filter((item) => item !== '—')
   const selectedSource = params.get('source')
   const source = selectedSource && sources.includes(selectedSource) ? selectedSource : ''
   const registrations = data.registrations.filter((item) => !source || item.source === source)
   const seasons = unique([
     ...registrations.map((item) => item.season),
-    ...data.statistics.map((item) => item.season),
+    ...data.competitions.filter((item) => !source || item.source === source).map((item) => item.season),
+    ...data.matches.filter((item) => !source || item.source === source).map((item) => item.season),
+    ...data.statistics.filter((item) => !source || item.source === source).map((item) => item.season),
   ]).filter((item) => item !== '—')
   const selectedSeason = params.get('season')
   const season = selectedSeason === ALL ? '' : seasons.includes(selectedSeason) ? selectedSeason : ''
@@ -61,6 +80,14 @@ function PlayerDetailPage() {
   const statistics = data.statistics.filter((item) => (
     (!source || item.source === source) && (!season || item.season === season)
   ))
+
+  useEffect(() => {
+    if (requestedView !== view) {
+      const next = new URLSearchParams(params)
+      next.set('view', view)
+      setParams(next, { replace: true })
+    }
+  }, [params, requestedView, setParams, view])
 
   function update(key, value) {
     const next = new URLSearchParams(params)
@@ -83,6 +110,7 @@ function PlayerDetailPage() {
           <p className="club-source">UUID: {data.id}</p>
         </div>
       </div>
+      <div className="player-detail-controls">
       <div className="club-filters">
         <fieldset className="club-filter source-options"><legend>Font</legend>
           <label><input type="radio" name="player-source" checked={!source} onChange={() => update('source', ALL)} /> Totes les fonts</label>
@@ -101,12 +129,21 @@ function PlayerDetailPage() {
           <option value="">Totes les competicions</option>{availableCompetitions.map((item) => <option key={item} value={item}>{item}</option>)}
         </select></label>
       </div>
-      <HistorySection statistics={statistics} competition={competition} matches={matches} chart={chart} update={update} />
+      <div className="club-tabs player-tabs" role="tablist" aria-label="Vistes del jugador">
+        <button id="player-statistics-tab" className={`club-tab${view === VIEWS.STATISTICS ? ' is-active' : ''}`} type="button" role="tab" aria-selected={view === VIEWS.STATISTICS} aria-controls="player-tabpanel" onClick={() => update('view', VIEWS.STATISTICS)} onKeyDown={(event) => activateTab(event, VIEWS.STATISTICS, update)}>Estadístiques</button>
+        <button id="player-matches-tab" className={`club-tab${view === VIEWS.MATCHES ? ' is-active' : ''}`} type="button" role="tab" aria-selected={view === VIEWS.MATCHES} aria-controls="player-tabpanel" onClick={() => update('view', VIEWS.MATCHES)} onKeyDown={(event) => activateTab(event, VIEWS.MATCHES, update)}>Partits</button>
+        <button id="player-opponents-tab" className={`club-tab${view === VIEWS.OPPONENTS ? ' is-active' : ''}`} type="button" role="tab" aria-selected={view === VIEWS.OPPONENTS} aria-controls="player-tabpanel" onClick={() => update('view', VIEWS.OPPONENTS)} onKeyDown={(event) => activateTab(event, VIEWS.OPPONENTS, update)}>Anàlisi d'oponents</button>
+      </div>
+      </div>
+      <div id="player-tabpanel" role="tabpanel" aria-labelledby={`player-${view}-tab`}>
+        {view === VIEWS.STATISTICS ? <HistorySection statistics={statistics} competition={competition} matches={matches} chart={chart} update={update} /> : null}
+        {view === VIEWS.MATCHES ? <MatchHistoryPanel matches={matches} /> : null}
+        {view === VIEWS.OPPONENTS ? <OpponentAnalysisPanel matches={matches} /> : null}
+      </div>
       <DetailList title="Registres federats" items={federatedPlayers} empty="No hi ha registres federats per als filtres seleccionats." render={(item) => `${item.name} · ${item.source}${item.license ? ` · Llicència: ${item.license}` : ''}`} />
       <DetailList title="Inscripcions per temporada" items={registrations.filter((item) => !season || item.season === season)} empty="No hi ha inscripcions per als filtres seleccionats." render={(item) => `${item.name} · ${item.season} · ${item.source} · Llicència: ${item.license ?? '—'}`} />
       <DetailList title="Clubs associats" items={clubs} empty="No hi ha clubs associats per als filtres seleccionats." render={(item) => `${item.name} · ${item.season} · ${item.source}`} />
       <DetailList title="Competicions" items={data.competitions.filter((item) => (!source || item.source === source) && (!season || item.season === season) && (!competition || item.name === competition))} empty="No hi ha competicions per als filtres seleccionats." render={(item) => `${item.name} · ${item.season} · ${item.source} · ${item.matchCount} partits`} />
-      <DetailList title="Partits" items={matches} empty="No hi ha partits per als filtres seleccionats." render={(item) => `${item.homeTeam} — ${item.awayTeam} · ${item.competition} · Jornada ${item.round}`} />
     </section>
   )
 }
@@ -147,24 +184,85 @@ function HistorySection({ statistics, competition, matches, chart, update }) {
             <tbody>{values.map((item, index) => <tr key={`${item.source}-${item.season}-${index}`}><td>{item.season || '—'}</td><td>{item.matchesPlayed}</td><td>{item.winPercentage == null ? '—' : `${item.winPercentage.toFixed(1)}%`}</td></tr>)}</tbody>
           </table>
         </div>
-        <div className="table-wrap">
-          <table className="history-table match-history-table">
-            <caption>Historial de partits (alternativa textual al gràfic)</caption>
-            <thead><tr><th>Data</th><th>Font</th><th>Temporada</th><th>Competició</th><th>Oponent</th><th>Resultat</th><th>Marcador</th></tr></thead>
-            <tbody>{matches.map((item) => <tr key={item.id}>
-              <td>{item.dateTime ? new Date(item.dateTime).toLocaleDateString('ca-ES') : '—'}</td>
-              <td>{item.source || '—'}</td>
-              <td>{item.season || '—'}</td>
-              <td>{item.competition || '—'}</td>
-              <td>{item.result === 'win' || item.result === 'loss' ? (item.result === 'win' ? item.awayTeam : item.homeTeam) : `${item.homeTeam} — ${item.awayTeam}`}</td>
-              <td>{item.result === 'win' ? 'Victòria' : item.result === 'loss' ? 'Derrota' : 'Empat'}</td>
-              <td>{item.homeGamesWon == null || item.awayGamesWon == null ? '—' : `${item.homeGamesWon} — ${item.awayGamesWon}`}</td>
-            </tr>)}</tbody>
-          </table>
-        </div>
       </>
     )}
   </section>
+}
+
+function MatchHistoryPanel({ matches }) {
+  return <section className="club-detail-section" aria-labelledby="player-matches-title">
+    <h2 id="player-matches-title">Partits</h2>
+    {matches.length === 0 ? <p className="club-empty card">No hi ha partits per als filtres seleccionats.</p> : (
+      <div className="table-wrap">
+        <table className="history-table">
+          <caption>Historial de partits</caption>
+          <thead><tr><th>Data</th><th>Font</th><th>Temporada</th><th>Competició</th><th>Oponent</th><th>Resultat</th><th>Marcador</th></tr></thead>
+          <tbody>{matches.map((item) => <tr key={item.id}>
+            <td>{item.dateTime ? new Date(item.dateTime).toLocaleDateString('ca-ES') : '—'}</td>
+            <td>{item.source}</td>
+            <td>{item.season}</td>
+            <td>{item.competition}</td>
+            <td>{opponentName(item)}</td>
+            <td>{resultLabel(item.result)}</td>
+            <td>{scoreLabel(item)}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+    )}
+  </section>
+}
+
+function OpponentAnalysisPanel({ matches }) {
+  const opponents = new Map()
+  matches.forEach((match) => {
+    const opponent = opponentName(match)
+    const current = opponents.get(opponent) ?? { opponent, matches: 0, wins: 0, draws: 0, losses: 0 }
+    current.matches += 1
+    if (match.result === 'win') current.wins += 1
+    if (match.result === 'loss') current.losses += 1
+    if (match.result === 'draw') current.draws += 1
+    opponents.set(opponent, current)
+  })
+  const rows = [...opponents.values()].sort((left, right) => (
+    left.opponent.localeCompare(right.opponent, 'ca', { sensitivity: 'base' })
+      || left.opponent.localeCompare(right.opponent, 'ca')
+  ))
+  return <section className="club-detail-section" aria-labelledby="player-opponents-title">
+    <h2 id="player-opponents-title">Anàlisi d'oponents</h2>
+    {rows.length === 0 ? <p className="club-empty card">No hi ha dades d'oponents per als filtres seleccionats.</p> : (
+      <div className="table-wrap">
+        <table className="history-table">
+          <caption>Resultats per equip oponent</caption>
+          <thead><tr><th>Oponent</th><th>Partits jugats</th><th>Victòries</th><th>Empats</th><th>Derrotes</th><th>Victòries %</th></tr></thead>
+          <tbody>{rows.map((item) => {
+            const decided = item.wins + item.losses
+            return <tr key={item.opponent}><td>{item.opponent}</td><td>{item.matches}</td><td>{item.wins}</td><td>{item.draws}</td><td>{item.losses}</td><td>{decided === 0 ? '—' : `${(item.wins * 100 / decided).toFixed(1)}%`}</td></tr>
+          })}</tbody>
+        </table>
+      </div>
+    )}
+  </section>
+}
+
+function opponentName(match) {
+  return match.playerTeam === match.homeTeam ? match.awayTeam : match.homeTeam
+}
+
+function resultLabel(result) {
+  return result === 'win' ? 'Victòria' : result === 'loss' ? 'Derrota' : 'Empat'
+}
+
+function scoreLabel(match) {
+  return match.homeGamesWon == null || match.awayGamesWon == null
+    ? '—'
+    : `${match.homeGamesWon} — ${match.awayGamesWon}`
+}
+
+function activateTab(event, view, update) {
+  if (event.key === 'Enter' || event.key === ' ') {
+    event.preventDefault()
+    update('view', view)
+  }
 }
 
 function ConnectedScatterPlot({ values }) {

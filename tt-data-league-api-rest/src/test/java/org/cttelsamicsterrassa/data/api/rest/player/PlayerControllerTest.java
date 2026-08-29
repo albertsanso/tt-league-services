@@ -5,6 +5,7 @@ import org.albertsanso.commons.query.DomainQueryResponse;
 import org.albertsanso.commons.query.QueryBus;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerDetailsReadModel;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerFederatedReadModel;
+import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerMatchReadModel;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerSearchReadModel;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerSeasonStatisticsReadModel;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -73,7 +74,9 @@ class PlayerControllerTest {
         PlayerDetailsReadModel details = new PlayerDetailsReadModel(
                 PLAYER_ID, "Anna Canonical",
                 List.of(new PlayerFederatedReadModel(UUID.randomUUID(), "Anna RFETM", "123", ImportSource.RFETM)),
-                List.of(), List.of(), List.of(), List.of(),
+                List.of(), List.of(), List.of(), List.of(new PlayerMatchReadModel(UUID.randomUUID(), ImportSource.RFETM,
+                        "Preferent", org.cttelsamicsterrassa.data.core.domain.shared.model.Season.of(2025), 1,
+                        null, "Club Terrassa", "Club Barcelona", 4, 3, "draw", 4, "Club Terrassa")),
                 List.of(new PlayerSeasonStatisticsReadModel(ImportSource.RFETM,
                         org.cttelsamicsterrassa.data.core.domain.shared.model.Season.of(2025),
                         4, 3, 1, 75.0, 2.5)));
@@ -85,6 +88,7 @@ class PlayerControllerTest {
         assertEquals("Anna Canonical", ((PlayerDetailsDto) response.getBody()).name());
         assertEquals("RFETM", ((PlayerDetailsDto) response.getBody()).federatedPlayers().getFirst().source());
         assertEquals(75.0, ((PlayerDetailsDto) response.getBody()).statistics().getFirst().winPercentage());
+        assertEquals("Club Terrassa", ((PlayerDetailsDto) response.getBody()).matches().getFirst().playerTeam());
 
         when(queryBus.push(any())).thenReturn(DomainQueryResponse.failResponse(null));
         assertEquals(HttpStatus.NOT_FOUND, controller.findPlayerDetailsById(PLAYER_ID).getStatusCode());

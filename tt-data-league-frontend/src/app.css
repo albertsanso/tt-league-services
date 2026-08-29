@@ -1009,6 +1009,22 @@
   border-bottom-color: var(--accent-primary);
 }
 
+.club-tab:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+.player-detail-controls {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.player-tabs {
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--border-default);
+}
+
 .club-filters {
   display: flex;
   flex-wrap: wrap;
@@ -1637,6 +1653,10 @@
   }
 
   .club-tabs {
+    border-bottom: 1px solid var(--border-default);
+  }
+
+  .player-tabs {
     border-bottom: 1px solid var(--border-default);
   }
 

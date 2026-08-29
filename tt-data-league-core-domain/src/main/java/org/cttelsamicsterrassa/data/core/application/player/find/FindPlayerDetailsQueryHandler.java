@@ -121,8 +121,9 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
     }
 
     private PlayerMatchReadModel toMatch(Match match, List<Lineup> lineups) {
-        UUID teamId = lineups.stream().filter(lineup -> lineup.getMatch().getId().equals(match.getId()))
-                .map(Lineup::getTeam).map(Team::getId).findFirst().orElse(null);
+        Team playerTeam = lineups.stream().filter(lineup -> lineup.getMatch().getId().equals(match.getId()))
+                .map(Lineup::getTeam).filter(team -> team != null).findFirst().orElse(null);
+        UUID teamId = playerTeam == null ? null : playerTeam.getId();
         String result = match.getWinnerTeam() == null ? "draw"
                 : match.getWinnerTeam().getId().equals(teamId) ? "win" : "loss";
         Integer playerGamesWon = teamId == null ? null
@@ -130,7 +131,8 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
                 : match.getAwayTeam().getId().equals(teamId) ? match.getAwayGamesWon() : null;
         return new PlayerMatchReadModel(match.getId(), match.getSource(), match.getCompetition(), match.getSeason(),
                 match.getRound(), match.getDateTime(), match.getHomeTeam().getName(), match.getAwayTeam().getName(),
-                match.getHomeGamesWon(), match.getAwayGamesWon(), result, playerGamesWon);
+                match.getHomeGamesWon(), match.getAwayGamesWon(), result, playerGamesWon,
+                playerTeam == null ? null : playerTeam.getName());
     }
 
     private PlayerSeasonStatisticsReadModel toStatistics(StatisticsKey key, List<Match> matches,
