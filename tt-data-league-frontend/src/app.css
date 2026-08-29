@@ -1033,6 +1033,229 @@
   background: var(--surface-card);
 }
 
+.source-options {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.source-options legend,
+.season-slider legend {
+  width: 100%;
+  padding: 0;
+}
+
+.source-options label,
+.filter-all-button {
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.season-slider {
+  min-width: min(26rem, 100%);
+}
+
+.season-slider input[type='range'] {
+  accent-color: var(--accent-primary);
+  min-width: 15rem;
+}
+
+.filter-all-button {
+  border: 0;
+  background: transparent;
+  color: var(--accent-primary);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.history-chart {
+  position: relative;
+  display: flex;
+  align-items: end;
+  gap: 1rem;
+  min-height: 13rem;
+  overflow-x: auto;
+  padding: 1.25rem;
+}
+
+.chart-type-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.chart-type-selector select {
+  min-width: 12rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.4rem;
+  padding: 0.55rem 0.65rem;
+  color: var(--text-primary);
+  background: var(--surface-card);
+}
+
+.chart-axis {
+  position: absolute;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+}
+
+.chart-axis-y {
+  top: 0.45rem;
+  left: 0.75rem;
+}
+
+.chart-axis-x {
+  right: 0.75rem;
+  bottom: 0.45rem;
+}
+
+.chart-connected-scatter .history-bar {
+  border-radius: 50%;
+}
+
+.chart-connected-scatter .history-bars {
+  align-items: center;
+}
+
+.history-connected-chart {
+  display: block;
+  min-height: 0;
+  overflow-x: auto;
+}
+
+.history-connected-chart svg {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  height: 14rem;
+  max-height: 14rem;
+  aspect-ratio: 640 / 220;
+}
+
+.chart-grid-line {
+  stroke: var(--border-subtle);
+  stroke-width: 1;
+}
+
+.chart-line {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.matches-line {
+  stroke: var(--secondary);
+}
+
+.wins-line {
+  stroke: var(--color-success);
+}
+
+.matches-point {
+  stroke: var(--secondary);
+  fill: var(--secondary);
+}
+
+.wins-point {
+  stroke: var(--color-success);
+  fill: var(--color-success);
+}
+
+.chart-season-label,
+.chart-axis-label {
+  fill: var(--text-secondary);
+  font-family: inherit;
+  font-size: 10px;
+}
+
+.history-bar-group {
+  display: flex;
+  flex: 1 0 8rem;
+  align-items: center;
+  justify-content: end;
+  min-height: 10rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-align: center;
+  font-size: 0.7rem;
+}
+
+.history-bar {
+  width: min(3rem, 70%);
+  min-height: 0.5rem;
+  background: var(--secondary);
+  border-radius: 0.25rem 0.25rem 0 0;
+}
+
+.history-bars {
+  display: flex;
+  align-items: end;
+  justify-content: center;
+  gap: 0.2rem;
+  width: 100%;
+  height: 8rem;
+}
+
+.history-bars .history-bar {
+  width: 0.8rem;
+}
+
+.history-bar.matches,
+.legend-matches::before {
+  background: var(--secondary);
+}
+
+.history-bar.wins,
+.legend-wins::before {
+  background: var(--color-success);
+}
+
+.history-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.history-legend span::before {
+  display: inline-block;
+  width: 0.65rem;
+  height: 0.65rem;
+  margin-right: 0.35rem;
+  content: '';
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.history-table caption {
+  text-align: left;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.history-table th,
+.history-table td {
+  border-bottom: 1px solid var(--border-subtle);
+  padding: 0.65rem;
+  text-align: left;
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
 .secondary-button {
   display: inline-flex;
   align-items: center;

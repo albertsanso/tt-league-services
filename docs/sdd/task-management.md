@@ -27,6 +27,48 @@ If `FEATURES.md` and a details file disagree, **`FEATURES.md` wins** for status,
 
 ---
 
+## Templates
+
+### New feature registry entry
+
+Copy this block to add a new feature under `## Backlog` in `FEATURES.md`:
+
+```markdown
+### [FEAT-000] Feature Name
+- **Status:** idea
+- **Priority:** low | medium | high
+- **Effort:** small (< 2h) | medium (2–8h) | large (> 8h)
+- **Depends on:** —
+
+#### Goal
+One sentence: what problem does this solve for the user?
+
+#### Acceptance Criteria
+- [ ] Criterion 1
+- [ ] Criterion 2
+
+#### Feature Details
+→ See [FEAT-000-DETAILS.md](./FEAT-000-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+```
+
+### Feature details file
+
+```markdown
+# Build Plan
+> Fill this in when status moves to `planned`.
+
+1. Step 1
+2. Step 2
+...
+
+# Implementation Guidelines
+
+# Notes
+Any open questions, design decisions, or links.
+```
+
+---
+
 ## Status values
 
 Use **only** these literals in `- **Status:** …` (lowercase, hyphenated where shown):
@@ -73,10 +115,11 @@ When you change a feature’s status, **move the entire block** (heading, metada
 
 ### 1. New feature (`idea`)
 
-1. Append (or place per file convention) a new `### [FEAT-NNN]` block under **Backlog** using the template in `FEATURES.md`.
-2. Set `- **Status:** idea`.
-3. Either add a stub `FEAT-NNN-DETAILS.md` with placeholder headings (`# Build Plan`, `# Implementation Guidelines`, `# Notes`) or omit the file until moving to `planned`—but the registry link should still point to `./FEAT-NNN-DETAILS.md` when the file exists.
-4. Fill **Goal** and initial **Acceptance Criteria**; use `Depends on:` for other `FEAT-NNN` IDs or external deps.
+1. Append (or place per file convention) a new `### [FEAT-NNN]` block under **Backlog** using the template in [Templates](#templates).
+2. Add a related entry for the feature under `## Main index`, using the feature ID and title and linking to its registry heading.
+3. Set `- **Status:** idea`.
+4. Either add a stub `FEAT-NNN-DETAILS.md` with placeholder headings (`# Build Plan`, `# Implementation Guidelines`, `# Notes`) or omit the file until moving to `planned`—but the registry link should still point to `./FEAT-NNN-DETAILS.md` when the file exists.
+5. Fill **Goal** and initial **Acceptance Criteria**; use `Depends on:` for other `FEAT-NNN` IDs or external deps.
 
 ### 2. Plan written (`planned`)
 
@@ -156,6 +199,6 @@ When you change a feature’s status, **move the entire block** (heading, metada
 - [ ] Feature block sits under **In Progress**, **Backlog**, or **Done** according to the table above.
 - [ ] **`## Done`** entries are ordered by **`FEAT-NNN` descending** (alphabetical descending on the id).
 - [ ] `FEAT-NNN` in the heading matches `FEAT-NNN-DETAILS.md`.
+- [ ] Every feature has a corresponding entry under `## Main index`.
 - [ ] Details file has a **Build Plan** before or when status is `planned` or later.
 - [ ] Blockers documented in details **Notes** when `blocked`.
-

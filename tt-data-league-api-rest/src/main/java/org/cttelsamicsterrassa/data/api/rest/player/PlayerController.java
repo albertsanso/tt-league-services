@@ -8,6 +8,7 @@ import org.albertsanso.commons.query.QueryBus;
 import org.cttelsamicsterrassa.data.core.application.player.find.FindPlayerDetailsQuery;
 import org.cttelsamicsterrassa.data.core.application.player.find.FindFederatedPlayersByStringInNameQuery;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerSearchReadModel;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -58,7 +59,7 @@ public class PlayerController {
         var queryResponse = queryBus.push(query);
         if (queryResponse.isSuccess()) {
             List<PlayerDto> playerDtos = ((List<?>) queryResponse.getResponse()).stream()
-                    .map(player -> PlayerDto.fromObject((org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer) player))
+                    .map(player -> PlayerDto.fromObject((PlayerSearchReadModel) player))
                     .toList();
             return ResponseEntity.ok(playerDtos);
         } else {

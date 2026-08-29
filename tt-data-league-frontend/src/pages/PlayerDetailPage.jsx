@@ -4,6 +4,12 @@ import { routePaths } from '../config/routes.js'
 import { usePlayerDetails } from '../hooks/usePlayers.js'
 
 const ALL = 'all'
+const CHART_TYPES = ['line', 'bar', 'connected-scatter']
+const CHART_LABELS = {
+  line: 'Línies',
+  bar: 'Barres',
+  'connected-scatter': 'Dispersió connectada',
+}
 const unique = (values) => [...new Set(values.filter(Boolean))].sort()
 
 function PlayerDetailPage() {
@@ -33,7 +39,10 @@ function PlayerDetailPage() {
   const selectedSource = params.get('source')
   const source = selectedSource && sources.includes(selectedSource) ? selectedSource : ''
   const registrations = data.registrations.filter((item) => !source || item.source === source)
-  const seasons = unique(registrations.map((item) => item.season))
+  const seasons = unique([
+    ...registrations.map((item) => item.season),
+    ...data.statistics.map((item) => item.season),
+  ]).filter((item) => item !== '—')
   const selectedSeason = params.get('season')
   const season = selectedSeason === ALL ? '' : seasons.includes(selectedSeason) ? selectedSeason : ''
   const availableCompetitions = unique(data.competitions
@@ -41,19 +50,23 @@ function PlayerDetailPage() {
     .map((item) => item.name))
   const selectedCompetition = params.get('competition')
   const competition = availableCompetitions.includes(selectedCompetition) ? selectedCompetition : ''
+  const requestedChart = params.get('chart')
+  const chart = CHART_TYPES.includes(requestedChart) ? requestedChart : 'line'
   const matches = data.matches.filter((item) => (
     (!source || item.source === source) && (!season || item.season === season)
       && (!competition || item.competition === competition)
   ))
   const clubs = data.clubs.filter((item) => (!source || item.source === source) && (!season || item.season === season))
   const federatedPlayers = data.federatedPlayers.filter((item) => !source || item.source === source)
+  const statistics = data.statistics.filter((item) => (
+    (!source || item.source === source) && (!season || item.season === season)
+  ))
 
   function update(key, value) {
     const next = new URLSearchParams(params)
-    if (value) next.set(key, value)
-    else next.delete(key)
+    next.set(key, value || ALL)
     if (key === 'source') {
-      next.delete('season')
+      next.set('season', ALL)
       next.delete('competition')
     }
     if (key === 'season') next.delete('competition')
@@ -71,16 +84,24 @@ function PlayerDetailPage() {
         </div>
       </div>
       <div className="club-filters">
-        <label className="club-filter"><span>Font</span><select value={source || ALL} onChange={(event) => update('source', event.target.value === ALL ? '' : event.target.value)}>
-          <option value={ALL}>Totes les fonts</option>{sources.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select></label>
-        <label className="club-filter"><span>Temporada</span><select value={season || ALL} onChange={(event) => update('season', event.target.value === ALL ? '' : event.target.value)}>
-          <option value={ALL}>Totes les temporades</option>{seasons.map((item) => <option key={item} value={item}>{item}</option>)}
-        </select></label>
+        <fieldset className="club-filter source-options"><legend>Font</legend>
+          <label><input type="radio" name="player-source" checked={!source} onChange={() => update('source', ALL)} /> Totes les fonts</label>
+          {sources.map((item) => <label key={item}><input type="radio" name="player-source" value={item} checked={source === item} onChange={() => update('source', item)} /> {item}</label>)}
+        </fieldset>
+        <fieldset className="club-filter season-slider"><legend>Temporada</legend>
+          <output htmlFor="player-season">{season || 'Totes les temporades'}</output>
+          <input id="player-season" type="range" min="0" max={Math.max(seasons.length, 0)} step="1"
+            value={season ? seasons.indexOf(season) : seasons.length}
+            onChange={(event) => update('season', seasons[Number(event.target.value)] ?? ALL)}
+            disabled={seasons.length === 0}
+            aria-label="Selecciona la temporada" />
+          <button className="filter-all-button" type="button" onClick={() => update('season', ALL)}>Totes les temporades</button>
+        </fieldset>
         <label className="club-filter"><span>Competició</span><select value={competition} onChange={(event) => update('competition', event.target.value)}>
           <option value="">Totes les competicions</option>{availableCompetitions.map((item) => <option key={item} value={item}>{item}</option>)}
         </select></label>
       </div>
+      <HistorySection statistics={statistics} competition={competition} matches={matches} chart={chart} update={update} />
       <DetailList title="Registres federats" items={federatedPlayers} empty="No hi ha registres federats per als filtres seleccionats." render={(item) => `${item.name} · ${item.source}${item.license ? ` · Llicència: ${item.license}` : ''}`} />
       <DetailList title="Inscripcions per temporada" items={registrations.filter((item) => !season || item.season === season)} empty="No hi ha inscripcions per als filtres seleccionats." render={(item) => `${item.name} · ${item.season} · ${item.source} · Llicència: ${item.license ?? '—'}`} />
       <DetailList title="Clubs associats" items={clubs} empty="No hi ha clubs associats per als filtres seleccionats." render={(item) => `${item.name} · ${item.season} · ${item.source}`} />
@@ -88,6 +109,111 @@ function PlayerDetailPage() {
       <DetailList title="Partits" items={matches} empty="No hi ha partits per als filtres seleccionats." render={(item) => `${item.homeTeam} — ${item.awayTeam} · ${item.competition} · Jornada ${item.round}`} />
     </section>
   )
+}
+
+function HistorySection({ statistics, competition, matches, chart, update }) {
+  const values = competition ? aggregateCompetition(matches, competition) : statistics
+  return <section className="club-detail-section" aria-labelledby="player-history-title">
+    <h2 id="player-history-title">Historial estadístic</h2>
+    <label className="chart-type-selector">Tipus de gràfic
+      <select value={chart} onChange={(event) => update('chart', event.target.value)}>
+        {CHART_TYPES.map((type) => <option key={type} value={type}>{CHART_LABELS[type]}</option>)}
+      </select>
+    </label>
+    {values.length === 0 ? <p className="club-empty card" role="status">No hi ha dades estadístiques disponibles per als filtres seleccionats.</p> : (
+      <>
+        {chart === 'connected-scatter' ? <ConnectedScatterPlot values={values} /> : (
+          <div className={`history-chart card chart-${chart}`} role="img" aria-label={`${CHART_LABELS[chart]} de partits i percentatge de victòries per temporada`}>
+            <span className="chart-axis chart-axis-y">Valor (partits, %)</span>
+            {values.map((item, index) => <div className="history-bar-group" key={`${item.source}-${item.season}-${index}`}>
+              <div className="history-bars" aria-hidden="true">
+                <span className="history-bar matches" style={{ height: `${Math.max(8, Math.min(100, item.matchesPlayed * 12))}%` }} />
+                <span className="history-bar wins" style={{ height: `${item.winPercentage == null ? 8 : Math.max(8, item.winPercentage)}%` }} />
+              </div>
+              <strong>{item.season || 'Sense temporada'}</strong>
+              <span>{item.matchesPlayed} partits · {item.winPercentage == null ? 'Percentatge no disponible' : `${item.winPercentage.toFixed(1)}% victòries`}</span>
+            </div>)}
+            <span className="chart-axis chart-axis-x">Temporades</span>
+          </div>
+        )}
+        <p className="history-legend" aria-label="Llegenda del gràfic">
+          <span className="legend-matches">Partits jugats</span>
+          <span className="legend-wins">Victòries (%)</span>
+        </p>
+        <div className="table-wrap">
+          <table className="history-table">
+            <caption>Valors de l’historial estadístic</caption>
+            <thead><tr><th>Temporada</th><th>Partits jugats</th><th>Victòries %</th></tr></thead>
+            <tbody>{values.map((item, index) => <tr key={`${item.source}-${item.season}-${index}`}><td>{item.season || '—'}</td><td>{item.matchesPlayed}</td><td>{item.winPercentage == null ? '—' : `${item.winPercentage.toFixed(1)}%`}</td></tr>)}</tbody>
+          </table>
+        </div>
+        <div className="table-wrap">
+          <table className="history-table match-history-table">
+            <caption>Historial de partits (alternativa textual al gràfic)</caption>
+            <thead><tr><th>Data</th><th>Font</th><th>Temporada</th><th>Competició</th><th>Oponent</th><th>Resultat</th><th>Marcador</th></tr></thead>
+            <tbody>{matches.map((item) => <tr key={item.id}>
+              <td>{item.dateTime ? new Date(item.dateTime).toLocaleDateString('ca-ES') : '—'}</td>
+              <td>{item.source || '—'}</td>
+              <td>{item.season || '—'}</td>
+              <td>{item.competition || '—'}</td>
+              <td>{item.result === 'win' || item.result === 'loss' ? (item.result === 'win' ? item.awayTeam : item.homeTeam) : `${item.homeTeam} — ${item.awayTeam}`}</td>
+              <td>{item.result === 'win' ? 'Victòria' : item.result === 'loss' ? 'Derrota' : 'Empat'}</td>
+              <td>{item.homeGamesWon == null || item.awayGamesWon == null ? '—' : `${item.homeGamesWon} — ${item.awayGamesWon}`}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
+      </>
+    )}
+  </section>
+}
+
+function ConnectedScatterPlot({ values }) {
+  const width = 640
+  const height = 220
+  const padding = { top: 16, right: 18, bottom: 36, left: 36 }
+  const plotWidth = width - padding.left - padding.right
+  const plotHeight = height - padding.top - padding.bottom
+  const maxMatches = Math.max(...values.map((item) => item.matchesPlayed), 1)
+  const x = (index) => values.length === 1
+    ? padding.left + plotWidth / 2
+    : padding.left + index * plotWidth / (values.length - 1)
+  const yMatches = (value) => padding.top + plotHeight - value / maxMatches * plotHeight
+  const yWins = (value) => padding.top + plotHeight - (value ?? 0) / 100 * plotHeight
+  const matchesPoints = values.map((item, index) => `${x(index)},${yMatches(item.matchesPlayed)}`).join(' ')
+  const winsPoints = values
+    .filter((item) => item.winPercentage != null)
+    .map((item) => `${x(values.indexOf(item))},${yWins(item.winPercentage)}`)
+    .join(' ')
+
+  return <div className="history-chart history-connected-chart card chart-connected-scatter" role="img"
+    aria-label="Dispersió connectada: sèries de partits jugats i percentatge de victòries de totes les temporades seleccionades en un únic gràfic">
+    <svg viewBox={`0 0 ${width} ${height}`} role="presentation" focusable="false" preserveAspectRatio="xMidYMid meet">
+      <line className="chart-grid-line" x1={padding.left} y1={padding.top + plotHeight} x2={width - padding.right} y2={padding.top + plotHeight} />
+      <polyline className="chart-line matches-line" fill="none" points={matchesPoints} />
+      {winsPoints && <polyline className="chart-line wins-line" fill="none" points={winsPoints} />}
+      {values.map((item, index) => <g key={`${item.source}-${item.season}-${index}`}>
+        <circle className="chart-point matches-point" cx={x(index)} cy={yMatches(item.matchesPlayed)} r="3" />
+        {item.winPercentage != null && <circle className="chart-point wins-point" cx={x(index)} cy={yWins(item.winPercentage)} r="3" />}
+        <text className="chart-season-label" x={x(index)} y={height - 18} textAnchor="middle">{item.season || '—'}</text>
+      </g>)}
+      <text className="chart-axis-label" x="10" y={padding.top + plotHeight / 2} textAnchor="middle" transform={`rotate(-90 10 ${padding.top + plotHeight / 2})`}>Valor</text>
+      <text className="chart-axis-label" x={width / 2} y={height - 2} textAnchor="middle">Temporades</text>
+    </svg>
+  </div>
+}
+
+function aggregateCompetition(matches, competition) {
+  const selected = matches.filter((item) => item.competition === competition)
+  const grouped = new Map()
+  selected.forEach((match) => {
+    const key = `${match.source}-${match.season}`
+    const current = grouped.get(key) ?? { source: match.source, season: match.season, matchesPlayed: 0, wins: 0, losses: 0 }
+    current.matchesPlayed += 1
+    if (match.result === 'win') current.wins += 1
+    if (match.result === 'loss') current.losses += 1
+    grouped.set(key, current)
+  })
+  return [...grouped.values()].map((item) => ({ ...item, winPercentage: item.wins + item.losses ? item.wins * 100 / (item.wins + item.losses) : null }))
 }
 
 function DetailList({ title, items, empty, render }) {

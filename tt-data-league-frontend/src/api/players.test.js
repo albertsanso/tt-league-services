@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { normalizePlayerDetailsResponse, searchPlayers } from './players.js'
+import { normalizePlayerDetailsResponse, normalizePlayerSearchResponse, searchPlayers } from './players.js'
 
 describe('player API boundary', () => {
   beforeEach(() => vi.restoreAllMocks())
@@ -16,11 +16,16 @@ describe('player API boundary', () => {
         id: 'match-id', competition: 'Preferent', season: '2025', source: 'RFETM',
         homeTeam: 'Club Terrassa', awayTeam: 'Club Barcelona',
       }],
+      statistics: [{
+        source: 'RFETM', season: '2025-2026', matchesPlayed: 2, wins: 1, losses: 1,
+        winPercentage: 50, averageScore: 3.5,
+      }],
     })
 
     expect(details.id).toBe('player-id')
     expect(details.registrations[0].season).toBe('2025')
     expect(details.matches[0].homeTeam).toBe('Club Terrassa')
+    expect(details.statistics[0].winPercentage).toBe(50)
   })
 
   it('encodes the source filter and session token', async () => {
@@ -37,5 +42,30 @@ describe('player API boundary', () => {
       '/api/v1/player/search_in_name?name=Anna&source=RFETM',
       expect.objectContaining({ headers: expect.objectContaining({ Authorization: expect.any(String) }) }),
     )
+  })
+
+  it('normalizes one canonical result with source context', () => {
+    const players = normalizePlayerSearchResponse([{
+      id: 'canonical-id',
+      name: 'Anna Canonical',
+      canonicalPlayerId: 'canonical-id',
+      sources: ['FCTT', 'RFETM'],
+      federatedPlayers: [
+        { id: 'fctt-id', name: 'Anna FCTT', license: '1', source: 'FCTT' },
+        { id: 'rfetm-id', name: 'Anna RFETM', license: '2', source: 'RFETM' },
+      ],
+    }])
+
+    expect(players).toHaveLength(1)
+    expect(players[0].sources).toEqual(['FCTT', 'RFETM'])
+    expect(players[0].federatedPlayers).toHaveLength(2)
+  })
+
+  it('rejects malformed source context', () => {
+    expect(() => normalizePlayerSearchResponse([{
+      id: 'player-id',
+      name: 'Anna',
+      sources: 'RFETM',
+    }])).toThrow()
   })
 })

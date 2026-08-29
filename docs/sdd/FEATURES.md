@@ -2,7 +2,7 @@
 
 This file is the single source of truth for planned, in-progress, and completed features.
 
-**For humans:** Add new features under `## Backlog` using the template below.
+**For humans:** Add new features under `## Backlog` using the template in [`task-management.md`](./task-management.md).
 **For agents:** Only work on features marked `status: ready`. Update status as you progress. Never modify features marked `status: done` or `status: in-progress` unless explicitly asked.
 
 ---
@@ -20,47 +20,131 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ---
 
-## Template
+## Main index
 
-Copy this block to add a new feature:
-
-```
-### [FEAT-000] Feature Name
-- **Status:** idea
-- **Priority:** low | medium | high
-- **Effort:** small (< 2h) | medium (2–8h) | large (> 8h)
-- **Depends on:** —
-
-#### Goal
-One sentence: what problem does this solve for the user?
-
-#### Acceptance Criteria
-- [ ] Criterion 1
-- [ ] Criterion 2
-
-#### Feature Details
-→ See [FEAT-000-DETAILS.md](./FEAT-000-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-```
-
-### Feature Details file format
-```
-# Build Plan
-> Fill this in when status moves to `planned`.
-
-1. Step 1
-2. Step 2
-...
-
-# Implementation Guidelines
-
-# Notes
-Any open questions, design decisions, or links.
-```
-## In Progress
+- [FEAT-013: Player details fixes](### [FEAT-013] Player details fixes)
+- [FEAT-012: Player search & detail - unique players](### [FEAT-012] Player search & detail - unique players)
+- [FEAT-011: Player Search and Player Detail](### [FEAT-011] Player Search and Player Detail)
+- [FEAT-010: Club search returns canonical club entities with full details](### [FEAT-010] Club search returns canonical club entities with full details)
+- [FEAT-009: Canonical player entity](### [FEAT-009] Canonical player entity)
+- [FEAT-008: Canonical club entity](### [FEAT-008] Canonical club entity)
+- [FEAT-007: fixes in breadcrumb and navigation](### [FEAT-007] fixes in breadcrumb and navigation)
+- [FEAT-006: Player entity rename to FederatedPlayer](### [FEAT-006] Player entity rename to FederatedPlayer)
+- [FEAT-005: Club entity rename to FederatedClub](### [FEAT-005] Club entity rename to FederatedClub)
+- [FEAT-004: Club detail redesign 1](### [FEAT-004] Club detail redesign 1)
+- [FEAT-003: Club search and club detail](### [FEAT-003] Club search and club detail)
+- [FEAT-002: Access control and secured navigation](### [FEAT-002] Access control and secured navigation)
+- [FEAT-001: Frontend application skeleton and theme](### [FEAT-001] Frontend application skeleton and theme)
 
 ## Backlog
 
 ## Done
+
+### [FEAT-013] Player details fixes
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-011, FEAT-012
+
+#### Goal
+Correct the remaining issues in the Player detail experience so users can reliably view player information and navigate through its related data.
+
+*Fix 1*: Remove average score from the plot and table, as it is not a meaningful statistic for players. The plot should only display matches played and win percentage.
+
+*Fix 2*: Ensure the supported plots are in the next list:
+- Line chart
+- Bar chart
+- Connected scatter plot, rendered as one combined plot containing line
+  series across all selected seasons, rather than one plot per season, with no
+  filled areas between points. The plot must remain compact, use typography
+  consistent with the surrounding interface, use thin series lines, and
+  preserve its aspect ratio without stretching or cropping labels.
+
+#### Acceptance Criteria
+- [x] The Player detail plot and table no longer display average score, and only show matches played and win percentage.
+- [x] The Player detail plot supports only line chart, bar chart, and connected scatter plot; connected scatter renders all selected seasons as unfilled, thin line series in the same compact plot, with surrounding-interface typography, proportional aspect ratio without stretched or cropped labels, seasons on the shared x-axis, and no filled areas between points.
+- [x] The Player detail plot and table update correctly when source, season, or competition filters change, and the filters remain interdependent and URL-persisted.
+- [x] The Player detail plot and table provide accessible fallback content for users who cannot interpret the plot, and preserve loading, empty, error, unauthorized, and not-found states.
+- [x] The Player detail plot and table are responsive and adjust to different screen sizes, while maintaining accessibility and usability.
+
+#### Feature Details
+→ See [FEAT-013-DETAILS.md](./FEAT-013-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+### [FEAT-012] Player search & detail - unique players
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-009, FEAT-011
+
+#### Goal
+Ensure player search and detail navigation represent each canonical player only once, while providing complete, filterable source- and season-scoped history.
+
+##### Player search strategy
+- Search on FederatedPlayer because it is the source-scoped representation of a player, but return only one result.
+- Group multiple FederatedPlayer records under one canonical Player UUID, preserving the source context for interpretation.
+- Player names can be slightly different across sources, so the search should not rely on exact name matching alone, must use search by fragments, and must not return duplicate results for the same canonical player.
+
+##### Player detail strategy
+- Selecting a search result opens the canonical Player detail view, preserving the source and season context of the selected FederatedPlayer.
+- The canonical Player detail view should display the player's identity, source and season context, season registrations, associated clubs, competition references, and relevant match summaries.
+- The detail view should be accessible and responsive across supported screen sizes.
+- Display a group of actions that the user can take on the player (e.g., view matches, view clubs, etc.) based on their access level.
+- Player detail modification action is available only to administrators and is enforced by the backend.
+- The player detail API must expose the season-level statistics required by the history visualization: matches played, win percentage, and average score, with explicit source and season context.
+
+##### Player detail mockup
+- Display player name and license number at the top of the detail view.
+- Display a source selector based on radio buttons for each available source, with the current source highlighted. Add a radio button to select "All sources" and show all available sources.
+- Display a season selector based on a horizontal slider of available seasons, with the current season highlighted. Add a radio button to select "All seasons" and show all available seasons.
+- Display a plot graphical view of the player's match history, with the ability to filter by source and season using the selectors above.
+- Display a table of the player's match history, with the ability to filter by source and season using the selectors above. The table should include columns for match date, competition, opponent, result, and score.
+
+##### History visualization for Player detail
+- Display an accessible, responsive plot of the player's history statistics.
+- Use the available seasons on the x-axis.
+- Display series for matches played, win percentage, and average score.
+- Ensure the plot updates when source, season, or competition filters change.
+- Provide a non-graph fallback or accessible data representation for users who cannot interpret the plot.
+
+##### Responsive plot for Player history statistics
+- The plot type is selectable from a selector dropdown, with options for:
+  - Series comparison
+    - Line chart
+    - Bar chart
+  - Stacked comparison
+    - Stacked bar chart
+  - Correlation comparison
+    - Scatter plot
+    - Bubble chart
+    - Heatmap
+- The plot should be responsive and adjust to different screen sizes.
+- The plot should be accessible and provide alternative text descriptions for users who cannot interpret the plot.
+
+##### Match history table for Player detail
+
+#### Acceptance Criteria
+- [x] Player search returns one result per canonical Player UUID, with source context retained for interpretation.
+- [x] Duplicate federated or season-specific records do not create duplicate search results or ambiguous detail navigation.
+- [x] Selecting a result opens the matching canonical player detail and preserves its available source and season context in the URL and displayed filters.
+- [x] The player detail API and read model expose complete, source- and season-scoped history statistics for matches played, win percentage, and average score without changing persisted identity or historical references.
+- [x] The detail view provides an accessible source selector with an “All sources” option and a responsive season slider with an “All seasons” option; filter changes remain URL-persisted and interdependent.
+- [x] The detail view renders a responsive history plot with seasons on the x-axis and series for matches played, win percentage, and average score, updating for the selected filters.
+- [x] The detail view provides an accessible tabular or textual fallback for the plotted statistics and preserves loading, empty, error, unauthorized, and not-found states.
+- [x] Existing player registration, club, competition, match, and lineup history remains intact while results are deduplicated and statistics are filtered only in the read projection.
+- [x] REST, frontend, and focused regression tests cover statistics serialization, source/season filtering, slider behavior, plot updates, accessible fallback content, canonical navigation, and failure states.
+- [x] The history plot provides a keyboard-accessible type selector with line, bar, stacked-bar, scatter, bubble, and heatmap options, and each option preserves the same season and metric data.
+- [x] The plot includes an explicit legend, axis labels, units, and an accessible textual alternative that describes the selected plot type and its displayed values.
+- [x] The match-history table includes date, competition, opponent, result, and score columns, preserves source and season context, and represents unavailable scores as an em dash rather than an invented value.
+- [x] All-source and all-season views aggregate every eligible source-scoped match without arbitrary history truncation; source, season, and competition changes update both the plot and table consistently.
+- [x] Unlinked federated search records remain distinct, retain their source context, and do not navigate to a fabricated canonical player detail URL.
+- [x] Malformed or unavailable statistics produce an explicit error or unavailable state at the API boundary and never render invalid percentages, counts, or averages.
+
+#### Feature Details
+→ See [FEAT-012-DETAILS.md](./FEAT-012-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-011] Player Search and Player Detail
 - **Status:** done

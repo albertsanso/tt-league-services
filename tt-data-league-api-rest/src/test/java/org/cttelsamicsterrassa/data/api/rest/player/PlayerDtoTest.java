@@ -6,6 +6,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -22,6 +23,7 @@ class PlayerDtoTest {
         PlayerDto dto = PlayerDto.fromObject(federated);
 
         assertEquals(new PlayerDto(
-                federatedId, "Source Player", "FCTT", canonicalId, "Canonical Player"), dto);
+                federatedId, "Source Player", "FCTT", canonicalId, "Canonical Player",
+                List.of(), List.of("FCTT")), dto);
     }
 }

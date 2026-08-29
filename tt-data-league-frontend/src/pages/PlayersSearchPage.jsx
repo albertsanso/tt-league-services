@@ -100,13 +100,16 @@ function PlayersSearchPage() {
           {players.map((player) => (
             <li key={player.id} className="club-result card">
               {player.canonicalPlayerId ? (
-                <Link className="club-result-link" to={routePaths.playerDetails(player.canonicalPlayerId)}>
+                <Link
+                  className="club-result-link"
+                  to={routePaths.playerDetails(
+                    player.id,
+                    `${player.sources.length === 1 ? `source=${encodeURIComponent(player.sources[0])}` : 'source=all'}&season=all`,
+                  )}
+                >
                   <span>
                     <strong>{player.name}</strong>
-                    <span className="club-source">Font: {player.source}</span>
-                    {player.canonicalPlayerName && player.canonicalPlayerName !== player.name ? (
-                      <span className="club-source">Identitat canònica: {player.canonicalPlayerName}</span>
-                    ) : null}
+                     <span className="club-source">Fonts: {player.sources.join(', ') || player.source}</span>
                   </span>
                   <span aria-hidden="true">→</span>
                 </Link>
@@ -114,7 +117,7 @@ function PlayersSearchPage() {
                 <div className="club-result-link">
                   <span>
                     <strong>{player.name}</strong>
-                    <span className="club-source">Font: {player.source}</span>
+                   <span className="club-source">Fonts: {player.sources.join(', ') || player.source}</span>
                     <span className="club-source">Identitat canònica pendent</span>
                   </span>
                 </div>

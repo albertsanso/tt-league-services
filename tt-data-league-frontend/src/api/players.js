@@ -11,12 +11,28 @@ function normalizePlayer(value) {
   if (!value || typeof value !== 'object') {
     throw new ApiError('La resposta conté un jugador no vàlid.', 502, value)
   }
+  const federatedPlayers = value.federatedPlayers == null ? [] : value.federatedPlayers
+  if (!Array.isArray(federatedPlayers)) {
+    throw new ApiError('La resposta conté context de jugador no vàlid.', 502, value)
+  }
+  if (value.sources != null && !Array.isArray(value.sources)) {
+    throw new ApiError('La resposta conté fonts de jugador no vàlides.', 502, value)
+  }
   return {
     id: text(value.id, 'un identificador'),
     name: text(value.name, 'un nom'),
     source: value.source == null ? '—' : text(value.source, 'la font'),
-    canonicalPlayerId: value.canonicalPlayerId ?? null,
-    canonicalPlayerName: value.canonicalPlayerName ?? null,
+    canonicalPlayerId: value.canonicalPlayerId == null ? null : text(value.canonicalPlayerId, 'un identificador canònic'),
+    canonicalPlayerName: value.canonicalPlayerName == null ? null : text(value.canonicalPlayerName, 'un nom canònic'),
+    sources: Array.isArray(value.sources)
+      ? value.sources.map((source) => text(source, 'una font')).sort()
+      : federatedPlayers.map((item) => text(item.source, 'la font del context')).filter(Boolean).sort(),
+    federatedPlayers: federatedPlayers.map((item) => ({
+      id: text(item.id, 'un identificador federat'),
+      name: text(item.name, 'un nom federat'),
+      license: item.license == null ? null : text(item.license, 'una llicència'),
+      source: item.source == null ? '—' : text(item.source, 'la font del context'),
+    })),
   }
 }
 
@@ -72,9 +88,34 @@ export function normalizePlayerDetailsResponse(payload) {
       competition: item.competition ?? '—',
       homeTeam: text(item.homeTeam, 'un equip local'),
       awayTeam: text(item.awayTeam, 'un equip visitant'),
+      playerGamesWon: item.playerGamesWon == null ? null : integer(item.playerGamesWon, 'els jocs guanyats'),
+    })),
+    statistics: normalizeArray(payload.statistics, 'estadístiques').map((item) => ({
+      source: item.source == null ? null : text(item.source, 'la font de les estadístiques'),
+      season: item.season == null ? null : text(String(item.season), 'la temporada de les estadístiques'),
+      matchesPlayed: integer(item.matchesPlayed, 'els partits jugats'),
+      wins: integer(item.wins, 'les victòries'),
+      losses: integer(item.losses, 'les derrotes'),
+      winPercentage: nullableNumber(item.winPercentage, 'el percentatge de victòries', 0, 100),
+      averageScore: nullableNumber(item.averageScore, 'la puntuació mitjana', 0),
     })),
   }
   return details
+}
+
+function integer(value, field) {
+  if (!Number.isInteger(value) || value < 0) {
+    throw new ApiError(`La resposta no conté ${field} vàlids.`, 502, value)
+  }
+  return value
+}
+
+function nullableNumber(value, field, min = Number.NEGATIVE_INFINITY, max = Number.POSITIVE_INFINITY) {
+  if (value == null) return null
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < min || value > max) {
+    throw new ApiError(`La resposta no conté ${field} vàlid.`, 502, value)
+  }
+  return value
 }
 
 function normalizeQuery(query) {
