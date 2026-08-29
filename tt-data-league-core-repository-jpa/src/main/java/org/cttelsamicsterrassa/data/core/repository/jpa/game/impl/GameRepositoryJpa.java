@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.UUID;
+import java.util.Collection;
 
 @Transactional
 @Component
@@ -26,6 +27,12 @@ public class GameRepositoryJpa implements GameRepository {
                 .stream()
                 .map(gameJPAToGameMapper)
                 .toList();
+    }
+
+    @Override
+    public List<Game> findGamesByMatchIds(Collection<UUID> matchIds) {
+        return gameRepositoryHelper.findAllByMatch_IdInOrderByMatch_IdAscGameNumberAsc(matchIds)
+                .stream().map(gameJPAToGameMapper).toList();
     }
 
     @Override

@@ -37,7 +37,14 @@ public record PlayerDetailsDto(
                         value.source() == null ? null : value.source().name(), value.competition(),
                         value.season() == null ? null : value.season().toString(), value.round(),
                         value.dateTime(), value.homeTeam(), value.awayTeam(), value.homeGamesWon(),
-                        value.awayGamesWon(), value.result(), value.playerGamesWon(), value.playerTeam())).toList(),
+                        value.awayGamesWon(), value.result(), value.playerGamesWon(), value.playerTeam(),
+                        value.games().stream().map(game -> new GameDto(game.id(), game.gameNumber(), game.type(),
+                                game.result(), game.homeSetsWon(), game.awaySetsWon(),
+                                game.opponents().stream().map(opponent -> new OpponentDto(opponent.playerId(),
+                                        opponent.federatedPlayerId(), opponent.playerSeasonId(), opponent.name(),
+                                        opponent.source() == null ? null : opponent.source().name(),
+                                        opponent.season() == null ? null : opponent.season().toString(),
+                                        opponent.available())).toList(), game.unavailableReason())).toList())).toList(),
                 details.statistics().stream().map(value -> new StatisticsDto(
                         value.source() == null ? null : value.source().name(),
                         value.season() == null ? null : value.season().toString(),
@@ -61,19 +68,29 @@ public record PlayerDetailsDto(
     public record MatchDto(
             UUID id, String source, String competition, String season, int round, ZonedDateTime dateTime,
             String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon, String result,
-            Integer playerGamesWon, String playerTeam) {
+            Integer playerGamesWon, String playerTeam, List<GameDto> games) {
         public MatchDto(UUID id, String source, String competition, String season, int round, ZonedDateTime dateTime,
                         String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon, String result) {
             this(id, source, competition, season, round, dateTime, homeTeam, awayTeam, homeGamesWon, awayGamesWon,
-                    result, null, null);
+                    result, null, null, List.of());
         }
 
         public MatchDto(UUID id, String source, String competition, String season, int round, ZonedDateTime dateTime,
                         String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon, String result,
                         Integer playerGamesWon) {
             this(id, source, competition, season, round, dateTime, homeTeam, awayTeam, homeGamesWon, awayGamesWon,
-                    result, playerGamesWon, null);
+                    result, playerGamesWon, null, List.of());
         }
+    }
+
+    public record GameDto(
+            UUID id, int gameNumber, String type, String result, Integer homeSetsWon, Integer awaySetsWon,
+            List<OpponentDto> opponents, String unavailableReason) {
+    }
+
+    public record OpponentDto(
+            UUID playerId, UUID federatedPlayerId, UUID playerSeasonId, String name, String source, String season,
+            boolean available) {
     }
 
     public record StatisticsDto(

@@ -15,15 +15,18 @@ Preserve the existing Markdown structure.
 
 ## Status workflow
 
-Use only: `idea`, `planned`, `ready`, `in-progress`, `done`, or `blocked`.
+Use only: `idea`, `planned`, `ready`, `in-progress`, `in-review`, `done`, or
+`blocked`.
 
 - `idea`, `planned`, `ready`, and `blocked` belong under **Backlog**.
 - `in-progress` belongs under **In Progress**.
+- `in-review` belongs under **In Review** after implementation is finalized.
 - `done` belongs under **Done**, sorted by descending feature ID.
 
 When changing status, move the complete feature block. Keep acceptance
 criteria and details synchronized with reality. Document blockers in the
-details file's `# Notes`.
+details file's `# Notes`. Only change `in-review` to `done` when the user
+explicitly requests that transition.
 
 ## Agent boundaries
 

@@ -504,6 +504,11 @@ public final class InMemoryRepositories {
         }
 
         @Override
+        public List<Game> findGamesByMatchIds(java.util.Collection<UUID> matchIds) {
+            return saved.stream().filter(g -> matchIds.contains(g.getMatch().getId())).toList();
+        }
+
+        @Override
         public void saveGames(List<Game> games) {
             saved.addAll(games);
         }
@@ -520,6 +525,11 @@ public final class InMemoryRepositories {
 
     static final class DoublesPairs implements DoublesPairRepository {
         final List<DoublesPair> saved = new ArrayList<>();
+
+        @Override
+        public List<DoublesPair> findDoublesPairsByGameIds(java.util.Collection<UUID> gameIds) {
+            return saved.stream().filter(pair -> gameIds.contains(pair.getGame().getId())).toList();
+        }
 
         @Override
         public void saveDoublesPairs(List<DoublesPair> doublesPairs) {

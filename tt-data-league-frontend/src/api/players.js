@@ -69,9 +69,66 @@ function normalizeMatch(item) {
     competition: item.competition == null ? '—' : text(item.competition, 'una competició'),
     homeTeam,
     awayTeam,
+    homeGamesWon: item.homeGamesWon == null ? null : integer(item.homeGamesWon, 'els jocs locals guanyats'),
+    awayGamesWon: item.awayGamesWon == null ? null : integer(item.awayGamesWon, 'els jocs visitants guanyats'),
     playerTeam,
     playerGamesWon: item.playerGamesWon == null ? null : integer(item.playerGamesWon, 'els jocs guanyats'),
+    games: item.games == null ? [] : normalizeGames(item.games),
   }
+}
+
+function normalizeGames(value) {
+  if (!Array.isArray(value)) {
+    throw new ApiError('La resposta conté jocs no vàlids.', 502, value)
+  }
+  return value.map((game) => {
+    if (!game || typeof game !== 'object') {
+      throw new ApiError('La resposta conté un joc no vàlid.', 502, game)
+    }
+    const opponents = game.opponents == null ? [] : game.opponents
+    if (!Array.isArray(opponents)) {
+      throw new ApiError('La resposta conté oponents no vàlids.', 502, game)
+    }
+    return {
+      id: text(game.id, 'un identificador de joc'),
+      gameNumber: integer(game.gameNumber, 'el número de joc'),
+      type: text(game.type, 'el tipus de joc'),
+      result: normalizeGameResult(game.result, game),
+      homeSetsWon: game.homeSetsWon == null ? null : integer(game.homeSetsWon, 'els sets locals'),
+      awaySetsWon: game.awaySetsWon == null ? null : integer(game.awaySetsWon, 'els sets visitants'),
+      unavailableReason: game.unavailableReason == null ? null : text(game.unavailableReason, 'el motiu de dades no disponibles'),
+      opponents: opponents.map(normalizeOpponent),
+    }
+  })
+}
+
+function normalizeOpponent(item) {
+  if (!item || typeof item !== 'object' || typeof item.available !== 'boolean') {
+    throw new ApiError('La resposta conté un oponent no vàlid.', 502, item)
+  }
+  const playerId = item.playerId == null ? null : text(item.playerId, 'un identificador canònic d’oponent')
+  const federatedPlayerId = item.federatedPlayerId == null ? null : text(item.federatedPlayerId, 'un identificador federat d’oponent')
+  const playerSeasonId = item.playerSeasonId == null ? null : text(item.playerSeasonId, 'un identificador de temporada d’oponent')
+  const name = item.name == null ? null : text(item.name, 'un nom d’oponent')
+  if (item.available && (!playerId && !federatedPlayerId && !playerSeasonId || !name)) {
+    throw new ApiError('La resposta conté un oponent disponible sense identitat.', 502, item)
+  }
+  return {
+    playerId,
+    federatedPlayerId,
+    playerSeasonId,
+    name,
+    source: item.source == null ? null : text(item.source, 'la font de l’oponent'),
+    season: item.season == null ? null : text(String(item.season), 'la temporada de l’oponent'),
+    available: item.available,
+  }
+}
+
+function normalizeGameResult(value, item) {
+  if (!['win', 'loss', 'draw', 'unavailable'].includes(value)) {
+    throw new ApiError('La resposta conté un resultat de joc no vàlid.', 502, item)
+  }
+  return value
 }
 
 export function normalizePlayerDetailsResponse(payload) {
@@ -148,11 +205,27 @@ export function searchPlayers(query, source, token, signal, onUnauthorized) {
   ).then(normalizePlayerSearchResponse)
 }
 
-export function getPlayerDetails(playerId, token, signal, onUnauthorized) {
+export function getPlayerDetails(playerId, source, season, competition, token, signal, onUnauthorized) {
   if (!playerId || typeof playerId !== 'string') {
     throw new ApiError('L’identificador del jugador no és vàlid.', 400)
   }
-  return apiRequest(`/api/v1/player/${encodeURIComponent(playerId)}`, {
+  if (arguments.length <= 4) {
+    onUnauthorized = competition
+    signal = season
+    token = source
+    source = null
+    season = null
+    competition = null
+  }
+  const query = [
+    ['source', source],
+    ['season', season],
+    ['competition', competition],
+  ]
+    .filter(([, value]) => value != null && value !== '')
+    .map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+    .join('&')
+  return apiRequest(`/api/v1/player/${encodeURIComponent(playerId)}${query ? `?${query}` : ''}`, {
     token, signal, onUnauthorized,
   }).then(normalizePlayerDetailsResponse)
 }

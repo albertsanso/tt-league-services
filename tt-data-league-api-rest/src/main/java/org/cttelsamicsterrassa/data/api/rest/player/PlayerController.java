@@ -10,6 +10,7 @@ import org.cttelsamicsterrassa.data.core.application.player.find.FindFederatedPl
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerDetailsReadModel;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerSearchReadModel;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -18,6 +19,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.DateTimeException;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -77,19 +79,61 @@ public class PlayerController {
             description = "Returns a canonical player and source-scoped registrations, clubs, competitions and matches")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Player details returned"),
-            @ApiResponse(responseCode = "400", description = "Malformed UUID"),
+            @ApiResponse(responseCode = "400", description = "Malformed UUID or invalid filter"),
             @ApiResponse(responseCode = "401", description = "Authentication required"),
             @ApiResponse(responseCode = "403", description = "Missing players:read permission"),
             @ApiResponse(responseCode = "404", description = "Player not found"),
             @ApiResponse(responseCode = "500", description = "Unexpected query failure")
     })
-    public ResponseEntity<?> findPlayerDetailsById(@PathVariable("id") UUID id) {
-        var queryResponse = queryBus.push(new FindPlayerDetailsQuery(id));
+    public ResponseEntity<?> findPlayerDetailsById(
+            @PathVariable("id") UUID id,
+            @RequestParam(value = "source", required = false) String source,
+            @RequestParam(value = "season", required = false) String season,
+            @RequestParam(value = "competition", required = false) String competition) {
+        ImportSource parsedSource;
+        try {
+            parsedSource = parseSource(source);
+        } catch (IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(new ErrorMessage("Unknown source filter: " + source));
+        }
+
+        Season parsedSeason;
+        try {
+            parsedSeason = parseSeason(season);
+        } catch (DateTimeException | IllegalArgumentException exception) {
+            return ResponseEntity.badRequest().body(new ErrorMessage("Invalid season filter: " + season));
+        }
+        if (competition != null && competition.isBlank()) {
+            return ResponseEntity.badRequest().body(new ErrorMessage("Competition must not be blank"));
+        }
+
+        String parsedCompetition = competition == null ? null : competition.trim();
+        var queryResponse = queryBus.push(new FindPlayerDetailsQuery(
+                id, parsedSource, parsedSeason, parsedCompetition));
         if (queryResponse.isSuccess() && queryResponse.getResponse() instanceof PlayerDetailsReadModel details) {
+            if (parsedCompetition != null && details.competitions().stream()
+                    .noneMatch(item -> parsedCompetition.equals(item.name()))) {
+                return ResponseEntity.badRequest()
+                        .body(new ErrorMessage("Unknown competition filter: " + parsedCompetition));
+            }
             return ResponseEntity.ok(PlayerDetailsDto.fromObject(details));
         }
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(new ErrorMessage("Player not found: " + id));
+    }
+
+    public ResponseEntity<?> findPlayerDetailsById(UUID id) {
+        return findPlayerDetailsById(id, null, null, null);
+    }
+
+    private static Season parseSeason(String season) {
+        if (season == null) {
+            return null;
+        }
+        if (season.isBlank()) {
+            throw new IllegalArgumentException("season must not be blank");
+        }
+        return Season.fromFormatted(season.trim());
     }
 
     private static ImportSource parseSource(String source) {

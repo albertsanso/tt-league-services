@@ -79,7 +79,8 @@ Use **only** these literals in `- **Status:** …` (lowercase, hyphenated where 
 | `planned` | Build plan drafted in `FEAT-XXXXX-DETAILS.md` |
 | `ready` | Plan is approved for implementation; code work may start (see root `AGENTS.md`) |
 | `in-progress` | Implementation underway |
-| `done` | Shipped; registry entry is closed |
+| `in-review` | Implementation finalized and awaiting user review |
+| `done` | Shipped and manually closed by the user |
 | `blocked` | Waiting on dependency or decision; document the blocker in the details file **Notes** |
 
 Do not invent alternate labels (e.g. “In Progress” with a space) in the YAML-style line; the registry uses the table above.
@@ -88,21 +89,23 @@ Do not invent alternate labels (e.g. “In Progress” with a space) in the YAML
 
 ## Section placement in `FEATURES.md`
 
-The file has three feature sections (in this **top-to-bottom order**):
+The file has four feature sections (in this **top-to-bottom order**):
 
 1. `## In Progress`
-2. `## Backlog`
-3. `## Done`
+2. `## In Review`
+3. `## Backlog`
+4. `## Done`
 
 **Rule:** Each feature block (from `### [FEAT-XXXXX]` through the closing `---` before the next heading or section) must live under **exactly one** of these sections, determined by **Status**:
 
 | Status | Section |
 |--------|---------|
 | `in-progress` | **In Progress** |
+| `in-review` | **In Review** |
 | `done` | **Done** |
 | `idea`, `planned`, `ready`, `blocked` | **Backlog** |
 
-When you change a feature’s status, **move the entire block** (heading, metadata, goal, acceptance criteria, details link, and any subsections) to the correct section. Keep sections ordered: **In Progress** first, then **Backlog**, then **Done**.
+When you change a feature’s status, **move the entire block** (heading, metadata, goal, acceptance criteria, details link, and any subsections) to the correct section. Keep sections ordered: **In Progress** first, then **In Review**, then **Backlog**, then **Done**.
 
 **Ordering within a section:**
 
@@ -139,14 +142,22 @@ When you change a feature’s status, **move the entire block** (heading, metada
 2. Move the whole feature block to **In Progress**.
 3. Update `FEAT-XXXXX-DETAILS.md` if the plan changes (see [Editing details](#editing-details)).
 
-### 5. Shipped (`done`)
+### 5. Implementation finalized (`in-review`)
 
-1. Set status to `done`.
-2. Move the block to **Done**, placing it in **descending `FEAT-XXXXX` order** (see [Section placement](#section-placement-in-featuresmd) — **Done** sorting rule).
-3. Align acceptance checkboxes in `FEATURES.md` with reality (check completed items).
-4. Add a short **Notes** or “Shipped” line in details if useful; avoid large rewrites unless requested.
+1. Confirm the implementation is finalized and its acceptance criteria reflect reality.
+2. Set status to `in-review`.
+3. Move the block to **In Review**.
+4. Record relevant implementation or validation notes in the details file.
 
-### 6. Blocked (`blocked`)
+### 6. User-approved closure (`done`)
+
+1. Require an explicit user request to close the feature.
+2. Set status to `done`.
+3. Move the block to **Done**, placing it in **descending `FEAT-XXXXX` order** (see [Section placement](#section-placement-in-featuresmd) — **Done** sorting rule).
+4. Align acceptance checkboxes in `FEATURES.md` with reality (check completed items).
+5. Add a short **Notes** or “Shipped” line in details if useful; avoid large rewrites unless requested.
+
+### 7. Blocked (`blocked`)
 
 1. Set status to `blocked`.
 2. Keep the block under **Backlog** (blocked is not “in progress” unless the team explicitly wants it in **In Progress**—**default: Backlog**).
@@ -186,8 +197,9 @@ When you change a feature’s status, **move the entire block** (heading, metada
 
 ## Constraints (align with `FEATURES.md`)
 
-- **Implementation agents:** The banner in `FEATURES.md` applies to **code** work: prefer working on features at `ready`; do not change `done` or `in-progress` registry entries **unless** the user asked for doc or scope updates.
+- **Implementation agents:** The banner in `FEATURES.md` applies to **code** work: prefer working on features at `ready`; do not change `done`, `in-progress`, or `in-review` registry entries **unless** the user asked for doc or scope updates.
 - **SDD maintenance agents:** You **may** edit statuses, move sections, and update details files **when the user asks** or when the task is explicitly to maintain SDD artifacts.
+- **Feature management agent:** Move finalized implementations from `in-progress` to `in-review`, but never move a feature to `done` without an explicit user request.
 - Never delete a feature from the registry without explicit instruction; prefer `done` or `blocked` with explanation.
 - Preserve the existing markdown rhythm in `FEATURES.md` (`---` separators, `####` subheadings) unless a human requests a format change.
 
@@ -195,8 +207,8 @@ When you change a feature’s status, **move the entire block** (heading, metada
 
 ## Quick checklist
 
-- [ ] Status is one of the six allowed values.
-- [ ] Feature block sits under **In Progress**, **Backlog**, or **Done** according to the table above.
+- [ ] Status is one of the seven allowed values.
+- [ ] Feature block sits under **In Progress**, **In Review**, **Backlog**, or **Done** according to the table above.
 - [ ] **`## Done`** entries are ordered by **`FEAT-XXXXX` descending** (alphabetical descending on the id).
 - [ ] `FEAT-XXXXX` in the heading matches `FEAT-XXXXX-DETAILS.md`.
 - [ ] Every feature has a corresponding entry under `## Main index`.

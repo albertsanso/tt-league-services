@@ -3,12 +3,17 @@ package org.cttelsamicsterrassa.data.api.rest.player;
 import org.albertsanso.commons.command.CommandBus;
 import org.albertsanso.commons.query.DomainQueryResponse;
 import org.albertsanso.commons.query.QueryBus;
+import org.cttelsamicsterrassa.data.core.application.player.find.FindPlayerDetailsQuery;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerCompetitionReadModel;
+import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerGameReadModel;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerFederatedReadModel;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerMatchReadModel;
+import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerOpponentReadModel;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerSearchReadModel;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerSeasonStatisticsReadModel;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -18,8 +23,11 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 class PlayerControllerTest {
     private static final UUID PLAYER_ID = UUID.randomUUID();
@@ -92,6 +100,80 @@ class PlayerControllerTest {
 
         when(queryBus.push(any())).thenReturn(DomainQueryResponse.failResponse(null));
         assertEquals(HttpStatus.NOT_FOUND, controller.findPlayerDetailsById(PLAYER_ID).getStatusCode());
+    }
+
+    @Test
+    void forwardsValidPlayerDetailFiltersToTheQuery() {
+        QueryBus queryBus = mock(QueryBus.class);
+        PlayerController controller = controllerWith(queryBus);
+        PlayerDetailsReadModel emptyDetails = new PlayerDetailsReadModel(
+                PLAYER_ID, "Anna Canonical", List.of(), List.of(), List.of(),
+                List.of(new PlayerCompetitionReadModel("Preferent", ImportSource.RFETM, Season.of(2024), 0)),
+                List.of(), List.of());
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(emptyDetails));
+
+        var response = controller.findPlayerDetailsById(
+                PLAYER_ID, "rfetm", "2024-2025", " Preferent ");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        var queryCaptor = forClass(FindPlayerDetailsQuery.class);
+        verify(queryBus).push(queryCaptor.capture());
+        FindPlayerDetailsQuery query = queryCaptor.getValue();
+        assertEquals(ImportSource.RFETM, query.getSource());
+        assertEquals(Season.of(2024), query.getSeason());
+        assertEquals("Preferent", query.getCompetition());
+        assertEquals(0, ((PlayerDetailsDto) response.getBody()).matches().size());
+    }
+
+    @Test
+    void rejectsMalformedPlayerDetailFilters() {
+        QueryBus queryBus = mock(QueryBus.class);
+        PlayerController controller = controllerWith(queryBus);
+
+        assertEquals(HttpStatus.BAD_REQUEST,
+                controller.findPlayerDetailsById(PLAYER_ID, "unknown", null, null).getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST,
+                controller.findPlayerDetailsById(PLAYER_ID, null, "2024", null).getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST,
+                controller.findPlayerDetailsById(PLAYER_ID, null, null, " ").getStatusCode());
+        verify(queryBus, never()).push(any());
+    }
+
+    @Test
+    void rejectsUnknownCompetitionFilters() {
+        QueryBus queryBus = mock(QueryBus.class);
+        PlayerController controller = controllerWith(queryBus);
+        PlayerDetailsReadModel details = new PlayerDetailsReadModel(
+                PLAYER_ID, "Anna Canonical", List.of(), List.of(), List.of(),
+                List.of(new PlayerCompetitionReadModel("Preferent", ImportSource.RFETM, Season.of(2024), 1)),
+                List.of(), List.of());
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(details));
+
+        var response = controller.findPlayerDetailsById(PLAYER_ID, null, null, "Unknown");
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void mapsOpponentGameDetailsInTheRestResponse() {
+        QueryBus queryBus = mock(QueryBus.class);
+        PlayerController controller = controllerWith(queryBus);
+        UUID opponentId = UUID.randomUUID();
+        PlayerGameReadModel game = new PlayerGameReadModel(
+                UUID.randomUUID(), 1, "INDIVIDUAL", "win", 3, 1,
+                List.of(new PlayerOpponentReadModel(opponentId, null, null, "Opponent Player",
+                        ImportSource.FCTT, Season.of(2024), true)), null);
+        PlayerMatchReadModel match = new PlayerMatchReadModel(
+                UUID.randomUUID(), ImportSource.FCTT, "Preferent", Season.of(2024), 1, null,
+                "Club Terrassa", "Club Beta", 4, 2, "win", 4, "Club Terrassa", List.of(game));
+        PlayerDetailsReadModel details = new PlayerDetailsReadModel(
+                PLAYER_ID, "Anna Canonical", List.of(), List.of(), List.of(), List.of(), List.of(match), List.of());
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(details));
+
+        PlayerDetailsDto response = (PlayerDetailsDto) controller.findPlayerDetailsById(PLAYER_ID).getBody();
+
+        assertEquals(opponentId, response.matches().getFirst().games().getFirst().opponents().getFirst().playerId());
+        assertEquals("win", response.matches().getFirst().games().getFirst().result());
     }
 
     private static PlayerController controllerWith(QueryBus queryBus) {

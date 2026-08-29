@@ -15,13 +15,15 @@ This file is the single source of truth for planned, in-progress, and completed 
 | `planned` | Build plan written, not yet ready to implement |
 | `ready` | Build plan approved, agent can start |
 | `in-progress` | Currently being implemented |
-| `done` | Shipped |
+| `in-review` | Implementation finalized and awaiting user review |
+| `done` | Shipped after explicit user approval |
 | `blocked` | Waiting on a dependency or decision |
 
 ---
 
 ## Main index
 
+- [FEAT-00015: player opponent analisys - review 1](### [FEAT-00015] player opponent analisys - review 1)
 - [FEAT-00014: Define layout for Player details](### [FEAT-00014] Define layout for Player details)
 - [FEAT-00013: Player details fixes](### [FEAT-00013] Player details fixes)
 - [FEAT-00012: Player search & detail - unique players](### [FEAT-00012] Player search & detail - unique players)
@@ -37,7 +39,78 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00002: Access control and secured navigation](### [FEAT-00002] Access control and secured navigation)
 - [FEAT-00001: Frontend application skeleton and theme](### [FEAT-00001] Frontend application skeleton and theme)
 
+## In Progress
+
+No features currently in progress.
+
+---
+
+## In Review
+
+No features currently in review.
+
+---
+
+## Backlog
+
+No features currently in backlog.
+
+---
+
 ## Done
+
+### [FEAT-00015] player opponent analisys - review 1
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-00014
+
+#### Goal
+Provide a focused opponent analysis view so users can review a player's performance against each opponent.
+The player opponent analysis consists of different reports and visualizations that summarize the player's match history grouped by opponent.
+
+#### Report: Opponent categorization
+- "Hard opponents"
+  - Opponents who beat the current selected player more than 50% of decided matches.
+  - Display only first 3; the remaining opponents are collapsed in a "Show more" section.
+- "Favorable opponents"
+  - Opponents the current selected player beat more than 50% of decided matches.
+  - Display only first 3; the remaining opponents are collapsed in a "Show more" section.
+- "Problem opponents"
+  - Hard opponents against whom the player's win percentage is at least 20 percentage points below the player's overall win percentage across the active filters. When no overall win percentage is available, any hard opponent with 2 or more matches qualifies.
+  - The "≥5 matches" threshold from the original requirement was refined to the 20 pp algorithm above in the build plan; see FEAT-00015-DETAILS.md Notes.
+  - Display only first 3; the remaining opponents are collapsed in a "Show more" section.
+
+Each category is displayed in a separate table. Selectors in the **player detail selector area** (source, season, competition) issue REST requests and filter the content of both tabs.
+Columns: opponent name, matches played, wins, draws, losses, win percentage.
+
+#### Report: Opponent search
+Search by name fragment (case-insensitive Catalan substring match). Displays opponent name, matches played, wins, draws, losses, win percentage, and category.
+
+#### Removal of some sections
+Remove the displayed sections from all tabs and views in the Player details view:
+- `Registres federats`
+- `Inscripcions per temporada`
+- `Clubs associats`
+- `Competicions`
+
+#### Acceptance Criteria
+- [x] The player opponent analysis view is accessible from the Player details view and displays a tabbed interface with tabs for Opponent categorization and Opponent search.
+- [x] The Opponent categorization tab displays three tables for hard opponents, favorable opponents, and problem opponents, with columns for opponent name, matches played, wins, draws, losses, and win percentage.
+- [x] The Opponent search tab allows users to search for a specific opponent and displays their categorization based on the player's match history, with columns for opponent name, matches played, wins, draws, losses, win percentage, and category.
+- [x] The source, season, and competition selectors in the **player detail selector area** issue REST requests for filtered opponent data and affect the content displayed in both tabs of the player opponent analysis view.
+- [x] The player opponent analysis view is accessible and responsive across supported screen sizes.
+- [x] The player opponent analysis view handles cases where there are no opponents in a category or no search results gracefully.
+- [x] The player opponent analysis view updates dynamically by requesting the selected source, season, and competition data.
+- [x] Filter changes cancel stale requests, expose loading/error states, and never reuse an unfiltered response as filtered data.
+- [x] The player opponent analysis view displays a "Show more" section for remaining opponents beyond the first 3.
+- [x] The player opponent analysis view provides accessible fallback content for users who cannot interpret the tables, and preserves loading, empty, error, unauthorized, and not-found states.
+- [x] Remove the displayed sections from all tabs and views in the Player details view: `Registres federats`, `Inscripcions per temporada`, `Clubs associats`, and `Competicions`.
+
+#### Feature Details
+→ See [FEAT-00015-DETAILS.md](./FEAT-00015-DETAILS.md) for a detailed breakdown of the delivered REST-backed architecture, remaining work (R1–R3), validation status, and implementation notes.
+
+---
 
 ### [FEAT-00014] Define layout for Player details
 - **Status:** done

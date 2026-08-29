@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { routePaths } from '../config/routes.js'
 import { usePlayerDetails } from '../hooks/usePlayers.js'
@@ -9,6 +9,10 @@ const VIEWS = {
   STATISTICS: 'statistics',
   MATCHES: 'matches',
   OPPONENTS: 'opponents',
+}
+const OPPONENT_VIEWS = {
+  CATEGORIZATION: 'categorization',
+  SEARCH: 'search',
 }
 const CHART_TYPES = ['line', 'bar', 'connected-scatter']
 const CHART_LABELS = {
@@ -21,7 +25,12 @@ const unique = (values) => [...new Set(values.filter(Boolean))].sort()
 function PlayerDetailPage() {
   const { playerId } = useParams()
   const [params, setParams] = useSearchParams()
-  const { data, loading, error, retry } = usePlayerDetails(playerId)
+  const sourceFilter = params.get('source') === ALL ? '' : params.get('source') || ''
+  const seasonFilter = params.get('season') === ALL ? '' : params.get('season') || ''
+  const competitionFilter = params.get('competition') === ALL ? '' : params.get('competition') || ''
+  const { data, loading, error, retry } = usePlayerDetails(
+    playerId, sourceFilter, seasonFilter, competitionFilter,
+  )
   if (loading) return <p className="club-state card" role="status">Carregant el jugador...</p>
   if (error?.status === 404 || error?.status === 400) {
     return <section className="page-block" role="alert">
@@ -47,6 +56,10 @@ function PlayerDetailPage() {
 function PlayerDetailContent({ data, params, setParams }) {
   const requestedView = params.get('view')
   const view = Object.values(VIEWS).includes(requestedView) ? requestedView : VIEWS.STATISTICS
+  const requestedOpponentView = params.get('opponentView')
+  const opponentView = Object.values(OPPONENT_VIEWS).includes(requestedOpponentView)
+    ? requestedOpponentView
+    : OPPONENT_VIEWS.CATEGORIZATION
   const sources = unique([
     ...data.federatedPlayers.map((item) => item.source),
     ...data.registrations.map((item) => item.source),
@@ -59,7 +72,7 @@ function PlayerDetailContent({ data, params, setParams }) {
   const seasons = unique([
     ...registrations.map((item) => item.season),
     ...data.competitions.filter((item) => !source || item.source === source).map((item) => item.season),
-    ...data.matches.filter((item) => !source || item.source === source).map((item) => item.season),
+    ...data.matches.map((item) => item.season),
     ...data.statistics.filter((item) => !source || item.source === source).map((item) => item.season),
   ]).filter((item) => item !== '—')
   const selectedSeason = params.get('season')
@@ -71,27 +84,28 @@ function PlayerDetailContent({ data, params, setParams }) {
   const competition = availableCompetitions.includes(selectedCompetition) ? selectedCompetition : ''
   const requestedChart = params.get('chart')
   const chart = CHART_TYPES.includes(requestedChart) ? requestedChart : 'line'
-  const matches = data.matches.filter((item) => (
-    (!source || item.source === source) && (!season || item.season === season)
-      && (!competition || item.competition === competition)
-  ))
-  const clubs = data.clubs.filter((item) => (!source || item.source === source) && (!season || item.season === season))
-  const federatedPlayers = data.federatedPlayers.filter((item) => !source || item.source === source)
-  const statistics = data.statistics.filter((item) => (
-    (!source || item.source === source) && (!season || item.season === season)
-  ))
+  const matches = data.matches
+  const statistics = data.statistics
 
   useEffect(() => {
-    if (requestedView !== view) {
+    const shouldNormalizeView = requestedView !== view
+    const hasInvalidOpponentView = requestedOpponentView != null
+      && !Object.values(OPPONENT_VIEWS).includes(requestedOpponentView)
+    const shouldNormalizeOpponentView = view === VIEWS.OPPONENTS && requestedOpponentView !== opponentView
+    if (shouldNormalizeView || shouldNormalizeOpponentView || hasInvalidOpponentView) {
       const next = new URLSearchParams(params)
       next.set('view', view)
+      if (view === VIEWS.OPPONENTS || hasInvalidOpponentView) next.set('opponentView', opponentView)
       setParams(next, { replace: true })
     }
-  }, [params, requestedView, setParams, view])
+  }, [opponentView, params, requestedOpponentView, requestedView, setParams, view])
 
   function update(key, value) {
     const next = new URLSearchParams(params)
     next.set(key, value || ALL)
+    if (key === 'view' && value === VIEWS.OPPONENTS && !Object.values(OPPONENT_VIEWS).includes(next.get('opponentView'))) {
+      next.set('opponentView', OPPONENT_VIEWS.CATEGORIZATION)
+    }
     if (key === 'source') {
       next.set('season', ALL)
       next.delete('competition')
@@ -138,12 +152,8 @@ function PlayerDetailContent({ data, params, setParams }) {
       <div id="player-tabpanel" role="tabpanel" aria-labelledby={`player-${view}-tab`}>
         {view === VIEWS.STATISTICS ? <HistorySection statistics={statistics} competition={competition} matches={matches} chart={chart} update={update} /> : null}
         {view === VIEWS.MATCHES ? <MatchHistoryPanel matches={matches} /> : null}
-        {view === VIEWS.OPPONENTS ? <OpponentAnalysisPanel matches={matches} /> : null}
+        {view === VIEWS.OPPONENTS ? <OpponentAnalysisPanel key={opponentView} matches={matches} opponentView={opponentView} update={update} /> : null}
       </div>
-      <DetailList title="Registres federats" items={federatedPlayers} empty="No hi ha registres federats per als filtres seleccionats." render={(item) => `${item.name} · ${item.source}${item.license ? ` · Llicència: ${item.license}` : ''}`} />
-      <DetailList title="Inscripcions per temporada" items={registrations.filter((item) => !season || item.season === season)} empty="No hi ha inscripcions per als filtres seleccionats." render={(item) => `${item.name} · ${item.season} · ${item.source} · Llicència: ${item.license ?? '—'}`} />
-      <DetailList title="Clubs associats" items={clubs} empty="No hi ha clubs associats per als filtres seleccionats." render={(item) => `${item.name} · ${item.season} · ${item.source}`} />
-      <DetailList title="Competicions" items={data.competitions.filter((item) => (!source || item.source === source) && (!season || item.season === season) && (!competition || item.name === competition))} empty="No hi ha competicions per als filtres seleccionats." render={(item) => `${item.name} · ${item.season} · ${item.source} · ${item.matchCount} partits`} />
     </section>
   )
 }
@@ -192,7 +202,7 @@ function HistorySection({ statistics, competition, matches, chart, update }) {
 function MatchHistoryPanel({ matches }) {
   return <section className="club-detail-section" aria-labelledby="player-matches-title">
     <h2 id="player-matches-title">Partits</h2>
-    {matches.length === 0 ? <p className="club-empty card">No hi ha partits per als filtres seleccionats.</p> : (
+    {matches.length === 0 ? <p className="club-empty card" role="status">No hi ha partits per als filtres seleccionats.</p> : (
       <div className="table-wrap">
         <table className="history-table">
           <caption>Historial de partits</caption>
@@ -212,36 +222,183 @@ function MatchHistoryPanel({ matches }) {
   </section>
 }
 
-function OpponentAnalysisPanel({ matches }) {
+function OpponentAnalysisPanel({ matches, opponentView, update }) {
+  const [search, setSearch] = useState('')
   const opponents = new Map()
   matches.forEach((match) => {
-    const opponent = opponentName(match)
-    const current = opponents.get(opponent) ?? { opponent, matches: 0, wins: 0, draws: 0, losses: 0 }
-    current.matches += 1
-    if (match.result === 'win') current.wins += 1
-    if (match.result === 'loss') current.losses += 1
-    if (match.result === 'draw') current.draws += 1
-    opponents.set(opponent, current)
+    const opponentKeys = new Set()
+    const games = match.games ?? []
+    games.forEach((game) => game.opponents.forEach((opponent) => {
+      const key = opponentKey(opponent)
+      if (opponentKeys.has(key)) return
+      opponentKeys.add(key)
+      addOpponent(opponents, key, opponent, match.result)
+    }))
+    if (match.games == null || match.games.length === 0) {
+      const opponent = { name: opponentName(match), available: true }
+      addOpponent(opponents, `legacy-${opponent.name}`, opponent, match.result)
+    } else if (opponentKeys.size === 0) {
+      addOpponent(opponents, `unavailable-${match.id}`, { name: null, available: false }, match.result)
+    }
   })
-  const rows = [...opponents.values()].sort((left, right) => (
-    left.opponent.localeCompare(right.opponent, 'ca', { sensitivity: 'base' })
-      || left.opponent.localeCompare(right.opponent, 'ca')
-  ))
+  const rows = [...opponents.values()].map((opponent) => ({
+    ...opponent,
+    playerWinPercentage: winPercentage(opponent),
+  }))
+  const overallWinPercentage = winPercentage(matches.reduce((totals, match) => ({
+    wins: totals.wins + (match.result === 'win' ? 1 : 0),
+    losses: totals.losses + (match.result === 'loss' ? 1 : 0),
+  }), { wins: 0, losses: 0 }))
+  const categorizedRows = rows.map((opponent) => ({
+    ...opponent,
+    category: opponentCategory(opponent, overallWinPercentage),
+  }))
+  const searchRows = categorizedRows
+    .filter((opponent) => opponent.name.toLocaleLowerCase('ca-ES').includes(search.toLocaleLowerCase('ca-ES')))
+    .sort(compareOpponentNames)
+
   return <section className="club-detail-section" aria-labelledby="player-opponents-title">
     <h2 id="player-opponents-title">Anàlisi d'oponents</h2>
-    {rows.length === 0 ? <p className="club-empty card">No hi ha dades d'oponents per als filtres seleccionats.</p> : (
-      <div className="table-wrap">
-        <table className="history-table">
-          <caption>Resultats per equip oponent</caption>
-          <thead><tr><th>Oponent</th><th>Partits jugats</th><th>Victòries</th><th>Empats</th><th>Derrotes</th><th>Victòries %</th></tr></thead>
-          <tbody>{rows.map((item) => {
-            const decided = item.wins + item.losses
-            return <tr key={item.opponent}><td>{item.opponent}</td><td>{item.matches}</td><td>{item.wins}</td><td>{item.draws}</td><td>{item.losses}</td><td>{decided === 0 ? '—' : `${(item.wins * 100 / decided).toFixed(1)}%`}</td></tr>
-          })}</tbody>
-        </table>
-      </div>
+    <div className="club-tabs opponent-tabs" role="tablist" aria-label="Vistes d'anàlisi d'oponents">
+      <button id="opponent-categorization-tab" className={`club-tab${opponentView === OPPONENT_VIEWS.CATEGORIZATION ? ' is-active' : ''}`} type="button" role="tab" aria-selected={opponentView === OPPONENT_VIEWS.CATEGORIZATION} aria-controls="opponent-tabpanel" onClick={() => update('opponentView', OPPONENT_VIEWS.CATEGORIZATION)} onKeyDown={(event) => activateTab(event, OPPONENT_VIEWS.CATEGORIZATION, update, 'opponentView')}>Categorització d'oponents</button>
+      <button id="opponent-search-tab" className={`club-tab${opponentView === OPPONENT_VIEWS.SEARCH ? ' is-active' : ''}`} type="button" role="tab" aria-selected={opponentView === OPPONENT_VIEWS.SEARCH} aria-controls="opponent-tabpanel" onClick={() => update('opponentView', OPPONENT_VIEWS.SEARCH)} onKeyDown={(event) => activateTab(event, OPPONENT_VIEWS.SEARCH, update, 'opponentView')}>Cerca d'oponents</button>
+    </div>
+    <div id="opponent-tabpanel" role="tabpanel" aria-labelledby={`opponent-${opponentView}-tab`}>
+      {opponentView === OPPONENT_VIEWS.CATEGORIZATION ? (
+        <>
+          <OpponentCategoryTable id="favorable" title="Oponents favorables" empty="No hi ha oponents favorables per als filtres seleccionats." rows={categorizedRows.filter((opponent) => opponent.category === 'favorable').sort(compareFavorableOpponents)} />
+          <OpponentCategoryTable id="hard" title="Oponents difícils" empty="No hi ha oponents difícils per als filtres seleccionats." rows={categorizedRows.filter((opponent) => opponent.category === 'hard').sort(compareHardOpponents)} />
+          <OpponentCategoryTable id="problem" title="Oponents problemàtics" empty="No hi ha oponents problemàtics per als filtres seleccionats." rows={categorizedRows.filter((opponent) => opponent.category === 'problem').sort(compareHardOpponents)} />
+        </>
+      ) : (
+        <>
+          <label className="opponent-search">
+            <span>Cerca un oponent</span>
+            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
+          </label>
+          {searchRows.length === 0 ? <p className="club-empty card" role="status">Cap oponent coincideix amb la cerca.</p> : (
+            <OpponentTable rows={searchRows} includeCategory summaryText={`${searchRows.length} oponents coincideixen amb la cerca.`} />
+          )}
+        </>
+      )}
+    </div>
+  </section>
+}
+
+function OpponentCategoryTable({ id, title, empty, rows }) {
+  return <section className="opponent-category" aria-labelledby={`opponent-category-${id}-title`}>
+    <h3 id={`opponent-category-${id}-title`}>{title}</h3>
+    {rows.length === 0 ? <p className="club-empty card" role="status">{empty}</p> : (
+      <OpponentTable rows={rows} summaryText={`${rows.length} oponents en aquesta categoria.`} />
     )}
   </section>
+}
+
+function OpponentTable({ rows, includeCategory = false, summaryText }) {
+  const maxVisible = 3
+  const visibleRows = rows.slice(0, maxVisible)
+  const hiddenRows = rows.slice(maxVisible)
+  const descriptionId = `opponent-table-description-${rows.map((row) => row.key).join('-')}`
+  const table = (tableRows) => <table className="history-table" aria-describedby={descriptionId}>
+      <caption>Resultats per oponent</caption>
+      <thead><tr><th>Oponent</th><th>Partits jugats</th><th>Victòries</th><th>Empats</th><th>Derrotes</th><th>Victòries %</th>{includeCategory ? <th>Categoria</th> : null}</tr></thead>
+      <tbody>{tableRows.map((item) => <tr key={item.key}>
+        <td>{item.name}</td>
+        <td>{item.matches}</td>
+        <td>{item.wins}</td>
+        <td>{item.draws}</td>
+        <td>{item.losses}</td>
+        <td>{formatWinPercentage(item.playerWinPercentage)}</td>
+        {includeCategory ? <td>{categoryLabel(item.category)}</td> : null}
+      </tr>)}</tbody>
+    </table>
+  return <div className="opponent-table">
+    <p id={descriptionId} className="visually-hidden">{summaryText}</p>
+    <div className="table-wrap">{table(visibleRows)}</div>
+    {hiddenRows.length > 0 ? <details className="opponent-more">
+      <summary>Mostra {hiddenRows.length} oponents més</summary>
+      <div className="table-wrap">{table(hiddenRows)}</div>
+    </details> : null}
+  </div>
+}
+
+function winPercentage(item) {
+  const decided = item.wins + item.losses
+  return decided === 0 ? null : item.wins * 100 / decided
+}
+
+function formatWinPercentage(value) {
+  return value == null ? '—' : `${value.toFixed(1)}%`
+}
+
+function opponentCategory(opponent, overallWinPercentage) {
+  if (opponent.wins > opponent.losses) return 'favorable'
+  if (opponent.losses <= opponent.wins) return 'uncategorized'
+  if ((overallWinPercentage != null && opponent.playerWinPercentage <= overallWinPercentage - 20)
+    || (overallWinPercentage == null && opponent.matches >= 2)) return 'problem'
+  return 'hard'
+}
+
+function categoryLabel(category) {
+  return category === 'favorable'
+    ? 'Favorable'
+    : category === 'hard'
+      ? 'Difícil'
+      : category === 'problem'
+        ? 'Problemàtic'
+        : 'Sense categoria'
+}
+
+function compareOpponentNames(left, right) {
+  return left.name.localeCompare(right.name, 'ca', { sensitivity: 'base' })
+    || left.name.localeCompare(right.name, 'ca')
+}
+
+function compareFavorableOpponents(left, right) {
+  return right.playerWinPercentage - left.playerWinPercentage || compareOpponentNames(left, right)
+}
+
+function compareHardOpponents(left, right) {
+  return left.playerWinPercentage - right.playerWinPercentage || compareOpponentNames(left, right)
+}
+
+function addOpponent(opponents, key, opponent, result) {
+  const current = opponents.get(key) ?? {
+    key,
+    name: opponent.available ? opponent.name : 'Oponent no disponible',
+    matches: 0,
+    wins: 0,
+    draws: 0,
+    losses: 0,
+  }
+  current.matches += 1
+  if (result === 'win') current.wins += 1
+  if (result === 'loss') current.losses += 1
+  if (result === 'draw') current.draws += 1
+  opponents.set(key, current)
+}
+
+function opponentKey(opponent) {
+  return opponent.playerId ?? opponent.federatedPlayerId ?? opponent.playerSeasonId
+    ?? `unavailable-${opponent.source ?? 'unknown'}-${opponent.season ?? 'unknown'}`
+}
+
+export function MatchOpponentDetails({ match }) {
+  const games = match.games ?? []
+  return <details className="opponent-match card">
+    <summary>{match.competition} · {match.dateTime ? new Date(match.dateTime).toLocaleDateString('ca-ES') : 'Data no disponible'} · {scoreLabel(match)}</summary>
+    <div className="opponent-match-content">
+      <p><strong>Resultat:</strong> {resultLabel(match.result)} · <strong>Equips:</strong> {match.homeTeam} — {match.awayTeam}</p>
+      {games.length === 0 ? <p>Detall d’oponents no disponible.</p> : games.map((game) => (
+        <div className="opponent-game" key={game.id}>
+          <strong>Joc {game.gameNumber} · {game.type === 'DOUBLES' ? 'Dobles' : 'Individual'}</strong>
+          <span> {resultLabel(game.result)} · {game.homeSetsWon == null || game.awaySetsWon == null ? 'Marcador no disponible' : `${game.homeSetsWon} — ${game.awaySetsWon}`}</span>
+          <p>Oponents: {game.opponents.length === 0 ? 'No disponibles' : game.opponents.map((opponent) => opponent.available ? opponent.name : 'No disponible').join(', ')}</p>
+          {game.unavailableReason ? <p>{game.unavailableReason}</p> : null}
+        </div>
+      ))}
+    </div>
+  </details>
 }
 
 function opponentName(match) {
@@ -258,10 +415,10 @@ function scoreLabel(match) {
     : `${match.homeGamesWon} — ${match.awayGamesWon}`
 }
 
-function activateTab(event, view, update) {
+function activateTab(event, view, update, key = 'view') {
   if (event.key === 'Enter' || event.key === ' ') {
     event.preventDefault()
-    update('view', view)
+    update(key, view)
   }
 }
 
@@ -312,15 +469,6 @@ function aggregateCompetition(matches, competition) {
     grouped.set(key, current)
   })
   return [...grouped.values()].map((item) => ({ ...item, winPercentage: item.wins + item.losses ? item.wins * 100 / (item.wins + item.losses) : null }))
-}
-
-function DetailList({ title, items, empty, render }) {
-  return <section className="club-detail-section" aria-labelledby={`${title}-title`}>
-    <h2 id={`${title}-title`}>{title}</h2>
-    {items.length === 0 ? <p className="club-empty card">{empty}</p> : (
-      <ul className="club-player-list" aria-label={title}>{items.map((item, index) => <li className="club-player-card card" key={item.id ?? `${title}-${index}`}><strong>{render(item)}</strong></li>)}</ul>
-    )}
-  </section>
 }
 
 export default PlayerDetailPage

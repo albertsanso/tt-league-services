@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { normalizePlayerDetailsResponse, normalizePlayerSearchResponse, searchPlayers } from './players.js'
+import {
+  getPlayerDetails,
+  normalizePlayerDetailsResponse,
+  normalizePlayerSearchResponse,
+  searchPlayers,
+} from './players.js'
 
 describe('player API boundary', () => {
   beforeEach(() => vi.restoreAllMocks())
@@ -60,6 +65,38 @@ describe('player API boundary', () => {
     )
   })
 
+  it('requests player details with every selected filter', async () => {
+    const response = {
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({
+        id: 'player-id',
+        name: 'Anna Player',
+        federatedPlayers: [],
+        registrations: [],
+        clubs: [],
+        competitions: [],
+        matches: [],
+        statistics: [],
+      }),
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response)
+
+    await getPlayerDetails(
+      'player-id',
+      'RFETM',
+      '2024-2025',
+      'Preferent',
+      'session-token',
+      new AbortController().signal,
+    )
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/player/player-id?source=RFETM&season=2024-2025&competition=Preferent',
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    )
+  })
+
   it('normalizes one canonical result with source context', () => {
     const players = normalizePlayerSearchResponse([{
       id: 'canonical-id',
@@ -83,5 +120,38 @@ describe('player API boundary', () => {
       name: 'Anna',
       sources: 'RFETM',
     }])).toThrow()
+  })
+
+  it('normalizes source-scoped game opponents and rejects malformed scores', () => {
+    const payload = {
+      id: 'player-id',
+      name: 'Anna Player',
+      federatedPlayers: [],
+      registrations: [],
+      clubs: [],
+      competitions: [],
+      matches: [{
+        id: 'match-id', competition: 'Preferent', season: '2025', source: 'RFETM',
+        homeTeam: 'Club Terrassa', awayTeam: 'Club Barcelona', playerTeam: 'Club Terrassa',
+        result: 'win', homeGamesWon: 4, awayGamesWon: 2,
+        games: [{
+          id: 'game-id', gameNumber: 1, type: 'INDIVIDUAL', result: 'win',
+          homeSetsWon: 3, awaySetsWon: 1,
+          opponents: [{
+            playerId: 'canonical-opponent', federatedPlayerId: 'federated-opponent',
+            playerSeasonId: 'season-opponent', name: 'Opponent Player',
+            source: 'RFETM', season: '2025', available: true,
+          }],
+        }],
+      }],
+      statistics: [],
+    }
+
+    expect(normalizePlayerDetailsResponse(payload).matches[0].games[0].opponents[0].playerId)
+      .toBe('canonical-opponent')
+    expect(() => normalizePlayerDetailsResponse({
+      ...payload,
+      matches: [{ ...payload.matches[0], homeGamesWon: '4' }],
+    })).toThrow()
   })
 })

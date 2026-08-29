@@ -303,9 +303,9 @@ addition to ordinary CRUD operations:
 | `PlayerSeasonRepositoryHelper` | Exact `(source, license, season)`, all rows by source, and source-scoped players associated with team ids through lineups. |
 | `MatchRepositoryHelper` | Exact external id; exact natural-key lookup by competition, season, group, round, home team, and away team; team-id searches optionally filtered by source, season, and competition. |
 | `LineupRepositoryHelper` | All lineup rows for a match id. |
-| `GameRepositoryHelper` | All games for a match id ordered by `game_number` ascending. |
+| `GameRepositoryHelper` | All games for a match id, or for a collection of match ids, ordered by match and `game_number` ascending. |
 | `SetScoreRepositoryHelper` | CRUD only; no derived lookup method. |
-| `DoublesPairRepositoryHelper` | CRUD only; no derived lookup method. |
+| `DoublesPairRepositoryHelper` | All doubles-pair rows for a collection of game ids, ordered by game, side, and id. |
 | `UserRepositoryHelper` | Exact username/email lookup and existence checks. |
 | `PasswordRecoveryTokenRepositoryHelper` | Active token lookup by hash; atomic conditional consumption by token id or user id. |
 
