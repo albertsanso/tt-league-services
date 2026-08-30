@@ -38,6 +38,7 @@ public class MatchToMatchJPAMapper implements Function<Match, MatchJPA> {
         matchJPA.setCity(match.getCity());
         matchJPA.setVenue(match.getVenue());
         matchJPA.setRefereeName(match.getRefereeName());
+        matchJPA.setRefereeLicense(match.getRefereeLicense());
         matchJPA.setProtested(match.isProtested());
 
         matchJPA.setHomeTeam(teamToTeamJPAMapper.apply(match.getHomeTeam()));

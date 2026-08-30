@@ -50,6 +50,8 @@ public class SecurityConfig {
                                 .hasRole(RbacCatalog.ADMIN)
                         .requestMatchers(HttpMethod.GET, "/api/v1/player/**")
                                 .hasAuthority(RbacCatalog.PLAYERS_READ)
+                        .requestMatchers(HttpMethod.GET, "/api/v1/match/**")
+                                .hasAuthority(RbacCatalog.MATCHES_READ)
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

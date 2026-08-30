@@ -34,13 +34,14 @@ public class Match extends Entity {
     private final Team awayTeam;
     private final Team winnerTeam;
     private final String refereeName;
+    private final String refereeLicense;
     private final Integer homeGamesWon;
     private final Integer awayGamesWon;
     private final Integer homeSetsWon;
     private final Integer awaySetsWon;
     private final boolean protested;
 
-    private Match(UUID id, ImportSource source, String externalId, String competition, Season season, int groupNumber, int round, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested) {
+    private Match(UUID id, ImportSource source, String externalId, String competition, Season season, int groupNumber, int round, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested) {
         this.id = id;
         this.source = source;
         this.externalId = externalId;
@@ -55,6 +56,7 @@ public class Match extends Entity {
         this.awayTeam = awayTeam;
         this.winnerTeam = winnerTeam;
         this.refereeName = refereeName;
+        this.refereeLicense = refereeLicense;
         this.homeGamesWon = homeGamesWon;
         this.awayGamesWon = awayGamesWon;
         this.homeSetsWon = homeSetsWon;
@@ -82,6 +84,7 @@ public class Match extends Entity {
                 builder.awayTeam,
                 builder.winnerTeam,
                 builder.refereeName,
+                builder.refereeLicense,
                 builder.homeGamesWon,
                 builder.awayGamesWon,
                 builder.homeSetsWon,
@@ -126,6 +129,7 @@ public class Match extends Entity {
         private Team awayTeam;
         private Team winnerTeam;
         private String refereeName;
+        private String refereeLicense;
         private Integer homeGamesWon;
         private Integer awayGamesWon;
         private Integer homeSetsWon;
@@ -194,6 +198,11 @@ public class Match extends Entity {
 
         public MatchBuilder refereeName(String refereeName) {
             this.refereeName = refereeName;
+            return this;
+        }
+
+        public MatchBuilder refereeLicense(String refereeLicense) {
+            this.refereeLicense = refereeLicense;
             return this;
         }
 
@@ -286,6 +295,10 @@ public class Match extends Entity {
 
     public String getRefereeName() {
         return refereeName;
+    }
+
+    public String getRefereeLicense() {
+        return refereeLicense;
     }
 
     public Integer getHomeGamesWon() {

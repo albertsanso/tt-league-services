@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.core.domain.match.repository;
 
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
@@ -41,6 +42,22 @@ public interface MatchRepository {
             ImportSource source,
             Season season,
             String competition);
+
+    default List<Match> searchMatches(MatchSearchCriteria criteria) {
+        return List.of();
+    }
+    default long countMatches(MatchSearchCriteria criteria) {
+        return 0;
+    }
+    default List<Match> findAllMatchesBySource(ImportSource source) {
+        return List.of();
+    }
+    default List<String> findAllSeasonsBySource(ImportSource source) {
+        return List.of();
+    }
+    default List<String> findAllCompetitionsBySourceAndSeason(ImportSource source, Season season) {
+        return List.of();
+    }
 
     void saveMatch(Match match);
 }

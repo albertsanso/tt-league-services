@@ -3,6 +3,8 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.match.impl;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
+import org.cttelsamicsterrassa.data.core.domain.match.model.PlayerLocation;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
@@ -15,6 +17,7 @@ import java.util.Optional;
 import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 
 @Transactional
 @Component
@@ -93,5 +96,51 @@ public class MatchRepositoryJpa implements MatchRepository {
     @Override
     public void saveMatch(Match match) {
         matchRepositoryHelper.save(matchToMatchJPAMapper.apply(match));
+    }
+
+    @Override
+    public List<Match> searchMatches(MatchSearchCriteria criteria) {
+        return matchRepositoryHelper.search(Source.valueOf(criteria.source().name()),
+                        criteria.season().toString(), criteria.competition(), criteria.fromDate(), criteria.toDate(),
+                        criteria.playerId(),
+                        criteria.playerLocation() == null ? PlayerLocation.EITHER.name() : criteria.playerLocation().name(),
+                        criteria.playerName() == null ? "" : criteria.playerName(),
+                        PageRequest.of(criteria.page(), criteria.pageSize()))
+                .stream().map(matchJPAToMatchMapper).toList();
+    }
+
+    @Override
+    public long countMatches(MatchSearchCriteria criteria) {
+        return matchRepositoryHelper.countSearch(Source.valueOf(criteria.source().name()),
+                criteria.season().toString(), criteria.competition(), criteria.fromDate(), criteria.toDate(),
+                criteria.playerId(),
+                criteria.playerLocation() == null ? PlayerLocation.EITHER.name() : criteria.playerLocation().name(),
+                criteria.playerName() == null ? "" : criteria.playerName());
+    }
+
+    @Override
+    public List<Match> findAllMatchesBySource(ImportSource source) {
+        if (source == null) {
+            return List.of();
+        }
+        return matchRepositoryHelper.findAllBySource(Source.valueOf(source.name())).stream()
+                .map(matchJPAToMatchMapper).toList();
+    }
+
+    @Override
+    public List<String> findAllSeasonsBySource(ImportSource source) {
+        if (source == null) {
+            return List.of();
+        }
+        return matchRepositoryHelper.findAllSeasonsBySource(Source.valueOf(source.name()));
+    }
+
+    @Override
+    public List<String> findAllCompetitionsBySourceAndSeason(ImportSource source, Season season) {
+        if (source == null || season == null) {
+            return List.of();
+        }
+        return matchRepositoryHelper.findAllCompetitionsBySourceAndSeason(
+                Source.valueOf(source.name()), season.toString());
     }
 }

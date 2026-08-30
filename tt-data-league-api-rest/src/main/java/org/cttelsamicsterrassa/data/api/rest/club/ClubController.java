@@ -67,8 +67,13 @@ public class ClubController {
     })
     public ResponseEntity<?> findClubDetailsById(@PathVariable("id") UUID id) {
         DomainQueryResponse<?> canonicalResponse = queryBus.push(new FindClubDetailsQuery(id));
-        if (canonicalResponse.isSuccess() && canonicalResponse.getResponse() instanceof ClubDetailsReadModel details) {
-            return ResponseEntity.ok(ClubDetailsDto.fromObject(details));
+        if (canonicalResponse.isSuccess()) {
+            if (canonicalResponse.getResponse() instanceof ClubDetailsReadModel details) {
+                return ResponseEntity.ok(ClubDetailsDto.fromObject(details));
+            }
+            if (canonicalResponse.getResponse() instanceof FederatedClubDetailsReadModel details) {
+                return ResponseEntity.ok(ClubDetailsDto.fromObject(details));
+            }
         }
 
         //DomainQueryResponse<FederatedClubDetailsReadModel> legacyResponse = queryBus.push(new FindFederatedClubDetailsQuery(id));

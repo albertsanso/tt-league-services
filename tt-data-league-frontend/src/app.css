@@ -835,6 +835,113 @@
   gap: 1.25rem;
 }
 
+.match-filter-card {
+  padding: 1.25rem;
+}
+
+.match-filter-card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+}
+
+.match-filter-grid {
+  display: grid;
+  grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr) minmax(10rem, 1.2fr) minmax(17rem, 2fr);
+  gap: 1rem;
+  align-items: end;
+}
+
+.match-filter-field {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.match-filter-field select,
+.match-filter-field input {
+  width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.35rem;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  padding: 0.45rem 0.6rem;
+}
+
+.match-date-fields {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.match-player-location {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.35rem;
+}
+
+.match-player-location legend {
+  width: 100%;
+  margin-bottom: 0.45rem;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.match-player-location label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.match-player-name {
+  grid-column: 1 / -1;
+  max-width: 34rem;
+}
+
+.match-filter-card > button {
+  margin-top: 1rem;
+}
+
+@media (max-width: 800px) {
+  .match-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .match-player-name {
+    max-width: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .match-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .match-date-range,
+  .match-player-location,
+  .match-player-name {
+    grid-column: auto;
+  }
+
+  .match-player-location {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+}
+
 .page-title {
   margin: 0;
   color: var(--text-primary);

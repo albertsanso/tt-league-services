@@ -35,6 +35,7 @@ public class MatchJPAToMatchMapper implements Function<MatchJPA, Match> {
                 .city(matchJpa.getCity())
                 .venue(matchJpa.getVenue())
                 .refereeName(matchJpa.getRefereeName())
+                .refereeLicense(matchJpa.getRefereeLicense())
                 .protested(matchJpa.isProtested())
                 .homeTeam(teamJPAToTeamMapper.apply(matchJpa.getHomeTeam()))
                 .awayTeam(teamJPAToTeamMapper.apply(matchJpa.getAwayTeam()))

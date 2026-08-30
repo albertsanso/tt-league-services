@@ -11,12 +11,25 @@ import java.util.UUID;
 import java.util.Collection;
 
 public interface LineupRepositoryHelper extends JpaRepository<LineupJPA, UUID> {
+    List<LineupJPA> findAllByMatch_IdOrderByTeam_IdAscPositionAsc(UUID matchId);
+
+    @Query("""
+            select distinct l from LineupJPA l
+            join fetch l.match matchRecord
+            join fetch l.team lineupTeam
+            join fetch l.player player
+            left join fetch player.federatedPlayer federated
+            left join fetch federated.player canonical
+            where l.match.id in :matchIds
+            order by l.match.id asc, l.team.id asc, l.position asc
+            """)
+    List<LineupJPA> findAllByMatchIds(@Param("matchIds") Collection<UUID> matchIds);
     List<LineupJPA> findAllByMatch_Id(UUID matchId);
 
     @Query("""
             select distinct l from LineupJPA l
             join fetch l.player player
-            join fetch player.federatedPlayer federated
+            left join fetch player.federatedPlayer federated
             left join fetch federated.player canonical
             join fetch l.match matchRecord
             join fetch matchRecord.homeTeam homeTeam
@@ -36,7 +49,7 @@ public interface LineupRepositoryHelper extends JpaRepository<LineupJPA, UUID> {
     @Query("""
             select distinct l from LineupJPA l
             join fetch l.player player
-            join fetch player.federatedPlayer federated
+            left join fetch player.federatedPlayer federated
             left join fetch federated.player canonical
             join fetch l.match matchRecord
             join fetch matchRecord.homeTeam homeTeam

@@ -23,6 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00018: Match search and Match detail](### [FEAT-00018] Match search and Match detail)
 - [FEAT-00017: support i18n](### [FEAT-00017] support i18n)
 - [FEAT-00016: Some fixes in Player details 1](### [FEAT-00016] Some fixes in Player details 1)
 - [FEAT-00015: player opponent analisys - review 1](### [FEAT-00015] player opponent analisys - review 1)
@@ -58,6 +59,76 @@ No features currently in review.
 No features currently in backlog.
 
 ## Done
+
+### [FEAT-00018] Match search and Match detail
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large (> 8h)
+- **Depends on:** —
+
+#### Goal
+Enable users to find matches and view complete details for a selected match.
+
+#### Description
+Display a Match filters section and a Match results section in the Match search view.
+The Match filters section allows users to filter matches by source, season, competition, date range, player (home or away), and player name.
+The Match results section displays a list of matches that match the selected filters, with clear loading, empty, and error states.
+
+##### Filters for Matches search
+Users can filter matches by:
+- Source (Mandatory - Dropdown selector with all available sources: RFETM, FCTT, BCNESA)
+- Season (Mandatory - Dropdown selector with all available seasons for the selected source)
+- Competition (Mandatory - Dropdown selector with all available competitions for the selected source and season)
+- Date range (Optional - Date picker for start and end date in the selected season)
+- Player (home or away) (Optional)
+- Player name (Optional)
+The filter controls follow the layout in `docs/frontend/match-search-filters-mockup-spec.md`: source, season, competition, and date range share the first row; player location uses Home/Away radio controls; and player name appears below.
+
+Add a search button disabled until all mandatory filters are selected. When the search button is clicked, the search is triggered and the Match results section is updated with the matching results.
+
+##### Search trigger and filters workflow
+- The search is triggered when the user clicks the "Search" button and a request is sent to the backend with the selected filters.
+- The search results are updated based on the selected filters.
+- The filters are interdependent, meaning that the available options for each filter may change based on the selected values of the other filters.
+- For example, selecting a source will update the available seasons and competitions for that source.
+- Each filter change should cancel any ongoing search requests and update the available options for the other filters accordingly.
+
+##### Match results section
+The Match results section displays a list of matches that match the selected filters, with clear loading, empty, and error states.
+Each match in the list displays:
+- Match date and time
+- Competition name and details
+- Home and away players, with their names and license numbers
+- Match result and score
+
+By default only 10 first matches are displayed, with a "Load more" button to load additional matches in increments of 10.
+
+##### Match detail view
+When a user selects a match from the search results, they are taken to a Match detail view that displays the complete available information for the selected match, including:
+- Match date and time
+- Competition name and details
+- Home and away players, with their names and license numbers
+- Match result and score
+
+#### Acceptance Criteria
+- [x] Users can search and browse matches using relevant match information.
+- [x] Users can open a match detail view with the match's complete available information.
+- [x] Search results and match details provide clear loading, empty, and error states.
+- [x] Filters are interdependent, and changing one filter updates the available options for the other filters accordingly.
+- [x] The search button is disabled until all mandatory filters are selected, and clicking the search button triggers the search and updates the Match results section with the matching results.
+- [x] Each filter change cancels any ongoing search requests and updates the available options for the other filters accordingly.
+- [x] The "Load more" button loads additional matches in increments of 10.
+- [x] The application provides clear feedback for loading, empty, and error states.
+- [x] The match filters follow the documented mockup layout and remain responsive.
+- [x] Selecting a source populates its available seasons, and selecting a season populates its available competitions.
+
+#### Feature Details
+→ See [FEAT-00018-DETAILS.md](./FEAT-00018-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+#### Historical Completion Note
+Completed 2026-08-30 after implementation review and correction of optional player-name search binding.
+
+---
 
 ### [FEAT-00017] support i18n
 - **Status:** done
