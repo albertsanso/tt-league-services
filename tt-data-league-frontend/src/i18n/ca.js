@@ -50,6 +50,12 @@ export default {
     toggle: 'Alternar barra lateral',
     openMain: 'Obrir menú principal',
     closeMain: 'Tancar menú principal',
+    sectionAdministration: 'Administració',
+    administration: 'Administració',
+    administrationUsers: 'Usuaris i rols',
+    administrationSettings: 'Configuració del sistema',
+    administrationImport: 'Importació de dades',
+    administrationToggle: 'Mostrar o amagar les opcions d’administració',
   },
   routes: {
     general: 'General',
@@ -63,6 +69,10 @@ export default {
     matchDetail: 'Detall del partit',
     searchResults: 'Resultats de cerca',
     settings: 'Configuració',
+    administration: 'Administració',
+    administrationUsers: 'Usuaris i rols',
+    administrationSettings: 'Configuració del sistema',
+    administrationImport: 'Importació de dades',
   },
   shell: {
     skip: 'Vés al contingut principal',
@@ -120,6 +130,24 @@ export default {
     catalan: 'Català',
     spanish: 'Espanyol',
     english: 'Anglès',
+  },
+  administration: {
+    administration: {
+      title: 'Administració',
+      description: 'Selecciona una opció d’administració per continuar.',
+    },
+    administrationUsers: {
+      title: 'Usuaris i rols',
+      description: 'El panell de gestió d’usuaris i rols estarà disponible properament.',
+    },
+    administrationSettings: {
+      title: 'Configuració del sistema',
+      description: 'La configuració del sistema estarà disponible properament.',
+    },
+    administrationImport: {
+      title: 'Importació de dades',
+      description: 'El panell d’importació de dades estarà disponible properament.',
+    },
   },
   search: {
     directory: 'Directori',

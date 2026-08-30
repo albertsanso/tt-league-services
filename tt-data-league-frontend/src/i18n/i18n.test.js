@@ -38,6 +38,18 @@ describe('i18n configuration', () => {
     expect(instance.t('search.noClubs', { query: 'Terrassa' })).toContain('Terrassa')
   })
 
+  it('translates administration navigation and destination shells', async () => {
+    const instance = i18next.createInstance()
+    await instance.init({ resources: localeResources, lng: DEFAULT_LOCALE, fallbackLng: DEFAULT_LOCALE })
+    expect(instance.t('navigation.administration')).toBe('Administració')
+    expect(instance.t('administration.administrationUsers.title')).toBe('Usuaris i rols')
+    await instance.changeLanguage('en')
+    expect(instance.t('navigation.administration')).toBe('Administration')
+    expect(instance.t('administration.administrationImport.title')).toBe('Data import')
+    await instance.changeLanguage('es')
+    expect(instance.t('navigation.administrationSettings')).toBe('Configuración del sistema')
+  })
+
   it('falls back to Catalan for missing resource keys', async () => {
     const instance = i18next.createInstance()
     await instance.init({ resources: localeResources, lng: 'en', fallbackLng: DEFAULT_LOCALE })

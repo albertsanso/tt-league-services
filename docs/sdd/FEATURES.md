@@ -23,8 +23,9 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
-- [FEAT-00018: Match search and Match detail](### [FEAT-00018] Match search and Match detail)
+- [FEAT-00020: Add Administration entry in lateral navigation panel](### [FEAT-00020] Add Administration entry in lateral navigation panel)
 - [FEAT-00019: integrate real overview stats](### [FEAT-00019] integrate real overview stats)
+- [FEAT-00018: Match search and Match detail](### [FEAT-00018] Match search and Match detail)
 - [FEAT-00017: support i18n](### [FEAT-00017] support i18n)
 - [FEAT-00016: Some fixes in Player details 1](### [FEAT-00016] Some fixes in Player details 1)
 - [FEAT-00015: player opponent analisys - review 1](### [FEAT-00015] player opponent analisys - review 1)
@@ -60,6 +61,36 @@ No features currently in review.
 No features currently in backlog.
 
 ## Done
+
+### [FEAT-00020] Add Administration entry in lateral navigation panel
+- **Status:** done
+- **Priority:** medium
+- **Effort:** small (< 2h)
+- **Depends on:** —
+
+#### Goal
+Provide users with a clearly labeled **Administration** entry in the lateral navigation panel for accessing administration features.
+Only administrator privileges should allow access to the Administration entry, and it should be hidden from non-administrator users.
+
+When clicking on **Administration** entry, a new suboptions menu should be displayed with the following options:
+- **Users and Roles**: Navigates to the user and role management view. Gives access to **Users and Roles Management Panel**
+- **System Settings**: Navigates to the system settings view. Gives access to **System Settings Panel**
+- **Data Import**: Navigates to the data import view. Gives access to **Data Import Panel**
+
+#### Acceptance Criteria
+- [x] The lateral navigation panel displays a localized Administration group for administrators.
+- [x] The Administration group provides Users and Roles, System Settings, and Data Import links with stable centralized routes.
+- [x] Administration navigation remains hidden from non-administrator users and all destinations are protected by the existing `ADMIN` role guard.
+- [x] Parent and child routes preserve nested active states and existing responsive, keyboard, mobile drawer, and close-on-selection behavior.
+- [x] Each destination renders a localized navigation-only shell for the later administration panel features.
+- [x] Administrators can expand and collapse the Administration suboptions from the lateral menu, with keyboard-accessible state feedback.
+- [x] Administration menu labels, suboptions, breadcrumbs, and destination shells are translated in Catalan, Spanish, and English.
+- [x] The expandable Administration menu option uses the same sidebar color treatment as the other menu options.
+
+#### Feature Details
+→ See [FEAT-00020-DETAILS.md](./FEAT-00020-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00019] integrate real overview stats
 - **Status:** done

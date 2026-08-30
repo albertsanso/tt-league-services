@@ -1,4 +1,5 @@
 import { ChevronLeft, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { navigationSections } from '../../config/navigation.js'
 import { getRouteMeta } from '../../config/routes.js'
@@ -20,10 +21,20 @@ function Sidebar({ variant }) {
     closeMobileDrawer,
     toggleSidebar,
   } = useAppState()
-  const { hasPermission } = useAuth()
+  const { hasPermission, hasRole } = useAuth()
   const { t } = useTranslation()
+  const [expandedItems, setExpandedItems] = useState({})
   const isMobileVariant = variant === 'mobile'
   const collapsed = isMobileVariant ? false : isSidebarCollapsed
+
+  useEffect(() => {
+    navigationSections
+      .flatMap((section) => section.items)
+      .filter((item) => item.children && isRouteActive(location.pathname, item.path))
+      .forEach((item) => {
+        setExpandedItems((current) => ({ ...current, [item.id]: true }))
+      })
+  }, [location.pathname])
 
   if (isMobileVariant && !isMobile) {
     return null
@@ -81,24 +92,55 @@ function Sidebar({ variant }) {
       </div>
 
       <nav className="sidebar-nav" aria-label={t('navigation.main')}>
-        {navigationSections.map((section) => (
-          <div key={section.id} className="sidebar-group">
-            <SidebarSectionLabel collapsed={collapsed} label={t(section.labelKey)} />
-            {section.items.filter((item) => (
-              item.disabled
-              || !getRouteMeta(item.path).permission
-              || hasPermission(getRouteMeta(item.path).permission)
-            )).map((item) => (
-              <SidebarItem
-                key={item.id}
-                item={{ ...item, label: t(item.labelKey), badge: item.badgeKey ? t(item.badgeKey) : item.badge }}
-                collapsed={collapsed}
-                isActive={isRouteActive(location.pathname, item.path)}
-                onSelect={isMobileVariant ? closeMobileDrawer : undefined}
-              />
-            ))}
-          </div>
-        ))}
+        {navigationSections.map((section) => {
+          const visibleItems = section.items.filter((item) => (
+            (item.disabled || !item.role || hasRole(item.role))
+              && (item.disabled
+                || !getRouteMeta(item.path).permission
+                || hasPermission(getRouteMeta(item.path).permission))
+          ))
+
+          if (!visibleItems.length) return null
+
+          return (
+            <div key={section.id} className="sidebar-group">
+              <SidebarSectionLabel collapsed={collapsed} label={t(section.labelKey)} />
+              {visibleItems.map((item) => (
+              <div key={item.id}>
+                <SidebarItem
+                  item={{
+                    ...item,
+                    label: t(item.labelKey),
+                    ariaLabel: item.ariaLabelKey ? t(item.ariaLabelKey) : undefined,
+                    badge: item.badgeKey ? t(item.badgeKey) : item.badge,
+                  }}
+                  collapsed={collapsed}
+                  isActive={isRouteActive(location.pathname, item.path)}
+                  onSelect={isMobileVariant ? closeMobileDrawer : undefined}
+                  expanded={expandedItems[item.id] ?? false}
+                  onToggle={() => setExpandedItems((current) => ({
+                    ...current,
+                    [item.id]: !current[item.id],
+                  }))}
+                />
+                {item.children && expandedItems[item.id] ? (
+                  <div className="sidebar-subitems">
+                    {item.children.map((child) => (
+                      <SidebarItem
+                        key={child.id}
+                        item={{ ...child, label: t(child.labelKey) }}
+                        collapsed={collapsed}
+                        isActive={isRouteActive(location.pathname, child.path)}
+                        onSelect={isMobileVariant ? closeMobileDrawer : undefined}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+              ))}
+            </div>
+          )
+        })}
       </nav>
 
       <SidebarFooter collapsed={collapsed} />

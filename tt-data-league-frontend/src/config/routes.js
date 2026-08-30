@@ -43,6 +43,10 @@ export const routePaths = {
   matchDetails: (matchId, returnSearch = '') => withSearch(
     `/partits/${encodeURIComponent(matchId)}`, returnSearch, ['source', 'season', 'competition'],
   ),
+  administration: '/administration',
+  administrationUsers: '/administration/users',
+  administrationSettings: '/administration/settings',
+  administrationImport: '/administration/import',
 }
 
 const translate = (key) => i18n.t(key)
@@ -131,6 +135,47 @@ export const routesMeta = [
   },
   { path: '/cerca', label: translate('routes.searchResults'), labelKey: 'routes.searchResults', section: translate('routes.general'), auth: true },
   { path: '/settings', label: translate('routes.settings'), labelKey: 'routes.settings', section: translate('routes.general'), auth: true },
+  {
+    path: routePaths.administration,
+    label: translate('routes.administration'),
+    labelKey: 'routes.administration',
+    section: translate('routes.general'),
+    auth: true,
+    role: 'ADMIN',
+    breadcrumb: () => [
+      generalBreadcrumb(),
+      { label: translate('routes.administration') },
+    ],
+  },
+  {
+    path: routePaths.administrationUsers,
+    label: translate('routes.administrationUsers'),
+    labelKey: 'routes.administrationUsers',
+    section: translate('routes.general'),
+    auth: true,
+    role: 'ADMIN',
+    breadcrumb: (params, search) => [
+      generalBreadcrumb(),
+      { label: translate('routes.administration'), path: routePaths.administration },
+      { label: translate('routes.administrationUsers'), path: `${routePaths.administrationUsers}${search || ''}` },
+    ],
+  },
+  {
+    path: routePaths.administrationSettings,
+    label: translate('routes.administrationSettings'),
+    labelKey: 'routes.administrationSettings',
+    section: translate('routes.general'),
+    auth: true,
+    role: 'ADMIN',
+  },
+  {
+    path: routePaths.administrationImport,
+    label: translate('routes.administrationImport'),
+    labelKey: 'routes.administrationImport',
+    section: translate('routes.general'),
+    auth: true,
+    role: 'ADMIN',
+  },
 ]
 
 function localizedRoute(route) {

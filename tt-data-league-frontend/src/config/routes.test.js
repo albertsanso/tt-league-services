@@ -37,12 +37,23 @@ describe('route configuration', () => {
 
   it('matches nested Club routes without matching similarly prefixed paths', () => {
     expect(getRouteMeta('/clubs/club-id/competition/2024/Preferent').label).toBe('Detall de competició')
-    expect(getRouteMeta('/clubs-other').label).toBe('Overview')
+    expect(getRouteMeta('/clubs-other').label).toBe('Resum')
   })
 
   it('builds and recognizes canonical player detail paths', () => {
     expect(routePaths.playerDetails('player/id', '?source=RFETM&season=2025&other=x'))
       .toBe('/jugadors/player%2Fid?season=2025&source=RFETM')
     expect(getRouteMeta('/jugadors/player%2Fid').label).toBe('Detall del jugador')
+  })
+
+  it('centralizes protected administration routes and breadcrumbs', () => {
+    expect(routePaths.administrationUsers).toBe('/administration/users')
+    expect(getRouteMeta(routePaths.administration).role).toBe('ADMIN')
+    expect(getRouteMeta(routePaths.administrationImport).role).toBe('ADMIN')
+    expect(getBreadcrumbItems(routePaths.administrationUsers)).toEqual([
+      { label: 'General', path: '/' },
+      { label: 'Administració', path: '/administration' },
+      { label: 'Usuaris i rols', path: '/administration/users' },
+    ])
   })
 })

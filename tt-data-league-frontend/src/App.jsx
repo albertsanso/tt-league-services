@@ -21,6 +21,7 @@ const MatchesSearchPage = lazy(() => import('./pages/MatchesSearchPage.jsx'))
 const MatchDetailPage = lazy(() => import('./pages/MatchDetailPage.jsx'))
 const SearchResultsPage = lazy(() => import('./pages/SearchResultsPage.jsx'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage.jsx'))
+const AdministrationPage = lazy(() => import('./pages/AdministrationPage.jsx'))
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'))
 const RegisterPage = lazy(() => import('./pages/RegisterPage.jsx'))
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage.jsx'))
@@ -38,8 +39,9 @@ function RouteLoader() {
 
 function ProtectedPage({ children }) {
   const location = useLocation()
-  const { permission } = getRouteMeta(location.pathname)
-  return <RequirePermission permission={permission}>{children}</RequirePermission>
+  const { permission, role } = getRouteMeta(location.pathname)
+  const protectedChildren = <RequirePermission permission={permission}>{children}</RequirePermission>
+  return role ? <RequireRole role={role}>{protectedChildren}</RequireRole> : protectedChildren
 }
 
 function App() {
@@ -75,6 +77,10 @@ function App() {
           <Route path="partits/:matchId" element={<ProtectedPage><MatchDetailPage /></ProtectedPage>} />
           <Route path="cerca" element={<ProtectedPage><SearchResultsPage /></ProtectedPage>} />
           <Route path="settings" element={<ProtectedPage><SettingsPage /></ProtectedPage>} />
+          <Route path="administration" element={<ProtectedPage><AdministrationPage /></ProtectedPage>} />
+          <Route path="administration/users" element={<ProtectedPage><AdministrationPage /></ProtectedPage>} />
+          <Route path="administration/settings" element={<ProtectedPage><AdministrationPage /></ProtectedPage>} />
+          <Route path="administration/import" element={<ProtectedPage><AdministrationPage /></ProtectedPage>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
