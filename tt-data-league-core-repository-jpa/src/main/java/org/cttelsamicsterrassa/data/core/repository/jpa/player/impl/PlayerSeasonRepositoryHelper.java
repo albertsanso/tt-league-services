@@ -60,4 +60,10 @@ public interface PlayerSeasonRepositoryHelper extends JpaRepository<PlayerSeason
 
         String getCompetition();
     }
+
+    @Query("""
+            select count(distinct ps.federatedPlayer.id) from PlayerSeasonJPA ps
+            where ps.season = :season and ps.federatedPlayer is not null
+            """)
+    long countDistinctFederatedPlayersBySeason(@Param("season") String season);
 }

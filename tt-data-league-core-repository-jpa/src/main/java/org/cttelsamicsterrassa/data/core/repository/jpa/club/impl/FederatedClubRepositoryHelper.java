@@ -5,6 +5,7 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -16,4 +17,7 @@ public interface FederatedClubRepositoryHelper extends JpaRepository<FederatedCl
     List<FederatedClubJPA> findAllByClub_Id(UUID clubId, Sort sort);
     List<FederatedClubJPA> findAllByNameContainingIgnoreCase(String name);
     List<FederatedClubJPA> findAllBySourceAndNameContainingIgnoreCase(Source source, String name);
+
+    @Query("select count(distinct lower(trim(c.name))) from FederatedClubJPA c where c.name is not null and trim(c.name) <> ''")
+    long countUniqueClubNames();
 }

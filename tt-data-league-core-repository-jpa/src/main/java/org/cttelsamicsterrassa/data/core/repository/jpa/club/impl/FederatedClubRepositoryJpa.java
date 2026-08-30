@@ -133,4 +133,9 @@ public class FederatedClubRepositoryJpa implements FederatedClubRepository {
         clubRepositoryHelper.deleteById(id);
     }
 
+    @Override
+    public long countUniqueClubNames() {
+        return clubRepositoryHelper.countUniqueClubNames();
+    }
+
 }

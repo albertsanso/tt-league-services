@@ -25,4 +25,12 @@ public interface TeamRepository {
 
     void saveTeam(Team team);
     void deleteTeamById(UUID id);
+
+    /**
+     * Returns the number of distinct federated clubs with a team registered for the given season,
+     * across every source. Used as the community-wide "active this season" club count.
+     */
+    default long countDistinctFederatedClubsBySeason(Season season) {
+        return 0;
+    }
 }

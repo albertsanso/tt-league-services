@@ -29,4 +29,12 @@ public interface FederatedPlayerRepository {
     default List<FederatedPlayer> findAllFederatedPlayersByPlayerId(UUID playerId) {
         return List.of();
     }
+
+    /**
+     * Returns the total number of federated player identities across every source, for community-wide
+     * aggregate statistics. Does not require player consolidation to have run.
+     */
+    default long countUniquePlayerNames() {
+        return 0;
+    }
 }

@@ -59,5 +59,27 @@ public interface MatchRepository {
         return List.of();
     }
 
+    /**
+     * Returns the total number of matches across every source, for community-wide aggregate statistics.
+     */
+    default long countAllMatches() {
+        return 0;
+    }
+
+    /**
+     * Returns every season with at least one match, across every source, ordered from the most to the
+     * least recent. Used to determine the community-wide current season.
+     */
+    default List<String> findAllSeasons() {
+        return List.of();
+    }
+
+    /**
+     * Returns the number of matches played in the given season, across every source.
+     */
+    default long countMatchesBySeason(Season season) {
+        return 0;
+    }
+
     void saveMatch(Match match);
 }

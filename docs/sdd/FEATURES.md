@@ -24,6 +24,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 ## Main index
 
 - [FEAT-00018: Match search and Match detail](### [FEAT-00018] Match search and Match detail)
+- [FEAT-00019: integrate real overview stats](### [FEAT-00019] integrate real overview stats)
 - [FEAT-00017: support i18n](### [FEAT-00017] support i18n)
 - [FEAT-00016: Some fixes in Player details 1](### [FEAT-00016] Some fixes in Player details 1)
 - [FEAT-00015: player opponent analisys - review 1](### [FEAT-00015] player opponent analisys - review 1)
@@ -59,6 +60,27 @@ No features currently in review.
 No features currently in backlog.
 
 ## Done
+
+### [FEAT-00019] integrate real overview stats
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** —
+
+#### Goal
+Replace the green-highlighted overview statistics placeholders with backend-fed values so users can trust the summary metrics: unique players by name, unique clubs by name, unique matches, and the last imported season.
+
+#### Acceptance Criteria
+- [x] The overview displays the unique player count by name retrieved from the backend.
+- [x] The overview displays the unique club count by name retrieved from the backend.
+- [x] The overview displays the unique match count retrieved from the backend.
+- [x] The overview displays the last imported season retrieved from the backend.
+- [x] The overview remains responsive and does not regress existing navigation or access control.
+
+#### Feature Details
+→ See [FEAT-00019-DETAILS.md](./FEAT-00019-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00018] Match search and Match detail
 - **Status:** done

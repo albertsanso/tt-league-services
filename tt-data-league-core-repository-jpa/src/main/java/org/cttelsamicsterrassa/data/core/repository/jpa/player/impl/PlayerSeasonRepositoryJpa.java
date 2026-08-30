@@ -101,6 +101,14 @@ public class PlayerSeasonRepositoryJpa implements PlayerSeasonRepository {
         playerSeasonRepositoryHelper.deleteById(id);
     }
 
+    @Override
+    public long countDistinctFederatedPlayersBySeason(Season season) {
+        if (season == null) {
+            return 0;
+        }
+        return playerSeasonRepositoryHelper.countDistinctFederatedPlayersBySeason(season.toString());
+    }
+
     private static Source mapFromImportSourceToSource(ImportSource source) {
         if (source == null) {
             return null;

@@ -27,6 +27,15 @@ public interface PlayerSeasonRepository {
     default List<PlayerSeason> findAllPlayerSeasonsByFederatedPlayerIds(Collection<UUID> federatedPlayerIds) {
         return List.of();
     }
+
+    /**
+     * Returns the number of distinct federated players registered for the given season, across every
+     * source. Used as the community-wide "active this season" player count.
+     */
+    default long countDistinctFederatedPlayersBySeason(Season season) {
+        return 0;
+    }
+
     void savePlayerSeason(PlayerSeason playerSeason);
     void deletePlayerSeasonById(UUID id);
 }

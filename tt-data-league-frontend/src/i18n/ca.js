@@ -35,7 +35,7 @@ export default {
   navigation: {
     sectionNavigation: 'Navegació',
     sectionAnalysis: 'Anàlisi',
-    overview: 'Overview',
+    overview: 'Resum',
     clubs: 'Cerca de clubs',
     players: 'Cerca de jugadors',
     matches: 'Cerca de partits',
@@ -104,6 +104,8 @@ export default {
     analyticsDescription: 'Aviat podràs analitzar, comparar i descobrir patrons amb suport d’intel·ligència artificial.',
     moreInformation: 'Més informació',
     statsError: 'No s’han pogut carregar les estadístiques en temps real.',
+    statsEmpty: 'Encara no hi ha estadístiques disponibles per a la comunitat.',
+    statsUnauthorized: 'La sessió no permet consultar les estadístiques de la comunitat.',
   },
   settings: {
     title: 'Configuració',

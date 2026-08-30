@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.player.model.FederatedPl
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.UUID;
@@ -12,4 +13,7 @@ public interface FederatedPlayerRepositoryHelper extends JpaRepository<Federated
     List<FederatedPlayerJPA> findAllBySourceAndName(Source source, String name);
     List<FederatedPlayerJPA> findAllBySourceAndLicenseId(Source source, String licenseId);
     List<FederatedPlayerJPA> findAllByPlayer_IdOrderBySourceAscNameAscIdAsc(UUID playerId);
+
+    @Query("select count(distinct lower(trim(p.name))) from FederatedPlayerJPA p where p.name is not null and trim(p.name) <> ''")
+    long countUniquePlayerNames();
 }

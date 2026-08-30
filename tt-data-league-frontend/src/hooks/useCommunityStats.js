@@ -1,46 +1,29 @@
 import { useCallback, useEffect, useState } from 'react'
+import { getCommunityStatistics } from '../api/stats.js'
+import { useAuth } from '../context/useAuth.js'
 
-const MOCK_STATS = {
-  jugadors: { total: 1248, delta_temporada: 86 },
-  clubs: { total: 186, delta_temporada: 9 },
-  partits: { total: 8432, delta_temporada: 1257 },
-  temporada: { nom: '24/25', estat: 'en_curs' },
+export const MOCK_STATS = {
+  players: { total: 1248 },
+  clubs: { total: 186 },
+  matches: { total: 8432 },
+  season: { name: '24/25', status: 'IN_PROGRESS' },
 }
 
-function normalizeStats(response) {
-  return {
-    jugadors: {
-      total: Number(response?.jugadors?.total ?? MOCK_STATS.jugadors.total),
-      delta_temporada: Number(
-        response?.jugadors?.delta_temporada ?? MOCK_STATS.jugadors.delta_temporada,
-      ),
-    },
-    clubs: {
-      total: Number(response?.clubs?.total ?? MOCK_STATS.clubs.total),
-      delta_temporada: Number(
-        response?.clubs?.delta_temporada ?? MOCK_STATS.clubs.delta_temporada,
-      ),
-    },
-    partits: {
-      total: Number(response?.partits?.total ?? MOCK_STATS.partits.total),
-      delta_temporada: Number(
-        response?.partits?.delta_temporada ?? MOCK_STATS.partits.delta_temporada,
-      ),
-    },
-    temporada: {
-      nom: response?.temporada?.nom ?? MOCK_STATS.temporada.nom,
-      estat: response?.temporada?.estat ?? MOCK_STATS.temporada.estat,
-    },
-  }
+export const EMPTY_STATS = {
+  players: { total: 0 },
+  clubs: { total: 0 },
+  matches: { total: 0 },
+  season: { name: null, status: 'UNAVAILABLE' },
 }
 
 export function useCommunityStats() {
-  const [stats, setStats] = useState(MOCK_STATS)
+  const { token, clearSession } = useAuth()
+  const [stats, setStats] = useState(EMPTY_STATS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   const loadStats = useCallback(async (signal) => {
-    const useMockData = import.meta.env.VITE_USE_MOCK_STATS !== 'false'
+    const useMockData = import.meta.env.VITE_USE_MOCK_STATS === 'true'
 
     setLoading(true)
     setError(null)
@@ -58,27 +41,21 @@ export function useCommunityStats() {
     }
 
     try {
-      const response = await fetch('/api/stats/community', { signal })
-
-      if (!response.ok) {
-        throw new Error(`Resposta no vàlida: ${response.status}`)
-      }
-
-      const data = await response.json()
-      setStats(normalizeStats(data))
-    } catch {
-      if (signal?.aborted) {
+      const data = await getCommunityStatistics(token, signal, clearSession)
+      setStats(data)
+    } catch (requestError) {
+      if (requestError.name === 'AbortError' || signal?.aborted) {
         return
       }
 
-      setStats(MOCK_STATS)
-      setError('No s\'han pogut carregar les estadístiques en temps real.')
+      setStats(EMPTY_STATS)
+      setError(requestError)
     } finally {
       if (!signal?.aborted) {
         setLoading(false)
       }
     }
-  }, [])
+  }, [clearSession, token])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -92,5 +69,5 @@ export function useCommunityStats() {
     }
   }, [loadStats])
 
-  return { stats, loading, error }
+  return { stats, loading, error, unauthorized: error?.status === 401 }
 }

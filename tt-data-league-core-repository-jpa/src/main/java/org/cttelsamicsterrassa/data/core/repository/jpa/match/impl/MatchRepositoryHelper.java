@@ -84,6 +84,12 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
     @Query("select distinct m.competition from MatchJPA m where m.source = :source and m.season = :season and m.competition is not null order by m.competition asc")
     List<String> findAllCompetitionsBySourceAndSeason(@Param("source") Source source, @Param("season") String season);
 
+    @Query("select distinct m.season from MatchJPA m where m.season is not null order by m.season desc")
+    List<String> findAllSeasons();
+
+    @Query("select count(m) from MatchJPA m where m.season = :season")
+    long countBySeason(@Param("season") String season);
+
     @Query("""
             select distinct m from MatchJPA m
             join fetch m.homeTeam homeTeam

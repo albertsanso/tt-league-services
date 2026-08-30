@@ -92,6 +92,14 @@ public class TeamRepositoryJpa implements TeamRepository {
                 .toList();
     }
 
+    @Override
+    public long countDistinctFederatedClubsBySeason(Season season) {
+        if (season == null) {
+            return 0;
+        }
+        return teamRepositoryHelper.countDistinctFederatedClubsBySeason(season.toString());
+    }
+
     private static Source mapFromImportSourceToSource(ImportSource source) {
         if (source == null) {
             return null;

@@ -69,6 +69,11 @@ public class FederatedPlayerRepositoryJpa implements FederatedPlayerRepository {
     }
 
     @Override
+    public long countUniquePlayerNames() {
+        return federatedPlayerRepositoryHelper.countUniquePlayerNames();
+    }
+
+    @Override
     public List<FederatedPlayer> findAllFederatedPlayersByFragmentsInName(List<String> fragments) {
         if (fragments == null || fragments.isEmpty()) {
             return List.of();

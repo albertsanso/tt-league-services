@@ -29,4 +29,10 @@ public interface TeamRepositoryHelper extends JpaRepository<TeamJPA, UUID> {
     List<TeamJPA> findAllByNameContainingIgnoreCase(String name);
     List<TeamJPA> findAllByNameContainingIgnoreCaseAndSeason(String name, String season);
     List<TeamJPA> findAllByNameContainingIgnoreCaseAndSeasonAndSource(String name, String season, Source source);
+
+    @Query("""
+            select count(distinct t.federatedClub.id) from TeamJPA t
+            where t.season = :season and t.federatedClub is not null
+            """)
+    long countDistinctFederatedClubsBySeason(@Param("season") String season);
 }

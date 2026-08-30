@@ -3,16 +3,20 @@ import { useCommunityStats } from '../../hooks/useCommunityStats.js'
 import StatCard from './StatCard.jsx'
 import { useTranslation } from 'react-i18next'
 
-function seasonStateLabel(state, t) {
-  if (state === 'en_curs') {
+function seasonStateLabel(status, t) {
+  if (status === 'IN_PROGRESS') {
     return t('overview.seasonInProgress')
   }
 
   return t('overview.seasonUnavailable')
 }
 
+function isEmpty(stats) {
+  return stats.players.total === 0 && stats.clubs.total === 0 && stats.matches.total === 0
+}
+
 function CommunityStats() {
-  const { stats, loading, error } = useCommunityStats()
+  const { stats, loading, error, unauthorized } = useCommunityStats()
   const { t } = useTranslation()
 
   return (
@@ -20,32 +24,34 @@ function CommunityStats() {
       <SectionLabel>{t('overview.statistics')}</SectionLabel>
       {error ? (
         <p className="stats-error" role="alert">
-          {t('overview.statsError')}
+          {unauthorized ? t('overview.statsUnauthorized') : t('overview.statsError')}
+        </p>
+      ) : null}
+      {!loading && !error && isEmpty(stats) ? (
+        <p className="stats-empty" role="status">
+          {t('overview.statsEmpty')}
         </p>
       ) : null}
       <div className="stats-grid">
         <StatCard
           label={t('common.players')}
-          value={stats.jugadors.total}
-          delta={stats.jugadors.delta_temporada}
+          value={stats.players.total}
           loading={loading}
         />
         <StatCard
           label={t('common.clubs')}
           value={stats.clubs.total}
-          delta={stats.clubs.delta_temporada}
           loading={loading}
         />
         <StatCard
           label={t('common.matches')}
-          value={stats.partits.total}
-          delta={stats.partits.delta_temporada}
+          value={stats.matches.total}
           loading={loading}
         />
         <StatCard
           label={t('common.season')}
-          value={stats.temporada.nom}
-          status={seasonStateLabel(stats.temporada.estat, t)}
+          value={stats.season.name}
+          status={seasonStateLabel(stats.season.status, t)}
           loading={loading}
         />
       </div>

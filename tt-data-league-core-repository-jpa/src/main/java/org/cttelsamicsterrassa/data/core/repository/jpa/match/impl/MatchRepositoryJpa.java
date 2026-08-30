@@ -143,4 +143,22 @@ public class MatchRepositoryJpa implements MatchRepository {
         return matchRepositoryHelper.findAllCompetitionsBySourceAndSeason(
                 Source.valueOf(source.name()), season.toString());
     }
+
+    @Override
+    public long countAllMatches() {
+        return matchRepositoryHelper.count();
+    }
+
+    @Override
+    public List<String> findAllSeasons() {
+        return matchRepositoryHelper.findAllSeasons();
+    }
+
+    @Override
+    public long countMatchesBySeason(Season season) {
+        if (season == null) {
+            return 0;
+        }
+        return matchRepositoryHelper.countBySeason(season.toString());
+    }
 }

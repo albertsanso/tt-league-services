@@ -26,4 +26,12 @@ public interface FederatedClubRepository {
 
     void saveFederatedClub(FederatedClub club);
     void deleteFederatedClubById(UUID id);
+
+    /**
+     * Returns the total number of federated club identities across every source, for community-wide
+     * aggregate statistics. Does not require club consolidation to have run.
+     */
+    default long countUniqueClubNames() {
+        return 0;
+    }
 }
