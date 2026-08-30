@@ -23,6 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00022: System Settings Panel](### [FEAT-00022] System Settings Panel)
 - [FEAT-00021: Users and Roles Management Panel](### [FEAT-00021] Users and Roles Management Panel)
 - [FEAT-00020: Add Administration entry in lateral navigation panel](### [FEAT-00020] Add Administration entry in lateral navigation panel)
 - [FEAT-00019: integrate real overview stats](### [FEAT-00019] integrate real overview stats)
@@ -61,7 +62,32 @@ No features currently in review.
 
 No features currently in backlog.
 
+---
+
 ## Done
+
+### [FEAT-00022] System Settings Panel
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large (> 8h)
+- **Depends on:** FEAT-00020
+
+#### Goal
+Provide administrators with a dedicated panel for configuring system-wide settings and preferences.
+
+#### Acceptance Criteria
+- [x] Administrators can view and update the approved system settings catalog, organized by category with typed controls and persisted values.
+- [x] The panel validates values (including bulk changes) before persistence, rejects unsafe or unknown settings, and presents clear actionable errors.
+- [x] Administrators can search and filter settings by category and setting identity without loading unrelated or hidden settings into the UI.
+- [x] Administrators can preview or test pending changes without side effects, then explicitly apply or cancel them with stale-write/conflict protection.
+- [x] Administrators can export a versioned backup and restore it through an explicitly confirmed, validated, atomic operation with visible failure and rollback behavior.
+- [x] The REST API, frontend route, and every mutation enforce administrator authorization; non-administrators and direct unauthenticated access are denied, and deployment secrets are never returned or persisted by this panel.
+- [x] The frontend exposes translated Catalan, Spanish, and English labels, accessible controls, responsive layout, and explicit loading, empty, validation, unauthorized, forbidden, conflict, and server-error states.
+
+#### Feature Details
+→ See [FEAT-00022-DETAILS.md](./FEAT-00022-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00021] Users and Roles Management Panel
 - **Status:** done

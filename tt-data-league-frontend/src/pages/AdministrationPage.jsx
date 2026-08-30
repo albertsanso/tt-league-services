@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { routePaths } from '../config/routes.js'
+import SettingsPanel from '../components/settings/SettingsPanel.jsx'
 
 const destinationKeys = {
   [routePaths.administration]: 'administration',
@@ -13,6 +14,10 @@ function AdministrationPage() {
   const { pathname } = useLocation()
   const { t } = useTranslation()
   const destination = destinationKeys[pathname] || 'administration'
+
+  if (destination === 'administrationSettings') {
+    return <SettingsPanel />
+  }
 
   return (
     <section className="page-block" aria-labelledby="administration-title">

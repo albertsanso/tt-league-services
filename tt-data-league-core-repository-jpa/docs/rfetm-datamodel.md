@@ -343,3 +343,21 @@ Likewise, `MATCH_RECORD` and `GAME` do not expose inverse collection mappings.
 Team and player season rows preserve season-specific identity; canonical club
 and player links do not retarget historical match, lineup, game, or doubles
 pair foreign keys.
+
+## System settings
+
+`SystemSetting` stores the administrator-managed allowlisted settings used by
+the system settings panel. It is deliberately separate from deployment
+configuration and never stores datasource credentials, JWT secrets, mail
+credentials, or other secrets.
+
+| Column | Type | Nullability | Notes |
+|---|---|---|---|
+| `setting_key` | varchar(120) | not null | Primary key; one row per supported setting |
+| `setting_type` | varchar(20) | not null | `BOOLEAN`, `INTEGER`, or `STRING` |
+| `setting_value` | varchar(2000) | not null | Validated scalar value |
+| `version` | bigint | not null | Optimistic version, incremented for each update |
+
+Bulk updates and restores validate the complete operation before replacing
+values. Restore is transactional and the versioned JSON backup format is
+`{"schemaVersion":1,"settings":{"key":value}}`.

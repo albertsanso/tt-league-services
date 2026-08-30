@@ -40,6 +40,56 @@
   margin: 0 auto;
 }
 
+.settings-toolbar,
+.settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin: 1.25rem 0;
+}
+
+.settings-toolbar label,
+.settings-card label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.settings-toolbar input,
+.settings-toolbar select,
+.settings-card input,
+.settings-card select {
+  min-height: 2.25rem;
+  padding: 0.35rem 0.5rem;
+}
+
+.settings-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.settings-card {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
+.settings-card h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.settings-card p {
+  margin: 0.25rem 0;
+}
+
+.button-like {
+  cursor: pointer;
+}
+
 .app-footer {
   border-top: 1px solid var(--border-subtle);
   padding: 1.5rem 2rem;
