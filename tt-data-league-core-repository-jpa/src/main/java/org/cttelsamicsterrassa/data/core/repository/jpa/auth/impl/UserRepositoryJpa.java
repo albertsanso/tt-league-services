@@ -52,8 +52,16 @@ public class UserRepositoryJpa implements UserRepository {
     public UserPage findPage(UserFilter filter) {
         PageRequest pageable = PageRequest.of(
                 filter.page(), filter.size(), Sort.by(Sort.Direction.ASC, "username"));
-        Page<org.cttelsamicsterrassa.data.core.repository.jpa.auth.model.UserJPA> page =
-                userRepositoryHelper.findByFilter(filter.search(), filter.active(), pageable);
+        Page<org.cttelsamicsterrassa.data.core.repository.jpa.auth.model.UserJPA> page;
+        if (filter.search() == null) {
+            page = filter.active() == null
+                    ? userRepositoryHelper.findAll(pageable)
+                    : userRepositoryHelper.findByActive(filter.active(), pageable);
+        } else {
+            page = filter.active() == null
+                    ? userRepositoryHelper.findBySearch(filter.search(), pageable)
+                    : userRepositoryHelper.findBySearchAndActive(filter.search(), filter.active(), pageable);
+        }
         List<User> content = page.getContent().stream().map(userJPAToUserMapper).toList();
         return UserPage.of(content, page.getTotalElements(), filter.page(), filter.size());
     }
@@ -76,5 +84,10 @@ public class UserRepositoryJpa implements UserRepository {
     @Override
     public void save(User user) {
         userRepositoryHelper.save(userToUserJPAMapper.apply(user));
+    }
+
+    @Override
+    public void delete(UUID id) {
+        userRepositoryHelper.deleteById(id);
     }
 }

@@ -43,7 +43,7 @@ public class SecurityConfig {
                         // Actuator
                         .requestMatchers("/actuator/**", "/error").permitAll()
                         .requestMatchers("/api/v1/user/me").authenticated()
-                        .requestMatchers("/api/v1/user/**").hasRole(RbacCatalog.ADMIN)
+                        .requestMatchers("/api/v1/user/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/club/**")
                                 .hasAuthority(RbacCatalog.CLUBS_READ)
                         .requestMatchers(HttpMethod.PUT, "/api/v1/club/**")

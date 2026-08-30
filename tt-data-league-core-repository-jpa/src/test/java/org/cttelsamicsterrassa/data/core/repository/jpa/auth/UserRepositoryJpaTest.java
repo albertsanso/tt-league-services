@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.core.repository.jpa.auth;
 
 import org.cttelsamicsterrassa.data.core.domain.auth.user.model.User;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.model.UserFilter;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +52,24 @@ class UserRepositoryJpaTest {
 
         assertEquals(1, userRepository.findAll().size());
         assertFalse(userRepository.findById(ID).orElseThrow().isActived());
+    }
+
+    @Test
+    void findsUsersWithEmptySearchAndActiveFilter() {
+        userRepository.save(user("alice", "alice@example.com", true));
+
+        assertEquals(1, userRepository.findPage(UserFilter.of("", null, 0, 20)).totalElements());
+        assertEquals(1, userRepository.findPage(UserFilter.of(null, true, 0, 20)).totalElements());
+    }
+
+
+    @Test
+    void deleteRemovesDeactivatedUser() {
+        userRepository.save(user("toDelete", "delete@example.com", false));
+
+        userRepository.delete(ID);
+
+        assertTrue(userRepository.findById(ID).isEmpty());
     }
 
     private static User user(String username, String email, boolean active) {

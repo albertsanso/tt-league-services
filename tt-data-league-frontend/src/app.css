@@ -638,6 +638,28 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+.danger-button {
+  height: 3rem;
+  border-radius: 0.5rem;
+  border: 1px solid #dc2626;
+  background: #dc2626;
+  color: #fff;
+  padding: 0 1.75rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.danger-button:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.danger-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 
 .quick-access-grid {
   display: grid;
@@ -921,9 +943,264 @@
   margin-top: 1rem;
 }
 
+.users-admin-actions {
+  justify-content: flex-end;
+}
+
+.users-search-card {
+  padding: 1.25rem;
+}
+
+.users-search-form {
+  align-items: stretch;
+  flex-wrap: wrap;
+}
+
+.users-search-field {
+  display: grid;
+  flex: 1 1 24rem;
+  min-width: 16rem;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.45rem 0.65rem 0.55rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.users-search-field legend {
+  padding: 0 0.2rem;
+  background: var(--surface-card);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.users-search-field .club-search-input-wrap {
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+}
+
+.users-active-filter {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem 0.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+}
+
+.users-active-filter legend {
+  margin-right: 0.1rem;
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.radio-option,
+.checkbox-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.radio-option input,
+.checkbox-option input {
+  accent-color: var(--accent-primary);
+}
+
+.users-search-actions {
+  flex: 0 0 100%;
+  align-items: center;
+  justify-content: flex-end;
+  margin-top: 0.25rem;
+}
+
+.users-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.users-count {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+.users-items {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.user-row {
+  display: grid;
+  grid-template-columns: minmax(11rem, 1.2fr) minmax(8rem, 0.8fr) minmax(12rem, 1.3fr) auto auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem 1.15rem;
+}
+
+.user-row--inactive {
+  opacity: 0.7;
+}
+
+.user-row-identity,
+.user-row-roles,
+.user-row-permissions {
+  min-width: 0;
+}
+
+.user-row-identity,
+.user-row-roles,
+.user-row-permissions,
+.user-row-status {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.user-row-username {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-row-email {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-badge,
+.permission-badge,
+.status-badge {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  border-radius: 0.3rem;
+  padding: 0.25rem 0.45rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+}
+
+.role-badge {
+  color: var(--accent-primary);
+  background: var(--accent-light);
+}
+
+.permission-badge {
+  color: var(--text-secondary);
+  background: var(--surface-subtle);
+}
+
+.user-row-roles,
+.user-row-permissions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.status-badge--active {
+  color: var(--color-success);
+  background: var(--color-success-bg);
+}
+
+.status-badge--inactive {
+  color: var(--color-warning);
+  background: var(--color-warning-bg);
+}
+
+.user-row-actions,
+.user-form-actions,
+.confirm-dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.user-row-actions .secondary-button {
+  min-height: 2.35rem;
+  padding: 0.45rem 0.7rem;
+  font-size: 0.75rem;
+}
+
+.user-form,
+.confirm-dialog {
+  padding: 1.25rem;
+}
+
+.user-form > form {
+  display: grid;
+  gap: 1rem;
+}
+
+.user-form .section-title {
+  margin: 0 0 1rem;
+}
+
+.user-form-roles {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0;
+  padding: 0.85rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.4rem;
+}
+
+.user-form-roles legend {
+  padding: 0 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.role-permissions-hint {
+  color: var(--text-muted);
+  font-size: 0.7rem;
+  font-weight: 400;
+}
+
+.confirm-dialog {
+  display: grid;
+  gap: 1rem;
+}
+
+.confirm-dialog p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
 @media (max-width: 800px) {
   .match-filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .user-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .user-row-actions,
+  .user-row-status {
+    grid-column: span 1;
   }
 
   .match-player-name {
@@ -945,6 +1222,24 @@
   .match-player-location {
     flex-direction: column;
     gap: 0.6rem;
+  }
+
+  .users-search-card {
+    padding: 1rem;
+  }
+
+  .users-active-filter {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .user-row {
+    grid-template-columns: 1fr;
+  }
+
+  .user-row-actions,
+  .user-row-status {
+    grid-column: auto;
   }
 }
 

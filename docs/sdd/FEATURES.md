@@ -23,6 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00021: Users and Roles Management Panel](### [FEAT-00021] Users and Roles Management Panel)
 - [FEAT-00020: Add Administration entry in lateral navigation panel](### [FEAT-00020] Add Administration entry in lateral navigation panel)
 - [FEAT-00019: integrate real overview stats](### [FEAT-00019] integrate real overview stats)
 - [FEAT-00018: Match search and Match detail](### [FEAT-00018] Match search and Match detail)
@@ -61,6 +62,41 @@ No features currently in review.
 No features currently in backlog.
 
 ## Done
+
+### [FEAT-00021] Users and Roles Management Panel
+- **Status:** done
+- **Priority:** high
+- **Effort:** large (> 8h)
+- **Depends on:** FEAT-00020
+
+#### Goal
+Provide administrators with a dedicated panel for managing users, roles, permissions, and user access.
+
+- Displays a paginated list of users with their assigned roles, derived permissions, and active status.
+- Allows administrators to create users, edit profile/role assignments, and activate or deactivate users.
+- Allows administrators to permanently delete a user only after that user has been deactivated.
+- Provides username/email search, active-status filtering, and pagination.
+- Provides a fixed role catalog with read-only, server-derived permissions.
+- Uses the established Club, Player, and Match search visual language, including
+  bordered filter fieldsets, legends, responsive cards, and shared controls.
+- Places the Search string and Status filters together, with Search and Clear
+  actions right-aligned on a separate row below them.
+- Provides a clear and intuitive interface for managing user access and security settings.
+
+#### Acceptance Criteria
+- [x] Administrators can view a paginated list and individual details of users with their assigned roles, derived permissions, and active status.
+- [x] Administrators can create users, edit usernames/emails and roles, and activate or deactivate users.
+- [x] Administrators can permanently delete deactivated users, with an explicit confirmation and no delete action available for active users.
+- [x] Administrators can assign only fixed roles, with permissions derived from the server role catalog and exposed read-only.
+- [x] Administrators can search by username/email, filter by active status, and navigate deterministic server-side pagination.
+- [x] The REST and frontend management surfaces enforce `USERS_READ`/`USERS_WRITE` access, omit password data, and expose translated loading, empty, validation, conflict, unauthorized, forbidden, and server-error states.
+- [x] The users list refreshes after any user-management action, including adding, updating, activating, deactivating, or deleting a user.
+- [x] The search controls use matching legends over bordered boxes, give the text search field the available width, keep the Status selector compact, and place Search/Clear actions below the filters.
+
+#### Feature Details
+→ See [FEAT-00021-DETAILS.md](./FEAT-00021-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00020] Add Administration entry in lateral navigation panel
 - **Status:** done

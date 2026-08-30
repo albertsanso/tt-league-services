@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
+import { Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { createUser, setUserActive, updateUser } from '../api/users.js'
+import { createUser, deleteUser, setUserActive, updateUser } from '../api/users.js'
 import { useAuth } from '../context/useAuth.js'
 import { useRoleCatalog, useUsers } from '../hooks/useUsers.js'
 
@@ -16,6 +17,7 @@ function UsersRolesPage() {
   const [editingUser, setEditingUser] = useState(null)
   const [creatingUser, setCreatingUser] = useState(false)
   const [confirmToggle, setConfirmToggle] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState(null)
   const [mutationError, setMutationError] = useState(null)
   const [mutationSuccess, setMutationSuccess] = useState(null)
 
@@ -30,7 +32,7 @@ function UsersRolesPage() {
     active: appliedActive,
     page,
     size: 20,
-    _refresh: refreshKey,
+    refreshKey,
   })
 
   const { data: roles } = useRoleCatalog()
@@ -79,6 +81,31 @@ function UsersRolesPage() {
     setMutationSuccess(null)
   }
 
+  function handleConfirmDelete(user) {
+    setConfirmDelete(user)
+    setMutationError(null)
+    setMutationSuccess(null)
+  }
+
+  async function handleDeleteUser() {
+    if (!confirmDelete) return
+    const controller = new AbortController()
+    try {
+      await deleteUser(confirmDelete.id, token, controller.signal, clearSession)
+      setConfirmDelete(null)
+      setMutationSuccess(t('usersAdmin.deleteSuccess'))
+      setMutationError(null)
+      refresh()
+    } catch (err) {
+      setConfirmDelete(null)
+      if (err?.status === 409) {
+        setMutationError(err.message || t('usersAdmin.deleteActiveError'))
+      } else {
+        setMutationError(t('usersAdmin.deleteError'))
+      }
+    }
+  }
+
   async function handleToggleActive() {
     if (!confirmToggle) return
     const controller = new AbortController()
@@ -106,7 +133,11 @@ function UsersRolesPage() {
 
   return (
     <section className="page-block" aria-labelledby="users-admin-title">
-      <h1 id="users-admin-title" className="page-title">{t('administration.administrationUsers.title')}</h1>
+      <div>
+        <p className="section-label">{t('navigation.sectionAdministration')}</p>
+        <h1 id="users-admin-title" className="page-title">{t('administration.administrationUsers.title')}</h1>
+        <p className="page-description">{t('administration.administrationUsers.description')}</p>
+      </div>
 
       {mutationSuccess && (
         <p className="form-success" role="status" aria-live="polite">{mutationSuccess}</p>
@@ -117,7 +148,7 @@ function UsersRolesPage() {
 
       {/* Create button */}
       {!creatingUser && !editingUser && (
-        <div className="users-admin-actions">
+        <div className="users-admin-actions club-action-row">
           <button
             className="primary-button"
             type="button"
@@ -172,39 +203,62 @@ function UsersRolesPage() {
         </div>
       )}
 
-      {/* Search / filter */}
-      <form className="users-search-form" onSubmit={handleSearch} aria-label={t('usersAdmin.filterAriaLabel')}>
-        <label className="auth-field" htmlFor="users-search">
-          {t('usersAdmin.searchLabel')}
-          <input
-            id="users-search"
-            type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t('usersAdmin.searchPlaceholder')}
-          />
-        </label>
-        <fieldset className="users-active-filter">
-          <legend>{t('usersAdmin.statusFilter')}</legend>
-          {activeOptions.map((opt) => (
-            <label key={String(opt.value)} className="radio-option">
-              <input
-                type="radio"
-                name="active-filter"
-                checked={activeFilter === opt.value}
-                onChange={() => setActiveFilter(opt.value)}
-              />
-              {opt.label}
-            </label>
-          ))}
-        </fieldset>
-        <div className="users-search-actions">
-          <button className="primary-button" type="submit">{t('common.search')}</button>
-          <button className="secondary-button" type="button" onClick={handleClearFilter}>
-            {t('usersAdmin.clearFilter')}
-          </button>
+      {/* Confirm delete dialog */}
+      {confirmDelete && (
+        <div className="confirm-dialog card" role="dialog" aria-labelledby="confirm-delete-label">
+          <p id="confirm-delete-label">
+            {t('usersAdmin.confirmDelete', { username: confirmDelete.username })}
+          </p>
+          <div className="confirm-dialog-actions">
+            <button className="secondary-button" type="button" onClick={() => setConfirmDelete(null)}>
+              {t('common.cancel')}
+            </button>
+            <button className="danger-button" type="button" onClick={handleDeleteUser}>
+              {t('usersAdmin.confirmDeleteAction')}
+            </button>
+          </div>
         </div>
-      </form>
+      )}
+
+      {/* Search / filter */}
+      <article className="users-search-card card">
+        <form className="users-search-form club-search-form" onSubmit={handleSearch} aria-label={t('usersAdmin.filterAriaLabel')}>
+          <fieldset className="users-search-field">
+            <legend>{t('usersAdmin.searchStringLabel')}</legend>
+            <div className="club-search-input-wrap">
+              <Search size={17} aria-hidden="true" />
+              <input
+                id="users-search"
+                className="club-search-input"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder={t('usersAdmin.searchPlaceholder')}
+              />
+            </div>
+          </fieldset>
+          <fieldset className="users-active-filter">
+            <legend>{t('usersAdmin.statusFilter')}</legend>
+            {activeOptions.map((opt) => (
+              <label key={String(opt.value)} className="radio-option">
+                <input
+                  type="radio"
+                  name="active-filter"
+                  checked={activeFilter === opt.value}
+                  onChange={() => setActiveFilter(opt.value)}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </fieldset>
+          <div className="users-search-actions club-action-row">
+            <button className="primary-button" type="submit">{t('common.search')}</button>
+            <button className="secondary-button" type="button" onClick={handleClearFilter}>
+              {t('usersAdmin.clearFilter')}
+            </button>
+          </div>
+        </form>
+      </article>
 
       {/* Results */}
       <UserListSection
@@ -215,6 +269,7 @@ function UsersRolesPage() {
         onPageChange={setPage}
         onEdit={(u) => { setEditingUser(u); setMutationError(null); setMutationSuccess(null) }}
         onToggle={handleConfirmToggle}
+        onDelete={handleConfirmDelete}
         onRetry={retry}
       />
     </section>
@@ -225,7 +280,7 @@ function UsersRolesPage() {
 // UserListSection
 // ---------------------------------------------------------------------------
 
-function UserListSection({ loading, error, usersPage, page, onPageChange, onEdit, onToggle, onRetry }) {
+function UserListSection({ loading, error, usersPage, page, onPageChange, onEdit, onToggle, onDelete, onRetry }) {
   const { t } = useTranslation()
 
   if (loading) {
@@ -258,6 +313,7 @@ function UserListSection({ loading, error, usersPage, page, onPageChange, onEdit
             user={user}
             onEdit={onEdit}
             onToggle={onToggle}
+            onDelete={onDelete}
           />
         ))}
       </ul>
@@ -276,7 +332,7 @@ function UserListSection({ loading, error, usersPage, page, onPageChange, onEdit
 // UserRow
 // ---------------------------------------------------------------------------
 
-function UserRow({ user, onEdit, onToggle }) {
+function UserRow({ user, onEdit, onToggle, onDelete }) {
   const { t } = useTranslation()
   return (
     <li className={`user-row card ${user.active ? '' : 'user-row--inactive'}`}>
@@ -318,6 +374,16 @@ function UserRow({ user, onEdit, onToggle }) {
         >
           {user.active ? t('usersAdmin.deactivate') : t('usersAdmin.activate')}
         </button>
+        {!user.active && (
+          <button
+            className="danger-button"
+            type="button"
+            onClick={() => onDelete(user)}
+            aria-label={t('usersAdmin.deleteAriaLabel', { username: user.username })}
+          >
+            {t('usersAdmin.delete')}
+          </button>
+        )}
       </div>
     </li>
   )

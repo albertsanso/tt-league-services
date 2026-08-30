@@ -18,10 +18,18 @@ public interface UserRepositoryHelper extends JpaRepository<UserJPA, UUID> {
     boolean existsByEmail(String email);
 
     @Query("SELECT u FROM UserJPA u WHERE "
-            + "(:search IS NULL OR LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) "
-            + "  OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))) "
-            + "AND (:active IS NULL OR u.active = :active)")
-    Page<UserJPA> findByFilter(
+            + "LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) "
+            + "OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))")
+    Page<UserJPA> findBySearch(@Param("search") String search, Pageable pageable);
+
+    @Query("SELECT u FROM UserJPA u WHERE u.active = :active")
+    Page<UserJPA> findByActive(@Param("active") Boolean active, Pageable pageable);
+
+    @Query("SELECT u FROM UserJPA u WHERE "
+            + "(LOWER(u.username) LIKE LOWER(CONCAT('%', :search, '%')) "
+            + "OR LOWER(u.email) LIKE LOWER(CONCAT('%', :search, '%'))) "
+            + "AND u.active = :active")
+    Page<UserJPA> findBySearchAndActive(
             @Param("search") String search,
             @Param("active") Boolean active,
             Pageable pageable);

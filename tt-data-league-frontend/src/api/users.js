@@ -128,3 +128,16 @@ export function getRoles(token, signal, onUnauthorized) {
       return payload.map(normalizeRole)
     })
 }
+
+export function deleteUser(id, token, signal, onUnauthorized) {
+  if (!id || typeof id !== 'string') {
+    throw new ApiError("L'identificador de l'usuari no és vàlid.", 400)
+  }
+  const url = '/api/v1/user/' + encodeURIComponent(id)
+  return apiRequest(url, {
+    method: 'DELETE',
+    token,
+    signal,
+    onUnauthorized,
+  })
+}

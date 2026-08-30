@@ -42,11 +42,17 @@ function useRequest(request, enabled, requestIdentity) {
 /**
  * Paginated / filtered user list hook.
  *
- * @param {{ search?: string, active?: boolean|null, page?: number, size?: number }} filter
+ * @param {{ search?: string, active?: boolean|null, page?: number, size?: number, refreshKey?: number }} filter
  */
 export function useUsers(filter = {}) {
-  const { search = '', active = null, page = 0, size = 20 } = filter
-  const identity = `users-${search}-${active}-${page}-${size}`
+  const {
+    search = '',
+    active = null,
+    page = 0,
+    size = 20,
+    refreshKey = 0,
+  } = filter
+  const identity = `users-${search}-${active}-${page}-${size}-${refreshKey}`
 
   const request = useCallback(
     (token, signal, onUnauthorized) => getUsers({ search: search || null, active, page, size },

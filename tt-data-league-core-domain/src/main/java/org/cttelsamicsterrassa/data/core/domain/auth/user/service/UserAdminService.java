@@ -92,6 +92,12 @@ public class UserAdminService {
         }
 
         if (roles != null) {
+            if (user.isActived()
+                    && user.getRoles().contains(UserRole.ADMIN)
+                    && !roles.contains(UserRole.ADMIN)
+                    && userRepository.countActiveAdmins() <= 1) {
+                throw new LastAdminException();
+            }
             user.setRoles(roles);
         }
 
@@ -124,5 +130,23 @@ public class UserAdminService {
             target.enable();
         }
         userRepository.save(target);
+    }
+
+    /**
+     * Permanently deletes a deactivated user. Throws {@link ActiveUserDeletionException} if the
+     * target is still active.
+     *
+     * @param id UUID of the user to delete
+     */
+    public void deleteUser(UUID id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new UserNotFoundException(id));
+        if (user.isActived()) {
+            throw new ActiveUserDeletionException();
+        }
+        if (user.getRoles().contains(UserRole.ADMIN) && userRepository.countActiveAdmins() <= 1) {
+            throw new LastAdminException();
+        }
+        userRepository.delete(id);
     }
 }

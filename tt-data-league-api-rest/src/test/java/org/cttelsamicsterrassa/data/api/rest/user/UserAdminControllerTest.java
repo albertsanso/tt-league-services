@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.core.domain.auth.user.model.User;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.model.UserFilter;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.model.UserPage;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.model.UserRole;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.service.ActiveUserDeletionException;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.service.LastAdminException;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.service.SelfDeactivationException;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.service.UserAdminService;
@@ -221,5 +222,48 @@ class UserAdminControllerTest {
         assertNotNull(resp.getBody());
         assertEquals(UserRole.values().length, resp.getBody().size());
         assertFalse(resp.getBody().stream().anyMatch(r -> r.permissions() == null));
+    }
+
+    // --- deleteUser ---
+
+    @Test
+    void deleteUserReturnsNoContentForDeactivatedUser() {
+        UserAdminService uas = mock(UserAdminService.class);
+        doNothing().when(uas).deleteUser(USER_ID);
+
+        var resp = controllerWith(mock(UserService.class), uas).deleteUser(USER_ID);
+
+        assertEquals(HttpStatus.NO_CONTENT, resp.getStatusCode());
+        verify(uas).deleteUser(USER_ID);
+    }
+
+    @Test
+    void deleteUserReturnsNotFoundForMissingUser() {
+        UserAdminService uas = mock(UserAdminService.class);
+        doThrow(new UserNotFoundException(USER_ID)).when(uas).deleteUser(USER_ID);
+
+        var resp = controllerWith(mock(UserService.class), uas).deleteUser(USER_ID);
+
+        assertEquals(HttpStatus.NOT_FOUND, resp.getStatusCode());
+    }
+
+    @Test
+    void deleteUserReturnsConflictForActiveUser() {
+        UserAdminService uas = mock(UserAdminService.class);
+        doThrow(new ActiveUserDeletionException()).when(uas).deleteUser(USER_ID);
+
+        var resp = controllerWith(mock(UserService.class), uas).deleteUser(USER_ID);
+
+        assertEquals(HttpStatus.CONFLICT, resp.getStatusCode());
+    }
+
+    @Test
+    void deleteUserReturnsConflictForLastAdministrator() {
+        UserAdminService uas = mock(UserAdminService.class);
+        doThrow(new LastAdminException()).when(uas).deleteUser(USER_ID);
+
+        var resp = controllerWith(mock(UserService.class), uas).deleteUser(USER_ID);
+
+        assertEquals(HttpStatus.CONFLICT, resp.getStatusCode());
     }
 }

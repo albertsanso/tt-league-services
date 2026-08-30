@@ -136,6 +136,18 @@ class UserAdminServiceTest {
                 () -> serviceWith(repo).updateUser(USER_ID, "taken", "bob@example.com", Set.of()));
     }
 
+    @Test
+    void updateUserCannotRemoveLastActiveAdminRole() {
+        UserRepository repo = mock(UserRepository.class);
+        when(repo.findById(ADMIN_ID)).thenReturn(Optional.of(adminUser()));
+        when(repo.countActiveAdmins()).thenReturn(1L);
+
+        assertThrows(LastAdminException.class,
+                () -> serviceWith(repo).updateUser(ADMIN_ID, "admin", "admin@example.com",
+                        Set.of(UserRole.PRACTITIONER)));
+        verify(repo, never()).save(any(User.class));
+    }
+
     // --- setUserActive ---
 
     @Test
@@ -191,5 +203,50 @@ class UserAdminServiceTest {
         serviceWith(repo).setUserActive(USER_ID, false, ADMIN_ID);
 
         verify(repo).save(any(User.class));
+    }
+
+    // --- deleteUser ---
+
+    @Test
+    void deleteUserThrowsNotFoundForMissingUser() {
+        UserRepository repo = mock(UserRepository.class);
+        when(repo.findById(USER_ID)).thenReturn(Optional.empty());
+
+        assertThrows(UserNotFoundException.class,
+                () -> serviceWith(repo).deleteUser(USER_ID));
+        verify(repo, never()).delete(any(UUID.class));
+    }
+
+    @Test
+    void deleteUserThrowsActiveUserDeletionExceptionForActiveUser() {
+        UserRepository repo = mock(UserRepository.class);
+        when(repo.findById(USER_ID)).thenReturn(Optional.of(regularUser()));
+
+        assertThrows(ActiveUserDeletionException.class,
+                () -> serviceWith(repo).deleteUser(USER_ID));
+        verify(repo, never()).delete(any(UUID.class));
+    }
+
+    @Test
+    void deleteUserSucceedsForDeactivatedUser() {
+        UserRepository repo = mock(UserRepository.class);
+        User inactive = User.createExisting(USER_ID, NOW, "bob", "bob@example.com", "", false);
+        when(repo.findById(USER_ID)).thenReturn(Optional.of(inactive));
+
+        serviceWith(repo).deleteUser(USER_ID);
+
+        verify(repo).delete(USER_ID);
+    }
+
+    @Test
+    void deleteUserCannotRemoveTheLastAdministrator() {
+        UserRepository repo = mock(UserRepository.class);
+        User inactiveAdmin = User.createExisting(ADMIN_ID, NOW, "admin", "admin@example.com", "", false,
+                Set.of(UserRole.ADMIN));
+        when(repo.findById(ADMIN_ID)).thenReturn(Optional.of(inactiveAdmin));
+        when(repo.countActiveAdmins()).thenReturn(0L);
+
+        assertThrows(LastAdminException.class, () -> serviceWith(repo).deleteUser(ADMIN_ID));
+        verify(repo, never()).delete(any(UUID.class));
     }
 }

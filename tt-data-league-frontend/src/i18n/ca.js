@@ -138,7 +138,7 @@ export default {
     },
     administrationUsers: {
       title: 'Usuaris i rols',
-      description: 'El panell de gestió d’usuaris i rols estarà disponible properament.',
+      description: 'Gestiona usuaris, rols i permisos d’accés.',
     },
     administrationSettings: {
       title: 'Configuració del sistema',
@@ -329,6 +329,7 @@ export default {
     createTitle: 'Nou usuari',
     editTitle: 'Edita {{username}}',
     searchLabel: 'Cerca per usuari o correu',
+    searchStringLabel: 'Cadena de cerca:',
     searchPlaceholder: 'Cerca...',
     statusFilter: 'Estat',
     activeOnly: 'Actius',
@@ -367,6 +368,13 @@ export default {
     activeToggleSuccess: 'L’estat de l’usuari s’ha actualitzat.',
     saving: 'Desant...',
     save: 'Desa',
+    delete: 'Elimina',
+    deleteAriaLabel: 'Elimina {{username}}',
+    confirmDelete: 'Elimineu definitivament l’usuari {{username}}? Aquesta acció no es pot desfer.',
+    confirmDeleteAction: 'Elimina definitivament',
+    deleteSuccess: 'Usuari eliminat correctament.',
+    deleteError: 'No s’ha pogut eliminar l’usuari.',
+    deleteActiveError: 'Només es poden eliminar usuaris desactivats.',
     role: {
       ADMIN: 'Administrador',
       CLUB_MANAGER: 'Gestor de clubs',
@@ -384,4 +392,3 @@ export default {
     },
   },
 }
-
