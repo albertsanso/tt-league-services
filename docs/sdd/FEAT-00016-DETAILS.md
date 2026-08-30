@@ -1,6 +1,6 @@
 # Build Plan
 
-FEAT-00016 is in-review. Fixes 1–18 are implemented in the frontend.
+FEAT-00016 is done. Fixes 1–18 are implemented in the frontend.
 
 ## Implemented scope
 

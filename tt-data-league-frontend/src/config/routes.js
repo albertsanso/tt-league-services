@@ -1,3 +1,5 @@
+import i18n from '../i18n/index.js'
+
 const CLUB_DETAIL_QUERY_KEYS = ['view', 'season', 'source', 'competition']
 const PLAYER_DETAIL_QUERY_KEYS = ['season', 'source', 'competition']
 
@@ -40,15 +42,16 @@ export const routePaths = {
   matches: (clubId) => `/partits?clubId=${encodeURIComponent(clubId)}`,
 }
 
-const generalBreadcrumb = () => ({ label: 'General', path: routePaths.home })
-const clubsBreadcrumb = () => ({ label: 'Cerca de clubs', path: routePaths.clubs })
-const playersBreadcrumb = () => ({ label: 'Cerca de jugadors', path: routePaths.players() })
+const translate = (key) => i18n.t(key)
+const generalBreadcrumb = () => ({ label: translate('routes.general'), path: routePaths.home })
+const clubsBreadcrumb = () => ({ label: translate('routes.clubSearch'), path: routePaths.clubs })
+const playersBreadcrumb = () => ({ label: translate('routes.playerSearch'), path: routePaths.players() })
 
 function clubDetailBreadcrumb() {
   return [
     generalBreadcrumb(),
     clubsBreadcrumb(),
-    { label: 'Detall del club' },
+    { label: translate('routes.clubDetail') },
   ]
 }
 
@@ -56,7 +59,7 @@ function clubChildBreadcrumb({ clubId }, search, label) {
   return [
     generalBreadcrumb(),
     clubsBreadcrumb(),
-    { label: 'Detall del club', path: routePaths.clubDetails(clubId, search) },
+    { label: translate('routes.clubDetail'), path: routePaths.clubDetails(clubId, search) },
     { label },
   ]
 }
@@ -65,55 +68,65 @@ function playerDetailBreadcrumb() {
   return [
     generalBreadcrumb(),
     playersBreadcrumb(),
-    { label: 'Detall del jugador' },
+    { label: translate('routes.playerDetail') },
   ]
 }
 
 export const routesMeta = [
-  { path: routePaths.home, label: 'Overview', section: 'General', auth: true },
-  { path: routePaths.clubs, label: 'Cerca de clubs', section: 'General', auth: true, permission: 'clubs:read' },
+  { path: routePaths.home, label: translate('navigation.overview'), labelKey: 'navigation.overview', section: translate('routes.general'), auth: true },
+  { path: routePaths.clubs, label: translate('routes.clubSearch'), labelKey: 'routes.clubSearch', section: translate('routes.general'), auth: true, permission: 'clubs:read' },
   {
     path: '/clubs/:clubId/edit',
-    label: 'Editar club',
-    section: 'General',
+    label: translate('routes.clubEdit'),
+    labelKey: 'routes.clubEdit',
+    section: translate('routes.general'),
     auth: true,
     permission: 'clubs:read',
-    breadcrumb: (params, search) => clubChildBreadcrumb(params, search, 'Editar club'),
+    breadcrumb: (params, search) => clubChildBreadcrumb(params, search, translate('routes.clubEdit')),
   },
   {
     path: '/clubs/:clubId',
-    label: 'Detall del club',
-    section: 'General',
+    label: translate('routes.clubDetail'),
+    labelKey: 'routes.clubDetail',
+    section: translate('routes.general'),
     auth: true,
     permission: 'clubs:read',
     breadcrumb: clubDetailBreadcrumb,
   },
   {
     path: '/clubs/:clubId/competition/:season/:competition',
-    label: 'Detall de competició',
-    section: 'General',
+    label: translate('routes.competitionDetail'),
+    labelKey: 'routes.competitionDetail',
+    section: translate('routes.general'),
     auth: true,
     permission: ['clubs:read', 'matches:read'],
-    breadcrumb: (params, search) => clubChildBreadcrumb(params, search, 'Detall de competició'),
+    breadcrumb: (params, search) => clubChildBreadcrumb(params, search, translate('routes.competitionDetail')),
   },
-  { path: '/jugadors', label: 'Cerca de jugadors', section: 'General', auth: true, permission: 'players:read' },
+  { path: '/jugadors', label: translate('routes.playerSearch'), labelKey: 'routes.playerSearch', section: translate('routes.general'), auth: true, permission: 'players:read' },
   {
     path: '/jugadors/:playerId',
-    label: 'Detall del jugador',
-    section: 'General',
+    label: translate('routes.playerDetail'),
+    labelKey: 'routes.playerDetail',
+    section: translate('routes.general'),
     auth: true,
     permission: 'players:read',
     breadcrumb: playerDetailBreadcrumb,
   },
-  { path: '/partits', label: 'Cerca de partits', section: 'General', auth: true, permission: 'matches:read' },
-  { path: '/cerca', label: 'Resultats de cerca', section: 'General', auth: true },
-  { path: '/settings', label: 'Configuració', section: 'General', auth: true },
+  { path: '/partits', label: translate('routes.matchSearch'), labelKey: 'routes.matchSearch', section: translate('routes.general'), auth: true, permission: 'matches:read' },
+  { path: '/cerca', label: translate('routes.searchResults'), labelKey: 'routes.searchResults', section: translate('routes.general'), auth: true },
+  { path: '/settings', label: translate('routes.settings'), labelKey: 'routes.settings', section: translate('routes.general'), auth: true },
 ]
+
+function localizedRoute(route) {
+  return route.labelKey
+    ? { ...route, label: translate(route.labelKey), section: translate('routes.general') }
+    : route
+}
 
 export function getRouteMeta(pathname) {
   const exactRoute = routesMeta.find((route) => route.path === pathname)
   if (exactRoute) {
-    return exactRoute
+    return localizedRoute(exactRoute)
   }
 
   const dynamicRoute = routesMeta.filter((route) => route.path.includes(':')).find((route) => {
@@ -132,7 +145,7 @@ export function getRouteMeta(pathname) {
   })
 
   if (dynamicRoute) {
-    return dynamicRoute
+    return localizedRoute(dynamicRoute)
   }
 
   const nestedRoute = routesMeta.find((route) => (
@@ -141,7 +154,7 @@ export function getRouteMeta(pathname) {
       && pathname.startsWith(`${route.path}/`)
   ))
 
-  return nestedRoute ?? routesMeta[0]
+  return localizedRoute(nestedRoute ?? routesMeta[0])
 }
 
 function decodeRouteParameter(value) {
@@ -195,11 +208,11 @@ export function getBreadcrumbItems(pathname, search = '') {
 
   return breadcrumb ?? [
     {
-      label: activeRoute.section,
+      label: activeRoute.sectionKey ? translate(activeRoute.sectionKey) : translate('routes.general'),
       path: routePaths.home,
     },
     {
-      label: activeRoute.label,
+      label: activeRoute.labelKey ? translate(activeRoute.labelKey) : activeRoute.label,
       path: activeRoute.path,
     },
   ]

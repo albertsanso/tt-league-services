@@ -3,11 +3,13 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { routePaths } from '../config/routes.js'
 import { usePlayerSearch } from '../hooks/usePlayers.js'
+import { useTranslation } from 'react-i18next'
 
 function PlayersSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') ?? ''
   const [inputValue, setInputValue] = useState(urlQuery)
+  const { t } = useTranslation()
   const query = urlQuery.trim()
   const { data: players, loading, error, retry } = usePlayerSearch(query)
 
@@ -39,12 +41,12 @@ function PlayersSearchPage() {
   return (
     <section className="page-block" aria-labelledby="players-title">
       <div>
-        <p className="section-label">Directori</p>
-        <h1 id="players-title" className="page-title">Cerca de jugadors</h1>
-        <p className="page-description">Troba un jugador i consulta la seva identitat canònica i trajectòria.</p>
+        <p className="section-label">{t('search.directory')}</p>
+        <h1 id="players-title" className="page-title">{t('search.playerTitle')}</h1>
+        <p className="page-description">{t('search.playerDescription')}</p>
       </div>
       <form className="club-search-form" onSubmit={submit}>
-        <label className="sr-only" htmlFor="player-search">Nom del jugador</label>
+        <label className="sr-only" htmlFor="player-search">{t('search.fieldPlayer')}</label>
         <div className="club-search-input-wrap">
           <Search size={17} aria-hidden="true" />
           <input
@@ -53,31 +55,31 @@ function PlayersSearchPage() {
             type="search"
             value={inputValue}
             onChange={(event) => setInputValue(event.target.value)}
-            placeholder="Cerca per nom..."
+            placeholder={t('search.byName')}
             autoComplete="off"
             aria-describedby="player-search-help"
           />
         </div>
-        <button className="primary-button" type="submit" disabled={inputValue.trim().length < 2}>Cercar</button>
+        <button className="primary-button" type="submit" disabled={inputValue.trim().length < 2}>{t('common.search')}</button>
       </form>
       <p id="player-search-help" className="search-summary" aria-live="polite">
-        Introdueix com a mínim 2 caràcters.
+        {t('overview.minCharacters')}
       </p>
       {!query ? (
-        <p className="club-state card" role="status">Escriu el nom d’un jugador per començar la cerca.</p>
+        <p className="club-state card" role="status">{t('search.writePlayer')}</p>
       ) : query.length < 2 ? (
-        <p className="club-state card" role="alert">Introdueix com a mínim 2 caràcters.</p>
+        <p className="club-state card" role="alert">{t('overview.minCharacters')}</p>
       ) : loading ? (
-        <p className="club-state card" role="status" aria-live="polite">Cercant jugadors...</p>
+        <p className="club-state card" role="status" aria-live="polite">{t('search.searchingPlayers')}</p>
       ) : error ? (
         <div className="club-state card" role="alert">
-          <p>{error.status === 401 ? 'La sessió ha caducat.' : 'No s’han pogut carregar els jugadors.'}</p>
-          <button className="secondary-button" type="button" onClick={retry}>Reintenta</button>
+          <p>{error.status === 401 ? t('search.sessionExpired') : t('search.playersLoadError')}</p>
+          <button className="secondary-button" type="button" onClick={retry}>{t('common.retry')}</button>
         </div>
       ) : players.length === 0 ? (
-        <p className="club-state card" role="status">No s’han trobat jugadors per a «{query}».</p>
+        <p className="club-state card" role="status">{t('search.noPlayers', { query })}</p>
       ) : (
-        <ul className="club-result-list" aria-label="Jugadors trobats">
+        <ul className="club-result-list" aria-label={t('search.resultsPlayers')}>
           {players.map((player) => (
             <li key={player.id} className="club-result card">
               {player.canonicalPlayerId ? (
@@ -90,9 +92,9 @@ function PlayersSearchPage() {
                 >
                   <span>
                     <strong>{player.name}</strong>
-                     <span className="club-source">Fonts: {player.sources.join(', ') || player.source}</span>
+                     <span className="club-source">{t('search.sources', { sources: player.sources.join(', ') || player.source })}</span>
                     <span className="club-source">
-                      Temporades: {player.seasons.length > 0 ? player.seasons.join(', ') : '—'}
+                      {t('search.seasons', { seasons: player.seasons.length > 0 ? player.seasons.join(', ') : '—' })}
                     </span>
                   </span>
                   <span aria-hidden="true">→</span>
@@ -101,11 +103,11 @@ function PlayersSearchPage() {
                 <div className="club-result-link">
                   <span>
                     <strong>{player.name}</strong>
-                   <span className="club-source">Fonts: {player.sources.join(', ') || player.source}</span>
+                   <span className="club-source">{t('search.sources', { sources: player.sources.join(', ') || player.source })}</span>
                    <span className="club-source">
-                     Temporades: {player.seasons.length > 0 ? player.seasons.join(', ') : '—'}
+                     {t('search.seasons', { seasons: player.seasons.length > 0 ? player.seasons.join(', ') : '—' })}
                    </span>
-                   <span className="club-source">Identitat canònica pendent</span>
+                   <span className="club-source">{t('search.canonicalPending')}</span>
                   </span>
                 </div>
               )}

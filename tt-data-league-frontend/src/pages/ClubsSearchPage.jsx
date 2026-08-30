@@ -3,12 +3,14 @@ import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { routePaths } from '../config/routes.js'
 import { useClubSearch } from '../hooks/useClubs.js'
+import { useTranslation } from 'react-i18next'
 
 function ClubsSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') ?? ''
   const [inputValue, setInputValue] = useState(urlQuery)
   const [validationError, setValidationError] = useState('')
+  const { t } = useTranslation()
   const query = urlQuery.trim()
   const { data: clubs, loading, error, retry } = useClubSearch(query)
 
@@ -38,7 +40,7 @@ function ClubsSearchPage() {
     event.preventDefault()
     const normalizedValue = inputValue.trim()
     if (normalizedValue.length < 2) {
-      setValidationError('Introdueix com a mínim 2 caràcters.')
+      setValidationError(t('overview.minCharacters'))
       return
     }
 
@@ -53,15 +55,13 @@ function ClubsSearchPage() {
   return (
     <section className="page-block" aria-labelledby="clubs-title">
       <div>
-        <p className="section-label">Directori</p>
-        <h1 id="clubs-title" className="page-title">Cerca de clubs</h1>
-        <p className="page-description">
-          Troba un club per consultar la seva identitat, equips i competicions.
-        </p>
+        <p className="section-label">{t('search.directory')}</p>
+        <h1 id="clubs-title" className="page-title">{t('search.clubTitle')}</h1>
+        <p className="page-description">{t('search.clubDescription')}</p>
       </div>
 
       <form className="club-search-form" onSubmit={handleSubmit}>
-        <label className="sr-only" htmlFor="club-search">Nom del club</label>
+        <label className="sr-only" htmlFor="club-search">{t('search.fieldClub')}</label>
         <div className="club-search-input-wrap">
           <Search size={17} aria-hidden="true" />
           <input
@@ -73,38 +73,38 @@ function ClubsSearchPage() {
               setInputValue(event.target.value)
               setValidationError('')
             }}
-            placeholder="Cerca per nom..."
+            placeholder={t('search.byName')}
             autoComplete="off"
             aria-describedby="club-search-help"
           />
         </div>
         <button className="primary-button" type="submit" disabled={!canSearch}>
-          Cercar
+          {t('common.search')}
         </button>
       </form>
       <p id="club-search-help" className="search-summary" aria-live="polite">
-        {validationError || 'Introdueix com a mínim 2 caràcters.'}
+        {validationError || t('overview.minCharacters')}
       </p>
 
       {!hasQuery ? (
         <p className="club-state card" role="status">
-          Escriu el nom d’un club per començar la cerca.
+          {t('search.writeClub')}
         </p>
       ) : query.length < 2 ? (
-        <p className="club-state card" role="alert">{'Introdueix com a mínim 2 caràcters.'}</p>
+        <p className="club-state card" role="alert">{t('overview.minCharacters')}</p>
       ) : loading ? (
-        <p className="club-state card" role="status" aria-live="polite">Cercant clubs...</p>
+        <p className="club-state card" role="status" aria-live="polite">{t('search.searchingClubs')}</p>
       ) : error ? (
         <div className="club-state card" role="alert">
-          <p>No s’han pogut carregar els clubs. Torna-ho a provar.</p>
-          <button className="secondary-button" type="button" onClick={retry}>Reintenta</button>
+          <p>{t('search.clubsLoadError')}</p>
+          <button className="secondary-button" type="button" onClick={retry}>{t('common.retry')}</button>
         </div>
       ) : clubs.length === 0 ? (
         <p className="club-state card" role="status">
-          No s’han trobat clubs per a «{query}».
+          {t('search.noClubs', { query })}
         </p>
       ) : (
-        <ul className="club-result-list" aria-label="Clubs trobats">
+        <ul className="club-result-list" aria-label={t('search.resultsClubs')}>
           {clubs.map((club) => (
             <li key={club.id} className="club-result card">
               <Link
@@ -114,12 +114,12 @@ function ClubsSearchPage() {
                 <span>
                   <strong>{club.name}</strong>
                   <span className="club-source">
-                    {displaySources(club).length > 1 ? 'Fonts' : 'Font'}:{' '}
+                    {displaySources(club).length > 1 ? t('common.sources') : t('common.source')}:{' '}
                     {displaySources(club).join(', ')}
                   </span>
                   {club.playerCount !== undefined ? (
                     <span className="club-source">
-                      {club.playerCount} jugadors · {club.seasons?.length ?? 0} temporades
+                      {t('search.playerCount', { count: club.playerCount, seasons: club.seasons?.length ?? 0 })}
                     </span>
                   ) : null}
                 </span>

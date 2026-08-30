@@ -4,6 +4,7 @@ import { Link, useLocation, useSearchParams, useParams } from 'react-router-dom'
 import { routePaths } from '../config/routes.js'
 import { useAuth } from '../context/useAuth.js'
 import { useClubDetails } from '../hooks/useClubs.js'
+import { useTranslation } from 'react-i18next'
 
 const VIEWS = {
   PLAYERS: 'players',
@@ -26,21 +27,22 @@ function ClubDetailPage() {
   const { hasRole } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const { data: club, loading, error, retry } = useClubDetails(clubId)
+  const { t } = useTranslation()
   const requestedView = searchParams.get('view')
   const view = requestedView === VIEWS.PLAYERS ? VIEWS.PLAYERS : VIEWS.MATCHES
   const successMessage = searchParams.get('message') || location.state?.successMessage
 
   if (loading) {
-    return <p className="club-state card" role="status" aria-live="polite">Carregant el club...</p>
+    return <p className="club-state card" role="status" aria-live="polite">{t('detail.loadingClub')}</p>
   }
 
   if (error?.status === 404 || error?.status === 400) {
     return (
       <section className="page-block" role="alert" aria-labelledby="club-not-found-title">
-        <p className="section-label">Clubs</p>
-        <h1 id="club-not-found-title" className="page-title">Club no trobat</h1>
-        <p className="page-description">El club sol·licitat no existeix o l’identificador no és vàlid.</p>
-        <Link className="secondary-button" to={routePaths.clubs}>Torna a la cerca</Link>
+        <p className="section-label">{t('common.clubs')}</p>
+        <h1 id="club-not-found-title" className="page-title">{t('detail.clubNotFound')}</h1>
+        <p className="page-description">{t('detail.clubNotFoundDescription')}</p>
+        <Link className="secondary-button" to={routePaths.clubs}>{t('detail.backSearch')}</Link>
       </section>
     )
   }
@@ -48,9 +50,9 @@ function ClubDetailPage() {
   if (error || !club) {
     return (
       <section className="page-block" role="alert" aria-labelledby="club-error-title">
-        <h1 id="club-error-title" className="page-title">No s’ha pogut carregar el club</h1>
-        <p className="page-description">Hi ha hagut un problema en consultar aquesta informació.</p>
-        <button className="secondary-button" type="button" onClick={retry}>Reintenta</button>
+        <h1 id="club-error-title" className="page-title">{t('detail.clubLoadError')}</h1>
+        <p className="page-description">{t('detail.clubLoadDescription')}</p>
+        <button className="secondary-button" type="button" onClick={retry}>{t('common.retry')}</button>
       </section>
     )
   }
@@ -63,6 +65,7 @@ function ClubDetailPage() {
       setSearchParams={setSearchParams}
       isAdmin={hasRole('ADMIN')}
       successMessage={successMessage}
+      t={t}
     />
   )
 }
@@ -74,6 +77,7 @@ function ClubDetailContent({
   setSearchParams,
   isAdmin,
   successMessage,
+  t,
 }) {
   const sources = uniqueSorted([
     ...displaySources(club),
@@ -184,17 +188,17 @@ function ClubDetailContent({
       {successMessage ? <p className="form-success" role="status">{successMessage}</p> : null}
       <div className="club-detail-header">
         <div>
-          <p className="section-label">Identitat del club</p>
+          <p className="section-label">{t('detail.identityClub')}</p>
           <h1 id="club-detail-title" className="page-title">{club.name}</h1>
           <p className="club-source">
-            {displaySources(club).length > 1 ? 'Fonts' : 'Font'}:{' '}
+            {displaySources(club).length > 1 ? t('common.sources') : t('common.source')}:{' '}
             {displaySources(club).join(', ')}
           </p>
           {club.federatedClubs?.length ? (
             <p className="club-source">
-              Registres federats: {club.federatedClubs
+              {t('detail.federatedRecords', { records: club.federatedClubs
                 .map((federatedClub) => `${federatedClub.name} (${federatedClub.source})`)
-                .join(', ')}
+                .join(', ') })}
             </p>
           ) : null}
         </div>
@@ -203,13 +207,13 @@ function ClubDetailContent({
             className="secondary-button"
             to={routePaths.clubEdit(club.id, searchParams)}
           >
-            <Edit3 size={16} aria-hidden="true" /> Edita el club
+            <Edit3 size={16} aria-hidden="true" /> {t('detail.editClub')}
           </Link>
         ) : null}
       </div>
 
       <div className="club-controls">
-        <div className="club-tabs" role="tablist" aria-label="Vistes del club">
+        <div className="club-tabs" role="tablist" aria-label={t('detail.clubViews')}>
           <button
             className={`club-tab${view === VIEWS.PLAYERS ? ' is-active' : ''}`}
             type="button"
@@ -218,7 +222,7 @@ function ClubDetailContent({
             aria-controls="club-tabpanel"
             onClick={() => updateFilters({ view: VIEWS.PLAYERS })}
           >
-            <Users size={16} aria-hidden="true" /> Jugadors
+            <Users size={16} aria-hidden="true" /> {t('common.players')}
           </button>
           <button
             className={`club-tab${view === VIEWS.MATCHES ? ' is-active' : ''}`}
@@ -228,12 +232,12 @@ function ClubDetailContent({
             aria-controls="club-tabpanel"
             onClick={() => updateFilters({ view: VIEWS.MATCHES })}
           >
-            <Swords size={16} aria-hidden="true" /> Partits
+            <Swords size={16} aria-hidden="true" /> {t('common.matches')}
           </button>
         </div>
         <div className="club-filters">
           <label className="club-filter">
-            <span>Font</span>
+            <span>{t('common.source')}</span>
             <select
               value={allSourcesSelected ? ALL_SOURCES : sourceFilter}
               onChange={(event) => updateFilters({
@@ -242,12 +246,12 @@ function ClubDetailContent({
                 competition: '',
               })}
             >
-              <option value={ALL_SOURCES}>Totes les fonts</option>
+              <option value={ALL_SOURCES}>{t('detail.allSources')}</option>
               {sources.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
           </label>
           <label className="club-filter">
-            <span>Temporada</span>
+            <span>{t('common.season')}</span>
             <select
               value={allSeasonsSelected ? ALL_SEASONS : season}
               onChange={(event) => {
@@ -258,18 +262,18 @@ function ClubDetailContent({
                 updateFilters({ season: nextSeason, competition: nextCompetition })
               }}
             >
-              <option value={ALL_SEASONS}>Totes les temporades</option>
-              {availableSeasons.length === 0 ? <option value="">Sense temporades</option> : null}
+              <option value={ALL_SEASONS}>{t('detail.allSeasons')}</option>
+              {availableSeasons.length === 0 ? <option value="">{t('detail.noSeasons')}</option> : null}
               {availableSeasons.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
           </label>
           <label className="club-filter">
-            <span>Competició</span>
+            <span>{t('common.competition')}</span>
             <select
               value={competition}
               onChange={(event) => updateFilters({ competition: event.target.value })}
             >
-              <option value="">Totes les competicions</option>
+              <option value="">{t('detail.allCompetitions')}</option>
               {availableCompetitions.map((option) => (
                 <option key={`${option.season}-${option.name}`} value={option.name}>{option.name}</option>
               ))}
@@ -278,27 +282,27 @@ function ClubDetailContent({
         </div>
       </div>
 
-      <div id="club-tabpanel" role="tabpanel" aria-label={view === VIEWS.PLAYERS ? 'Jugadors' : 'Partits'}>
+      <div id="club-tabpanel" role="tabpanel" aria-label={view === VIEWS.PLAYERS ? t('common.players') : t('common.matches')}>
         {view === VIEWS.PLAYERS
-          ? <PlayersPanel players={players} />
-          : <CompetitionsPanel club={club} competitions={filteredCompetitions} returnSearch={searchParams.toString()} />}
+          ? <PlayersPanel players={players} t={t} />
+          : <CompetitionsPanel club={club} competitions={filteredCompetitions} returnSearch={searchParams.toString()} t={t} />}
       </div>
     </section>
   )
 }
 
-function PlayersPanel({ players }) {
+function PlayersPanel({ players, t }) {
   return (
     <section className="club-detail-section" aria-labelledby="club-players-title">
-      <h2 id="club-players-title">Jugadors</h2>
+      <h2 id="club-players-title">{t('common.players')}</h2>
       {players.length === 0 ? (
-        <p className="club-empty card">No hi ha jugadors registrats per als filtres seleccionats.</p>
+        <p className="club-empty card">{t('detail.registeredPlayersEmpty')}</p>
       ) : (
-        <ul className="club-player-list" aria-label="Jugadors del club">
+        <ul className="club-player-list" aria-label={t('detail.clubPlayers')}>
           {players.map((player) => (
             <li key={player.playerSeasonId} className="club-player-card card">
               <strong>{player.playerName ?? player.registrationName}</strong>
-              <span>{player.registrationName} · Temporada: {player.season} · Llicència: {player.license}</span>
+              <span>{player.registrationName} · {t('common.season')}: {player.season} · {t('common.license')}: {player.license}</span>
             </li>
           ))}
         </ul>
@@ -307,14 +311,14 @@ function PlayersPanel({ players }) {
   )
 }
 
-function CompetitionsPanel({ club, competitions, returnSearch }) {
+function CompetitionsPanel({ club, competitions, returnSearch, t }) {
   return (
     <section className="club-detail-section" aria-labelledby="club-competitions-title">
-      <h2 id="club-competitions-title">Competicions</h2>
+      <h2 id="club-competitions-title">{t('common.competitions')}</h2>
       {competitions.length === 0 ? (
-        <p className="club-empty card">No hi ha resums de competició disponibles per als filtres seleccionats.</p>
+        <p className="club-empty card">{t('detail.competitionsEmpty')}</p>
       ) : (
-        <ul className="club-competition-list" aria-label="Competicions del club">
+        <ul className="club-competition-list" aria-label={t('detail.clubCompetitions')}>
           {competitions.map((competition) => (
             <li key={`${competition.name}-${competition.season}`}>
               <Link
@@ -331,7 +335,7 @@ function CompetitionsPanel({ club, competitions, returnSearch }) {
                   <span>{competition.season}</span>
                 </span>
                 <span className="club-competition-summary">
-                  {competition.matchCount} partits disponibles · {competition.resultTotals.wins ?? 0}V /{' '}
+                  {t('detail.matchesAvailable', { count: competition.matchCount })} · {competition.resultTotals.wins ?? 0}V /{' '}
                   {competition.resultTotals.draws ?? 0}E / {competition.resultTotals.losses ?? 0}D
                 </span>
               </Link>

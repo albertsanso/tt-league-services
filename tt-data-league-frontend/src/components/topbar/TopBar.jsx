@@ -3,9 +3,11 @@ import { useAppState } from '../../context/useAppState.js'
 import Breadcrumb from './Breadcrumb.jsx'
 import NotificationBell from './NotificationBell.jsx'
 import UserDropdown from './UserDropdown.jsx'
+import { useTranslation } from 'react-i18next'
 
 function TopBar() {
   const { isMobile, toggleSidebar, isMobileDrawerOpen } = useAppState()
+  const { t } = useTranslation()
 
   return (
     <header className="topbar">
@@ -15,10 +17,10 @@ function TopBar() {
           className="icon-button"
           aria-label={
             isMobile && isMobileDrawerOpen
-              ? 'Tancar menú principal'
+              ? t('navigation.closeMain')
               : isMobile
-                ? 'Obrir menú principal'
-                : 'Alternar barra lateral'
+                ? t('navigation.openMain')
+                : t('navigation.toggle')
           }
           aria-expanded={isMobile ? isMobileDrawerOpen : undefined}
           aria-controls={isMobile ? 'mobile-sidebar' : undefined}

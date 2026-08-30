@@ -1,13 +1,15 @@
 import { ChevronRight } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { getBreadcrumbItems } from '../../config/routes.js'
+import { useTranslation } from 'react-i18next'
 
 function Breadcrumb() {
   const location = useLocation()
+  const { t } = useTranslation()
   const items = getBreadcrumbItems(location.pathname, location.search)
 
   return (
-    <nav className="breadcrumb" aria-label="Fil d'Ariadna">
+    <nav className="breadcrumb" aria-label={t('navigation.breadcrumb')}>
       <ol>
         {items.map((item, index) => {
           const isLast = index === items.length - 1

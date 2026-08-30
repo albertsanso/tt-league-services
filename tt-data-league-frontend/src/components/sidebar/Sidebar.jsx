@@ -4,6 +4,7 @@ import { navigationSections } from '../../config/navigation.js'
 import { getRouteMeta } from '../../config/routes.js'
 import { useAppState } from '../../context/useAppState.js'
 import { useAuth } from '../../context/useAuth.js'
+import { useTranslation } from 'react-i18next'
 import { isRouteActive } from './routeMatching.js'
 import SidebarFooter from './SidebarFooter.jsx'
 import SidebarItem from './SidebarItem.jsx'
@@ -20,6 +21,7 @@ function Sidebar({ variant }) {
     toggleSidebar,
   } = useAppState()
   const { hasPermission } = useAuth()
+  const { t } = useTranslation()
   const isMobileVariant = variant === 'mobile'
   const collapsed = isMobileVariant ? false : isSidebarCollapsed
 
@@ -39,7 +41,7 @@ function Sidebar({ variant }) {
   return (
     <aside
       className={className}
-      aria-label="Barra lateral"
+      aria-label={t('navigation.sidebar')}
       id={isMobileVariant ? 'mobile-sidebar' : 'desktop-sidebar'}
     >
       <div className="sidebar-header">
@@ -55,7 +57,7 @@ function Sidebar({ variant }) {
           <button
             type="button"
             className="sidebar-control"
-            aria-label="Tancar menú"
+            aria-label={t('navigation.close')}
             onClick={closeMobileDrawer}
           >
             <X size={18} strokeWidth={1.5} />
@@ -66,7 +68,7 @@ function Sidebar({ variant }) {
           <button
             type="button"
             className="sidebar-control"
-            aria-label={collapsed ? 'Expandir barra lateral' : 'Col·lapsar barra lateral'}
+            aria-label={collapsed ? t('navigation.expand') : t('navigation.collapse')}
             onClick={toggleSidebar}
           >
             <ChevronLeft
@@ -78,10 +80,10 @@ function Sidebar({ variant }) {
         ) : null}
       </div>
 
-      <nav className="sidebar-nav" aria-label="Navegació principal">
+      <nav className="sidebar-nav" aria-label={t('navigation.main')}>
         {navigationSections.map((section) => (
           <div key={section.id} className="sidebar-group">
-            <SidebarSectionLabel collapsed={collapsed} label={section.label} />
+            <SidebarSectionLabel collapsed={collapsed} label={t(section.labelKey)} />
             {section.items.filter((item) => (
               item.disabled
               || !getRouteMeta(item.path).permission
@@ -89,7 +91,7 @@ function Sidebar({ variant }) {
             )).map((item) => (
               <SidebarItem
                 key={item.id}
-                item={item}
+                item={{ ...item, label: t(item.labelKey), badge: item.badgeKey ? t(item.badgeKey) : item.badge }}
                 collapsed={collapsed}
                 isActive={isRouteActive(location.pathname, item.path)}
                 onSelect={isMobileVariant ? closeMobileDrawer : undefined}

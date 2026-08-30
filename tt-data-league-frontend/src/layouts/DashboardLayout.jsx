@@ -3,11 +3,13 @@ import { Outlet, useLocation } from 'react-router-dom'
 import Sidebar from '../components/sidebar/Sidebar.jsx'
 import TopBar from '../components/topbar/TopBar.jsx'
 import { useAppState } from '../context/useAppState.js'
+import { useTranslation } from 'react-i18next'
 
 function DashboardLayout() {
   const location = useLocation()
   const { closeMobileDrawer, closeUserDropdown, isMobile, isMobileDrawerOpen } =
     useAppState()
+  const { t } = useTranslation()
 
   useEffect(() => {
     closeMobileDrawer()
@@ -30,7 +32,7 @@ function DashboardLayout() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main-content">
-        Vés al contingut principal
+        {t('shell.skip')}
       </a>
       <Sidebar variant="desktop" />
       <Sidebar variant="mobile" />
@@ -43,14 +45,14 @@ function DashboardLayout() {
           </div>
         </main>
         <footer className="app-footer">
-          <p>TT League · Projecte lliure per a la comunitat del tennis de taula.</p>
+          <p>{t('shell.footer')}</p>
         </footer>
       </div>
 
       {isMobileDrawerOpen ? (
         <button
           type="button"
-          aria-label="Tancar menú de navegació"
+          aria-label={t('shell.closeNavigation')}
           className="mobile-backdrop"
           onClick={closeMobileDrawer}
         />

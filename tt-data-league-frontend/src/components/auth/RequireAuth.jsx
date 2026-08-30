@@ -1,10 +1,12 @@
 import { Navigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/useAuth.js'
 
 function GuardLoader() {
+  const { t } = useTranslation()
   return (
     <div className="route-loader" role="status" aria-live="polite">
-      Comprovant la sessió...
+      {t('shell.checkingSession')}
     </div>
   )
 }

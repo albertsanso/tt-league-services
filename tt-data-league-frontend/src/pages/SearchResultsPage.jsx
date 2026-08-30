@@ -1,37 +1,36 @@
 import { useSearchParams } from 'react-router-dom'
 import Badge from '../components/ui/Badge.jsx'
 import SectionLabel from '../components/ui/SectionLabel.jsx'
+import { useTranslation } from 'react-i18next'
 
 function SearchResultsPage() {
   const [searchParams] = useSearchParams()
   const query = (searchParams.get('q') || '').trim()
   const hasMinimumQuery = query.length >= 2
+  const { t } = useTranslation()
 
   return (
     <section className="page-block">
-      <h1 className="page-title">Resultats de cerca</h1>
-      <p className="search-summary">
-        Consulta transversal de clubs, jugadors i partits a partir del teu criteri.
-      </p>
+      <h1 className="page-title">{t('results.title')}</h1>
+      <p className="search-summary">{t('results.summary')}</p>
 
-      <SectionLabel>Consulta actual</SectionLabel>
+      <SectionLabel>{t('results.current')}</SectionLabel>
       <article className="placeholder-panel card">
         {hasMinimumQuery ? (
           <>
             <p className="search-summary">
-              Cercant per: <span className="search-term">{query}</span>
+              {t('results.searching', { query })}
             </p>
             <p>
-              El mòdul de resultats s&apos;integrarà amb <code>/api/cerca</code> en fases
-              posteriors.
+              {t('results.future', { endpoint: '/api/cerca' })}
             </p>
           </>
         ) : (
           <>
-            <p>Introdueix un terme de cerca de 2 caràcters o més.</p>
+            <p>{t('results.enter')}</p>
             <p>
-              Exemple: <span className="search-term">terrassa</span>{' '}
-              <Badge tone="warning">mínim 2</Badge>
+              {t('results.example', { term: 'terrassa' })}{' '}
+              <Badge tone="warning">{t('results.minimum')}</Badge>
             </p>
           </>
         )}

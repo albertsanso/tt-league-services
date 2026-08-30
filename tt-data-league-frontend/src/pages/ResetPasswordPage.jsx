@@ -3,9 +3,11 @@ import { Link, useLocation } from 'react-router-dom'
 import AuthField from '../components/auth/AuthField.jsx'
 import AuthLayout from '../components/auth/AuthLayout.jsx'
 import { useAuth } from '../context/useAuth.js'
+import { useTranslation } from 'react-i18next'
 
 function ResetPasswordPage() {
   const { changePassword } = useAuth()
+  const { t } = useTranslation()
   const location = useLocation()
   const token = new URLSearchParams(location.search).get('token') ?? ''
   const [password, setPassword] = useState('')
@@ -18,7 +20,7 @@ function ResetPasswordPage() {
     event.preventDefault()
     setError('')
     if (password !== confirmation) {
-      setError('Les contrasenyes no coincideixen.')
+      setError(t('auth.passwordMismatch'))
       return
     }
     setSubmitting(true)
@@ -34,19 +36,19 @@ function ResetPasswordPage() {
 
   return (
     <AuthLayout
-      title="Nova contrasenya"
-      description="Tria una contrasenya nova per al teu compte."
+      title={t('auth.newPassword')}
+      description={t('auth.newPasswordDescription')}
     >
       {complete ? (
         <p className="form-success" role="status">
-          La contrasenya s’ha actualitzat. Ja pots iniciar sessió.
+          {t('auth.passwordUpdated')}
         </p>
       ) : (
         <form className="auth-form" onSubmit={handleSubmit}>
           {error ? <p className="form-error" role="alert">{error}</p> : null}
           <AuthField
             id="password"
-            label="Nova contrasenya"
+            label="auth.newPassword"
             type="password"
             value={password}
             onChange={(event) => setPassword(event.target.value)}
@@ -54,19 +56,19 @@ function ResetPasswordPage() {
           />
           <AuthField
             id="confirmation"
-            label="Repeteix la contrasenya"
+            label="auth.repeatPassword"
             type="password"
             value={confirmation}
             onChange={(event) => setConfirmation(event.target.value)}
             autoComplete="new-password"
           />
           <button className="primary-button auth-submit" type="submit" disabled={isSubmitting || !token}>
-            {isSubmitting ? 'Actualitzant...' : 'Actualitza contrasenya'}
+            {isSubmitting ? t('auth.updating') : t('auth.updatePassword')}
           </button>
         </form>
       )}
       <div className="auth-links">
-        <Link to="/login">Torna a l’inici de sessió</Link>
+        <Link to="/login">{t('auth.backLogin')}</Link>
       </div>
     </AuthLayout>
   )

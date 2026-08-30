@@ -2,9 +2,11 @@ import { Search } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import SectionLabel from '../ui/SectionLabel.jsx'
+import { useTranslation } from 'react-i18next'
 
 function GlobalSearch() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
 
@@ -18,8 +20,8 @@ function GlobalSearch() {
 
   const canSearch = query.trim().length >= 2
   const helperMessage = canSearch
-    ? 'Prem Enter o fes clic a Cercar.'
-    : 'Introdueix com a mínim 2 caràcters.'
+    ? t('overview.searchHint')
+    : t('overview.minCharacters')
 
   function onSubmit(event) {
     event.preventDefault()
@@ -34,11 +36,11 @@ function GlobalSearch() {
 
   return (
     <section>
-      <SectionLabel>Cerca global</SectionLabel>
+      <SectionLabel>{t('overview.globalSearch')}</SectionLabel>
       <form className="global-search-form" onSubmit={onSubmit}>
         <div className="global-search-field">
           <label className="sr-only" htmlFor="global-search">
-            Cerca clubs, jugadors o partits
+            {t('overview.searchLabel')}
           </label>
           <Search className="global-search-icon" size={16} strokeWidth={1.5} aria-hidden="true" />
           <input
@@ -47,7 +49,7 @@ function GlobalSearch() {
             type="search"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Cerca clubs, jugadors o partits..."
+            placeholder={t('overview.searchPlaceholder')}
             autoComplete="off"
             aria-describedby="global-search-help"
           />
@@ -56,7 +58,7 @@ function GlobalSearch() {
           </p>
         </div>
         <button className="primary-button" type="submit" disabled={!canSearch}>
-          Cercar
+          {t('common.search')}
         </button>
       </form>
     </section>

@@ -8,6 +8,7 @@ import {
 } from './components/auth/RequireAuth.jsx'
 import { getRouteMeta } from './config/routes.js'
 import DashboardLayout from './layouts/DashboardLayout.jsx'
+import { useTranslation } from 'react-i18next'
 
 const OverviewPage = lazy(() => import('./pages/OverviewPage.jsx'))
 const ClubsSearchPage = lazy(() => import('./pages/ClubsSearchPage.jsx'))
@@ -26,9 +27,10 @@ const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage.jsx'))
 const ForbiddenPage = lazy(() => import('./pages/ForbiddenPage.jsx'))
 
 function RouteLoader() {
+  const { t } = useTranslation()
   return (
     <div className="route-loader" role="status" aria-live="polite">
-      Carregant contingut...
+      {t('shell.loading')}
     </div>
   )
 }

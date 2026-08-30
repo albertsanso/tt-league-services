@@ -1,17 +1,16 @@
 import { Link } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 function AnalyticsBanner() {
+  const { t } = useTranslation()
   return (
     <section className="analytics-banner">
       <div>
-        <h2 className="analytics-title">Analítica avançada</h2>
-        <p className="analytics-description">
-          Aviat podràs analitzar, comparar i descobrir patrons amb suport
-          d&apos;intel·ligència artificial.
-        </p>
+        <h2 className="analytics-title">{t('overview.analytics')}</h2>
+        <p className="analytics-description">{t('overview.analyticsDescription')}</p>
       </div>
       <Link className="analytics-button" to="/settings">
-        Més informació
+        {t('overview.moreInformation')}
       </Link>
     </section>
   )

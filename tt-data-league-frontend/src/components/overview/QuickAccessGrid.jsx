@@ -1,35 +1,37 @@
 import { Building2, Swords, Users } from 'lucide-react'
 import SectionLabel from '../ui/SectionLabel.jsx'
 import QuickAccessCard from './QuickAccessCard.jsx'
+import { useTranslation } from 'react-i18next'
 
 const quickAccessItems = [
   {
-    title: 'Cerca de clubs',
-    description: 'Troba clubs, equips i resultats per categoria.',
+    title: 'navigation.clubs',
+    description: 'overview.findClubs',
     path: '/clubs',
     icon: Building2,
   },
   {
-    title: 'Cerca de jugadors',
-    description: 'Consulta rendiment i estadístiques dels jugadors.',
+    title: 'navigation.players',
+    description: 'overview.findPlayers',
     path: '/jugadors',
     icon: Users,
   },
   {
-    title: 'Cerca de partits',
-    description: 'Busca partits per data, competició o jugador.',
+    title: 'navigation.matches',
+    description: 'overview.findMatches',
     path: '/partits',
     icon: Swords,
   },
 ]
 
 function QuickAccessGrid() {
+  const { t } = useTranslation()
   return (
     <section>
-      <SectionLabel>Accés ràpid</SectionLabel>
+      <SectionLabel>{t('overview.quickAccess')}</SectionLabel>
       <div className="quick-access-grid">
         {quickAccessItems.map((item) => (
-          <QuickAccessCard key={item.path} item={item} />
+          <QuickAccessCard key={item.path} item={{ ...item, title: t(item.title), description: t(item.description) }} />
         ))}
       </div>
     </section>

@@ -23,6 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00017: support i18n](### [FEAT-00017] support i18n)
 - [FEAT-00016: Some fixes in Player details 1](### [FEAT-00016] Some fixes in Player details 1)
 - [FEAT-00015: player opponent analisys - review 1](### [FEAT-00015] player opponent analisys - review 1)
 - [FEAT-00014: Define layout for Player details](### [FEAT-00014] Define layout for Player details)
@@ -48,8 +49,39 @@ No features currently in progress.
 
 ## In Review
 
-### [FEAT-00016] Some fixes in Player details 1
+### [FEAT-00017] support i18n
 - **Status:** in-review
+- **Priority:** medium
+- **Effort:** large (> 8h)
+- **Depends on:** —
+
+#### Goal
+Enable the application to support multiple user interface languages without duplicating presentation logic.
+
+Use react-i18next library to manage translations and provide a mechanism for users to select their preferred language.
+
+Review all current literal strings in the application and replace them with translation keys, ensuring that all user-facing text is translatable.
+
+#### Acceptance Criteria
+- [x] User-facing application text is managed through an internationalization mechanism rather than hard-coded in views.
+- [x] Users can select a supported language and the selected language is applied consistently across the application.
+- [x] A documented default language and fallback behavior are provided for missing translations.
+- [x] The application supports at least three languages: catalan, spanish, and english, with the ability to add more languages in the future.
+- [x] All current literal strings in the application are replaced with translation keys, and corresponding translation files are created for each supported language.
+
+#### Feature Details
+→ See [FEAT-00017-DETAILS.md](./FEAT-00017-DETAILS.md) for the detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+## Backlog
+
+No features currently in backlog.
+
+## Done
+
+### [FEAT-00016] Some fixes in Player details 1
+- **Status:** done
 - **Priority:** medium
 - **Effort:** small (< 2h)
 - **Depends on:** —
@@ -69,14 +101,6 @@ Implement the planned Player details and Players search fixes described in [FEAT
 Validated 2026-08-30: frontend tests (58), lint, and production build passed.
 
 ---
-
-## Backlog
-
-No features currently in backlog.
-
----
-
-## Done
 
 ### [FEAT-00015] player opponent analisys - review 1
 - **Status:** done

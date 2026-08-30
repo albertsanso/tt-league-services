@@ -31,6 +31,21 @@ Durant el desenvolupament, les peticions `/api` es redirigeixen a
 configuració `VITE_API_PROXY_TARGET`; no hi poseu credencials. En producció les
 peticions continuen sent relatives i same-origin.
 
+## Idiomes i traduccions
+
+La interfície utilitza i18next i té el català (`ca`) com a idioma predeterminat,
+amb castellà (`es`) i anglès (`en`) disponibles. L'idioma es pot canviar des de
+**Configuració > Preferències > Idioma**; la selecció es desa a
+`localStorage` (`tt-league.locale`). Els valors no admesos o els errors d'accés
+a l'emmagatzematge tornen al català, que també és el fallback per a claus
+absents.
+
+Les claus semàntiques i els recursos són a `src/i18n/ca.js`, `es.js` i `en.js`.
+No poseu literals d'interfície als components: afegiu una clau a tots els
+recursos i useu `t('namespace.key')`, amb interpolació per a valors dinàmics.
+Per afegir un idioma, creeu el seu recurs, registreu el codi a
+`src/i18n/index.js` i afegiu-lo al selector de configuració.
+
 La sessió es desa només a `sessionStorage` i s'elimina en tancar sessió o quan
 l'API respon `401`. La recuperació de contrasenya usa el flux d'email del
 backend i no mostra mai el token a la interfície.

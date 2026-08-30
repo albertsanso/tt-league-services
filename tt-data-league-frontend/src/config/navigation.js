@@ -11,29 +11,29 @@ import { routePaths } from './routes.js'
 export const navigationSections = [
   {
     id: 'navegacio',
-    label: 'Navegació',
+    labelKey: 'navigation.sectionNavigation',
     items: [
       {
         id: 'overview',
-        label: 'Overview',
+        labelKey: 'navigation.overview',
         path: routePaths.home,
         icon: LayoutDashboard,
       },
       {
         id: 'clubs',
-        label: 'Cerca de clubs',
+        labelKey: 'navigation.clubs',
         path: routePaths.clubs,
         icon: Building2,
       },
       {
         id: 'jugadors',
-        label: 'Cerca de jugadors',
+        labelKey: 'navigation.players',
         path: routePaths.players(),
         icon: Users,
       },
       {
         id: 'partits',
-        label: 'Cerca de partits',
+        labelKey: 'navigation.matches',
         path: '/partits',
         icon: Swords,
       },
@@ -41,19 +41,19 @@ export const navigationSections = [
   },
   {
     id: 'analisi',
-    label: 'Anàlisi',
+    labelKey: 'navigation.sectionAnalysis',
     items: [
       {
         id: 'analytics',
-        label: 'Analytics',
+        labelKey: 'navigation.analytics',
         path: '/analytics',
         icon: BarChart3,
         disabled: true,
-        badge: 'Aviat',
+        badgeKey: 'common.soon',
       },
       {
         id: 'configuracio',
-        label: 'Configuració',
+        labelKey: 'navigation.settings',
         path: '/settings',
         icon: Settings,
       },

@@ -1,12 +1,14 @@
 import { Bell } from 'lucide-react'
 import { useAppState } from '../../context/useAppState.js'
+import { useTranslation } from 'react-i18next'
 
 function NotificationBell() {
   const { notificationCount, acknowledgeNotifications } = useAppState()
+  const { t } = useTranslation()
   const hasNotifications = notificationCount > 0
   const label = hasNotifications
-    ? `${notificationCount} notificacions pendents`
-    : 'Sense notificacions pendents'
+    ? t('notification.pending', { count: notificationCount })
+    : t('notification.none')
 
   return (
     <div className="notification-wrap">
