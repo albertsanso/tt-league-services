@@ -1139,7 +1139,7 @@
   gap: 1rem;
   min-height: 13rem;
   overflow-x: auto;
-  padding: 1.25rem;
+  padding: 1.25rem 1.25rem 2.25rem 3.25rem;
 }
 
 .chart-type-selector {
@@ -1168,7 +1168,9 @@
 
 .chart-axis-y {
   top: 0.45rem;
-  left: 0.75rem;
+  left: 1rem;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
 }
 
 .chart-axis-x {
@@ -1197,6 +1199,27 @@
   height: 14rem;
   max-height: 14rem;
   aspect-ratio: 640 / 220;
+}
+
+.chart-reference-grid {
+  position: absolute;
+  inset: 1.25rem 1.25rem 2.25rem 3.25rem;
+  pointer-events: none;
+}
+
+.chart-reference-row {
+  position: absolute;
+  right: 0;
+  left: 0;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.chart-reference-row span {
+  position: absolute;
+  top: -0.55rem;
+  left: -2rem;
+  color: var(--text-secondary);
+  font-size: 0.65rem;
 }
 
 .chart-grid-line {
@@ -1228,7 +1251,8 @@
 }
 
 .chart-season-label,
-.chart-axis-label {
+.chart-axis-label,
+.chart-axis-tick {
   fill: var(--text-secondary);
   font-family: inherit;
   font-size: 10px;

@@ -28,6 +28,7 @@ const CHART_LABELS = {
   bar: 'Barres',
   'connected-scatter': 'Dispersió connectada',
 }
+const PERCENTAGE_TICKS = [0, 25, 50, 75, 100]
 const unique = (values) => [...new Set(values.filter(Boolean))].sort()
 const MATCHES_PER_PAGE = 10
 
@@ -193,8 +194,13 @@ function HistorySection({ statistics, competition, matches, chart, update }) {
     {values.length === 0 ? <p className="club-empty card" role="status">No hi ha dades estadístiques disponibles per als filtres seleccionats.</p> : (
       <>
         {chart === 'connected-scatter' ? <ConnectedScatterPlot values={chartValues} /> : (
-          <div className={`history-chart card chart-${chart}`} role="img" aria-label={`${CHART_LABELS[chart]} de partits i percentatge de victòries per temporada`}>
-            <span className="chart-axis chart-axis-y">Valor (partits, %)</span>
+          <div className={`history-chart card chart-${chart}`} role="img" aria-label={`${CHART_LABELS[chart]} de partits i percentatge de victòries per temporada. Escala vertical de percentatge de victòries del 0% al 100%.`}>
+            <div className="chart-reference-grid" aria-hidden="true">
+              {PERCENTAGE_TICKS.map((tick) => <span className="chart-reference-row" key={tick} style={{ bottom: `${tick}%` }}>
+                <span>{tick}%</span>
+              </span>)}
+            </div>
+            <span className="chart-axis chart-axis-y">Victòries (%)</span>
             {chartValues.map((item, index) => <div className="history-bar-group" key={`${item.source}-${item.season}-${index}`}>
               <div className="history-bars" aria-hidden="true">
                 <span className="history-bar matches" style={{ height: `${Math.max(8, Math.min(100, item.matchesPlayed * 12))}%` }} />
@@ -486,9 +492,15 @@ function ConnectedScatterPlot({ values }) {
     .join(' ')
 
   return <div className="history-chart history-connected-chart card chart-connected-scatter" role="img"
-    aria-label="Dispersió connectada: sèries de partits jugats i percentatge de victòries de totes les temporades seleccionades en un únic gràfic">
+    aria-label="Dispersió connectada: sèries de partits jugats i percentatge de victòries de totes les temporades seleccionades en un únic gràfic. Escala vertical de percentatge de victòries del 0% al 100%">
     <svg viewBox={`0 0 ${width} ${height}`} role="presentation" focusable="false" preserveAspectRatio="xMidYMid meet">
-      <line className="chart-grid-line" x1={padding.left} y1={padding.top + plotHeight} x2={width - padding.right} y2={padding.top + plotHeight} />
+      {PERCENTAGE_TICKS.map((tick) => {
+        const y = yWins(tick)
+        return <g key={tick}>
+          <line className="chart-grid-line percentage-grid-line" x1={padding.left} y1={y} x2={width - padding.right} y2={y} />
+          <text className="chart-axis-tick" x={padding.left - 6} y={y + 3} textAnchor="end">{tick}%</text>
+        </g>
+      })}
       <polyline className="chart-line matches-line" fill="none" points={matchesPoints} />
       {winsPoints && <polyline className="chart-line wins-line" fill="none" points={winsPoints} />}
       {values.map((item, index) => <g key={`${item.source}-${item.season}-${index}`}>
@@ -496,7 +508,7 @@ function ConnectedScatterPlot({ values }) {
         {item.winPercentage != null && <circle className="chart-point wins-point" cx={x(index)} cy={yWins(item.winPercentage)} r="3" />}
         <text className="chart-season-label" x={x(index)} y={height - 18} textAnchor="middle">{item.season || '—'}</text>
       </g>)}
-      <text className="chart-axis-label" x="10" y={padding.top + plotHeight / 2} textAnchor="middle" transform={`rotate(-90 10 ${padding.top + plotHeight / 2})`}>Valor</text>
+      <text className="chart-axis-label" x="10" y={padding.top + plotHeight / 2} textAnchor="middle" transform={`rotate(-90 10 ${padding.top + plotHeight / 2})`}>Victòries (%)</text>
       <text className="chart-axis-label" x={width / 2} y={height - 2} textAnchor="middle">Temporades</text>
     </svg>
   </div>

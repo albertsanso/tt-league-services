@@ -264,6 +264,28 @@ describe('PlayerDetailPage', () => {
     expect(chartGroups[1]).toHaveTextContent('2024-2025')
   })
 
+  it('shows a percentage scale and horizontal reference lines on standard charts', () => {
+    renderPage('/players/player-id')
+
+    const chart = document.querySelector('.history-chart')
+    expect(chart).toHaveAttribute('aria-label', expect.stringContaining('Escala vertical de percentatge de victòries del 0% al 100%'))
+    expect(chart.querySelector('.chart-axis-y')).toHaveTextContent('Victòries (%)')
+    expect([...chart.querySelectorAll('.chart-reference-row span')].map((label) => label.textContent))
+      .toEqual(['0%', '25%', '50%', '75%', '100%'])
+    expect(chart.querySelectorAll('.chart-reference-row')).toHaveLength(5)
+  })
+
+  it('shows the percentage scale and reference lines on connected scatter charts', () => {
+    renderPage('/players/player-id?chart=connected-scatter')
+
+    const chart = document.querySelector('.history-connected-chart')
+    expect(chart).toHaveAttribute('aria-label', expect.stringContaining('Escala vertical de percentatge de victòries del 0% al 100%'))
+    expect(chart.querySelector('.chart-axis-label')).toHaveTextContent('Victòries (%)')
+    expect(chart.querySelectorAll('.percentage-grid-line')).toHaveLength(5)
+    expect([...chart.querySelectorAll('.chart-axis-tick')].map((label) => label.textContent))
+      .toEqual(['0%', '25%', '50%', '75%', '100%'])
+  })
+
   it('sorts matches newest first and paginates after ten rows', () => {
     const matches = Array.from({ length: 11 }, (_, index) => ({
       ...details.matches[0],

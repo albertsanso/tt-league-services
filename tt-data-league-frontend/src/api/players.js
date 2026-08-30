@@ -18,6 +18,9 @@ function normalizePlayer(value) {
   if (value.sources != null && !Array.isArray(value.sources)) {
     throw new ApiError('La resposta conté fonts de jugador no vàlides.', 502, value)
   }
+  if (value.seasons != null && !Array.isArray(value.seasons)) {
+    throw new ApiError('La resposta conté temporades de jugador no vàlides.', 502, value)
+  }
   return {
     id: text(value.id, 'un identificador'),
     name: text(value.name, 'un nom'),
@@ -33,6 +36,9 @@ function normalizePlayer(value) {
       license: item.license == null ? null : text(item.license, 'una llicència'),
       source: item.source == null ? '—' : text(item.source, 'la font del context'),
     })),
+    seasons: (value.seasons ?? [])
+      .map((season) => text(String(season), 'una temporada de jugador'))
+      .sort((left, right) => right.localeCompare(left, 'ca', { numeric: true })),
   }
 }
 

@@ -48,8 +48,20 @@ No features currently in progress.
 
 ## In Review
 
+No features currently in review.
+
+---
+
+## Backlog
+
+No features currently in backlog.
+
+---
+
+## Done
+
 ### [FEAT-00016] Some fixes in Player details 1
-- **Status:** in-review
+- **Status:** done
 - **Priority:** medium
 - **Effort:** small (< 2h)
 - **Depends on:** —
@@ -80,6 +92,10 @@ row; and the competition selector is on the right of the second row.
 while the filtered request is loading instead of replacing the page with a
 full loading state. Review React context dependencies and the request reload
 strategy so the update does not look like a browser refresh.
+**Fix 15**: In the Player details Statistics Tab, the plot must show a
+percentage scale on the vertical axis instead of only **Valor**, with
+horizontal grey lines projecting the vertical-axis scale as a visual
+reference. Fixes 1-14 are already implemented.
 
 #### Acceptance Criteria
 - [x] In Player details, in Statistics Tab, the seasons list below the plot is sorted by season descending order, with the most recent season first.
@@ -100,6 +116,8 @@ strategy so the update does not look like a browser refresh.
   filtered request and does not replace it with a full-page loading state.
 - [x] React context dependencies and the request reload strategy do not cause
   unnecessary player-detail reloads.
+- [x] In the Player details Statistics Tab, the plot shows a percentage scale
+  on the vertical axis and horizontal grey reference lines for that scale.
 - [x] The plot x-axis is ordered by season ascending order, with the oldest season first, and the most recent season last. The plot is responsive, so that it adjusts to the available width of the **player detail content area**.
 - [x] In Matches Tab, the navigation buttons for the pagination of the matches list are smaller and aligned with the overall styling of the application.
 - [x] In Matches Tab, the pagination buttons and page counter use the common font size of the page.
@@ -107,15 +125,12 @@ strategy so the update does not look like a browser refresh.
 #### Feature Details
 → See [FEAT-00016-DETAILS.md](./FEAT-00016-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
+#### Completion Note
+Validated 2026-08-30: standard and connected-scatter charts show 0%, 25%,
+50%, 75%, and 100% vertical percentage ticks with grey horizontal reference
+lines. Focused tests, frontend `npm test` (56), lint, and build passed.
+
 ---
-
-## Backlog
-
-No features currently in backlog.
-
----
-
-## Done
 
 ### [FEAT-00015] player opponent analisys - review 1
 - **Status:** done

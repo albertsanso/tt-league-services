@@ -66,12 +66,14 @@ class PlayerControllerTest {
         when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(List.of(
                 new PlayerSearchReadModel(canonicalId, "Anna Canonical", canonicalId, List.of(
                         new PlayerFederatedReadModel(firstId, "Anna FCTT", "1", ImportSource.FCTT),
-                        new PlayerFederatedReadModel(secondId, "Anna RFETM", "2", ImportSource.RFETM))))));
+                        new PlayerFederatedReadModel(secondId, "Anna RFETM", "2", ImportSource.RFETM)),
+                        List.of("2024-2025", "2023-2024")))));
 
         PlayerDto result = ((List<PlayerDto>) controller.findPlayersByStringInName("Anna", null).getBody()).getFirst();
 
         assertEquals(canonicalId, result.id());
         assertEquals(List.of("FCTT", "RFETM"), result.sources());
+        assertEquals(List.of("2024-2025", "2023-2024"), result.seasons());
         assertEquals(2, result.federatedPlayers().size());
     }
 

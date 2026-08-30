@@ -1,7 +1,7 @@
 # Build Plan
 
-FEAT-00016 is in review. All thirteen requested Player Details fixes are
-implemented in the frontend.
+FEAT-00016 is done. Fixes 1–15 are implemented in the frontend; this document
+records the completed implementation plan.
 
 ## Implemented scope
 
@@ -45,6 +45,24 @@ implemented in the frontend.
 4. In `tt-data-league-frontend/src/hooks/usePlayers.test.jsx`:
    - tests verify that the previous player detail snapshot remains available
      while a replacement filter request is in flight.
+5. Fix 15 implementation — in
+   `tt-data-league-frontend/src/pages/PlayerDetailPage.jsx`:
+   - define a percentage-oriented vertical scale for the statistics plot,
+     including stable tick values from 0% through 100%;
+   - render the percentage tick labels instead of the generic `Valor` axis
+     label; and
+   - render horizontal grey guide lines aligned with those ticks without
+     changing the existing season ordering, responsive SVG sizing, or the
+     plotted series.
+6. In `tt-data-league-frontend/src/pages/PlayerDetailPage.test.jsx`, focused
+   assertions for the percentage tick labels, the grey horizontal guide lines,
+   and the unchanged ascending season order in the plot.
+7. Validate the frontend test, lint, and production-build commands, then
+   synchronize this plan and the registry criterion after Fix 15 is verified.
+
+   Fix 15 is implemented: both the standard and connected-scatter statistics
+   charts show 0%, 25%, 50%, 75%, and 100% vertical ticks with grey horizontal
+   reference lines, while preserving the existing plot series and season order.
 
 # Implementation Guidelines
 
@@ -55,6 +73,11 @@ implemented in the frontend.
 - Do not add backend, domain, persistence, configuration, dependency, or test
   framework changes.
 - Use the existing Catalan UI copy and keyboard-accessible native buttons.
+- Fix 15 is limited to the statistics plot presentation; do not change the
+  REST contract, statistics values, filters, or unrelated player-detail tabs.
+- Keep the vertical reference scale deterministic (0%, 25%, 50%, 75%, 100%),
+  use the existing chart styling tokens/classes where possible, and preserve
+  responsive sizing and accessible chart labelling.
 
 # Notes
 
@@ -79,6 +102,11 @@ implemented in the frontend.
 - Validation (2026-08-29): frontend tests, lint, and production build pass;
   selector controls stack to one column below 768px while retaining the
   mockup's two-row desktop layout.
+- Validation and completion (2026-08-30): Fix 15 was verified in both the
+  standard and connected-scatter PlayerDetailPage charts. Focused chart tests,
+  frontend `npm test` (56 tests), lint, and production build all passed.
+  The percentage ticks are 0%, 25%, 50%, 75%, and 100%, with grey horizontal
+  reference lines; no application code is changed by this SDD update.
 
 # Acceptance Criteria
 
@@ -101,6 +129,8 @@ implemented in the frontend.
   state.
 - [x] React context dependencies and the request reload strategy trigger only
   the intended filtered request for selector changes.
+- [x] In the Player details Statistics Tab, the plot shows a percentage scale
+  on the vertical axis and horizontal grey reference lines for that scale.
 - [x] The plot x-axis is ordered by season ascending order, with the oldest season first, and the most recent season last. The plot is responsive, so that it adjusts to the available width of the **player detail content area**.
 - [x] In Matches Tab, the navigation buttons for the pagination of the matches list are smaller and aligned with the overall styling of the application.
 - [x] In Matches Tab, the pagination buttons and page counter use the common font size of the page.

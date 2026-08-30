@@ -103,6 +103,7 @@ describe('player API boundary', () => {
       name: 'Anna Canonical',
       canonicalPlayerId: 'canonical-id',
       sources: ['FCTT', 'RFETM'],
+      seasons: ['2024-2025', '2023-2024'],
       federatedPlayers: [
         { id: 'fctt-id', name: 'Anna FCTT', license: '1', source: 'FCTT' },
         { id: 'rfetm-id', name: 'Anna RFETM', license: '2', source: 'RFETM' },
@@ -111,6 +112,7 @@ describe('player API boundary', () => {
 
     expect(players).toHaveLength(1)
     expect(players[0].sources).toEqual(['FCTT', 'RFETM'])
+    expect(players[0].seasons).toEqual(['2024-2025', '2023-2024'])
     expect(players[0].federatedPlayers).toHaveLength(2)
   })
 

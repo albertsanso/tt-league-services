@@ -5,7 +5,9 @@ import org.albertsanso.commons.query.DomainQueryResponse;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerFederatedReadModel;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerSearchReadModel;
 import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
+import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
+import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -20,10 +22,14 @@ public class FindFederatedPlayersByStringInNameQueryHandler
         extends DomainQueryHandler<FindFederatedPlayersByStringInNameQuery, List<PlayerSearchReadModel>> {
 
     private final FederatedPlayerRepository playerRepository;
+    private final PlayerSeasonRepository playerSeasonRepository;
 
     @Inject
-    public FindFederatedPlayersByStringInNameQueryHandler(FederatedPlayerRepository playerRepository) {
+    public FindFederatedPlayersByStringInNameQueryHandler(
+            FederatedPlayerRepository playerRepository,
+            PlayerSeasonRepository playerSeasonRepository) {
         this.playerRepository = playerRepository;
+        this.playerSeasonRepository = playerSeasonRepository;
     }
 
     @Override
@@ -67,6 +73,13 @@ public class FindFederatedPlayersByStringInNameQueryHandler
                 .map(player -> new PlayerFederatedReadModel(
                         player.getId(), player.getName(), player.getLicenseId(), player.getSource()))
                 .toList();
-        return new PlayerSearchReadModel(resultId, name, canonicalPlayerId, federatedPlayers);
+        List<String> seasons = playerSeasonRepository.findAllPlayerSeasonsByFederatedPlayerIds(
+                        players.stream().map(FederatedPlayer::getId).toList()).stream()
+                .map(PlayerSeason::getSeason)
+                .distinct()
+                .sorted(Comparator.comparing(Object::toString).reversed())
+                .map(Object::toString)
+                .toList();
+        return new PlayerSearchReadModel(resultId, name, canonicalPlayerId, federatedPlayers, seasons);
     }
 }

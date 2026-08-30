@@ -110,6 +110,9 @@ function PlayersSearchPage() {
                   <span>
                     <strong>{player.name}</strong>
                      <span className="club-source">Fonts: {player.sources.join(', ') || player.source}</span>
+                    <span className="club-source">
+                      Temporades: {player.seasons.length > 0 ? player.seasons.join(', ') : '—'}
+                    </span>
                   </span>
                   <span aria-hidden="true">→</span>
                 </Link>
@@ -118,7 +121,10 @@ function PlayersSearchPage() {
                   <span>
                     <strong>{player.name}</strong>
                    <span className="club-source">Fonts: {player.sources.join(', ') || player.source}</span>
-                    <span className="club-source">Identitat canònica pendent</span>
+                   <span className="club-source">
+                     Temporades: {player.seasons.length > 0 ? player.seasons.join(', ') : '—'}
+                   </span>
+                   <span className="club-source">Identitat canònica pendent</span>
                   </span>
                 </div>
               )}

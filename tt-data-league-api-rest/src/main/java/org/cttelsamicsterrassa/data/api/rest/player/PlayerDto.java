@@ -14,14 +14,20 @@ public record PlayerDto(
         UUID canonicalPlayerId,
         String canonicalPlayerName,
         List<FederatedDto> federatedPlayers,
-        List<String> sources) {
+        List<String> sources,
+        List<String> seasons) {
     public PlayerDto(UUID id, String name, String source) {
-        this(id, name, source, null, null, List.of(), source == null ? List.of() : List.of(source));
+        this(id, name, source, null, null, List.of(), source == null ? List.of() : List.of(source), List.of());
     }
 
     public PlayerDto(UUID id, String name, String source, UUID canonicalPlayerId, String canonicalPlayerName) {
         this(id, name, source, canonicalPlayerId, canonicalPlayerName, List.of(),
-                source == null ? List.of() : List.of(source));
+                source == null ? List.of() : List.of(source), List.of());
+    }
+
+    public PlayerDto(UUID id, String name, String source, UUID canonicalPlayerId, String canonicalPlayerName,
+                     List<FederatedDto> federatedPlayers, List<String> sources) {
+        this(id, name, source, canonicalPlayerId, canonicalPlayerName, federatedPlayers, sources, List.of());
     }
 
     public static PlayerDto fromObject(FederatedPlayer player) {
@@ -49,7 +55,7 @@ public record PlayerDto(
                 .toList();
         String source = sources.size() == 1 ? sources.getFirst() : sources.isEmpty() ? null : "MULTIPLE";
         return new PlayerDto(player.id(), player.name(), source, player.canonicalPlayerId(),
-                player.canonicalPlayerId() == null ? null : player.name(), federatedPlayers, sources);
+                player.canonicalPlayerId() == null ? null : player.name(), federatedPlayers, sources, player.seasons());
     }
 
     public record FederatedDto(UUID id, String name, String license, String source) {
