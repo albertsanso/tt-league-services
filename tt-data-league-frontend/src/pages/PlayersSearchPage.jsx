@@ -7,10 +7,9 @@ import { usePlayerSearch } from '../hooks/usePlayers.js'
 function PlayersSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') ?? ''
-  const source = searchParams.get('source') ?? ''
   const [inputValue, setInputValue] = useState(urlQuery)
   const query = urlQuery.trim()
-  const { data: players, loading, error, retry } = usePlayerSearch(query, source)
+  const { data: players, loading, error, retry } = usePlayerSearch(query)
 
   useEffect(() => {
     const timeoutId = window.setTimeout(() => setInputValue(urlQuery), 0)
@@ -59,24 +58,6 @@ function PlayersSearchPage() {
             aria-describedby="player-search-help"
           />
         </div>
-        <label className="club-filter">
-          <span>Font</span>
-          <select
-            aria-label="Filtra per font"
-            value={source}
-            onChange={(event) => {
-              const next = new URLSearchParams(searchParams)
-              if (event.target.value) next.set('source', event.target.value)
-              else next.delete('source')
-              setSearchParams(next)
-            }}
-          >
-            <option value="">Totes les fonts</option>
-            <option value="RFETM">RFETM</option>
-            <option value="BCNESA">BCNESA</option>
-            <option value="FCTT">FCTT</option>
-          </select>
-        </label>
         <button className="primary-button" type="submit" disabled={inputValue.trim().length < 2}>Cercar</button>
       </form>
       <p id="player-search-help" className="search-summary" aria-live="polite">

@@ -259,23 +259,24 @@ describe('PlayerDetailPage', () => {
     const rows = screen.getByRole('table').querySelectorAll('tbody tr')
     expect(rows[0]).toHaveTextContent('2024-2025')
     expect(rows[1]).toHaveTextContent('2022-2023')
-    const chartGroups = document.querySelectorAll('.history-bar-group')
+    const chartGroups = document.querySelectorAll('.chart-season-label')
     expect(chartGroups[0]).toHaveTextContent('2022-2023')
     expect(chartGroups[1]).toHaveTextContent('2024-2025')
   })
 
-  it('shows a percentage scale and horizontal reference lines on standard charts', () => {
+  it('uses the connected scatter chart with a percentage scale by default', () => {
     renderPage('/players/player-id')
 
-    const chart = document.querySelector('.history-chart')
+    const chart = document.querySelector('.history-connected-chart')
     expect(chart).toHaveAttribute('aria-label', expect.stringContaining('Escala vertical de percentatge de victòries del 0% al 100%'))
-    expect(chart.querySelector('.chart-axis-y')).toHaveTextContent('Victòries (%)')
-    expect([...chart.querySelectorAll('.chart-reference-row span')].map((label) => label.textContent))
+    expect(chart.querySelector('.chart-axis-label')).toHaveTextContent('Victòries (%)')
+    expect([...chart.querySelectorAll('.chart-axis-tick')].map((label) => label.textContent))
       .toEqual(['0%', '25%', '50%', '75%', '100%'])
-    expect(chart.querySelectorAll('.chart-reference-row')).toHaveLength(5)
+    expect(chart.querySelectorAll('.percentage-grid-line')).toHaveLength(5)
+    expect(screen.queryByLabelText('Tipus de gràfic')).not.toBeInTheDocument()
   })
 
-  it('shows the percentage scale and reference lines on connected scatter charts', () => {
+  it('does not expose a chart type selector for connected scatter charts', () => {
     renderPage('/players/player-id?chart=connected-scatter')
 
     const chart = document.querySelector('.history-connected-chart')
@@ -284,6 +285,7 @@ describe('PlayerDetailPage', () => {
     expect(chart.querySelectorAll('.percentage-grid-line')).toHaveLength(5)
     expect([...chart.querySelectorAll('.chart-axis-tick')].map((label) => label.textContent))
       .toEqual(['0%', '25%', '50%', '75%', '100%'])
+    expect(screen.queryByLabelText('Tipus de gràfic')).not.toBeInTheDocument()
   })
 
   it('sorts matches newest first and paginates after ten rows', () => {
@@ -334,5 +336,13 @@ describe('PlayerDetailPage', () => {
     fireEvent.click(screen.getByRole('tab', { name: "Categorització d'oponents" }))
     fireEvent.click(screen.getByRole('tab', { name: "Cerca d'oponents" }))
     expect(screen.getByRole('searchbox', { name: 'Cerca un oponent' })).toHaveValue('')
+  })
+
+  it('uses a contrasted opponent search input', () => {
+    usePlayerDetails.mockReturnValue({ data: accentedDetails, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=opponents&opponentView=search')
+
+    expect(screen.getByRole('searchbox', { name: 'Cerca un oponent' }))
+      .toHaveClass('opponent-search-input')
   })
 })

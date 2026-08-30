@@ -48,7 +48,25 @@ No features currently in progress.
 
 ## In Review
 
-No features currently in review.
+### [FEAT-00016] Some fixes in Player details 1
+- **Status:** in-review
+- **Priority:** medium
+- **Effort:** small (< 2h)
+- **Depends on:** —
+
+#### Goal
+Implement the planned Player details and Players search fixes described in [FEAT-00016-DETAILS.md](./FEAT-00016-DETAILS.md).
+
+#### Acceptance Criteria
+- [x] Opponent search uses a more contrasted input style.
+- [x] Statistics always uses the connected-scatter chart without a plot type selector.
+- [x] Players search has no source selector.
+
+#### Feature Details
+→ See [FEAT-00016-DETAILS.md](./FEAT-00016-DETAILS.md) for the complete feature plan and acceptance criteria.
+
+#### Historical Completion Note
+Validated 2026-08-30: frontend tests (58), lint, and production build passed.
 
 ---
 
@@ -59,78 +77,6 @@ No features currently in backlog.
 ---
 
 ## Done
-
-### [FEAT-00016] Some fixes in Player details 1
-- **Status:** done
-- **Priority:** medium
-- **Effort:** small (< 2h)
-- **Depends on:** —
-
-#### Goal
-**Fix 1**: In Player details, in Statistics Tab, the seasons list below the plot needs to be sorted by season descending order, with the most recent season first.
-**Fix 2**: In Player details, in Matches Tab, the matches list needs to be sorted by match date descending order, with the most recent match first. If the list is longer than 10 matches, the list should be paginated with 10 matches per page.
-**Fix 3**: In Player details, in Opponent analysis Tab, the `Show more` component should a simple text, with a font size slightly smaller than the table font size, and a color that is slightly lighter than the table text color.
-The `Show more` component should be aligned to the right of the table, and should be displayed only if there are more than 3 opponents in the category.
-The newly displayed opponents should be displayed in the same table, below the first 3 opponents, and the `Show more` component should be hidden after clicking it.
-**Fix 4**: In **player detail selector area**, the `season` selector should have the option **Totes les temporades** as the first option, and the `competition` selector should have the option **Totes les competicions** as the first option.
-The slider must show the season marks or scales in grey color as a vertical line.
-**Fix 5**: The season selector width is fixed to 100px. Make the width of the season selector dynamic, so that it can accommodate the longest season name without truncation.
-**Fix 6**: The season selector should occupy the full first row of the
-**player detail selector area**.
-**Fix 7**: The source selector should be on the left and the competition
-selector on the right of the second row of the **player detail selector area**.
-**Fix 8**: The **player detail selector area** should remain responsive while
-preserving the intended selector hierarchy.
-**Fix 9**: The plot x-axis must be ordered by season ascending order, with the oldest season first, and the most recent season last. The plot must be responsive, so that it adjusts to the available width of the **player detail content area**.
-**Fix 10**: In Matches Tab, the navigation buttons for the pagination of the matches list should be smaller and aligned with the overall styling of the application.
-**Fix 11**: In Matches Tab, the pagination buttons and page counter should use the common font size of the page.
-**Fix 12**: Apply the reference layout from
-`docs/frontend/player-detail-selector-area-mockup-spec.md`: the season selector
-occupies the full first row; the source selector is on the left of the second
-row; and the competition selector is on the right of the second row.
-**Fix 13**: When a selector changes, retain the current player detail view
-while the filtered request is loading instead of replacing the page with a
-full loading state. Review React context dependencies and the request reload
-strategy so the update does not look like a browser refresh.
-**Fix 15**: In the Player details Statistics Tab, the plot must show a
-percentage scale on the vertical axis instead of only **Valor**, with
-horizontal grey lines projecting the vertical-axis scale as a visual
-reference. Fixes 1-14 are already implemented.
-
-#### Acceptance Criteria
-- [x] In Player details, in Statistics Tab, the seasons list below the plot is sorted by season descending order, with the most recent season first.
-- [x] In Player details, in Matches Tab, the matches list is sorted by match date descending order, with the most recent match first. If the list is longer than 10 matches, the list is paginated with 10 matches per page.
-- [x] In Player details, in Opponent analysis Tab, the `Show more` component is a simple text, with a font size slightly smaller than the table font size, and a color that is slightly lighter than the table text color. The `Show more` component is aligned to the right of the table, and is displayed only if there are more than 3 opponents in the category.
-- [x] In **player detail selector area**, the `season` selector has the option **Totes les temporades** as the first option, and the `competition` selector has the option **Totes les competicions** as the first option. The slider shows the season marks or scales in grey color as a vertical line.
-- [x] The season selector width is dynamic, so that it can accommodate the longest season name without truncation.
-- [x] The season selector occupies the full width of the first row, as defined
-  by `docs/frontend/player-detail-selector-area-mockup-spec.md`.
-- [x] The source selector occupies the left side of the second row, as defined
-  by the selector mockup specification.
-- [x] The competition selector occupies the right side of the second row, as
-  defined by the selector mockup specification.
-- [x] The **player detail selector area** remains responsive, with the season
-  spanning both columns and the source and competition controls sharing the
-  second row.
-- [x] Changing a selector retains the current player detail view during the
-  filtered request and does not replace it with a full-page loading state.
-- [x] React context dependencies and the request reload strategy do not cause
-  unnecessary player-detail reloads.
-- [x] In the Player details Statistics Tab, the plot shows a percentage scale
-  on the vertical axis and horizontal grey reference lines for that scale.
-- [x] The plot x-axis is ordered by season ascending order, with the oldest season first, and the most recent season last. The plot is responsive, so that it adjusts to the available width of the **player detail content area**.
-- [x] In Matches Tab, the navigation buttons for the pagination of the matches list are smaller and aligned with the overall styling of the application.
-- [x] In Matches Tab, the pagination buttons and page counter use the common font size of the page.
-
-#### Feature Details
-→ See [FEAT-00016-DETAILS.md](./FEAT-00016-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
-#### Completion Note
-Validated 2026-08-30: standard and connected-scatter charts show 0%, 25%,
-50%, 75%, and 100% vertical percentage ticks with grey horizontal reference
-lines. Focused tests, frontend `npm test` (56), lint, and build passed.
-
----
 
 ### [FEAT-00015] player opponent analisys - review 1
 - **Status:** done

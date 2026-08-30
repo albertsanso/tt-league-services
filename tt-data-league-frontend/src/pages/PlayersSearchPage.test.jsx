@@ -35,4 +35,15 @@ describe('PlayersSearchPage', () => {
 
     expect(screen.getByText('Temporades: 2024-2025, 2023-2024')).toBeInTheDocument()
   })
+
+  it('does not render a source selector or pass a source filter', () => {
+    render(
+      <MemoryRouter initialEntries={['/players?q=Anna&source=RFETM']}>
+        <PlayersSearchPage />
+      </MemoryRouter>,
+    )
+
+    expect(screen.queryByRole('combobox', { name: 'Filtra per font' })).not.toBeInTheDocument()
+    expect(usePlayerSearch).toHaveBeenLastCalledWith('Anna')
+  })
 })

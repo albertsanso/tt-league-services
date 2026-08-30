@@ -1,7 +1,6 @@
 # Build Plan
 
-FEAT-00016 is done. Fixes 1–15 are implemented in the frontend; this document
-records the completed implementation plan.
+FEAT-00016 is in-review. Fixes 1–18 are implemented in the frontend.
 
 ## Implemented scope
 
@@ -63,6 +62,21 @@ records the completed implementation plan.
    Fix 15 is implemented: both the standard and connected-scatter statistics
    charts show 0%, 25%, 50%, 75%, and 100% vertical ticks with grey horizontal
    reference lines, while preserving the existing plot series and season order.
+8. Fix 16 — in `tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` and
+   `tt-data-league-frontend/src/app.css`, increase contrast for the opponent
+   search input with a lighter or white background while retaining accessible
+   focus styling and the existing search behavior.
+9. Fix 17 — in `tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` and
+   `tt-data-league-frontend/src/app.css`, make the connected-scatter chart the
+   only Statistics plot and remove the plot type selector without changing the
+   chart data, season ordering, responsive sizing, or accessible labelling.
+10. Fix 18 — in the Players search implementation and its associated styles,
+   remove the source selector from the search controls without changing player
+   search behavior, results, or the remaining filters.
+11. Add focused frontend tests for the opponent search contrast, the
+   connected-scatter-only Statistics view, and the absence of the Players
+   search source selector, then run the frontend test, lint, and
+   production-build commands.
 
 # Implementation Guidelines
 
@@ -78,6 +92,14 @@ records the completed implementation plan.
 - Keep the vertical reference scale deterministic (0%, 25%, 50%, 75%, 100%),
   use the existing chart styling tokens/classes where possible, and preserve
   responsive sizing and accessible chart labelling.
+- Fix 16 is presentation-only: preserve the opponent search filtering,
+  Catalan copy, native search control, and keyboard focus visibility.
+- Fix 17 is presentation-only: preserve the statistics values, filters, URL
+  semantics, ascending season order, and responsive SVG behavior; do not
+  retain an alternate plot type or selector.
+- Fix 18 is a Players search presentation and scope change: remove only the
+  source selector, preserve player search behavior and remaining filters, and
+  do not change the REST contract or result rendering.
 
 # Notes
 
@@ -107,6 +129,16 @@ records the completed implementation plan.
   frontend `npm test` (56 tests), lint, and production build all passed.
   The percentage ticks are 0%, 25%, 50%, 75%, and 100%, with grey horizontal
   reference lines; no application code is changed by this SDD update.
+- Validation (2026-08-30): Fixes 16–18 were implemented with focused
+  regression coverage. Frontend tests (58), lint, and production build pass.
+- Scope reconciliation (2026-08-30): the registry was reopened as `planned`
+  because Fixes 16 and 17 are newly intended work. Inspection confirms the
+  current implementation still exposes the chart type selector and uses the
+  existing opponent search input styling, so neither criterion is accepted.
+- Scope update (2026-08-30): Fix 18 was added to the planned scope. The
+  Players search source selector remains an unchecked criterion until the
+  selector is removed and focused frontend coverage, lint, tests, and build
+  validation are complete.
 
 # Acceptance Criteria
 
@@ -131,6 +163,11 @@ records the completed implementation plan.
   the intended filtered request for selector changes.
 - [x] In the Player details Statistics Tab, the plot shows a percentage scale
   on the vertical axis and horizontal grey reference lines for that scale.
+- [x] In Player details > Opponent analysis > Opponent search, the search box
+  uses a more contrasted style with a lighter or white background.
+- [x] In Player details > Statistics, the plot always uses the connected-scatter
+  chart type and no plot type selector is displayed.
+- [x] In Players search, the source selector is removed.
 - [x] The plot x-axis is ordered by season ascending order, with the oldest season first, and the most recent season last. The plot is responsive, so that it adjusts to the available width of the **player detail content area**.
 - [x] In Matches Tab, the navigation buttons for the pagination of the matches list are smaller and aligned with the overall styling of the application.
 - [x] In Matches Tab, the pagination buttons and page counter use the common font size of the page.

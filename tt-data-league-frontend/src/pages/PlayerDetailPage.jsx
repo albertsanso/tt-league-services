@@ -22,12 +22,6 @@ const OPPONENT_VIEWS = {
   CATEGORIZATION: 'categorization',
   SEARCH: 'search',
 }
-const CHART_TYPES = ['line', 'bar', 'connected-scatter']
-const CHART_LABELS = {
-  line: 'Línies',
-  bar: 'Barres',
-  'connected-scatter': 'Dispersió connectada',
-}
 const PERCENTAGE_TICKS = [0, 25, 50, 75, 100]
 const unique = (values) => [...new Set(values.filter(Boolean))].sort()
 const MATCHES_PER_PAGE = 10
@@ -101,8 +95,6 @@ function PlayerDetailContent({ data, params, setParams }) {
     .map((item) => item.name))
   const selectedCompetition = params.get('competition')
   const competition = availableCompetitions.includes(selectedCompetition) ? selectedCompetition : ''
-  const requestedChart = params.get('chart')
-  const chart = CHART_TYPES.includes(requestedChart) ? requestedChart : 'line'
   const matches = data.matches
   const statistics = data.statistics
 
@@ -173,7 +165,7 @@ function PlayerDetailContent({ data, params, setParams }) {
       </div>
       </div>
       <div id="player-tabpanel" role="tabpanel" aria-labelledby={`player-${view}-tab`}>
-        {view === VIEWS.STATISTICS ? <HistorySection statistics={statistics} competition={competition} matches={matches} chart={chart} update={update} /> : null}
+        {view === VIEWS.STATISTICS ? <HistorySection statistics={statistics} competition={competition} matches={matches} /> : null}
         {view === VIEWS.MATCHES ? <MatchHistoryPanel key={`${source}-${season}-${competition}`} matches={matches} /> : null}
         {view === VIEWS.OPPONENTS ? <OpponentAnalysisPanel key={opponentView} matches={matches} opponentView={opponentView} update={update} /> : null}
       </div>
@@ -181,37 +173,14 @@ function PlayerDetailContent({ data, params, setParams }) {
   )
 }
 
-function HistorySection({ statistics, competition, matches, chart, update }) {
+function HistorySection({ statistics, competition, matches }) {
   const values = [...(competition ? aggregateCompetition(matches, competition) : statistics)].sort(compareSeasons)
   const chartValues = [...values].sort(compareSeasonsAscending)
   return <section className="club-detail-section" aria-labelledby="player-history-title">
     <h2 id="player-history-title">Historial estadístic</h2>
-    <label className="chart-type-selector">Tipus de gràfic
-      <select value={chart} onChange={(event) => update('chart', event.target.value)}>
-        {CHART_TYPES.map((type) => <option key={type} value={type}>{CHART_LABELS[type]}</option>)}
-      </select>
-    </label>
     {values.length === 0 ? <p className="club-empty card" role="status">No hi ha dades estadístiques disponibles per als filtres seleccionats.</p> : (
       <>
-        {chart === 'connected-scatter' ? <ConnectedScatterPlot values={chartValues} /> : (
-          <div className={`history-chart card chart-${chart}`} role="img" aria-label={`${CHART_LABELS[chart]} de partits i percentatge de victòries per temporada. Escala vertical de percentatge de victòries del 0% al 100%.`}>
-            <div className="chart-reference-grid" aria-hidden="true">
-              {PERCENTAGE_TICKS.map((tick) => <span className="chart-reference-row" key={tick} style={{ bottom: `${tick}%` }}>
-                <span>{tick}%</span>
-              </span>)}
-            </div>
-            <span className="chart-axis chart-axis-y">Victòries (%)</span>
-            {chartValues.map((item, index) => <div className="history-bar-group" key={`${item.source}-${item.season}-${index}`}>
-              <div className="history-bars" aria-hidden="true">
-                <span className="history-bar matches" style={{ height: `${Math.max(8, Math.min(100, item.matchesPlayed * 12))}%` }} />
-                <span className="history-bar wins" style={{ height: `${item.winPercentage == null ? 8 : Math.max(8, item.winPercentage)}%` }} />
-              </div>
-              <strong>{item.season || 'Sense temporada'}</strong>
-              <span>{item.matchesPlayed} partits · {item.winPercentage == null ? 'Percentatge no disponible' : `${item.winPercentage.toFixed(1)}% victòries`}</span>
-            </div>)}
-            <span className="chart-axis chart-axis-x">Temporades</span>
-          </div>
-        )}
+        <ConnectedScatterPlot values={chartValues} />
         <p className="history-legend" aria-label="Llegenda del gràfic">
           <span className="legend-matches">Partits jugats</span>
           <span className="legend-wins">Victòries (%)</span>
@@ -315,7 +284,7 @@ function OpponentAnalysisPanel({ matches, opponentView, update }) {
         <>
           <label className="opponent-search">
             <span>Cerca un oponent</span>
-            <input type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
+            <input className="opponent-search-input" type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
           </label>
           {searchRows.length === 0 ? <p className="club-empty card" role="status">Cap oponent coincideix amb la cerca.</p> : (
             <OpponentTable rows={searchRows} includeCategory summaryText={`${searchRows.length} oponents coincideixen amb la cerca.`} />

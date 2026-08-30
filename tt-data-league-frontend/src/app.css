@@ -1142,24 +1142,6 @@
   padding: 1.25rem 1.25rem 2.25rem 3.25rem;
 }
 
-.chart-type-selector {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  font-size: 0.8rem;
-  font-weight: 600;
-}
-
-.chart-type-selector select {
-  min-width: 12rem;
-  border: 1px solid var(--border-strong);
-  border-radius: 0.4rem;
-  padding: 0.55rem 0.65rem;
-  color: var(--text-primary);
-  background: var(--surface-card);
-}
-
 .chart-axis {
   position: absolute;
   color: var(--text-secondary);
@@ -1424,13 +1406,18 @@
   font-weight: 600;
 }
 
-.opponent-search input {
+.opponent-search-input {
   width: 100%;
-  border: 1px solid var(--border-strong);
+  border: 2px solid var(--border-strong);
   border-radius: 0.4rem;
   padding: 0.55rem 0.65rem;
   color: var(--text-primary);
-  background: var(--surface-input);
+  background: var(--surface-card);
+}
+
+.opponent-search-input:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 1px;
 }
 
 .opponent-match-list {
