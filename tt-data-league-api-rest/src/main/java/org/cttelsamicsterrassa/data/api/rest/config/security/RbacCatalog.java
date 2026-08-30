@@ -19,6 +19,8 @@ public final class RbacCatalog {
     public static final String CLUBS_WRITE = "clubs:write";
     public static final String PLAYERS_READ = "players:read";
     public static final String MATCHES_READ = "matches:read";
+    public static final String USERS_READ = "users:read";
+    public static final String USERS_WRITE = "users:write";
 
     private RbacCatalog() {
     }

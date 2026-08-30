@@ -3,9 +3,15 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.auth.impl;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.model.User;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.model.UserFilter;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.model.UserPage;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.model.UserRole;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.repository.UserRepository;
 import org.cttelsamicsterrassa.data.core.repository.jpa.auth.mapper.UserJPAToUserMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.auth.mapper.UserToUserJPAMapper;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -40,6 +46,21 @@ public class UserRepositoryJpa implements UserRepository {
         return userRepositoryHelper.findAll().stream()
                 .map(userJPAToUserMapper)
                 .toList();
+    }
+
+    @Override
+    public UserPage findPage(UserFilter filter) {
+        PageRequest pageable = PageRequest.of(
+                filter.page(), filter.size(), Sort.by(Sort.Direction.ASC, "username"));
+        Page<org.cttelsamicsterrassa.data.core.repository.jpa.auth.model.UserJPA> page =
+                userRepositoryHelper.findByFilter(filter.search(), filter.active(), pageable);
+        List<User> content = page.getContent().stream().map(userJPAToUserMapper).toList();
+        return UserPage.of(content, page.getTotalElements(), filter.page(), filter.size());
+    }
+
+    @Override
+    public long countActiveAdmins() {
+        return userRepositoryHelper.countActiveByRole(UserRole.ADMIN);
     }
 
     @Override

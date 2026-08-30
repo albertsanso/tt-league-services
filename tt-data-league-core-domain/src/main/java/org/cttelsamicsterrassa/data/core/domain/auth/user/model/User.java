@@ -21,7 +21,7 @@ public class User extends Entity {
     private String email;
     private String passwordHash;
     private boolean actived;
-    private final Set<UserRole> roles;
+    private Set<UserRole> roles;
 
     private User(UUID id, ZonedDateTime createdAt, String username, String email, String passwordHash,
                  boolean actived, Set<UserRole> roles) {
@@ -66,6 +66,20 @@ public class User extends Entity {
     public void changePasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
         publishUserPasswordHashChangedEvent();
+    }
+
+    public void changeUsername(String username) {
+        this.username = username;
+    }
+
+    public void changeEmail(String email) {
+        this.email = email;
+    }
+
+    public void setRoles(Set<UserRole> newRoles) {
+        this.roles = newRoles.isEmpty()
+                ? EnumSet.of(UserRole.PRACTITIONER)
+                : EnumSet.copyOf(newRoles);
     }
 
     public void disable() {
