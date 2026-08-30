@@ -110,6 +110,16 @@ relationships from `--rfetm-teams-folder`.
 
 ## Launch modes
 
+## Administration import API
+
+The administrator API exposes the same preview/validate/start/cancel/rollback
+lifecycle used by the administration panel. All endpoints require the `ADMIN`
+role. Supported source IDs are configured with `tt.league.import.sources`
+(default `RFETM,BCNESA,FCTT`); arbitrary paths and URLs are never accepted.
+Jobs are bounded to 100 history results and use mapping version `1`. The
+current adapter keeps lifecycle state in memory; deployments requiring restart
+recovery should provide a persistent `ImportJobsPort` adapter.
+
 ### Import only
 
 Imports every available season for FCTT without running consolidation:

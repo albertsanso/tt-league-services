@@ -1,4 +1,4 @@
-import ca from './ca.js'
+﻿import ca from './ca.js'
 
 const es = {
   ...ca,
@@ -93,3 +93,33 @@ es.usersAdmin = {
 }
 
 export default es
+
+es.importPanel = {
+  ...ca.importPanel,
+  title: 'Importación de datos',
+  description: 'Gestiona la importación de datos desde las fuentes federativas soportadas.',
+  sourcesTitle: 'Fuentes soportadas',
+  loading: 'Cargando fuentes...',
+  sourcesEmpty: 'No hay fuentes configuradas en este entorno.',
+  historyTitle: 'Historial de importación',
+  historyComingSoon: 'El historial de importación estará disponible próximamente.',
+  actionsTitle: 'Ejecutar una importación',
+  sourceLabel: 'Fuente',
+  chooseSource: 'Selecciona una fuente',
+  preview: 'Previsualizar',
+  status: 'Estado',
+  validate: 'Validar',
+  start: 'Iniciar',
+  cancel: 'Cancelar',
+  rollback: 'Revertir',
+  searchLabel: 'Buscar en el historial',
+  historyEmpty: 'No hay importaciones.',
+  unauthorized: 'La sesión ha caducado.',
+  forbidden: 'No tienes permisos para gestionar importaciones.',
+  serverError: 'No se han podido cargar las fuentes de importación.',
+  sourceDescription: {
+    RFETM: 'Real Federación Española de Tenis de Mesa',
+    BCNESA: 'Federación Catalana de Tenis de Mesa (BCNESA)',
+    FCTT: 'Federación Catalana de Tenis de Mesa (FCTT)',
+  },
+}

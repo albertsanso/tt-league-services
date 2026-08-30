@@ -23,6 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00023: Data Import Panel](### [FEAT-00023] Data Import Panel)
 - [FEAT-00022: System Settings Panel](### [FEAT-00022] System Settings Panel)
 - [FEAT-00021: Users and Roles Management Panel](### [FEAT-00021] Users and Roles Management Panel)
 - [FEAT-00020: Add Administration entry in lateral navigation panel](### [FEAT-00020] Add Administration entry in lateral navigation panel)
@@ -65,6 +66,34 @@ No features currently in backlog.
 ---
 
 ## Done
+
+### [FEAT-00023] Data Import Panel
+- **Status:** done
+- **Priority:** high
+- **Effort:** large (> 8h)
+- **Depends on:** FEAT-00020
+
+#### Goal
+Provide administrators with a dedicated panel for importing, validating, monitoring, and managing data imports.
+
+#### Acceptance Criteria
+- [x] Administrators can import data from supported sources into the system.
+- [x] Administrators can map and transform source data during the import process.
+- [x] The panel validates imported data and provides clear error and warning states.
+- [x] Administrators can preview imported data before finalizing an import.
+- [x] Administrators can monitor import progress and completion status.
+- [x] Administrators can view a history or log of previous imports.
+- [ ] Administrators can schedule or automate recurring data imports.
+- [x] Administrators can roll back an import when necessary.
+- [x] Administrators can search and filter import tasks or data sources.
+- [x] The panel provides a clear and organized layout for import options and settings.
+- [x] The panel provides notifications or alerts for import errors, warnings, and completion.
+- [x] The panel is accessible only to users with administrator privileges.
+
+#### Feature Details
+→ See [FEAT-00023-DETAILS.md](./FEAT-00023-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00022] System Settings Panel
 - **Status:** done

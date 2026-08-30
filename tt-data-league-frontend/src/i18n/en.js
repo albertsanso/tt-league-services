@@ -1,4 +1,4 @@
-import ca from './ca.js'
+﻿import ca from './ca.js'
 
 const en = {
   ...ca,
@@ -93,3 +93,33 @@ en.usersAdmin = {
 }
 
 export default en
+
+en.importPanel = {
+  ...ca.importPanel,
+  title: 'Data import',
+  description: 'Manage data imports from supported federation sources.',
+  sourcesTitle: 'Supported sources',
+  loading: 'Loading sources...',
+  sourcesEmpty: 'No sources are configured in this environment.',
+  historyTitle: 'Import history',
+  historyComingSoon: 'Import history will be available soon.',
+  actionsTitle: 'Run an import',
+  sourceLabel: 'Source',
+  chooseSource: 'Choose a source',
+  preview: 'Preview',
+  status: 'Status',
+  validate: 'Validate',
+  start: 'Start',
+  cancel: 'Cancel',
+  rollback: 'Roll back',
+  searchLabel: 'Search history',
+  historyEmpty: 'No imports found.',
+  unauthorized: 'Your session has expired.',
+  forbidden: 'You do not have permission to manage imports.',
+  serverError: 'Import sources could not be loaded.',
+  sourceDescription: {
+    RFETM: 'Royal Spanish Table Tennis Federation',
+    BCNESA: 'Catalan Table Tennis Federation (BCNESA)',
+    FCTT: 'Catalan Table Tennis Federation (FCTT)',
+  },
+}
