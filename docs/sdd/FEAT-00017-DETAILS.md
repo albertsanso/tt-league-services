@@ -53,3 +53,4 @@
 - Implemented the planned localization scope and moved the feature to
   `in-review`; locale resources, persistence behavior, selector behavior, and
   frontend validation are documented in the frontend README.
+- Shipped and closed by explicit user approval on 2026-08-30.

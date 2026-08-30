@@ -49,8 +49,18 @@ No features currently in progress.
 
 ## In Review
 
+No features currently in review.
+
+---
+
+## Backlog
+
+No features currently in backlog.
+
+## Done
+
 ### [FEAT-00017] support i18n
-- **Status:** in-review
+- **Status:** done
 - **Priority:** medium
 - **Effort:** large (> 8h)
 - **Depends on:** —
@@ -73,12 +83,6 @@ Review all current literal strings in the application and replace them with tran
 → See [FEAT-00017-DETAILS.md](./FEAT-00017-DETAILS.md) for the detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-
-## Backlog
-
-No features currently in backlog.
-
-## Done
 
 ### [FEAT-00016] Some fixes in Player details 1
 - **Status:** done
