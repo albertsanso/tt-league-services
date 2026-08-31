@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.core.repository.jpa.settings;
 
-import org.cttelsamicsterrassa.data.core.domain.settings.model.PersistedSetting;
-import org.cttelsamicsterrassa.data.core.domain.settings.model.SettingType;
+import org.cttelsamicsterrassa.data.core.domain.settings.model.SystemSettingCatalog;
+import org.cttelsamicsterrassa.data.core.domain.settings.model.SystemSetting;
 import org.cttelsamicsterrassa.data.core.domain.settings.repository.SettingsRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,11 +20,13 @@ class SettingsRepositoryJpaTest {
 
     @Test
     void persistsTypedSettingAndReplacesAtomically() {
-        PersistedSetting setting = new PersistedSetting("ui.theme", SettingType.STRING, "dark", 1);
+        SystemSetting setting = new SystemSettingCatalog().rehydrate("ui.theme", org.cttelsamicsterrassa.data.core.domain.settings.model.SettingType.STRING, "dark", 1);
         repository.save(setting, 0);
-        assertThat(repository.findAll()).containsExactly(setting);
+        assertThat(repository.findAll()).extracting(SystemSetting::getKey, SystemSetting::getValue, SystemSetting::getVersion)
+                .containsExactly(org.assertj.core.groups.Tuple.tuple("ui.theme", "dark", 1L));
 
-        repository.replaceAll(Map.of("ui.theme", new PersistedSetting("ui.theme", SettingType.STRING, "system", 2)));
-        assertThat(repository.findAll()).containsExactly(new PersistedSetting("ui.theme", SettingType.STRING, "system", 2));
+        SystemSetting replacement = new SystemSettingCatalog().rehydrate("ui.theme", org.cttelsamicsterrassa.data.core.domain.settings.model.SettingType.STRING, "system", 2);
+        repository.replaceAll(Map.of("ui.theme", replacement));
+        assertThat(repository.findAll()).extracting(SystemSetting::getValue).containsExactly("system");
     }
 }

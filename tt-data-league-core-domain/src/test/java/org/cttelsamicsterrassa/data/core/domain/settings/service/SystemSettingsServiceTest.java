@@ -1,6 +1,6 @@
 package org.cttelsamicsterrassa.data.core.domain.settings.service;
 
-import org.cttelsamicsterrassa.data.core.domain.settings.model.PersistedSetting;
+import org.cttelsamicsterrassa.data.core.domain.settings.model.SystemSetting;
 import org.cttelsamicsterrassa.data.core.domain.settings.repository.SettingsRepository;
 import org.junit.jupiter.api.Test;
 
@@ -26,8 +26,8 @@ class SystemSettingsServiceTest {
     @Test
     void previewDoesNotPersistAndUpdateUsesVersion() {
         service.preview(Map.of("display.maxPageSize", 80));
-        assertThat(service.list(null, "maxPageSize").get(0).value()).isEqualTo(50);
-        assertThat(service.update("display.maxPageSize", 80, 0).value()).isEqualTo(80);
+        assertThat(service.list(null, "maxPageSize").get(0).getValue()).isEqualTo(50);
+        assertThat(service.update("display.maxPageSize", 80, 0).getValue()).isEqualTo(80);
         assertThatThrownBy(() -> service.update("display.maxPageSize", 90, 0))
                 .isInstanceOf(SettingConflictException.class);
     }
@@ -41,21 +41,21 @@ class SystemSettingsServiceTest {
     }
 
     private static final class MemorySettingsRepository implements SettingsRepository {
-        private final List<PersistedSetting> values = new ArrayList<>();
+        private final List<SystemSetting> values = new ArrayList<>();
 
         @Override
-        public List<PersistedSetting> findAll() {
+        public List<SystemSetting> findAll() {
             return List.copyOf(values);
         }
 
         @Override
-        public void save(PersistedSetting setting, long expectedVersion) {
-            values.removeIf(value -> value.key().equals(setting.key()));
+        public void save(SystemSetting setting, long expectedVersion) {
+            values.removeIf(value -> value.getKey().equals(setting.getKey()));
             values.add(setting);
         }
 
         @Override
-        public void replaceAll(Map<String, PersistedSetting> settings) {
+        public void replaceAll(Map<String, SystemSetting> settings) {
             values.clear();
             values.addAll(settings.values());
         }

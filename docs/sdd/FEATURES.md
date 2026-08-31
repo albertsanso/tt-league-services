@@ -23,6 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00026: new system setting - imported data repository folder](### [FEAT-00026] new system setting - imported data repository folder)
 - [FEAT-00023: Data Import Panel](### [FEAT-00023] Data Import Panel)
 - [FEAT-00022: System Settings Panel](### [FEAT-00022] System Settings Panel)
 - [FEAT-00021: Users and Roles Management Panel](### [FEAT-00021] Users and Roles Management Panel)
@@ -61,7 +62,27 @@ No features currently in review.
 
 ## Backlog
 
-No features currently in backlog.
+### [FEAT-00026] new system setting - imported data repository folder
+- **Status:** idea
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-00023, FEAT-00025
+
+#### Goal
+Provide an administrator-configurable system setting for the folder used to store imported data.
+
+#### Description
+Administrators should be able to view and configure the folder used to store imported data through the system settings panel. 
+The configured folder should be persisted and used by the imported-data workflow inmediately saving the new value.
+
+#### Acceptance Criteria
+- [ ] Administrators can view and configure the imported data repository folder through system settings.
+- [ ] The configured folder is persisted and used by the imported-data workflow after application restart.
+- [ ] Folder values are validated and configuration errors are reported without silently falling back to an unintended location.
+- [ ] Changes to the folder setting are immediately reflected in the imported-data workflow.
+
+#### Feature Details
+→ See [FEAT-00026-DETAILS.md](./FEAT-00026-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 

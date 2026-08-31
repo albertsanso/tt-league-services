@@ -346,14 +346,14 @@ pair foreign keys.
 
 ## System settings
 
-`SystemSetting` stores the administrator-managed allowlisted settings used by
+`system_settings` stores the administrator-managed allowlisted settings used by
 the system settings panel. It is deliberately separate from deployment
 configuration and never stores datasource credentials, JWT secrets, mail
 credentials, or other secrets.
 
 | Column | Type | Nullability | Notes |
 |---|---|---|---|
-| `setting_key` | varchar(120) | not null | Primary key; one row per supported setting |
+| `key` | varchar(120) | not null | Primary key; one row per supported setting |
 | `setting_type` | varchar(20) | not null | `BOOLEAN`, `INTEGER`, or `STRING` |
 | `setting_value` | varchar(2000) | not null | Validated scalar value |
 | `version` | bigint | not null | Optimistic version, incremented for each update |
@@ -361,3 +361,9 @@ credentials, or other secrets.
 Bulk updates and restores validate the complete operation before replacing
 values. Restore is transactional and the versioned JSON backup format is
 `{"schemaVersion":1,"settings":{"key":value}}`.
+
+At startup, `SystemSettingsSchemaMigration` checks metadata and, when the
+legacy table exists and the new table does not, executes `ALTER TABLE` renames
+from `SystemSetting.setting_key` to `system_settings.key`. The operation is
+data-preserving and idempotent; deployments must grant the application schema
+user permission to rename the table and column.
