@@ -1,15 +1,15 @@
 package org.cttelsamicsterrassa.data.api.rest.settings;
 
-import org.cttelsamicsterrassa.data.core.domain.settings.model.SystemSetting;
+import org.cttelsamicsterrassa.data.core.domain.settings.model.Setting;
 
-import java.util.List;
+import java.util.UUID;
 
-public record SettingDto(String key, String category, String type, Object value, Object defaultValue,
-                         long version, String label, String description, List<String> allowedValues,
-                         Integer minimum, Integer maximum) {
-    public static SettingDto from(SystemSetting setting) {
-        return new SettingDto(setting.getKey(), setting.getCategory().name(), setting.getType().name(), setting.getValue(),
-                setting.getDefaultValue(), setting.getVersion(), setting.getLabel(), setting.getDescription(),
-                setting.getAllowedValues(), setting.getMinimum(), setting.getMaximum());
+public record SettingDto(UUID id, String category, String name, String value) {
+    public static SettingDto from(Setting setting) {
+        return new SettingDto(
+                setting.getId(),
+                setting.getSettingCategory().name(),
+                setting.getName(),
+                setting.getValue());
     }
 }
