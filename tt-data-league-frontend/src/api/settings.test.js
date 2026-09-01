@@ -3,12 +3,12 @@ import { getSettings, normalizeSetting } from './settings.js'
 
 describe('system settings API', () => {
   it('normalizes server setting metadata', () => {
-    expect(normalizeSetting({ key: 'ui.theme', category: 'UI', type: 'STRING', version: 0 }).allowedValues)
+    expect(normalizeSetting({ name: 'general.timezone', category: 'GENERAL', type: 'STRING', version: 0 }).allowedValues)
       .toEqual([])
   })
 
   it('rejects malformed setting responses', () => {
-    expect(() => normalizeSetting({ key: 'ui.theme' })).toThrow()
+    expect(() => normalizeSetting({ name: 'general.timezone' })).toThrow()
   })
 
   it('passes category and search filters', async () => {
@@ -17,9 +17,9 @@ describe('system settings API', () => {
       headers: { get: () => 'application/json' },
       json: async () => [],
     })
-    await getSettings({ category: 'UI', search: 'theme' }, 'token')
+    await getSettings({ category: 'GENERAL', search: 'timezone' }, 'token')
     expect(globalThis.fetch).toHaveBeenCalledWith(
-      '/api/v1/administration/settings?category=UI&search=theme',
+      '/api/v1/administration/settings?category=GENERAL&search=timezone',
       expect.any(Object),
     )
     vi.restoreAllMocks()

@@ -61,7 +61,7 @@ public class SettingsController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Find a setting by ID")
-    public ResponseEntity<?> findSettingById(@PathVariable UUID id) {
+    public ResponseEntity<?> findSettingById(@PathVariable("id") UUID id) {
         DomainQueryResponse<Setting> response = queryBus.push(new FindSettingByIdQuery(id));
         return response.isSuccess()
                 ? ResponseEntity.ok(SettingDto.from(response.getResponse()))
@@ -108,7 +108,7 @@ public class SettingsController {
     @PutMapping("/{id}")
     @Operation(summary = "Update a setting value")
     public ResponseEntity<?> updateSetting(
-            @PathVariable UUID id,
+            @PathVariable("id") UUID id,
             @RequestBody UpdateSettingRequest request) {
         if (request == null || request.value() == null) {
             return badRequest("value is required");
@@ -121,7 +121,7 @@ public class SettingsController {
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete a setting")
-    public ResponseEntity<?> deleteSetting(@PathVariable UUID id) {
+    public ResponseEntity<?> deleteSetting(@PathVariable("id") UUID id) {
         DomainCommandResponse response = commandBus.push(new DeleteSettingCommand(id));
         return response.isSuccess()
                 ? ResponseEntity.noContent().build()

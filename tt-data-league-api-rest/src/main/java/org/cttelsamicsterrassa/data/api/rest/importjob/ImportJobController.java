@@ -52,19 +52,19 @@ public class ImportJobController {
     }
 
     @PostMapping("/{id}/validate")
-    public ResponseEntity<?> validate(@PathVariable UUID id) { return ResponseEntity.ok(importJobsPort.validate(id)); }
+    public ResponseEntity<?> validate(@PathVariable("id") UUID id) { return ResponseEntity.ok(importJobsPort.validate(id)); }
 
     @PostMapping("/{id}/start")
-    public ResponseEntity<?> start(@PathVariable UUID id) { return ResponseEntity.ok(importJobsPort.start(id)); }
+    public ResponseEntity<?> start(@PathVariable("id") UUID id) { return ResponseEntity.ok(importJobsPort.start(id)); }
 
     @PostMapping("/{id}/cancel")
-    public ResponseEntity<?> cancel(@PathVariable UUID id) { return ResponseEntity.ok(importJobsPort.cancel(id)); }
+    public ResponseEntity<?> cancel(@PathVariable("id") UUID id) { return ResponseEntity.ok(importJobsPort.cancel(id)); }
 
     @PostMapping("/{id}/rollback")
-    public ResponseEntity<?> rollback(@PathVariable UUID id) { return ResponseEntity.ok(importJobsPort.rollback(id)); }
+    public ResponseEntity<?> rollback(@PathVariable("id") UUID id) { return ResponseEntity.ok(importJobsPort.rollback(id)); }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> get(@PathVariable UUID id) {
+    public ResponseEntity<?> get(@PathVariable("id") UUID id) {
         return importJobsPort.find(id).map(ResponseEntity::ok).orElseGet(() -> ResponseEntity.notFound().build());
     }
 

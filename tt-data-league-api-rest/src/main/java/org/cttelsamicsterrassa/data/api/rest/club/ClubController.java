@@ -97,8 +97,8 @@ public class ClubController {
     })
     public ResponseEntity<?> findClubCompetitionDetails(
             @PathVariable("id") UUID id,
-            @PathVariable String season,
-            @PathVariable String competition) {
+            @PathVariable("season") String season,
+            @PathVariable("competition") String competition) {
         Season parsedSeason;
         try {
             parsedSeason = Season.fromFormatted(season);
