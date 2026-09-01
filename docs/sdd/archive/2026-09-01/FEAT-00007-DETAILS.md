@@ -1,7 +1,7 @@
 # Build Plan
 
 1. **Audit the existing route and navigation contract.** Review
-   `tt-data-league-frontend/src/config/routes.js`,
+   `../../../../tt-data-league-frontend/src/config/routes.js`,
    `src/config/navigation.js`, `src/App.jsx`, the top-bar breadcrumb, the
    sidebar, and Club search/detail/edit pages. Treat the existing route helpers
    and route metadata as the single source for paths and labels; keep the
@@ -68,6 +68,6 @@
   `Breadcrumb` derives items from `location.pathname` only. The competition
   detail metadata currently uses `/clubs` as the Club detail link, so dynamic
   route links and return-state handling need correction together.
-- `FEATURES.md` is authoritative for status and acceptance criteria. FEAT-00007
+- `../../FEATURES.md` is authoritative for status and acceptance criteria. FEAT-00007
   is shipped with centralized dynamic route helpers, preserved Club detail
   query state, accessible breadcrumbs, and nested Club navigation matching.

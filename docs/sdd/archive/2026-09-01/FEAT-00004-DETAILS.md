@@ -2,7 +2,7 @@
 
 ## 1. Confirm the view and navigation contract
 
-1. Use `docs/frontend/club-detail-view-mockup-spec.md` as the visual source of
+1. Use `../../../frontend/club-detail-view-mockup-spec.md` as the visual source of
    truth for the redesigned Club detail page: the identity header, source
    label, administrator edit action, `Jugadors` and `Partits` tabs, linked
    season and competition selectors, and competition summary cards.
@@ -58,13 +58,13 @@
    contracts; do not change `Club` or `Player` identity or add `externalId`
    fields.
 4. Update
-   `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` only if the
+   `../../../../tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` only if the
    implementation changes schema columns, relationships, indexes, constraints,
    or table behavior. Read-only projections should require no schema change.
 
 ## 4. Implement the Club detail page redesign
 
-1. Update `tt-data-league-frontend/src/pages/ClubDetailPage.jsx` into a
+1. Update `../../../../tt-data-league-frontend/src/pages/ClubDetailPage.jsx` into a
    semantic page with:
    - an identity header containing the club name, source, and admin-only edit
      link;
@@ -97,7 +97,7 @@
 ## 5. Add the Competition detail view and preserve return state
 
 1. Add a lazy `CompetitionDetailPage` under
-   `tt-data-league-frontend/src/pages/`, the route helper and breadcrumb
+   `../../../../tt-data-league-frontend/src/pages`, the route helper and breadcrumb
    metadata in `src/config/routes.js`, and the route composition in
    `src/App.jsx`. Keep the existing auth, permission, suspense, and catch-all
    behavior.
@@ -115,7 +115,7 @@
 
 ## 6. Apply the visual, responsive, and accessibility work
 
-1. Update `tt-data-league-frontend/src/app.css` using the existing design
+1. Update `../../../../tt-data-league-frontend/src/app.css` using the existing design
    tokens and component layers. Add styles for the header, tab states,
    selectors, summary cards, links, match/roster content, and empty/error
    states without changing unrelated pages.
@@ -182,7 +182,7 @@
   from matches, but no dedicated competition-detail or club-roster response is
   exposed. Confirm the exact roster and match row fields before moving the
   feature from `planned` to `ready`.
-- `FEATURES.md` remains authoritative for this feature’s status and acceptance
+- `../../FEATURES.md` remains authoritative for this feature’s status and acceptance
   criteria. Keep FEAT-00004 under `Backlog` while the read contracts and the
   roster/match tab scope remain unresolved; move it to `ready` only after the
   contract is approved.

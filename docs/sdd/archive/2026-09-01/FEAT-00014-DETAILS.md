@@ -24,7 +24,7 @@
 ## 2. Preserve and complete the player-detail read contract
 
 1. Review the framework-light player-detail read models under
-   `tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/application/player/find/dto/`
+   `../../../../tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/application/player/find/dto`
    and the `FindPlayerDetailsQueryHandler` to confirm each match carries the
    source, season, competition, player result, scores, player team, and
    opposing team needed by all three tabs.
@@ -35,9 +35,9 @@
    it from the matched lineup's team while retaining the existing source,
    season, match, and lineup identities.
 3. Map any approved read-model addition through
-   `tt-data-league-api-rest/src/main/java/org/cttelsamicsterrassa/data/api/rest/player/PlayerDetailsDto.java`
+   `../../../../tt-data-league-api-rest/src/main/java/org/cttelsamicsterrassa/data/api/rest/player/PlayerDetailsDto.java`
    and normalize it strictly in
-   `tt-data-league-frontend/src/api/players.js`. Invalid or absent data must
+   `../../../../tt-data-league-frontend/src/api/players.js`. Invalid or absent data must
    surface through the existing API error state instead of inventing an
    opponent.
 4. Keep the existing `GET /api/v1/player/{id}` endpoint and authorization
@@ -47,7 +47,7 @@
 
 ## 3. Implement the Player detail tabbed layout
 
-1. Refactor `tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` into a
+1. Refactor `../../../../tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` into a
    page shell with an identity header, a shared selector area, an accessible
    tablist, one labelled tabpanel, and the existing related-data sections.
    Reuse the complete normalized response as the sole input for the filter
@@ -75,7 +75,7 @@
 
 ## 4. Apply responsive and accessibility behavior
 
-1. Extend `tt-data-league-frontend/src/app.css` using the existing
+1. Extend `../../../../tt-data-league-frontend/src/app.css` using the existing
    `club-controls`, `club-tabs`, `club-tab`, `club-filters`, and table layers
    where they match the Player detail layout. Add focused Player-specific
    selectors only when the shared styles cannot express the required behavior.
@@ -94,7 +94,7 @@
 ## 5. Add regression coverage and validate
 
 1. Add `PlayerDetailPage` tests using the existing Vitest and Testing Library
-   patterns in `tt-data-league-frontend/src/pages/`. Cover default and
+   patterns in `../../../../tt-data-league-frontend/src/pages`. Cover default and
    URL-selected tabs, invalid-tab normalization, keyboard-accessible tab
    selection, and preservation of source, season, competition, and chart query
    parameters across tab changes.

@@ -19,7 +19,7 @@
    table (or the existing repository convention if one is approved), enforce
    unique keys and optimistic versioning, preserve category/type metadata, and
    make restore atomic. Update
-   `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` for every table,
+   `../../../../tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` for every table,
    column, constraint, or transaction-behavior change.
 4. Add the versioned REST contract in `tt-data-league-api-rest`: an
    administrator-protected list/read endpoint with category/search filters,
@@ -37,7 +37,7 @@
    incompatible restore files, rollback on restore failure, unauthorized and
    non-administrator access, and secret/configuration exclusion.
 6. Replace the System Settings destination in
-   `tt-data-league-frontend/src/pages/AdministrationPage.jsx` with a focused
+   `../../../../tt-data-league-frontend/src/pages/AdministrationPage.jsx` with a focused
    settings panel (split into a feature component if useful). Add an API
    boundary under `src/api/` and cancellable hooks under `src/hooks/` that use
    `apiRequest`, pass the current token, normalize server data, and expose

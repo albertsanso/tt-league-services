@@ -1,7 +1,7 @@
 # Build Plan
 
 1. Replace the Vite starter screen in
-   `tt-data-league-frontend/src/App.jsx`, `src/index.css`, and
+   `../../../../tt-data-league-frontend/src/App.jsx`, `src/index.css`, and
    `src/app.css` with the TT League application entry point.
 2. Create the application shell, routes, shared UI components, hooks, and
    React Context state described in the theme sub-plan below.
@@ -14,7 +14,7 @@
    tablet, mobile, keyboard, reduced-motion, drawer, dropdown, and direct-route
    behaviors.
 
-## Theme sub-plan: `docs/frontend/theme-spec.md`
+## Theme sub-plan: `../../../frontend/theme-spec.md`
 
 This sub-plan expands the complete theme specification into implementation
 work. The theme specification remains the visual source of truth; this file
@@ -23,7 +23,7 @@ defines how each of its sections is translated into frontend artifacts.
 ### 1. Design foundations, tokens, and typography
 
 - Define all surface, accent, text, border, and feedback colors as `:root`
-  CSS variables in `tt-data-league-frontend/src/index.css`.
+  CSS variables in `../../../../tt-data-league-frontend/src/index.css`.
 - Use the light professional visual direction: `#F0F4F8` app background,
   white cards/top bar, `#1E3A5F` institutional accent, restrained geometry,
   thin borders, and at most `shadow-sm` for interaction feedback.
@@ -132,7 +132,7 @@ defines how each of its sections is translated into frontend artifacts.
 
 # Implementation Guidelines
 
-- Treat `docs/frontend/theme-spec.md` and the theme sub-plan above as the
+- Treat `../../../frontend/theme-spec.md` and the theme sub-plan above as the
   visual and interaction contract for FEAT-00001.
 - Use the existing React, React Router, Tailwind CSS, and Lucide dependencies.
   Use React Context for shared UI state rather than adding Zustand or another

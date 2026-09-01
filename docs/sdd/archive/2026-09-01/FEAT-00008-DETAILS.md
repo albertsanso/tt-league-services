@@ -14,7 +14,7 @@
 
 2. **Add the canonical domain model and contracts.**
    - Add a season-independent `Club` under
-     `tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/domain/club`
+     `../../../../tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/domain/club`
      with UUID identity, validated name, factories, events, and a
      `ClubRepository` port.
    - Extend `FederatedClub` with its canonical `Club` association while
@@ -39,7 +39,7 @@
      row counts, UUID preservation, foreign keys, and existing associations.
      Do not treat Hibernate schema update as a rename or data migration.
    - Update
-     `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` for the
+     `../../../../tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` for the
      `club` table, `federated_club.club_id`, constraints, and relationship
      behavior.
 

@@ -26,11 +26,11 @@
    unauthorized or malformed-request errors. Keep the endpoint backed by the
    application query rather than duplicating counting logic in the controller.
 6. Update
-   `tt-data-league-frontend/src/hooks/useCommunityStats.js` to call the shared
+   `../../../../tt-data-league-frontend/src/hooks/useCommunityStats.js` to call the shared
    API client with the authenticated request and agreed scope parameters.
    Preserve normalization, abort handling, loading/error states, and the
    deterministic mock-data path controlled by `VITE_USE_MOCK_STATS`.
-7. Update `tt-data-league-frontend/src/components/overview/CommunityStats.jsx`
+7. Update `../../../../tt-data-league-frontend/src/components/overview/CommunityStats.jsx`
    and the overview page to render backend values, selected-scope controls,
    current-season status, empty states, and authorization errors while
    preserving responsive layout, navigation, accessibility, and the existing
@@ -132,7 +132,7 @@
   (all green), frontend `npm test`, `npm run lint`, `npm run build` (all
   green except one pre-existing, unrelated failure — see below).
 - Known pre-existing, unrelated failures (present before this feature and
-  left untouched per scope): `tt-data-league-frontend/src/config/routes.test.js`
+  left untouched per scope): `../../../../tt-data-league-frontend/src/config/routes.test.js`
   (`matches nested Club routes...`, caused by an already-modified
   `navigation.overview` translation in `ca.js`); `tt-data-league-import`
   (8 pre-existing processor-test failures); `tt-data-league-import-runtime`

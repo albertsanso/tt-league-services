@@ -53,7 +53,7 @@
 
 ## 3. Add frontend session and API foundations
 
-1. Add a small API boundary under `tt-data-league-frontend/src/api/` for
+1. Add a small API boundary under `../../../../tt-data-league-frontend/src/api` for
    authentication and authenticated requests. It must attach the bearer
    token, normalize known error responses, abort requests on unmount, and
    surface non-success responses instead of silently falling back.
@@ -126,7 +126,7 @@
   protect data. Backend authorization must be tested independently.
 - Follow the existing React 19, React Router, Context, relative-URL, Catalan
   copy, two-space JSX, single-quote, and no-semicolon conventions in
-  `tt-data-league-frontend/AGENTS.md`.
+  `../../../../tt-data-league-frontend/AGENTS.md`.
 - Keep authentication state in the existing Context pattern. Do not add a
   second global state library or an authentication SDK unless an explicit
   dependency decision approves it.
@@ -135,7 +135,7 @@
   applicable; authentication errors must not fall back to FEAT-00001 mock data.
 - Preserve public backend routes while adding the target `/auth/me` contract,
   and document any persistence schema changes in
-  `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md`.
+  `../../../../tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md`.
 - Update the frontend README and runtime configuration documentation for
   proxy/API settings, token/session behavior, recovery delivery, and required
   environment variables. Never commit secrets or generated output.

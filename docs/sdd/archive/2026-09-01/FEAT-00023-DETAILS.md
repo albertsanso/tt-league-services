@@ -16,7 +16,7 @@
    `FAILED`, `CANCELLED`, `ROLLED_BACK`), timestamps, actor, and correlation/job
    IDs. Keep secrets out of persistence and make rollback idempotent.
 3. **Unify CLI and API orchestration.** Refactor
-   `tt-data-league-import-runtime/src/main/java/org/cttelsamicsterrassa/data/load/runtime/App.java`
+   `../../../../tt-data-league-import-runtime/src/main/java/org/cttelsamicsterrassa/data/load/runtime/App.java`
    behind the application service while preserving `ImportRuntimeArguments`,
    `ImportRuntimeCliContract`, and the README operational contract. CLI and API
    must share preview, validate, run, cancel, and rollback commands and expose
@@ -25,7 +25,7 @@
    controllers, DTOs, mappers, OpenAPI, and error handling for supported
    sources/schema, preview, validation, create/start, job detail/progress,
    cancel, rollback, paginated history, and search/filter. Wire through
-   `tt-data-league-api-runtime/src/main/java/org/cttelsamicsterrassa/data/api/runtime/APIApplication.java`
+   `../../../../tt-data-league-api-runtime/src/main/java/org/cttelsamicsterrassa/data/api/runtime/APIApplication.java`
    and existing api-rest/domain/JPA dependencies. Enforce administrator
    authorization on every endpoint and mutation, consistent 400/403/404/409/422/
    500 responses, request-size/time limits, and tenant/ownership scoping where
@@ -38,7 +38,7 @@
    traversal, symlinks, unrestricted filesystem/network access, and unsafe
    filenames.
 6. **Build the administration UI.** Replace the placeholder in
-   `tt-data-league-frontend/src/pages/AdministrationPage.jsx` (or a routed child)
+   `../../../../tt-data-league-frontend/src/pages/AdministrationPage.jsx` (or a routed child)
    for protected `/administration/import`. Add API functions in a module adjacent
    to `src/api/settings.js`, hooks under `src/hooks`, and admin components for
    source selection, mapping, preview, validation findings, confirmation,
@@ -75,7 +75,7 @@
 
 # Notes
 
-## Acceptance criteria (synchronized with `FEATURES.md`)
+## Acceptance criteria (synchronized with `../../FEATURES.md`)
 
 - [ ] Administrators can import data from supported sources into the system.
 - [ ] Administrators can map and transform source data during the import process.

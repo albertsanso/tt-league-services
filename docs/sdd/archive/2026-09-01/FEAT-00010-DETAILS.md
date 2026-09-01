@@ -12,7 +12,7 @@
 
 2. **Add canonical club search and detail application contracts.**
    - Add or update application queries and read models under
-     `tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/application/club/find`.
+     `../../../../tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/application/club/find`.
    - Return one search result per canonical `Club` UUID.
    - Include the source or season context needed to interpret associated data.
    - Define canonical detail results with associated federated sources,
@@ -29,7 +29,7 @@
      suppressing relevant source or season context.
    - Keep JPA entities out of application and REST response contracts.
    - Update
-     `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` only if
+     `../../../../tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` only if
      persistence relationships, indexes, constraints, or table behavior change.
 
 4. **Update the REST API.**
@@ -66,7 +66,7 @@
    - Add regression coverage for existing competition and season filters.
 
 7. **Synchronize documentation and validate the reactor.**
-   - Update `docs/sdd/FEATURES.md` when the canonical response contract is
+   - Update `../../FEATURES.md` when the canonical response contract is
      approved, keeping the feature status and acceptance criteria synchronized.
    - Update API/OpenAPI documentation for the final response shape.
    - Confirm the FEAT-00008 schema migration and canonical club data are available
@@ -99,7 +99,7 @@
 
 # Notes
 
-- FEAT-00010 is marked `done` in `docs/sdd/FEATURES.md`.
+- FEAT-00010 is marked `done` in `../../FEATURES.md`.
 - The registry currently requires canonical `Club` UUIDs for search results,
   while FEAT-00008 documentation states that existing route and DTO identifiers
   remain `FederatedClub` UUIDs. This compatibility decision must be resolved

@@ -80,14 +80,14 @@
      migration; document the required migration-before-start sequence.
 
 7. **Update schema and operational documentation.**
-   - Update `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` to use
+   - Update `../../../../tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` to use
      `FEDERATED_CLUB`, `federated_club_id`, the renamed indexes/constraints,
      and the actual migration scope.
-   - Update `tt-data-league-import-runtime/README.md` and relevant API
+   - Update `../../../../tt-data-league-import-runtime/README.md` and relevant API
      documentation with the migration prerequisite, while preserving external
      route names. Review existing implementation-plan references and retain
      historical terminology only where it documents an earlier schema.
-   - Synchronize this file, `FEATURES.md`, acceptance criteria, and any
+   - Synchronize this file, `../../FEATURES.md`, acceptance criteria, and any
      migration/deployment links once the migration owner is confirmed.
 
 8. **Add focused verification and run the reactor.**
@@ -124,7 +124,7 @@
 
 # Notes
 
-- `FEATURES.md` is the authoritative registry and should move FEAT-00005 from
+- `../../FEATURES.md` is the authoritative registry and should move FEAT-00005 from
   `idea` to `planned` now that this build plan exists. It remains in Backlog;
   implementation should wait until the plan is approved and the migration
   ownership/location is decided.

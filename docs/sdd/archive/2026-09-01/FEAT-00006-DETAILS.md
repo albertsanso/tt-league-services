@@ -82,12 +82,12 @@
      Document the required migration-before-start sequence.
 
 7. **Update schema and operational documentation.**
-   - Update `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` to
+   - Update `../../../../tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` to
      describe `FEDERATED_PLAYER`, `PLAYER_SEASON.federated_player_id`, and
      the preserved PlayerSeason-targeting `player_id` columns.
    - Update relevant runtime, API, and migration documentation while
      preserving public player routes and payload names.
-   - Synchronize this file, `FEATURES.md`, acceptance criteria, and migration
+   - Synchronize this file, `../../FEATURES.md`, acceptance criteria, and migration
      links once the deployment migration owner and location are confirmed.
 
 8. **Add focused verification and run the reactor.**

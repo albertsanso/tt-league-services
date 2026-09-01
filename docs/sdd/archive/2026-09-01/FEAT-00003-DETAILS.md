@@ -66,7 +66,7 @@
 
 ## 4. Implement the frontend club search experience
 
-1. Add `tt-data-league-frontend/src/api/clubs.js` and focused hooks such as
+1. Add `../../../../tt-data-league-frontend/src/api/clubs.js` and focused hooks such as
    `useClubSearch` and `useClubDetails`. Keep requests behind `apiRequest`,
    attach the session token, abort on unmount or query replacement, normalize
    the response at the API boundary, and surface non-success responses.
@@ -126,7 +126,7 @@
   to domain/application contracts, and domain code remains independent of
   Spring, JPA, and browser concerns.
 - Follow the frontend module conventions in
-  `tt-data-league-frontend/AGENTS.md`: JavaScript/JSX, two-space indentation,
+  `../../../../tt-data-league-frontend/AGENTS.md`: JavaScript/JSX, two-space indentation,
   single quotes, no semicolons, Catalan copy, existing Context/auth helpers,
   and CSS layers already used by the shell.
 - Keep route checks and hidden actions as UX behavior only. Every protected
@@ -153,7 +153,7 @@
   presented or persisted as club location; adding authoritative club
   geography requires a separate domain and schema decision.
 - The feature added the minimum frontend component test setup and updated
-  `package-lock.json` through npm.
+  `../../../../package-lock.json` through npm.
 - FEAT-00003 implementation is complete across the REST API, domain/JPA adapters,
   and frontend routes and views. Frontend lint, tests, and build pass, and the
   affected backend Maven reactor passes.

@@ -237,7 +237,7 @@ Each categorization table now shows the first 3 rows and collapses the
 remainder behind a native details/summary control.
 
 **Scope:** Frontend only — `OpponentCategoryTable` in
-`tt-data-league-frontend/src/pages/PlayerDetailPage.jsx`.
+`../../../../tt-data-league-frontend/src/pages/PlayerDetailPage.jsx`.
 
 Implementation:
 - `OpponentTable` renders three visible rows and wraps additional rows in a

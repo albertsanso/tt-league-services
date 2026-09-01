@@ -18,7 +18,7 @@
 
 2. **Add the canonical domain model and contracts.**
    - Add a season-independent `Player` under
-     `tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/domain/player`
+     `../../../../tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/domain/player`
      with UUID identity, validated name, factories, events, and a
      `PlayerRepository` port.
    - Extend `FederatedPlayer` with its canonical `Player` association while
@@ -49,7 +49,7 @@
      ambiguous or otherwise unresolvable rows explicitly unlinked for
      remediation; do not choose a first match.
    - Update
-     `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` for the
+     `../../../../tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` for the
      `player` table, `federated_player.player_id`, constraints, indexes, and
      relationship behavior.
 

@@ -5,16 +5,16 @@
    Catalan, Spanish (`es`), and English (`en`) as the initial supported
    languages.
 2. Create translation resources for each supported language under
-   `tt-data-league-frontend/src/i18n/`, using stable semantic keys and
+   `../../../../tt-data-league-frontend/src/i18n`, using stable semantic keys and
    interpolation for dynamic labels.
 3. Mount the i18n provider/initialization at the application root in
-   `tt-data-league-frontend/src/main.jsx` without changing the existing router,
+   `../../../../tt-data-league-frontend/src/main.jsx` without changing the existing router,
    authentication, or app-state provider boundaries.
 4. Configure locale persistence in browser storage, validate stored locale
    values, and fall back deterministically to Catalan when the value is
    missing or invalid.
 5. Add an accessible language selector to
-   `tt-data-league-frontend/src/pages/SettingsPage.jsx`; switching language
+   `../../../../tt-data-league-frontend/src/pages/SettingsPage.jsx`; switching language
    updates visible copy immediately without reloading or changing the current
    route.
 6. Replace current user-facing literal strings with translation keys across

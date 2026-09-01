@@ -18,7 +18,7 @@
 
 1. Inspect and extend the player detail application query and immutable read
    models in
-   `tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/application/player/find/`.
+   `../../../../tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/application/player/find`.
 2. Add repository-port methods only where the required player, source, season,
    and competition scope is explicit. Reuse existing `PlayerSeason`, `Team`,
    `Match`, and `Lineup` ports and preserve their identity and references.
@@ -30,13 +30,13 @@
    filtering. Do not add external identifiers to canonical or federated player
    entities.
 5. Update
-   `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` only if the
+   `../../../../tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` only if the
    persistence mapping or query-supporting schema changes.
 
 ## 3. Align REST contracts and error handling
 
 1. Update
-   `tt-data-league-api-rest/src/main/java/org/cttelsamicsterrassa/data/api/rest/player/PlayerController.java`
+   `../../../../tt-data-league-api-rest/src/main/java/org/cttelsamicsterrassa/data/api/rest/player/PlayerController.java`
    and the related DTOs/read-model mappers to expose the complete match history
    and statistics without leaking persistence entities.
 2. Serialize unavailable scores as an absent value for the mapper to render as
@@ -51,7 +51,7 @@
 ## 4. Complete the frontend player detail visualization
 
 1. Update
-   `tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` and its existing
+   `../../../../tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` and its existing
    API boundary/hooks to consume normalized detail data and preserve loading,
    empty, error, unauthorized, and not-found states.
 2. Keep source, season, and competition filters URL-persisted and interdependent;
@@ -84,7 +84,7 @@
    unlinked search results, direct and refreshed detail URLs, all-source and
    all-season views, and representative screen sizes.
 5. Check the FEAT-00012 acceptance criteria in
-   `docs/sdd/FEATURES.md` only after implementation evidence exists; keep the
+   `../../FEATURES.md` only after implementation evidence exists; keep the
    feature `in-progress` until the remaining criteria are complete.
 
 # Implementation Guidelines
@@ -107,7 +107,7 @@
 # Notes
 
 - FEAT-00009 and FEAT-00011 are prerequisites and remain listed as dependencies in
-  `docs/sdd/FEATURES.md`.
+  `../../FEATURES.md`.
 - The registry currently records the search/detail foundation and the initial
   visualization work as complete. The remaining scope is the enhanced chart
   selector and accessible metadata, complete match-history presentation,

@@ -6,7 +6,7 @@
    source-scoped; use a deterministic newest-first ordering; and agree on the
    complete set of detail fields available from the persisted match model.
 2. Define the domain read contracts under
-   `tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/domain/match`:
+   `../../../../tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/domain/match`:
    immutable search criteria, paginated search results, match detail read
    models, and repository/application queries. Keep source and season identity
    explicit and do not add external identifiers to `FederatedClub` or
@@ -20,7 +20,7 @@
 4. Add focused domain and JPA tests for filter validation, mandatory-filter
    behavior, source scoping, date boundaries, player matching, ordering,
    pagination, empty results, and complete match-detail assembly. Update
-   `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` if the
+   `../../../../tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` if the
    persistence mapping or fetch behavior changes.
 5. Add authenticated REST search and detail endpoints in
    `tt-data-league-api-rest`, using the existing query-bus/application
@@ -28,7 +28,7 @@
    `matches:read` permission. Return explicit client errors for malformed
    filters and preserve not-found and unauthorized semantics.
 6. Replace the placeholder
-   `tt-data-league-frontend/src/pages/MatchesSearchPage.jsx` with the filter
+   `../../../../tt-data-league-frontend/src/pages/MatchesSearchPage.jsx` with the filter
    and result workflow. Add URL-backed filter state, dependent metadata
    loading, abort-aware requests, explicit loading/empty/error/unauthorized
    states, ten-result initial pages, and a "Load more" action that adds ten

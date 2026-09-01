@@ -4,7 +4,7 @@ FEAT-00016 is done. Fixes 1–18 are implemented in the frontend.
 
 ## Implemented scope
 
-1. In `tt-data-league-frontend/src/pages/PlayerDetailPage.jsx`:
+1. In `../../../../tt-data-league-frontend/src/pages/PlayerDetailPage.jsx`:
    - statistics rows are sorted by season descending in the table;
    - chart values are ordered by season ascending on the x-axis;
    - matches are sorted newest-first, with undated matches last and a stable
@@ -18,14 +18,14 @@ FEAT-00016 is done. Fixes 1–18 are implemented in the frontend.
      `Totes les competicions` first;
    - season selector width uses the longest available season label;
    - selector layout follows
-     `docs/frontend/player-detail-selector-area-mockup-spec.md`: season spans
+     `../../../frontend/player-detail-selector-area-mockup-spec.md`: season spans
      the full first row, source is on the left of the second row, and
      competition is on the right of the second row.
    - selector changes retain the existing detail view while filtered data
      loads, avoiding a full-page refresh effect;
    - request and React context dependencies are stable, so selector changes
      trigger only the intended filtered request.
-2. In `tt-data-league-frontend/src/app.css`:
+2. In `../../../../tt-data-league-frontend/src/app.css`:
    - `.club-filters` defines the two-row desktop selector grid with season on
      row 1 and source/competition on row 2;
    - smaller viewports stack selector controls to a single column while
@@ -35,17 +35,17 @@ FEAT-00016 is done. Fixes 1–18 are implemented in the frontend.
    - match pagination buttons use compact spacing (`0.45rem 0.7rem`), app
      design tokens, and explicit disabled state styling;
    - pagination controls use the page-standard `0.8rem` font size.
-3. In `tt-data-league-frontend/src/pages/PlayerDetailPage.test.jsx`:
+3. In `../../../../tt-data-league-frontend/src/pages/PlayerDetailPage.test.jsx`:
    - tests cover descending statistics order and ascending chart season order;
    - tests cover match sorting, 10-row pagination, and next-page navigation;
    - tests cover season selector dynamic width;
    - tests cover selector-area structure and mockup layout class assignments;
    - tests cover opponent table expansion and post-expansion `Show more` hide.
-4. In `tt-data-league-frontend/src/hooks/usePlayers.test.jsx`:
+4. In `../../../../tt-data-league-frontend/src/hooks/usePlayers.test.jsx`:
    - tests verify that the previous player detail snapshot remains available
      while a replacement filter request is in flight.
 5. Fix 15 implementation — in
-   `tt-data-league-frontend/src/pages/PlayerDetailPage.jsx`:
+   `../../../../tt-data-league-frontend/src/pages/PlayerDetailPage.jsx`:
    - define a percentage-oriented vertical scale for the statistics plot,
      including stable tick values from 0% through 100%;
    - render the percentage tick labels instead of the generic `Valor` axis
@@ -53,7 +53,7 @@ FEAT-00016 is done. Fixes 1–18 are implemented in the frontend.
    - render horizontal grey guide lines aligned with those ticks without
      changing the existing season ordering, responsive SVG sizing, or the
      plotted series.
-6. In `tt-data-league-frontend/src/pages/PlayerDetailPage.test.jsx`, focused
+6. In `../../../../tt-data-league-frontend/src/pages/PlayerDetailPage.test.jsx`, focused
    assertions for the percentage tick labels, the grey horizontal guide lines,
    and the unchanged ascending season order in the plot.
 7. Validate the frontend test, lint, and production-build commands, then
@@ -62,12 +62,12 @@ FEAT-00016 is done. Fixes 1–18 are implemented in the frontend.
    Fix 15 is implemented: both the standard and connected-scatter statistics
    charts show 0%, 25%, 50%, 75%, and 100% vertical ticks with grey horizontal
    reference lines, while preserving the existing plot series and season order.
-8. Fix 16 — in `tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` and
-   `tt-data-league-frontend/src/app.css`, increase contrast for the opponent
+8. Fix 16 — in `../../../../tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` and
+   `../../../../tt-data-league-frontend/src/app.css`, increase contrast for the opponent
    search input with a lighter or white background while retaining accessible
    focus styling and the existing search behavior.
-9. Fix 17 — in `tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` and
-   `tt-data-league-frontend/src/app.css`, make the connected-scatter chart the
+9. Fix 17 — in `../../../../tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` and
+   `../../../../tt-data-league-frontend/src/app.css`, make the connected-scatter chart the
    only Statistics plot and remove the plot type selector without changing the
    chart data, season ordering, responsive sizing, or accessible labelling.
 10. Fix 18 — in the Players search implementation and its associated styles,
@@ -148,7 +148,7 @@ FEAT-00016 is done. Fixes 1–18 are implemented in the frontend.
 - [x] In **player detail selector area**, the `season` selector has the option **Totes les temporades** as the first option, and the `competition` selector has the option **Totes les competicions** as the first option. The slider shows the season marks or scales in grey color as a vertical line.
 - [x] The season selector width is dynamic, so that it can accommodate the longest season name without truncation.
 - [x] The season selector occupies the full width of the first row, as defined
-  by `docs/frontend/player-detail-selector-area-mockup-spec.md`.
+  by `../../../frontend/player-detail-selector-area-mockup-spec.md`.
 - [x] The source selector occupies the left side of the second row, as defined
   by the selector mockup specification.
 - [x] The competition selector occupies the right side of the second row, as

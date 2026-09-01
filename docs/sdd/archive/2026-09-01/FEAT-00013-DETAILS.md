@@ -15,11 +15,11 @@
 ## 2. Correct the backend player-detail contract
 
 1. Update the framework-light player read models and query handlers under
-   `tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/application/player/find/`
+   `../../../../tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/application/player/find`
    so every returned collection and statistic uses explicit canonical-player,
    source, season, and competition context.
 2. Update the REST player controller and DTO/mapping classes under
-   `tt-data-league-api-rest/src/main/java/org/cttelsamicsterrassa/data/api/rest/player/`
+   `../../../../tt-data-league-api-rest/src/main/java/org/cttelsamicsterrassa/data/api/rest/player`
    to return stable fields for identity, registrations, related clubs and
    competitions, match history, and statistics.
 3. Preserve UUID-based canonical `Player` navigation and source-scoped
@@ -35,11 +35,11 @@
 
 ## 3. Fix frontend rendering and navigation
 
-1. Update `tt-data-league-frontend/src/api/players.js` and the existing player
+1. Update `../../../../tt-data-league-frontend/src/api/players.js` and the existing player
    hooks to normalize the corrected response shape at the API boundary and
    reject malformed values rather than rendering misleading defaults.
 2. Update
-   `tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` so the displayed
+   `../../../../tt-data-league-frontend/src/pages/PlayerDetailPage.jsx` so the displayed
    identity and related sections always match the selected player and active
    source, season, and competition filters.
 3. Keep filter state URL-persisted and interdependent: changing source resets
