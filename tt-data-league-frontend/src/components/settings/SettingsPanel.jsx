@@ -49,17 +49,13 @@ function SettingCard({ setting, pendingValue, onChange, onSave, onDelete, saving
       <div className="system-setting-heading">
         <div>
           <h2>{label}</h2>
-          <p className="setting-key">{setting.name}</p>
         </div>
-        <span className="setting-category">{t(`systemSettings.categories.${setting.category}`, { defaultValue: setting.category })}</span>
       </div>
-      <p className="setting-description">
-        {setting.description ?? t('systemSettings.defaultDescription')}
-      </p>
+
       <div className="system-setting-value">
         <SettingValue setting={setting} value={value} onChange={(next) => onChange(setting.name, next)} />
       </div>
-      <p className="setting-meta">{t('systemSettings.version', { version: setting.version ?? 0 })}</p>
+
       <div className="setting-actions">
         <button className="secondary-button" type="button" onClick={() => onSave(setting)} disabled={saving || pendingValue === undefined}>
           {saving ? t('systemSettings.saving') : t('systemSettings.save')}
