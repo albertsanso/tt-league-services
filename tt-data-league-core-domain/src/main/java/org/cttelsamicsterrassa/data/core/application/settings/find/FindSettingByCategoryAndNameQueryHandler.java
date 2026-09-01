@@ -8,10 +8,11 @@ import org.cttelsamicsterrassa.data.core.domain.settings.service.SettingFinderSe
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.util.List;
+import java.util.Optional;
 
 @Named
 public class FindSettingByCategoryAndNameQueryHandler
-        extends DomainQueryHandler<FindSettingByCategoryAndNameQuery, List<Setting>> {
+        extends DomainQueryHandler<FindSettingByCategoryAndNameQuery, Optional<Setting>> {
     private final SettingFinderService settingFinderService;
 
     @Inject
@@ -20,7 +21,7 @@ public class FindSettingByCategoryAndNameQueryHandler
     }
 
     @Override
-    public DomainQueryResponse<List<Setting>> handle(FindSettingByCategoryAndNameQuery query) {
+    public DomainQueryResponse<Optional<Setting>> handle(FindSettingByCategoryAndNameQuery query) {
         return DomainQueryResponse.sucessResponse(
                 settingFinderService.findByCategoryAndName(query.getCategory(), query.getName()));
     }

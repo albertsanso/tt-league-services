@@ -1,21 +1,22 @@
 package org.cttelsamicsterrassa.data.core.application.settings.find;
 
 import org.albertsanso.commons.query.DomainQuery;
+import org.cttelsamicsterrassa.data.core.domain.settings.model.SettingCategory;
 
 import java.time.ZonedDateTime;
 import java.util.UUID;
 
 public class FindSettingByCategoryAndNameQuery extends DomainQuery {
-    private final String category;
+    private final SettingCategory category;
     private final String name;
 
-    public FindSettingByCategoryAndNameQuery(String category, String name) {
+    public FindSettingByCategoryAndNameQuery(SettingCategory category, String name) {
         super(ZonedDateTime.now(), UUID.randomUUID().toString());
         this.category = category;
         this.name = name;
     }
 
-    public String getCategory() {
+    public SettingCategory getCategory() {
         return category;
     }
 

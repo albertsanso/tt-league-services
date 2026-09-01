@@ -24,6 +24,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 ## Main index
 
 - [FEAT-00024: System settings](### [FEAT-00024] System settings)
+- [FEAT-00025: Administration > Data import design theme](### [FEAT-00025] Administration > Data import design theme)
 
 ## In Progress
 
@@ -39,8 +40,37 @@ No features currently in review.
 
 ## Backlog
 
+### [FEAT-00025] Administration > Data import design theme
+- **Status:** idea
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** —
+
+#### Goal
+Establish a consistent administration design theme for the data import experience.
+
+Analyze the design document in `docs/frontend/load-import/theme-spec.md` and implement the proposed layout, typography, color, spacing, 
+and controls for the data import experience. 
+Ensure that import states, actions, validation feedback, and progress indicators use the shared theme consistently. 
+The themed data import experience should be responsive and accessible across supported administration viewports.
+Additionally, ensure that Catalan, Spanish, and English data import labels and messages remain visually consistent with the administration theme.
+
+#### Acceptance Criteria
+- [ ] The data import experience uses the shared administration design theme for layout, typography, color, spacing, and controls.
+- [ ] Import states, actions, validation feedback, and progress indicators are visually consistent with the administration theme.
+- [ ] The themed data import experience is responsive and accessible across supported administration viewports.
+- [ ] Catalan, Spanish, and English data import labels and messages are visually consistent with the administration theme.
+- [ ] The plan takes into account the existing design system in `docs/frontend/load-import/theme-spec.md` and any necessary adjustments to ensure a cohesive user experience.
+
+#### Feature Details
+→ See [FEAT-00025-DETAILS.md](./FEAT-00025-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+## Done
+
 ### [FEAT-00024] System settings
-- **Status:** in-review
+- **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
 - **Depends on:** —
@@ -64,5 +94,3 @@ Provide a central place where administrators can search, filter, create, update,
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-
-## Done

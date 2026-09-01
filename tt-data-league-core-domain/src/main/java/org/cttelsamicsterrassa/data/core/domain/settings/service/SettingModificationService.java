@@ -28,7 +28,7 @@ public class SettingModificationService {
     }
 
     public Setting modifyValue(SettingCategory category, String name, String newValue) {
-        return settingRepository.findByCategoryAndName(category.name(), name)
+        return settingRepository.findByCategoryAndName(category, name)
                 .map(setting -> {
                     setting.modifyValue(newValue);
                     settingRepository.save(setting);

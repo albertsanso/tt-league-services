@@ -27,14 +27,14 @@ public class SettingRepositoryJpa implements SettingRepository {
     }
 
     @Override
-    public Optional<Setting> findByCategoryAndName(String category, String name) {
-        return settingRepositoryHelper.findByCategoryAndName(SettingCategory.valueOf(category), name)
+    public Optional<Setting> findByCategoryAndName(SettingCategory category, String name) {
+        return settingRepositoryHelper.findByCategoryAndName(category, name)
                 .map(settingJPAToSettingMapper);
     }
 
     @Override
-    public List<Setting> findAllByCategory(String category) {
-        return settingRepositoryHelper.findAllByCategory(SettingCategory.valueOf(category))
+    public List<Setting> findAllByCategory(SettingCategory category) {
+        return settingRepositoryHelper.findAllByCategory(category)
                 .stream()
                 .map(settingJPAToSettingMapper)
                 .toList();

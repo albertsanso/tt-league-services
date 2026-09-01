@@ -50,7 +50,7 @@ public class SettingsController {
         try {
             DomainQueryResponse<List<Setting>> response = category == null
                     ? queryBus.push(new FindSettingsQuery())
-                    : queryBus.push(new FindSettingsByCategoryQuery(parseCategory(category).name()));
+                    : queryBus.push(new FindSettingsByCategoryQuery(parseCategory(category)));
             return response.isSuccess()
                     ? ResponseEntity.ok(response.getResponse().stream().map(SettingDto::from).toList())
                     : serverError("Settings query failed");
@@ -78,7 +78,7 @@ public class SettingsController {
         }
         try {
             DomainQueryResponse<List<Setting>> response = queryBus.push(
-                    new FindSettingByCategoryAndNameQuery(parseCategory(category).name(), name.trim()));
+                    new FindSettingByCategoryAndNameQuery(parseCategory(category), name.trim()));
             return response.isSuccess()
                     ? ResponseEntity.ok(response.getResponse().stream().map(SettingDto::from).toList())
                     : notFound("Setting not found");

@@ -29,8 +29,8 @@ class SettingRepositoryJpaTest {
         settingRepository.save(setting);
 
         assertEquals(setting.getId(), settingRepository.findById(ID).orElseThrow().getId());
-        assertEquals(ID, settingRepository.findByCategoryAndName("GENERAL", "timezone").orElseThrow().getId());
-        assertEquals(1, settingRepository.findAllByCategory("GENERAL").size());
+        assertEquals(ID, settingRepository.findByCategoryAndName(SettingCategory.GENERAL, "timezone").orElseThrow().getId());
+        assertEquals(1, settingRepository.findAllByCategory(SettingCategory.GENERAL).size());
         assertEquals(1, settingRepository.findAll().size());
     }
 

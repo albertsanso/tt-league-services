@@ -30,6 +30,21 @@ application authentication tables.
 
 ## League tables
 
+### `import_resource`
+
+Import metadata associated with a stored resource.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `resource_id` | `UUID` | No | FK to `resource` |
+| `valid` | `BOOLEAN` | Yes | — |
+| `type` | `VARCHAR` | No | Enum string |
+| `created` | `TIMESTAMP WITH TIME ZONE` | No | — |
+| `last_processed_date` | `TIMESTAMP WITH TIME ZONE` | Yes | — |
+
+The `resource` association is a lazy `@OneToOne` with no cascade.
+
 ### `club`
 
 Season-independent canonical club identity.
