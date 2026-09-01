@@ -60,11 +60,15 @@ files before changing this module.
 
 - Use ES modules, JavaScript/JSX, two-space indentation, single quotes, and no
   semicolons, matching the existing source and ESLint configuration.
+- Follow `docs/frontend/design-contract.md` for the compact, enforceable version
+  of the visual system. Treat `docs/frontend/theme-spec.md` as the complete
+  visual reference when a design decision is not covered by the contract.
 - Prefer small function components and focused hooks. Keep derived values
   derived rather than duplicating them in state, and use functional state
   updates when the next value depends on the previous value.
-- Prefer existing components, hooks, route helpers, context values, and
-  `lucide-react` icons before introducing new abstractions or dependencies.
+- Prefer existing components, hooks, route helpers, context values, UI
+  primitives, and `lucide-react` icons before introducing new abstractions or
+  dependencies. New shared visual behavior belongs in `src/components/ui`.
 - Keep user-facing copy consistent with the existing Catalan interface.
   Preserve established loading, empty, error, and responsive states when
   extending a page.
@@ -87,9 +91,11 @@ files before changing this module.
    loading state, and responsive shell integration as one coherent change.
 3. For API-backed behavior, verify the endpoint contract and handle loading,
    success, empty, failure, and cancellation paths.
-4. Keep changes focused. Do not edit Maven modules, generated output, or
+4. Apply the design contract and reuse UI primitives before adding page-specific
+   styles.
+5. Keep changes focused. Do not edit Maven modules, generated output, or
    unrelated global styles to make a frontend change appear to work.
-5. Review the final diff for accidental changes, exposed client configuration,
+6. Review the final diff for accidental changes, exposed client configuration,
    broken links, missing accessible names, and untranslated user-facing copy.
 
 ## Validation

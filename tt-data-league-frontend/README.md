@@ -18,6 +18,14 @@ npm run lint
 npm run build
 ```
 
+## Sistema de disseny
+
+Les noves funcionalitats han de seguir el contracte compacte de
+`../docs/frontend/design-contract.md` i poden consultar l'especificació visual
+completa a `../docs/frontend/theme-spec.md`. Reutilitzeu els tokens de
+`src/index.css` i els components compartits de `src/components/ui` abans
+d'afegir estils o primitives locals.
+
 ## Execució local
 
 ```bash
