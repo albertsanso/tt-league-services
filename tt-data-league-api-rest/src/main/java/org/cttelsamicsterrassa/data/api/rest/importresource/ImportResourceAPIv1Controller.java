@@ -14,7 +14,7 @@ import static org.cttelsamicsterrassa.data.api.rest.ControllerConfig.API_BASE_PA
 @Retention(RetentionPolicy.RUNTIME)
 @Target({ElementType.TYPE, ElementType.PARAMETER})
 @RestController
-@RequestMapping(API_BASE_PATH_V1 + "/import_resource")
+@RequestMapping(API_BASE_PATH_V1 + "/administration/import")
 @Tag(name = "Import Resource API", description = "Endpoints for managing import resources in the table tennis league")
 public @interface ImportResourceAPIv1Controller {
 }

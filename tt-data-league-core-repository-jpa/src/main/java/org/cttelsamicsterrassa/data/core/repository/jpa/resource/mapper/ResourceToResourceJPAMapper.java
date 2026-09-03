@@ -16,7 +16,6 @@ public class ResourceToResourceJPAMapper implements Function<Resource, ResourceJ
 
         return new ResourceJPA(
                 resource.getId(),
-                resource.getType(),
                 resource.getName(),
                 resource.getLogicPath(),
                 resource.getPhysicalPath().toString());

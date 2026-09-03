@@ -17,7 +17,6 @@ public class ResourceJPAToResourceMapper implements Function<ResourceJPA, Resour
 
         return Resource.createExisting(
                 resourceJPA.getId(),
-                resourceJPA.getType(),
                 resourceJPA.getName(),
                 resourceJPA.getLogicPath(),
                 Path.of(resourceJPA.getPhysicalPath()));

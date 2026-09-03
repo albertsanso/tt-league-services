@@ -1,7 +1,6 @@
 package org.cttelsamicsterrassa.data.core.repository.jpa.resource.mapper;
 
 import org.cttelsamicsterrassa.data.core.domain.resource.model.Resource;
-import org.cttelsamicsterrassa.data.core.domain.resource.model.ResourceType;
 import org.cttelsamicsterrassa.data.core.repository.jpa.resource.model.ResourceJPA;
 import org.junit.jupiter.api.Test;
 
@@ -19,12 +18,11 @@ class ResourceMapperTest {
     @Test
     void mapsDomainResourceToJpaResource() {
         Resource resource = Resource.createExisting(
-                ID, ResourceType.SEASON_REPORTS, "report", "reports/report.html", PHYSICAL_PATH);
+                ID, "report", "reports/report.html", PHYSICAL_PATH);
 
         ResourceJPA resourceJPA = new ResourceToResourceJPAMapper().apply(resource);
 
         assertEquals(ID, resourceJPA.getId());
-        assertEquals(ResourceType.SEASON_REPORTS, resourceJPA.getType());
         assertEquals("report", resourceJPA.getName());
         assertEquals("reports/report.html", resourceJPA.getLogicPath());
         assertEquals(PHYSICAL_PATH.toString(), resourceJPA.getPhysicalPath());
@@ -34,7 +32,6 @@ class ResourceMapperTest {
     void mapsJpaResourceToDomainResource() {
         ResourceJPA resourceJPA = new ResourceJPA(
                 ID,
-                ResourceType.SEASON_TEAMS_INFO,
                 "teams",
                 "reports/teams.html",
                 PHYSICAL_PATH.toString());
@@ -42,7 +39,6 @@ class ResourceMapperTest {
         Resource resource = new ResourceJPAToResourceMapper().apply(resourceJPA);
 
         assertEquals(ID, resource.getId());
-        assertEquals(ResourceType.SEASON_TEAMS_INFO, resource.getType());
         assertEquals("teams", resource.getName());
         assertEquals("reports/teams.html", resource.getLogicPath());
         assertEquals(PHYSICAL_PATH, resource.getPhysicalPath());

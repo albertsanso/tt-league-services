@@ -19,8 +19,9 @@ public class ImportResource extends Entity {
     private final Optional<ZonedDateTime> lastProcessedDate;
     private final Season season;
     private final ImportSource source;
+    private ImportResourceStatus status;
 
-    private ImportResource(UUID id, Resource resource, Optional<Boolean> valid, ResourceType type, ZonedDateTime created, Optional<ZonedDateTime> lastProcessedDate, Season season, ImportSource source) {
+    private ImportResource(UUID id, Resource resource, Optional<Boolean> valid, ResourceType type, ZonedDateTime created, Optional<ZonedDateTime> lastProcessedDate, Season season, ImportSource source, ImportResourceStatus status) {
         this.id = id;
         this.resource = resource;
         this.valid = valid;
@@ -29,18 +30,43 @@ public class ImportResource extends Entity {
         this.lastProcessedDate = lastProcessedDate;
         this.season = season;
         this.source = source;
+        this.status = status;
     }
 
-    private static ImportResource of(UUID id, Resource resource, Optional<Boolean> valid, ResourceType type, ZonedDateTime created, Optional<ZonedDateTime> lastProcessedDate, Season season, ImportSource source) {
-        return new ImportResource(id, resource, valid, type, created, lastProcessedDate, season, source);
+    private static ImportResource of(UUID id, Resource resource, Optional<Boolean> valid, ResourceType type, ZonedDateTime created, Optional<ZonedDateTime> lastProcessedDate, Season season, ImportSource source, ImportResourceStatus status) {
+        return new ImportResource(id, resource, valid, type, created, lastProcessedDate, season, source, status);
     }
 
     public static ImportResource createNew(Resource resource, Optional<Boolean> valid, ResourceType type, ZonedDateTime created, Optional<ZonedDateTime> lastProcessedDate, Season season, ImportSource source) {
-        return new ImportResource(UUID.randomUUID(), resource, valid, type, created, lastProcessedDate, season, source);
+        return of(UUID.randomUUID(), resource, valid, type, created, lastProcessedDate, season, source, ImportResourceStatus.PENDING);
     }
 
-    public static ImportResource createExisting(UUID id, Resource resource, Optional<Boolean> valid, ResourceType type, ZonedDateTime created, Optional<ZonedDateTime> lastProcessedDate, Season season, ImportSource source) {
-        return new ImportResource(id, resource, valid, type, created, lastProcessedDate, season, source);
+    public static ImportResource createExisting(UUID id, Resource resource, Optional<Boolean> valid, ResourceType type, ZonedDateTime created, Optional<ZonedDateTime> lastProcessedDate, Season season, ImportSource source, ImportResourceStatus status) {
+        return of(id, resource, valid, type, created, lastProcessedDate, season, source, status);
+    }
+
+    public void setPending() {
+        if (status == ImportResourceStatus.PENDING) return;
+
+        if (ImportResourceStatus.getAllFinishedStatuses().contains(status)) {
+            this.status = ImportResourceStatus.PENDING;
+        } else {
+            throw new IllegalStateException("Cannot set an import resource to PENDING status from its current status: " + status);
+        }
+    }
+
+    public void startProcessing() {
+        if (status != ImportResourceStatus.PENDING) {
+            throw new IllegalStateException("Cannot start processing an import resource that is not in PENDING status.");
+        }
+        this.status = ImportResourceStatus.PROCESSING;
+    }
+
+    public void finishProcessing(boolean isValid) {
+        if (status != ImportResourceStatus.PROCESSING) {
+            throw new IllegalStateException("Cannot finish processing an import resource that is not in PROCESSING status.");
+        }
+        this.status = isValid ? ImportResourceStatus.PROCESSED : ImportResourceStatus.ERROR;
     }
 
     public UUID getId() {
@@ -73,5 +99,9 @@ public class ImportResource extends Entity {
 
     public ImportSource getSource() {
         return source;
+    }
+
+    public ImportResourceStatus getStatus() {
+        return status;
     }
 }

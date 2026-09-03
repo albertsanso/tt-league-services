@@ -2,7 +2,12 @@
 
 This service provides the runtime API for the TT League application. 
 It is built using Spring Boot and connects to a PostgreSQL database. 
-The configuration for the service, including database connection details, JWT settings, and mail server settings, can be found in the `application.yml` file.
+The configuration for the service, including database connection details, JWT settings, mail server settings, and multipart upload limits, can be found in the `application.yml` file.
+
+ZIP import uploads accept files up to 100 MB by default. Override
+`IMPORT_UPLOAD_MAX_FILE_SIZE` and `IMPORT_UPLOAD_MAX_REQUEST_SIZE` when a
+different deployment limit is required; the request limit must be at least as
+large as the file limit.
 
 # Considerations:
 

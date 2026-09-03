@@ -3,7 +3,6 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.resource.impl;
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
 import org.cttelsamicsterrassa.data.core.domain.resource.model.Resource;
-import org.cttelsamicsterrassa.data.core.domain.resource.model.ResourceType;
 import org.cttelsamicsterrassa.data.core.domain.resource.repository.ResourceRepository;
 import org.cttelsamicsterrassa.data.core.repository.jpa.resource.mapper.ResourceJPAToResourceMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.resource.mapper.ResourceToResourceJPAMapper;
@@ -27,8 +26,8 @@ public class ResourceRepositoryJpa implements ResourceRepository {
     }
 
     @Override
-    public Optional<Resource> findByTypeAndName(ResourceType type, String name) {
-        return resourceRepositoryHelper.findByTypeAndName(type, name).map(resourceJPAToResourceMapper);
+    public Optional<Resource> findByLogicPathAndName(String logicPath, String name) {
+        return resourceRepositoryHelper.findByLogicPathAndName(logicPath, name).map(resourceJPAToResourceMapper);
     }
 
     @Override
@@ -39,8 +38,8 @@ public class ResourceRepositoryJpa implements ResourceRepository {
     }
 
     @Override
-    public List<Resource> findAllByType(ResourceType type) {
-        return resourceRepositoryHelper.findAllByType(type).stream()
+    public List<Resource> findAllByLogicPath(String logicPath) {
+        return resourceRepositoryHelper.findAllByLogicPath(logicPath).stream()
                 .map(resourceJPAToResourceMapper)
                 .toList();
     }

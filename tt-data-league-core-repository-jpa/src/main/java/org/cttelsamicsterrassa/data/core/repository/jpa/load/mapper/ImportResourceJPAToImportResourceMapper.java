@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.load.mapper;
 
 import lombok.AllArgsConstructor;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResource;
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResourceStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.repository.jpa.load.model.ImportResourceJPA;
@@ -30,7 +31,8 @@ public class ImportResourceJPAToImportResourceMapper implements Function<ImportR
                 importResourceJPA.getCreated(),
                 Optional.ofNullable(importResourceJPA.getLastProcessedDate()),
                 Season.fromFormatted(importResourceJPA.getSeason()),
-                ImportSource.valueOf(importResourceJPA.getSource().name())
+                ImportSource.valueOf(importResourceJPA.getSource().name()),
+                importResourceJPA.getStatus()
         );
     }
 }

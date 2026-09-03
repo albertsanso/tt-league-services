@@ -8,6 +8,7 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
@@ -15,6 +16,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResourceStatus;
 import org.cttelsamicsterrassa.data.core.domain.resource.model.ResourceType;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
 import org.cttelsamicsterrassa.data.core.repository.jpa.resource.model.ResourceJPA;
@@ -29,14 +31,15 @@ import java.util.UUID;
 @AllArgsConstructor
 @Table(
         name = "import_resource",
-        indexes = @Index(name = "idx_import_resource_resource_id", columnList = "resource_id")
+        indexes = @Index(name = "idx_import_resource_resource_id", columnList = "resource_id"),
+        uniqueConstraints = @UniqueConstraint(name = "uk_import_resource_resource_season_source", columnNames = {"resource_id", "season", "source"})
 )
 public class ImportResourceJPA {
     @Id
     private UUID id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "resource_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "resource_id", nullable = true)
     private ResourceJPA resource;
 
     @Column(name = "valid")
@@ -58,5 +61,9 @@ public class ImportResourceJPA {
     @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false)
     private Source source;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private ImportResourceStatus status;
 
 }

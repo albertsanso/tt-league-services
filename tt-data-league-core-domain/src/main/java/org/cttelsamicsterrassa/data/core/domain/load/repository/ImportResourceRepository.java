@@ -9,7 +9,10 @@ import java.util.UUID;
 public interface ImportResourceRepository {
 
     Optional<ImportResource> findById(UUID id);
+    Optional<ImportResource> findBySourceAndTypeAndSeason(String source, String type, String season);
 
+    List<ImportResource> findAllPendingImports();
+    List<ImportResource> findBySourceAndType(String source, String type);
     List<ImportResource> findAll();
 
     void save(ImportResource importResource);

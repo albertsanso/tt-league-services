@@ -810,6 +810,133 @@
   color: var(--color-success);
 }
 
+.badge.error {
+  background: var(--color-error-bg);
+  color: var(--color-error);
+}
+
+.import-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.import-file-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.import-file-controls label {
+  font-weight: 600;
+}
+
+.import-file-name {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.import-panel-grid {
+  display: grid;
+  grid-template-columns: minmax(12rem, 0.8fr) minmax(20rem, 2fr) minmax(15rem, 1fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.import-source-selector,
+.import-season-list,
+.import-report-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.import-source-selector h2,
+.import-season-list h2,
+.import-report-panel h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.import-source-card,
+.import-season-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem;
+}
+
+.import-source-card.selected {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 1px var(--accent-primary);
+}
+
+.import-source-select {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.import-source-select span,
+.import-season-item small {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.import-favourite {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.import-favourite[aria-pressed="true"] {
+  color: var(--accent-primary);
+}
+
+.import-season-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.import-report-panel {
+  padding: 1rem;
+  min-height: 10rem;
+}
+
+@media (max-width: 1279px) {
+  .import-panel-grid {
+    grid-template-columns: minmax(12rem, 1fr) minmax(18rem, 2fr);
+  }
+  .import-report-panel {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 767px) {
+  .import-panel-grid {
+    grid-template-columns: 1fr;
+  }
+  .import-report-panel {
+    grid-column: auto;
+  }
+  .import-season-item {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
 .card {
   background: var(--surface-card);
   border: 1px solid var(--border-default);

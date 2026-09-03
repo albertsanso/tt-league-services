@@ -80,3 +80,4 @@ The user interface follows a three-column structure with top control parameters:
     * **Type**: Action Button
     * **Label**: `Load`
     * **Purpose**: Triggers the global load sequence for the chosen file.
+    * **Enablement**: Becomes enabled immediately after a local file is chosen. No season, source, or other selection is required before loading.

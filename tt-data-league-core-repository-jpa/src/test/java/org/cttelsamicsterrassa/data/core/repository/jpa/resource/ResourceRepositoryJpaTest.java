@@ -1,7 +1,6 @@
 package org.cttelsamicsterrassa.data.core.repository.jpa.resource;
 
 import org.cttelsamicsterrassa.data.core.domain.resource.model.Resource;
-import org.cttelsamicsterrassa.data.core.domain.resource.model.ResourceType;
 import org.cttelsamicsterrassa.data.core.domain.resource.repository.ResourceRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,28 +24,28 @@ class ResourceRepositoryJpaTest {
 
     @Test
     void persistsAndFindsResources() {
-        Resource resource = resource("report", ResourceType.SEASON_REPORTS);
+        Resource resource = resource("report");
 
         resourceRepository.save(resource);
 
         assertEquals(ID, resourceRepository.findById(ID).orElseThrow().getId());
-        assertEquals(ID, resourceRepository.findByTypeAndName(
-                ResourceType.SEASON_REPORTS, "report").orElseThrow().getId());
-        assertEquals(1, resourceRepository.findAllByType(ResourceType.SEASON_REPORTS).size());
+        assertEquals(ID, resourceRepository.findByLogicPathAndName(
+                "reports/report.html", "report").orElseThrow().getId());
+        assertEquals(1, resourceRepository.findAllByLogicPath("reports/report.html").size());
         assertEquals(1, resourceRepository.findAll().size());
     }
 
     @Test
     void deletesResourcesById() {
-        resourceRepository.save(resource("report", ResourceType.SEASON_REPORTS));
+        resourceRepository.save(resource("report"));
 
         resourceRepository.deleteById(ID);
 
         assertTrue(resourceRepository.findById(ID).isEmpty());
     }
 
-    private static Resource resource(String name, ResourceType type) {
+    private static Resource resource(String name) {
         return Resource.createExisting(
-                ID, type, name, "reports/" + name + ".html", Path.of("data", name + ".html"));
+                ID, name, "reports/" + name + ".html", Path.of("data", name + ".html"));
     }
 }

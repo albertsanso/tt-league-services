@@ -10,31 +10,29 @@ import java.util.UUID;
 
 public class Resource extends Entity {
     private final UUID id;
-    private final ResourceType type;
     private final String name;
     private String logicPath;
     private final Path physicalPath;
 
-    private Resource(UUID id, ResourceType type, String name, String logicPath, Path physicalPath) {
+    private Resource(UUID id, String name, String logicPath, Path physicalPath) {
         this.id = id;
-        this.type = type;
         this.name = name;
         this.logicPath = logicPath;
         this.physicalPath = physicalPath;
     }
 
-    private static Resource of(UUID id, ResourceType type, String name, String logicPath, Path physicalPath) {
-        return new Resource(id, type, name, logicPath, physicalPath);
+    private static Resource of(UUID id, String name, String logicPath, Path physicalPath) {
+        return new Resource(id, name, logicPath, physicalPath);
     }
 
-    public static Resource createNew(ResourceType type, String name, String logicPath, Path physicalPath) {
-        Resource resource = new Resource(UUID.randomUUID(), type, name, logicPath, physicalPath);
+    public static Resource createNew(String name, String logicPath, Path physicalPath) {
+        Resource resource = new Resource(UUID.randomUUID(), name, logicPath, physicalPath);
         resource.publishResourceCreatedEvent();
         return resource;
     }
 
-    public static Resource createExisting(UUID id, ResourceType type, String name, String logicPath, Path physicalPath) {
-        return new Resource(id, type, name, logicPath, physicalPath);
+    public static Resource createExisting(UUID id, String name, String logicPath, Path physicalPath) {
+        return new Resource(id, name, logicPath, physicalPath);
     }
 
     public void modifyLogicatPath(String newLogicalPath) {
@@ -49,7 +47,7 @@ public class Resource extends Entity {
     }
 
     private void publishResourceCreatedEvent() {
-         publishEvent(ResourceCreatedEvent.of(id, type, name, logicPath));
+         publishEvent(ResourceCreatedEvent.of(id, name, logicPath));
     }
 
     private void publishResourceModifiedEvent() {
@@ -62,10 +60,6 @@ public class Resource extends Entity {
 
     public UUID getId() {
         return id;
-    }
-
-    public ResourceType getType() {
-        return type;
     }
 
     public String getName() {

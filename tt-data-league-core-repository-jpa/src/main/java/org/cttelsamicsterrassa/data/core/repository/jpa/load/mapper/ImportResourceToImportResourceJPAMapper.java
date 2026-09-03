@@ -28,6 +28,8 @@ public class ImportResourceToImportResourceJPAMapper implements Function<ImportR
                 importResource.getCreated(),
                 importResource.getLastProcessedDate().orElse(null),
                 importResource.getSeason().toString(),
-                Source.valueOf(importResource.getSource().name()));
+                Source.valueOf(importResource.getSource().name()),
+                importResource.getStatus()
+        );
     }
 }

@@ -2,6 +2,11 @@ spring:
   application:
     name: tt-data-league-api-runtime
 
+  servlet:
+    multipart:
+      max-file-size: ${IMPORT_UPLOAD_MAX_FILE_SIZE:100MB}
+      max-request-size: ${IMPORT_UPLOAD_MAX_REQUEST_SIZE:100MB}
+
   datasource:
     url: ${DB_TTLEAGUEDATA_JDBC_URL:jdbc:postgresql://localhost:5432/ttleaguedata}
     username: ${DB_TTLEAGUEDATA_CREDENTIAL_USERNAME:postgres}

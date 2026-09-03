@@ -25,6 +25,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 - [FEAT-00024: System settings](### [FEAT-00024] System settings)
 - [FEAT-00025: Administration > Data import design theme](### [FEAT-00025] Administration > Data import design theme)
+- [FEAT-00026: Display Data Import left Source/Federation selector with dynamic status](### [FEAT-00026] Display Data Import left Source/Federation selector with dynamic status)
 
 ## In Progress
 
@@ -40,8 +41,41 @@ No features currently in review.
 
 ## Backlog
 
-### [FEAT-00025] Administration > Data import design theme
+### [FEAT-00026] Display Data Import left Source/Federation selector with dynamic status
 - **Status:** idea
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** —
+
+#### Goal
+Give administrators a left-side Source/Federation selector in Data Import that clearly reflects each option's current status.
+
+#### Description
+- The selectors are labeled as `@source-selector` must be positioned on the left side of the Data Import interface. There are exactly 3 selectors sources/federations to display: `RFETM`, `BCNESA`, and `FCTT`.
+- Each selector should have a clear label and a visual indicator of its current status.
+- The status is obtained using a GET request to `/api/v1/administration/import/status` and status is `available` only if the related 
+**sourceName** property is present for that source/federation in the response.
+- There is polling every 5 seconds to update the status of each selector dynamically, without requiring a page reload.
+- The selectors design is a box/area where each selector is displayed as a row (big box too) with a label and a status indicator. The status indicator should be color-coded and accessible, indicating whether the source/federation is available, loading, unavailable, or in error state.
+- Each source/federation is selectable by clicking and must give access to a more detailed panel in `@seasons-import-list`.
+#### Mockup designs
+- See [theme-spec.md](docs/frontend/load-import/theme-spec.md)
+#### Acceptance Criteria
+- [ ] The left-side Source/Federation selector is displayed in the Data Import interface with exactly 3 options: `RFETM`, `BCNESA`, and `FCTT`.
+- [ ] Each selector has a clear label and a visual indicator of its current status.
+- [ ] The status of each selector is obtained from the `/api/v1/administration/import/status` endpoint and is updated dynamically every 5 seconds without requiring a page reload.
+- [ ] The status indicator is color-coded and accessible, indicating whether the source/federation is available, loading, unavailable, or in error state.
+- [ ] Each source/federation is selectable by clicking and must give access to a more detailed panel in `@seasons-import-list`.
+
+#### Feature Details
+→ See [FEAT-00026-DETAILS.md](./FEAT-00026-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+## Done
+
+### [FEAT-00025] Administration > Data import design theme
+- **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
 - **Depends on:** —
@@ -56,18 +90,16 @@ The themed data import experience should be responsive and accessible across sup
 Additionally, ensure that Catalan, Spanish, and English data import labels and messages remain visually consistent with the administration theme.
 
 #### Acceptance Criteria
-- [ ] The data import experience uses the shared administration design theme for layout, typography, color, spacing, and controls.
-- [ ] Import states, actions, validation feedback, and progress indicators are visually consistent with the administration theme.
-- [ ] The themed data import experience is responsive and accessible across supported administration viewports.
-- [ ] Catalan, Spanish, and English data import labels and messages are visually consistent with the administration theme.
-- [ ] The plan takes into account the existing design system in `docs/frontend/load-import/theme-spec.md` and any necessary adjustments to ensure a cohesive user experience.
+- [x] The data import experience uses the shared administration design theme for layout, typography, color, spacing, and controls.
+- [x] Import states, actions, validation feedback, and progress indicators are visually consistent with the administration theme.
+- [x] The themed data import experience is responsive and accessible across supported administration viewports.
+- [x] Catalan, Spanish, and English data import labels and messages are visually consistent with the administration theme.
+- [x] The plan takes into account the existing design system in `docs/frontend/load-import/theme-spec.md` and any necessary adjustments to ensure a cohesive user experience.
 
 #### Feature Details
 → See [FEAT-00025-DETAILS.md](./FEAT-00025-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-
-## Done
 
 ### [FEAT-00024] System settings
 - **Status:** done

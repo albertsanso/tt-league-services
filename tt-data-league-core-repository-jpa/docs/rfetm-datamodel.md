@@ -30,6 +30,20 @@ application authentication tables.
 
 ## League tables
 
+### `resource`
+
+Stored resource metadata.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `name` | `VARCHAR(255)` | No | — |
+| `logic_path` | `VARCHAR(2000)` | No | `idx_resource_logic_path_name` |
+| `physical_path` | `VARCHAR(2000)` | No | — |
+
+The unique constraint `uk_resource_logic_path_name` covers
+`(logic_path, name)`.
+
 ### `import_resource`
 
 Import metadata associated with a stored resource.
