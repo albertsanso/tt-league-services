@@ -10,6 +10,10 @@ export function getImportSources(token, signal, onUnauthorized) {
   return apiRequest(`${basePath}/sources`, { token, signal, onUnauthorized })
 }
 
+export function getImportStatus(token, signal, onUnauthorized) {
+  return apiRequest(`${basePath}/status`, { token, signal, onUnauthorized })
+}
+
 export function createImportPreview(token, request, onUnauthorized) {
   return apiRequest(`${basePath}/preview`, { token, method: 'POST', body: request, onUnauthorized })
 }

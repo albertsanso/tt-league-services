@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ImportPanel from './ImportPanel.jsx'
 import { useAuth } from '../../context/useAuth.js'
 import { createImportPreview, getImportHistory, startImport } from '../../api/importJobs.js'
-import { useImportSources } from '../../hooks/useImportSources.js'
+import { useImportSourceStatus } from '../../hooks/useImportSourceStatus.js'
 
 vi.mock('../../context/useAuth.js', () => ({
   useAuth: vi.fn(),
@@ -15,8 +15,8 @@ vi.mock('../../api/importJobs.js', () => ({
   startImport: vi.fn(),
 }))
 
-vi.mock('../../hooks/useImportSources.js', () => ({
-  useImportSources: vi.fn(),
+vi.mock('../../hooks/useImportSourceStatus.js', () => ({
+  useImportSourceStatus: vi.fn(),
 }))
 
 describe('ImportPanel', () => {
@@ -27,8 +27,12 @@ describe('ImportPanel', () => {
 
   beforeEach(() => {
     useAuth.mockReturnValue({ token: 'token', clearSession: vi.fn() })
-    useImportSources.mockReturnValue({
-      data: [{ id: 'RFETM', label: 'RFETM' }],
+    useImportSourceStatus.mockReturnValue({
+      data: [
+        { id: 'RFETM', label: 'RFETM', status: 'available' },
+        { id: 'BCNESA', label: 'BCNESA', status: 'unavailable' },
+        { id: 'FCTT', label: 'FCTT', status: 'unavailable' },
+      ],
       loading: false,
       error: null,
       retry: vi.fn(),
@@ -41,21 +45,39 @@ describe('ImportPanel', () => {
   })
 
   it('shows loading states while sources and seasons are loading', () => {
-    useImportSources.mockReturnValue({ data: [], loading: true, error: null, retry: vi.fn() })
+    useImportSourceStatus.mockReturnValue({
+      data: [
+        { id: 'RFETM', label: 'RFETM', status: 'loading' },
+        { id: 'BCNESA', label: 'BCNESA', status: 'loading' },
+        { id: 'FCTT', label: 'FCTT', status: 'loading' },
+      ],
+      loading: true,
+      error: null,
+      retry: vi.fn(),
+    })
 
     render(<ImportPanel />)
 
-    expect(screen.getByText('Carregant fonts...')).toBeInTheDocument()
+    expect(screen.getByText('Comprovant l’estat de les fonts...')).toBeInTheDocument()
     expect(screen.getByText('Carregant temporades...')).toBeInTheDocument()
   })
 
-  it('shows empty states when no sources or seasons are available', async () => {
-    useImportSources.mockReturnValue({ data: [], loading: false, error: null, retry: vi.fn() })
+  it('shows the fixed source options and an empty season state', async () => {
+    useImportSourceStatus.mockReturnValue({
+      data: [
+        { id: 'RFETM', label: 'RFETM', status: 'unavailable' },
+        { id: 'BCNESA', label: 'BCNESA', status: 'unavailable' },
+        { id: 'FCTT', label: 'FCTT', status: 'unavailable' },
+      ],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
     getImportHistory.mockResolvedValue([])
 
     render(<ImportPanel />)
 
-    expect(screen.getByText('No hi ha fonts configurades en aquest entorn.')).toBeInTheDocument()
+    expect(screen.getAllByText('No disponible')).toHaveLength(3)
     await waitFor(() => expect(screen.getByText('No hi ha temporades d’importació.')).toBeInTheDocument())
   })
 

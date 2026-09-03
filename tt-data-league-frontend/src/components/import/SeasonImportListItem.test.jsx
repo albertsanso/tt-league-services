@@ -15,6 +15,7 @@ describe('SeasonImportListItem', () => {
     expect(screen.getByText('2022-2024')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /carrega/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /simula/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /carrega/i })).toHaveClass('import-start-button')
     expect(screen.getByText('COMPLETED')).toBeInTheDocument()
   })
 })

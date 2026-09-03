@@ -35,14 +35,8 @@ No features currently in progress.
 
 ## In Review
 
-No features currently in review.
-
----
-
-## Backlog
-
 ### [FEAT-00026] Display Data Import left Source/Federation selector with dynamic status
-- **Status:** idea
+- **Status:** in-review
 - **Priority:** medium
 - **Effort:** medium (2–8h)
 - **Depends on:** —
@@ -53,22 +47,27 @@ Give administrators a left-side Source/Federation selector in Data Import that c
 #### Description
 - The selectors are labeled as `@source-selector` must be positioned on the left side of the Data Import interface. There are exactly 3 selectors sources/federations to display: `RFETM`, `BCNESA`, and `FCTT`.
 - Each selector should have a clear label and a visual indicator of its current status.
-- The status is obtained using a GET request to `/api/v1/administration/import/status` and status is `available` only if the related 
-**sourceName** property is present for that source/federation in the response.
+- The status is obtained using a GET request to `/api/v1/administration/import/status`; every source/federation whose related **sourceName** property is present in the successful response envelope is `available` (green).
 - There is polling every 5 seconds to update the status of each selector dynamically, without requiring a page reload.
-- The selectors design is a box/area where each selector is displayed as a row (big box too) with a label and a status indicator. The status indicator should be color-coded and accessible, indicating whether the source/federation is available, loading, unavailable, or in error state.
-- Each source/federation is selectable by clicking and must give access to a more detailed panel in `@seasons-import-list`.
+- The selectors design is a box/area where each selector is displayed as a row (big box too) with a label and a star-only status indicator. A filled light yellow-green star (`--color-success-warm`) means available; an unfilled star means loading, unavailable, or error. A later polling error must not replace the last known available statuses.
+- The enabled Start/Load action uses the light green success background and border, distinct from the blue primary accent.
+- Each complete source/federation card, including its star area, is selectable by clicking and must give access to a more detailed panel in `@seasons-import-list`.
 #### Mockup designs
 - See [theme-spec.md](docs/frontend/load-import/theme-spec.md)
 #### Acceptance Criteria
-- [ ] The left-side Source/Federation selector is displayed in the Data Import interface with exactly 3 options: `RFETM`, `BCNESA`, and `FCTT`.
-- [ ] Each selector has a clear label and a visual indicator of its current status.
-- [ ] The status of each selector is obtained from the `/api/v1/administration/import/status` endpoint and is updated dynamically every 5 seconds without requiring a page reload.
-- [ ] The status indicator is color-coded and accessible, indicating whether the source/federation is available, loading, unavailable, or in error state.
-- [ ] Each source/federation is selectable by clicking and must give access to a more detailed panel in `@seasons-import-list`.
-
+- [x] The left-side Source/Federation selector is displayed in the Data Import interface with exactly 3 options: `RFETM`, `BCNESA`, and `FCTT`.
+- [x] Each selector has a clear label and a visual indicator of its current status.
+- [x] The status of each selector is obtained from the `/api/v1/administration/import/status` endpoint and is updated dynamically every 5 seconds without requiring a page reload.
+- [x] Every source included in a successful status response is displayed as `available` with the green status indicator, including after a later polling error.
+- [x] Status is expressed only through the star's filled/unfilled state; accessible labels remain available without visible `DISPONIBLE`, `ERROR`, or other status text.
+- [x] The available star uses the light yellow-green success tone, and the enabled Start/Load action is styled with the light green success treatment.
+- [x] Each complete source/federation card, including its star area, is selectable by clicking and gives access to a more detailed panel in `@seasons-import-list`.
 #### Feature Details
 → See [FEAT-00026-DETAILS.md](./FEAT-00026-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+## Backlog
 
 ---
 

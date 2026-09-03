@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/useAuth.js'
 import { createImportPreview, getImportHistory, startImport } from '../../api/importJobs.js'
-import { useImportSources } from '../../hooks/useImportSources.js'
+import { useImportSourceStatus } from '../../hooks/useImportSourceStatus.js'
 import SectionLabel from '../ui/SectionLabel.jsx'
 import LoadingState from '../ui/LoadingState.jsx'
 import ErrorState from '../ui/ErrorState.jsx'
@@ -15,7 +15,7 @@ import ImportReportPanel from './ImportReportPanel.jsx'
 export default function ImportPanel() {
   const { t } = useTranslation()
   const { token, clearSession } = useAuth()
-  const sources = useImportSources()
+  const sources = useImportSourceStatus()
   const [history, setHistory] = useState({ data: [], loading: true, error: null })
   const [selectedSource, setSelectedSource] = useState('')
   const [selectedSeason, setSelectedSeason] = useState(null)

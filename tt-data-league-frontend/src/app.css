@@ -839,7 +839,7 @@
 
 .import-panel-grid {
   display: grid;
-  grid-template-columns: minmax(12rem, 0.8fr) minmax(20rem, 2fr) minmax(15rem, 1fr);
+  grid-template-columns: minmax(16rem, 0.8fr) minmax(20rem, 2fr) minmax(15rem, 1fr);
   gap: 1rem;
   align-items: start;
 }
@@ -868,21 +868,36 @@
   padding: 0.85rem;
 }
 
+.import-source-card {
+  min-height: 5.5rem;
+  padding: 0;
+}
+
 .import-source-card.selected {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 1px var(--accent-primary);
 }
 
 .import-source-select {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
   flex: 1;
+  width: 100%;
+  min-height: 5.5rem;
+  padding: 0.85rem;
+  padding-right: 2.75rem;
   border: 0;
   background: transparent;
   text-align: left;
   color: inherit;
   cursor: pointer;
+}
+
+.import-source-select:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
 }
 
 .import-source-select span,
@@ -891,15 +906,35 @@
   font-size: 0.75rem;
 }
 
-.import-favourite {
-  border: 0;
-  background: transparent;
+.import-source-status {
+  position: absolute;
+  top: 50%;
+  right: 0.85rem;
+  display: inline-flex;
+  transform: translateY(-50%);
   color: var(--text-muted);
-  cursor: pointer;
 }
 
-.import-favourite[aria-pressed="true"] {
-  color: var(--accent-primary);
+.import-source-status--available {
+  color: var(--color-success-warm);
+}
+
+.import-source-select .import-source-status {
+  font-size: initial;
+}
+
+.import-source-select .import-source-status--available {
+  color: var(--color-success-warm);
+}
+
+.import-source-status--loading {
+  animation: import-status-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes import-status-pulse {
+  50% {
+    opacity: 0.4;
+  }
 }
 
 .import-season-actions {
@@ -910,6 +945,18 @@
   justify-content: flex-end;
 }
 
+.import-start-button {
+  border-color: var(--color-success);
+  background: var(--color-success-bg);
+  color: var(--color-success);
+}
+
+.import-start-button:hover:not(:disabled) {
+  border-color: var(--color-success);
+  background: var(--color-success);
+  color: var(--text-on-dark);
+}
+
 .import-report-panel {
   padding: 1rem;
   min-height: 10rem;
@@ -917,7 +964,7 @@
 
 @media (max-width: 1279px) {
   .import-panel-grid {
-    grid-template-columns: minmax(12rem, 1fr) minmax(18rem, 2fr);
+    grid-template-columns: minmax(16rem, 1fr) minmax(18rem, 2fr);
   }
   .import-report-panel {
     grid-column: 1 / -1;
@@ -934,6 +981,12 @@
   .import-season-item {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .import-source-status--loading {
+    animation: none;
   }
 }
 
