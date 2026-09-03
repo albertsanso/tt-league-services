@@ -149,4 +149,11 @@ en.importPanel = {
   fileReport: 'File import',
   actionSuccess: 'Operation started successfully.',
   actionError: 'The operation could not be started.',
+  uploading: 'Uploading file…',
+  uploadProgress: 'Upload progress',
+  uploadProgressValue: 'Upload: {{progress}}%',
+  uploadSuccess: 'File accepted. The status is being refreshed.',
+  uploadError: 'The file could not be uploaded. Please try again.',
+  retryUpload: 'Retry upload',
+  invalidFile: 'Select a non-empty ZIP import file.',
 }

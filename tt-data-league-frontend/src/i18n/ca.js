@@ -504,5 +504,12 @@ export default {
     fileReport: 'Importació de fitxer',
     actionSuccess: 'Operació iniciada correctament.',
     actionError: 'No s’ha pogut executar l’operació.',
+    uploading: 'Pujant el fitxer…',
+    uploadProgress: 'Progrés de la pujada',
+    uploadProgressValue: 'Pujada: {{progress}}%',
+    uploadSuccess: 'Fitxer acceptat. L’estat s’està actualitzant.',
+    uploadError: 'No s’ha pogut pujar el fitxer. Torna-ho a provar.',
+    retryUpload: 'Torna a provar la pujada',
+    invalidFile: 'Selecciona un fitxer ZIP d’importació no buit.',
   },
 }

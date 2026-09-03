@@ -81,5 +81,10 @@ export function useImportSourceStatus() {
     setRetryKey((value) => value + 1)
   }, [])
 
-  return { ...state, retry }
+  const refresh = useCallback(() => {
+    setState((current) => ({ ...current, loading: true, error: null }))
+    setRetryKey((value) => value + 1)
+  }, [])
+
+  return { ...state, retry, refresh }
 }

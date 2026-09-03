@@ -14,6 +14,21 @@ export function getImportStatus(token, signal, onUnauthorized) {
   return apiRequest(`${basePath}/status`, { token, signal, onUnauthorized })
 }
 
+export function uploadImportFile(token, file, onProgress, onUnauthorized, signal) {
+  const formData = new FormData()
+  formData.append('file', file)
+  return apiRequest(`${basePath}/upload`, {
+    token,
+    method: 'POST',
+    body: formData,
+    signal,
+    onUnauthorized,
+    onUploadProgress: onProgress,
+  })
+}
+
+export const uploadImport = uploadImportFile
+
 export function createImportPreview(token, request, onUnauthorized) {
   return apiRequest(`${basePath}/preview`, { token, method: 'POST', body: request, onUnauthorized })
 }

@@ -26,6 +26,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00024: System settings](### [FEAT-00024] System settings)
 - [FEAT-00025: Administration > Data import design theme](### [FEAT-00025] Administration > Data import design theme)
 - [FEAT-00026: Display Data Import left Source/Federation selector with dynamic status](### [FEAT-00026] Display Data Import left Source/Federation selector with dynamic status)
+- [FEAT-00027: Integrate upload endpoint with frontend file upload component](### [FEAT-00027] Integrate upload endpoint with frontend file upload component)
+- [FEAT-00028: Display list of imports resources for a given source/federation in Data Import Panel](### [FEAT-00028] Display list of imports resources for a given source/federation in Data Import Panel)
 
 ## In Progress
 
@@ -35,13 +37,61 @@ No features currently in progress.
 
 ## In Review
 
+No features currently in review.
 ---
 
 ## Backlog
 
 ---
 
+### [FEAT-00028] Display list of imports resources for a given source/federation in Data Import Panel
+- **Status:** planned
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-00026, FEAT-00027
+
+#### Goal
+Give administrators a clear, source-scoped list of uploaded import resources in the Data Import Panel so they can identify the resources available for the selected federation and act on the correct one.
+
+#### Acceptance Criteria
+- [ ] Selecting a source/federation displays only its import resources in the Data Import Panel.
+- [ ] Each resource is presented with its filename or identifier, upload timestamp, and processing status using the existing import-panel visual language.
+- [ ] The list supports loading, empty, error, and retry states without losing the selected source/federation.
+- [ ] The resource list refreshes after a successful upload and when the selected source/federation changes, without a full page reload.
+- [ ] Resource data is requested through an authenticated API contract scoped explicitly to the selected source/federation, with accessible labels and translated copy in Catalan, Spanish, and English.
+
+#### Feature Details
+→ See [FEAT-00028-DETAILS.md](./FEAT-00028-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
 ## Done
+
+### [FEAT-00027] Integrate upload endpoint with frontend file upload component
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** —
+
+#### Goal
+Connect the frontend file upload component to the backend upload endpoint so users can submit import files from the Data Import interface.
+
+#### Description
+- The file upload component **@file-browser** must send the selected file when clicking **@load-button** to the configured upload endpoint using the backend's multipart contract `/api/v1/administration/import/upload`.
+- The component must present upload progress, success, validation, and failure states accessibly in the frontend.
+- Successful uploads must refresh or expose the resulting import state without requiring a page reload.
+- The component must prevent invalid submissions and preserve the existing source/season selection context.
+
+#### Acceptance Criteria
+- [x] The file upload component sends the selected file to `/api/v1/administration/import/upload` using a multipart `file` field.
+- [x] Upload progress, success, validation, failure, and retry states are presented accessibly in the frontend.
+- [x] Successful uploads refresh import source status and history without requiring a page reload.
+- [x] The component rejects empty or non-ZIP files before submission and preserves source/season selection context.
+
+#### Feature Details
+→ See [FEAT-00027-DETAILS.md](./FEAT-00027-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00026] Display Data Import left Source/Federation selector with dynamic status
 - **Status:** done

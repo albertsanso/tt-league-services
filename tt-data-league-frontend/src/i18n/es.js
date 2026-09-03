@@ -149,4 +149,11 @@ es.importPanel = {
   fileReport: 'Importación de archivo',
   actionSuccess: 'Operación iniciada correctamente.',
   actionError: 'No se ha podido ejecutar la operación.',
+  uploading: 'Subiendo el archivo…',
+  uploadProgress: 'Progreso de la subida',
+  uploadProgressValue: 'Subida: {{progress}}%',
+  uploadSuccess: 'Archivo aceptado. El estado se está actualizando.',
+  uploadError: 'No se ha podido subir el archivo. Inténtalo de nuevo.',
+  retryUpload: 'Reintentar subida',
+  invalidFile: 'Selecciona un archivo ZIP de importación no vacío.',
 }

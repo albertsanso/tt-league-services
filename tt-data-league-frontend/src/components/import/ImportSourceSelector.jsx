@@ -30,6 +30,7 @@ export default function ImportSourceSelector({ sources, selected, onSelect }) {
           className="import-source-select"
           onClick={() => onSelect(id)}
           aria-pressed={selected === id}
+          aria-label={t('importPanel.favourite', { source: source.label ?? id })}
           aria-describedby={`import-source-status-${id}`}
         >
           <strong>{source.label ?? id}</strong>

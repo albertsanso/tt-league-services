@@ -1,8 +1,8 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ImportPanel from './ImportPanel.jsx'
 import { useAuth } from '../../context/useAuth.js'
-import { createImportPreview, getImportHistory, startImport } from '../../api/importJobs.js'
+import { createImportPreview, getImportHistory, startImport, uploadImportFile } from '../../api/importJobs.js'
 import { useImportSourceStatus } from '../../hooks/useImportSourceStatus.js'
 
 vi.mock('../../context/useAuth.js', () => ({
@@ -13,6 +13,7 @@ vi.mock('../../api/importJobs.js', () => ({
   createImportPreview: vi.fn(),
   getImportHistory: vi.fn(),
   startImport: vi.fn(),
+  uploadImportFile: vi.fn(),
 }))
 
 vi.mock('../../hooks/useImportSourceStatus.js', () => ({
@@ -20,12 +21,16 @@ vi.mock('../../hooks/useImportSourceStatus.js', () => ({
 }))
 
 describe('ImportPanel', () => {
+  let refreshStatus
+
   afterEach(() => {
     cleanup()
+    vi.useRealTimers()
     vi.clearAllMocks()
   })
 
   beforeEach(() => {
+    refreshStatus = vi.fn()
     useAuth.mockReturnValue({ token: 'token', clearSession: vi.fn() })
     useImportSourceStatus.mockReturnValue({
       data: [
@@ -36,12 +41,14 @@ describe('ImportPanel', () => {
       loading: false,
       error: null,
       retry: vi.fn(),
+      refresh: refreshStatus,
     })
     getImportHistory.mockResolvedValue([
       { season: '2025-2026', jobId: 'job-1', status: 'COMPLETED', updatedAt: '2026-09-01' },
     ])
     createImportPreview.mockResolvedValue({ status: 'PREVIEW' })
     startImport.mockResolvedValue({ status: 'STARTED' })
+    uploadImportFile.mockResolvedValue({ status: 'ACCEPTED' })
   })
 
   it('shows loading states while sources and seasons are loading', () => {
@@ -77,7 +84,7 @@ describe('ImportPanel', () => {
 
     render(<ImportPanel />)
 
-    expect(screen.getAllByText('No disponible')).toHaveLength(3)
+    expect(screen.getAllByRole('img', { name: 'No disponible' })).toHaveLength(3)
     await waitFor(() => expect(screen.getByText('No hi ha temporades d’importació.')).toBeInTheDocument())
   })
 
@@ -102,19 +109,92 @@ describe('ImportPanel', () => {
     expect(screen.getByText('Informe i estat')).toBeInTheDocument()
     expect(screen.getByText('Selecciona una temporada o inicia una importació.')).toBeInTheDocument()
 
-    const file = new File(['data'], 'season.csv', { type: 'text/csv' })
+    const file = new File(['data'], 'season.zip', { type: 'application/zip' })
     fireEvent.change(screen.getByLabelText('Fitxer d’importació'), { target: { files: [file] } })
     const loadButtons = screen.getAllByRole('button', { name: 'Carrega' })
     expect(loadButtons[0]).toBeEnabled()
     fireEvent.click(loadButtons[0])
-    await waitFor(() => expect(createImportPreview).toHaveBeenCalledWith(
+    await waitFor(() => expect(uploadImportFile).toHaveBeenCalledWith(
       'token',
-      { file: 'season.csv' },
+      file,
+      expect.any(Function),
       expect.any(Function),
     ))
 
     fireEvent.click(screen.getByText('RFETM').closest('button'))
     fireEvent.click(loadButtons[1])
     expect(startImport).toHaveBeenCalledWith('token', 'job-1', expect.any(Function))
+  })
+
+  it.each(['available', 'error'])('removes accepted messages when a source changes to %s', async (nextStatus) => {
+    const view = render(<ImportPanel />)
+
+    await waitFor(() => expect(screen.getByText('2025-2026')).toBeInTheDocument())
+    const file = new File(['zip'], 'season.zip', { type: 'application/zip' })
+    fireEvent.change(screen.getByLabelText('Fitxer d’importació'), { target: { files: [file] } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Carrega' })[0])
+
+    await waitFor(() => expect(screen.getByText('Fitxer acceptat. L’estat s’està actualitzant.')).toBeInTheDocument())
+    expect(screen.getByText('ACCEPTED')).toBeInTheDocument()
+
+    useImportSourceStatus.mockReturnValue({
+      data: [
+        { id: 'RFETM', label: 'RFETM', status: 'available' },
+        { id: 'BCNESA', label: 'BCNESA', status: nextStatus },
+        { id: 'FCTT', label: 'FCTT', status: 'unavailable' },
+      ],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+      refresh: refreshStatus,
+    })
+    view.rerender(<ImportPanel />)
+
+    await waitFor(() => expect(screen.queryByText('Fitxer acceptat. L’estat s’està actualitzant.')).not.toBeInTheDocument())
+    expect(screen.queryByText('ACCEPTED')).not.toBeInTheDocument()
+  })
+
+  it('refreshes status after upload while retaining source and season context', async () => {
+    render(<ImportPanel />)
+
+    await waitFor(() => expect(screen.getByText('2025-2026')).toBeInTheDocument())
+    const sourceButton = screen.getByRole('button', { name: /Marca RFETM/i })
+    fireEvent.click(sourceButton)
+    const file = new File(['zip'], 'season.zip', { type: 'application/zip' })
+    fireEvent.change(screen.getByLabelText('Fitxer d’importació'), { target: { files: [file] } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Carrega' })[0])
+
+    await waitFor(() => expect(uploadImportFile).toHaveBeenCalled())
+    expect(refreshStatus).toHaveBeenCalledOnce()
+    expect(sourceButton).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByText('2025-2026')).toBeInTheDocument()
+  })
+
+  it('removes remaining action messages after 20 seconds', async () => {
+    vi.useFakeTimers()
+    render(<ImportPanel />)
+
+    await act(async () => {})
+    const file = new File(['zip'], 'season.zip', { type: 'application/zip' })
+    fireEvent.change(screen.getByLabelText('Fitxer d’importació'), { target: { files: [file] } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Carrega' })[0])
+    await act(async () => {})
+
+    expect(screen.getByText('Fitxer acceptat. L’estat s’està actualitzant.')).toBeInTheDocument()
+    act(() => vi.advanceTimersByTime(20000))
+
+    expect(screen.queryByText('Fitxer acceptat. L’estat s’està actualitzant.')).not.toBeInTheDocument()
+    expect(screen.queryByText('ACCEPTED')).not.toBeInTheDocument()
+  })
+
+  it('rejects an unsupported file before making an upload request', async () => {
+    render(<ImportPanel />)
+
+    const file = new File(['data'], 'season.csv', { type: 'text/csv' })
+    fireEvent.change(screen.getByLabelText('Fitxer d’importació'), { target: { files: [file] } })
+    fireEvent.click(screen.getAllByRole('button', { name: 'Carrega' })[0])
+
+    expect(uploadImportFile).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('Selecciona un fitxer ZIP')
   })
 })

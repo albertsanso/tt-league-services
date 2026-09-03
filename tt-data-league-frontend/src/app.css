@@ -837,6 +837,32 @@
   font-size: 0.875rem;
 }
 
+.import-upload-progress {
+  display: flex;
+  flex: 1 1 16rem;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 15rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.import-upload-progress progress {
+  width: min(18rem, 100%);
+  accent-color: var(--accent-primary);
+}
+
+.import-upload-status {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--color-success);
+  font-size: 0.875rem;
+}
+
+.import-upload-status--error {
+  color: var(--color-error);
+}
+
 .import-panel-grid {
   display: grid;
   grid-template-columns: minmax(16rem, 0.8fr) minmax(20rem, 2fr) minmax(15rem, 1fr);
