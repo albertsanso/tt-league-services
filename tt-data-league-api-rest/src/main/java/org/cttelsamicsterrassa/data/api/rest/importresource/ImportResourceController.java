@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.api.rest.importresource;
 
 import io.swagger.v3.oas.annotations.Operation;
 import org.albertsanso.commons.query.QueryBus;
+import org.cttelsamicsterrassa.data.core.application.importresource.find.FindImportResourcesBySourceQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.find.FindPendingImportsInfoQuery;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ResourceUploadService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,5 +49,11 @@ public class ImportResourceController {
     @GetMapping(value = "/status", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> listSourcesWithPendingImports() {
         return ResponseEntity.ok(queryBus.push(new FindPendingImportsInfoQuery()));
+    }
+
+    @Operation(summary = "List import resources for a specific source")
+    @GetMapping(value = "/list_by_source", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> listImportSourcesForSource(@RequestParam("source") String source) {
+        return ResponseEntity.ok(queryBus.push(new FindImportResourcesBySourceQuery(source)));
     }
 }

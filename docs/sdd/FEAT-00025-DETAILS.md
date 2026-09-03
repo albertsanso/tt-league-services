@@ -17,7 +17,7 @@
      fails because `ImportJobControllerTest` and
      `InMemoryImportJobsServiceTest`
      (`tt-data-league-api-rest/src/test/.../importjob/`) reference
-     `ImportJobController`, `InMemoryImportJobsService`, and `ImportSourceDto`
+     `ImportJobController`, `InMemoryImportJobsService`, and `ImportResourceDto`
      classes that do not exist under `tt-data-league-api-rest/src/main`.
      This blocks true end-to-end validation against a live backend and is
      outside this feature's frontend-theme scope; flag it to the user/backend
@@ -141,7 +141,7 @@
 - 2026-09-02: Found a pre-existing, unrelated defect while grounding this
   plan: `tt-data-league-api-rest`'s `importjob` test package does not
   compile (`ImportJobController` / `InMemoryImportJobsService` /
-  `ImportSourceDto` are referenced by tests but have no `src/main`
+  `ImportResourceDto` are referenced by tests but have no `src/main`
   implementation). This is outside this feature's frontend-theme scope and
   is not being fixed here; it must be resolved (or explicitly accepted as a
   known gap) before the themed import experience can be validated against a
