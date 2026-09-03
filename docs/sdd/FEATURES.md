@@ -35,8 +35,16 @@ No features currently in progress.
 
 ## In Review
 
+---
+
+## Backlog
+
+---
+
+## Done
+
 ### [FEAT-00026] Display Data Import left Source/Federation selector with dynamic status
-- **Status:** in-review
+- **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
 - **Depends on:** —
@@ -66,12 +74,6 @@ Give administrators a left-side Source/Federation selector in Data Import that c
 → See [FEAT-00026-DETAILS.md](./FEAT-00026-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-
-## Backlog
-
----
-
-## Done
 
 ### [FEAT-00025] Administration > Data import design theme
 - **Status:** done

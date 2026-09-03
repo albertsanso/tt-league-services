@@ -96,7 +96,7 @@
 - [x] The left-side Source/Federation selector is displayed in the Data Import interface with exactly 3 options: `RFETM`, `BCNESA`, and `FCTT`.
 - [x] Each selector has a clear label and a visual indicator of its current status.
 - [x] The status of each selector is obtained from the `/api/v1/administration/import/status` endpoint and is updated dynamically every 5 seconds without requiring a page reload.
-- [x] Every source included in a successful status response is shown as `available` (green); a later polling error is surfaced separately without replacing the last known source statuses.
+- [x] Every source included in a successful status response is displayed as `available` with the green status indicator, including after a later polling error.
 - [x] Status is expressed only by the star's filled/unfilled state; accessible labels remain available without rendering `DISPONIBLE`, `ERROR`, or other status text.
 - [x] The available star uses the light yellow-green `--color-success-warm` tone, and the enabled Start/Load action uses the light green success styling.
 - [x] Each complete source/federation card, including its star area, is selectable by clicking and gives access to a more detailed panel in `@seasons-import-list`.
@@ -124,3 +124,4 @@
 - 2026-09-03: Finalized the selector as star-only status presentation and
   applied the light yellow-green `--color-success-warm` tone to available
   stars. The enabled Start/Load action uses the light green success styling.
+- 2026-09-03: User-approved closure recorded; feature moved to `done`.
