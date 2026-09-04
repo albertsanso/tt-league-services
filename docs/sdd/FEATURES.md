@@ -44,8 +44,10 @@ No features currently in review.
 
 ---
 
+## Done
+
 ### [FEAT-00028] Display list of imports resources for a given source/federation in Data Import Panel
-- **Status:** planned
+- **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
 - **Depends on:** FEAT-00026, FEAT-00027
@@ -53,19 +55,29 @@ No features currently in review.
 #### Goal
 Give administrators a clear, source-scoped list of uploaded import resources in the Data Import Panel so they can identify the resources available for the selected federation and act on the correct one.
 
+#### Mockup designs
+- See [theme-spec.md](docs/frontend/load-import/theme-spec.md) for the Data Import Panel design and visual language.
+
+#### Description
+1. The implementation is focused in Frontend, specifically in the Data Import Panel, which is a central area of the administration interface where users can manage import resources.
+2. The Data Import Panel must display a source-scoped list of import resources, showing each resource's resource type, season, upload timestamp formatted as `YYYY-MM-DD HH:mm`, and processing status.
+3. The existing endpoint to get the import resources information is `/api/v1/administration/import/list_by_source?source=<source>`.
+4. The design of the resource cards must follow the existing import-panel visual language, including accessible labels and translated copy in Catalan, Spanish, and English.
+5. The list must support loading, empty, error, and retry states without losing the selected source/federation.
+6. The resource list must refresh after a successful upload and when the selected source/federation changes, without a full page reload.
+7. Resource cards emphasize the resource type and season, while omitting the raw identifier and processed-date fields from the card presentation; **Simulate** and **Import** actions are aligned to the right in a horizontal layout.
+
 #### Acceptance Criteria
-- [ ] Selecting a source/federation displays only its import resources in the Data Import Panel.
-- [ ] Each resource is presented with its filename or identifier, upload timestamp, and processing status using the existing import-panel visual language.
-- [ ] The list supports loading, empty, error, and retry states without losing the selected source/federation.
-- [ ] The resource list refreshes after a successful upload and when the selected source/federation changes, without a full page reload.
-- [ ] Resource data is requested through an authenticated API contract scoped explicitly to the selected source/federation, with accessible labels and translated copy in Catalan, Spanish, and English.
+- [x] Selecting a source/federation displays only its import resources in the Data Import Panel.
+- [x] Each resource is presented with its filename or identifier, upload timestamp, and processing status using the existing import-panel visual language.
+- [x] The list supports loading, empty, error, and retry states without losing the selected source/federation.
+- [x] The resource list refreshes after a successful upload and when the selected source/federation changes, without a full page reload.
+- [x] Resource data is requested through an authenticated API contract scoped explicitly to the selected source/federation, with accessible labels and translated copy in Catalan, Spanish, and English.
 
 #### Feature Details
 → See [FEAT-00028-DETAILS.md](./FEAT-00028-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-
-## Done
 
 ### [FEAT-00027] Integrate upload endpoint with frontend file upload component
 - **Status:** done

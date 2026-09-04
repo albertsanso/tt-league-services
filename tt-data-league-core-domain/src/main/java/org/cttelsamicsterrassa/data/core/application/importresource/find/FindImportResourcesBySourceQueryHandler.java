@@ -23,7 +23,7 @@ public class FindImportResourcesBySourceQueryHandler extends DomainQueryHandler<
     @Override
     public DomainQueryResponse<List<ImportResourceDto>> handle(FindImportResourcesBySourceQuery query) {
         return DomainQueryResponse.sucessResponse(
-                importResourceRepository.findBySourceAndType(query.getSource(), ResourceType.ACTAS.toString()).stream()
+                importResourceRepository.findBySource(query.getSource()).stream()
                 .map(importResource -> {
                     return new ImportResourceDto(
                             importResource.getId(),

@@ -1,49 +1,57 @@
 # Build Plan
 
-1. **Confirm the resource contract and source boundary.**
-   - Inspect the existing import-resource domain queries, REST controller, and
-     frontend API client to identify the supported resource representation and
-     whether a source/federation filter already exists.
-   - Define or extend the API contract so a request names one explicit
-     `ImportSource`; do not infer scope from display labels or return resources
-     belonging to another source.
-   - Preserve the existing authentication, response-envelope, and error
-     handling conventions used by the Data Import APIs.
+1. **Lock down the existing source-scoped API contract.**
+   - Use the existing `FindImportResourcesBySourceQuery`,
+     `FindImportResourcesBySourceQueryHandler`, `ImportResourceDto`, and
+     `ImportResourceController` rather than creating a parallel endpoint.
+   - Confirm that `/api/v1/administration/import/list_by_source?source=<source>`
+     accepts only an explicit supported source, preserves the API's
+     authentication/response-envelope conventions, and never falls back to an
+     unscoped or differently sourced result.
+   - Map the current DTO fields (`importResourceId`, `season`, `status`,
+     `createdDate`, and `lastProcessedDate`) to the resource card; add a
+     filename field only if the backend contract cannot provide a useful
+     identifier.
 
-2. **Implement the source-scoped resource query.**
-   - Add the smallest required application/domain port, query handler, and REST
-     mapping in the appropriate modules if the current contract does not expose
-     the list.
-   - Return stable, presentation-ready resource fields (identifier or
-     filename, upload timestamp, and processing status) and deterministic
-     ordering.
-   - Add focused unit and controller coverage for valid source filtering,
-     empty results, invalid/unknown sources, authorization failures, and
-     backend errors.
+2. **Harden and verify the backend slice where required.**
+   - Keep source filtering in `ImportResourceRepository.findBySourceAndType`
+     and the JPA adapter, with the resource type restriction explicit.
+   - Add deterministic ordering and explicit handling for empty and
+     invalid/unknown source results if the current adapter/query behavior does
+     not already provide them.
+   - Add focused domain/controller coverage for valid source isolation, empty
+     results, invalid sources, authorization failures, and backend errors.
 
-3. **Connect the Data Import Panel.**
-   - Add an authenticated frontend API function and a cancellable hook or
-     equivalent async state boundary for the selected source/federation.
-   - Render the resource list in the existing import-panel layout, refreshing
-     when the source changes and after a successful upload while retaining the
-     current selection.
-   - Provide accessible loading, empty, error, and retry states and prevent
-     stale responses from replacing data for a newer source selection.
+3. **Add the frontend resource-list API boundary.**
+   - Extend `src/api/importJobs.js` with an authenticated, abortable request for
+     `list_by_source`, normalizing the response envelope at the API or hook
+     boundary.
+   - Add a cancellable hook or equivalent state boundary driven by
+     `selectedSource`; clean up requests on unmount/source changes and ignore
+     stale responses.
+   - Keep `useImportSourceStatus` as the single source-selection mechanism and
+     retain the selection through loading, retry, and error transitions.
 
-4. **Synchronize presentation and translations.**
-   - Reuse existing UI primitives, status treatments, CSS tokens, and import
-     panel patterns; do not introduce a second source selector or global state
+4. **Render and refresh resources in the Data Import Panel.**
+   - Replace the current season/history placeholder path in
+     `src/components/import/ImportPanel.jsx` with source-scoped resource data,
+     reusing `SeasonImportList`/its card primitives or a focused resource-list
+     variant as appropriate.
+   - Show identifier/filename, upload timestamp, and processing status, with
+     accessible loading, empty, error, and retry states.
+   - Refresh after a successful `uploadImportFile` call and whenever the source
+     changes, without a full page reload or resetting the selection.
+
+5. **Synchronize copy, accessibility, and validation.**
+   - Add resource-list labels, statuses, empty/error text, and retry actions to
+     `src/i18n/ca.js`, `src/i18n/es.js`, and `src/i18n/en.js`.
+   - Reuse existing import-panel CSS/UI primitives and preserve responsive
+     keyboard/focus behavior; do not add a second selector or global state
      mechanism.
-   - Add matching Catalan, Spanish, and English labels for resource fields,
-     statuses, empty/error messages, and retry actions.
-   - Preserve responsive behavior and keyboard/focus accessibility across
-     supported administration viewports.
-
-5. **Validate the complete slice.**
-   - Test API response normalization, source isolation, cancellation, refresh,
-     and all async states in the frontend.
-   - Run the focused backend tests and the frontend lint, build, and Vitest
-     suite; verify that only the selected source's resources are displayed.
+   - Add focused frontend tests for normalization, source changes, refresh
+     after upload, cancellation/stale responses, and every async state. Run
+     backend tests plus `npm run lint`, `npm run build`, and the frontend test
+     suite.
 
 # Implementation Guidelines
 
@@ -65,12 +73,11 @@
   screens.
 
 # Acceptance Criteria
-
-- [ ] Selecting a source/federation displays only its import resources in the Data Import Panel.
-- [ ] Each resource is presented with its filename or identifier, upload timestamp, and processing status using the existing import-panel visual language.
-- [ ] The list supports loading, empty, error, and retry states without losing the selected source/federation.
-- [ ] The resource list refreshes after a successful upload and when the selected source/federation changes, without a full page reload.
-- [ ] Resource data is requested through an authenticated API contract scoped explicitly to the selected source/federation, with accessible labels and translated copy in Catalan, Spanish, and English.
+- [x] Selecting a source/federation displays only its import resources in the Data Import Panel.
+- [x] Each resource is presented with its filename or identifier, upload timestamp, and processing status using the existing import-panel visual language.
+- [x] The list supports loading, empty, error, and retry states without losing the selected source/federation.
+- [x] The resource list refreshes after a successful upload and when the selected source/federation changes, without a full page reload.
+- [x] Resource data is requested through an authenticated API contract scoped explicitly to the selected source/federation, with accessible labels and translated copy in Catalan, Spanish, and English.
 
 # Notes
 
@@ -81,3 +88,14 @@
 - 2026-09-03: Initial acceptance criteria and build plan are synchronized with
   the `planned` registry entry; no application code is changed by this SDD
   maintenance task.
+- 2026-09-04: Repository inspection confirmed that the source-scoped REST
+  endpoint, domain query, DTO, and source/type repository lookup already exist.
+  The remaining plan emphasizes contract hardening/coverage and connecting the
+  frontend panel to that endpoint; this refinement changes SDD documentation
+  only.
+- 2026-09-04: Implemented the source-scoped frontend resource API, cancellable
+  hook, accessible resource cards, upload refresh wiring, translations, and
+  deterministic backend ordering. Feature moved to `in-review`.
+- 2026-09-04: Added resource type and season emphasis, formatted upload dates,
+  and right-aligned horizontal **Simulate** and **Import** actions. Feature
+  moved to `done` after explicit approval.

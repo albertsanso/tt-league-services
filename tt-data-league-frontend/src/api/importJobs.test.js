@@ -1,9 +1,35 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getImportStatus } from './importJobs.js'
+import { getImportResourcesBySource, getImportStatus } from './importJobs.js'
 
 describe('import status API', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
+  })
+
+  describe('import resources API', () => {
+    beforeEach(() => {
+      vi.restoreAllMocks()
+    })
+
+    it('requests resources for the explicit source with auth and cancellation', async () => {
+      const response = {
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => ({ response: [] }),
+      }
+      const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response)
+      const controller = new AbortController()
+
+      await getImportResourcesBySource('session-token', 'RFETM', controller.signal, vi.fn())
+
+      expect(fetchMock).toHaveBeenCalledWith(
+        '/api/v1/administration/import/list_by_source?source=RFETM',
+        expect.objectContaining({
+          signal: controller.signal,
+          headers: expect.objectContaining({ Authorization: expect.any(String) }),
+        }),
+      )
+    })
   })
 
   it('requests the wrapped source status endpoint with auth and cancellation', async () => {

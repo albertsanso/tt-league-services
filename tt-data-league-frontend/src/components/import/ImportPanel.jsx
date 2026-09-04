@@ -3,12 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/useAuth.js'
 import { createImportPreview, getImportHistory, startImport, uploadImportFile } from '../../api/importJobs.js'
 import { useImportSourceStatus } from '../../hooks/useImportSourceStatus.js'
+import { useImportResources } from '../../hooks/useImportResources.js'
 import SectionLabel from '../ui/SectionLabel.jsx'
-import LoadingState from '../ui/LoadingState.jsx'
-import ErrorState from '../ui/ErrorState.jsx'
-import EmptyState from '../ui/EmptyState.jsx'
 import ImportFileControls from './ImportFileControls.jsx'
 import ImportSourceSelector from './ImportSourceSelector.jsx'
+import ImportResourceList from './ImportResourceList.jsx'
 import SeasonImportList from './SeasonImportList.jsx'
 import ImportReportPanel from './ImportReportPanel.jsx'
 
@@ -26,14 +25,36 @@ export default function ImportPanel() {
   const { t } = useTranslation()
   const { token, clearSession } = useAuth()
   const sources = useImportSourceStatus()
-  const [history, setHistory] = useState({ data: [], loading: true, error: null })
   const [selectedSource, setSelectedSource] = useState('')
   const [selectedSeason, setSelectedSeason] = useState(null)
   const [file, setFile] = useState(null)
   const [job, setJob] = useState(null)
+  const [history, setHistory] = useState({ data: [], loading: true, error: null })
   const [uploadState, setUploadState] = useState({ status: 'idle', progress: 0, error: null })
-  const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
   const previousSourceStatuses = useRef(null)
+  const resources = useImportResources(selectedSource)
+
+  useEffect(() => {
+    const controller = new AbortController()
+    getImportHistory(token, '', clearSession, controller.signal)
+      .then((payload) => {
+        const data = Array.isArray(payload) ? payload : (payload?.items ?? payload?.content ?? [])
+        setHistory({ data: Array.isArray(data) ? data : [], loading: false, error: null })
+      })
+      .catch((error) => {
+        if (error.name !== 'AbortError') setHistory({ data: [], loading: false, error })
+      })
+    return () => controller.abort()
+  }, [clearSession, token])
+
+  const seasons = useMemo(() => {
+    const map = new Map()
+    history.data.forEach((item) => {
+      const season = item.season ?? item.seasonId ?? item.seasonRange
+      if (season !== undefined && !map.has(String(season))) map.set(String(season), item)
+    })
+    return [...map.entries()].map(([id, item]) => ({ ...item, id, season: id }))
+  }, [history.data])
 
   useEffect(() => {
     const currentStatuses = new Map(sources.data.map((source) => [source.id ?? source.code, source.status]))
@@ -48,44 +69,20 @@ export default function ImportPanel() {
       setUploadState((current) => current.status === 'success'
         ? { status: 'idle', progress: 0, error: null }
         : current)
-      setJob((current) => current && !current.error ? null : current)
     }
 
     previousSourceStatuses.current = currentStatuses
   }, [sources.data])
 
   useEffect(() => {
-    if (uploadState.status === 'idle' && !job) return undefined
+    if (uploadState.status === 'idle') return undefined
 
     const timer = window.setTimeout(() => {
       setUploadState({ status: 'idle', progress: 0, error: null })
-      setJob(null)
     }, ACTION_MESSAGE_TIMEOUT)
 
     return () => window.clearTimeout(timer)
-  }, [job, uploadState.status])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    getImportHistory(token, '', clearSession, controller.signal)
-      .then((payload) => {
-        const data = Array.isArray(payload) ? payload : (payload?.items ?? payload?.content ?? [])
-        setHistory({ data: Array.isArray(data) ? data : [], loading: false, error: null })
-      })
-      .catch((error) => {
-        if (error.name !== 'AbortError') setHistory({ data: [], loading: false, error })
-      })
-    return () => controller.abort()
-  }, [clearSession, historyRefreshKey, token])
-
-  const seasons = useMemo(() => {
-    const map = new Map()
-    history.data.forEach((item) => {
-      const season = item.season ?? item.seasonId ?? item.seasonRange
-      if (season !== undefined && !map.has(String(season))) map.set(String(season), item)
-    })
-    return [...map.entries()].map(([id, item]) => ({ ...item, id, season: id }))
-  }, [history.data])
+  }, [uploadState.status])
 
   const run = async (season, simulate = false) => {
     setSelectedSeason(season)
@@ -93,6 +90,19 @@ export default function ImportPanel() {
       const result = simulate
         ? await createImportPreview(token, { source: selectedSource, season: season.id, file: file?.name }, clearSession)
         : await startImport(token, season.jobId ?? season.id, clearSession)
+      setJob(result)
+    } catch (error) {
+      setJob({ error })
+    }
+
+  }
+
+  const runResource = async (resource, simulate = false) => {
+    setSelectedSeason(resource)
+    try {
+      const result = simulate
+        ? await createImportPreview(token, { source: selectedSource, season: resource.season, file: resource.filename }, clearSession)
+        : await startImport(token, resource.id, clearSession)
       setJob(result)
     } catch (error) {
       setJob({ error })
@@ -107,20 +117,24 @@ export default function ImportPanel() {
 
     setUploadState({ status: 'uploading', progress: 0, error: null })
     try {
-      const result = await uploadImportFile(
+      await uploadImportFile(
         token,
         file,
         (progress) => setUploadState((current) => ({ ...current, progress })),
         clearSession,
       )
       setUploadState({ status: 'success', progress: 100, error: null })
-      setJob(result)
       sources.refresh?.()
-      setHistoryRefreshKey((value) => value + 1)
+      resources.refresh()
+      getImportHistory(token, '', clearSession)
+        .then((payload) => {
+          const data = Array.isArray(payload) ? payload : (payload?.items ?? payload?.content ?? [])
+          setHistory({ data: Array.isArray(data) ? data : [], loading: false, error: null })
+        })
+        .catch((error) => setHistory({ data: [], loading: false, error }))
     } catch (error) {
       if (error.name === 'AbortError') return
       setUploadState({ status: 'error', progress: 0, error })
-      setJob({ error })
     }
   }
 
@@ -137,10 +151,16 @@ export default function ImportPanel() {
       <ImportFileControls file={file} onFileChange={handleFileChange} onLoad={loadFile} uploadState={uploadState} />
       <div className="import-panel-grid">
         <ImportSourceSelector sources={sources} selected={selectedSource} onSelect={setSelectedSource} />
-        {history.loading ? <LoadingState>{t('importPanel.seasonsLoading')}</LoadingState>
-          : history.error ? <ErrorState>{t(history.error.status === 403 ? 'importPanel.forbidden' : history.error.status === 401 ? 'importPanel.unauthorized' : 'importPanel.serverError')}</ErrorState>
-            : seasons.length === 0 ? <EmptyState>{t('importPanel.seasonsEmpty')}</EmptyState>
-              : <SeasonImportList seasons={seasons} onLoad={(season) => run(season)} onSimulate={(season) => run(season, true)} />}
+        <div>
+          {!selectedSource ? <p>{t('importPanel.chooseSource')}</p>
+          : resources.loading ? <p role="status">{t('importPanel.resourcesLoading')}</p>
+          : resources.error ? <div role="alert">{t(resources.error.status === 403 ? 'importPanel.forbidden' : resources.error.status === 401 ? 'importPanel.unauthorized' : 'importPanel.serverError')} <button type="button" onClick={resources.retry}>{t('common.retry')}</button></div>
+            : resources.data.length === 0 ? <p>{t('importPanel.resourcesEmpty')}</p>
+              : <ImportResourceList resources={resources.data} onSimulate={(resource) => runResource(resource, true)} onImport={(resource) => runResource(resource)} />}
+          {history.loading ? <p role="status">{t('importPanel.seasonsLoading')}</p>
+            : history.error ? <p role="alert">{t('importPanel.serverError')}</p>
+              : seasons.length > 0 ? <SeasonImportList seasons={seasons} onLoad={(season) => run(season)} onSimulate={(season) => run(season, true)} /> : null}
+        </div>
         <ImportReportPanel season={selectedSeason} job={job} />
       </div>
     </section>

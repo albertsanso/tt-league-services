@@ -13,6 +13,7 @@ public interface ImportResourceRepository {
 
     List<ImportResource> findAllPendingImports();
     List<ImportResource> findBySourceAndType(String source, String type);
+    List<ImportResource> findBySource(String source);
     List<ImportResource> findAll();
 
     void save(ImportResource importResource);

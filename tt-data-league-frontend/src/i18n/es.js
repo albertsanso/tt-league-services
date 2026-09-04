@@ -129,6 +129,8 @@ es.importPanel = {
   fileChooser: 'Archivo de importación',
   load: 'Cargar',
   simulate: 'Simular',
+  import: 'Importar',
+  resource: 'Recurso de importación',
   favourite: 'Marcar {{source}} como fuente favorita',
   sourceStatus: {
     available: 'Disponible',
@@ -156,4 +158,14 @@ es.importPanel = {
   uploadError: 'No se ha podido subir el archivo. Inténtalo de nuevo.',
   retryUpload: 'Reintentar subida',
   invalidFile: 'Selecciona un archivo ZIP de importación no vacío.',
+  resourcesTitle: 'Recursos de importación',
+  resourcesLoading: 'Cargando recursos de importación...',
+  resourcesEmpty: 'No hay recursos de importación para esta fuente.',
+  resourceReady: 'Preparado',
+  resourceType: 'Tipo de recurso',
+  resourceSeason: 'Temporada',
+  resourceUploaded: 'Subido',
+  resourceProcessed: 'Procesado',
+  notProcessed: 'Aún no procesado',
+  unavailable: 'No disponible',
 }

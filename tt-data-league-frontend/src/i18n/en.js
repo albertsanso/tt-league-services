@@ -129,6 +129,8 @@ en.importPanel = {
   fileChooser: 'Import file',
   load: 'Load',
   simulate: 'Simulate',
+  import: 'Import',
+  resource: 'Import resource',
   favourite: 'Mark {{source}} as a favourite source',
   sourceStatus: {
     available: 'Available',
@@ -156,4 +158,14 @@ en.importPanel = {
   uploadError: 'The file could not be uploaded. Please try again.',
   retryUpload: 'Retry upload',
   invalidFile: 'Select a non-empty ZIP import file.',
+  resourcesTitle: 'Import resources',
+  resourcesLoading: 'Loading import resources...',
+  resourcesEmpty: 'No import resources are available for this source.',
+  resourceReady: 'Ready',
+  resourceType: 'Resource type',
+  resourceSeason: 'Season',
+  resourceUploaded: 'Uploaded',
+  resourceProcessed: 'Processed',
+  notProcessed: 'Not processed yet',
+  unavailable: 'Unavailable',
 }

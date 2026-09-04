@@ -872,6 +872,7 @@
 
 .import-source-selector,
 .import-season-list,
+.import-resource-list,
 .import-report-panel {
   display: flex;
   flex-direction: column;
@@ -880,18 +881,84 @@
 
 .import-source-selector h2,
 .import-season-list h2,
+.import-resource-list h2,
 .import-report-panel h2 {
   margin: 0;
   font-size: 1rem;
 }
 
 .import-source-card,
-.import-season-item {
+.import-season-item,
+.import-resource-item {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
   padding: 0.85rem;
+}
+
+.import-resource-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.import-resource-item {
+  display: flex;
+  align-items: stretch;
+  padding: 0;
+}
+
+.import-resource-actions {
+  display: flex;
+  order: 2;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.85rem;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.import-resource-content {
+  order: 1;
+  flex: 1;
+  padding: 0.85rem;
+}
+
+.import-resource-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.import-resource-details {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0.75rem 0 0;
+}
+
+.import-resource-details div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.import-resource-details dt {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.import-resource-details dd {
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.import-resource-emphasis dt,
+.import-resource-emphasis dd {
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 .import-source-card {
@@ -1007,6 +1074,9 @@
   .import-season-item {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .import-resource-details {
+    grid-template-columns: 1fr;
   }
 }
 

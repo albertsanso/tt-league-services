@@ -14,7 +14,8 @@ import java.util.UUID;
 public interface ImportResourceRepositoryHelper extends JpaRepository<ImportResourceJPA, UUID> {
 
     Optional<ImportResourceJPA> findBySourceAndTypeAndSeason(Source source, ResourceType type, String season);
-    Collection<ImportResourceJPA> findBySourceAndType(Source source, ResourceType type);
+    Collection<ImportResourceJPA> findBySourceAndTypeOrderByCreatedDesc(Source source, ResourceType type);
     List<ImportResourceJPA> findAllByStatus(ImportResourceStatus status);
 
+    Collection<ImportResourceJPA> findBySource(Source source);
 }

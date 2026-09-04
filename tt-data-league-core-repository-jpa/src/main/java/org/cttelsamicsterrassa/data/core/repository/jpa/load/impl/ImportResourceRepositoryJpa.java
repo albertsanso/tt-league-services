@@ -43,7 +43,14 @@ public class ImportResourceRepositoryJpa implements ImportResourceRepository {
 
     @Override
     public List<ImportResource> findBySourceAndType(String source, String type) {
-        return importResourceRepositoryHelper.findBySourceAndType(Source.valueOf(source), ResourceType.valueOf(type)).stream()
+        return importResourceRepositoryHelper.findBySourceAndTypeOrderByCreatedDesc(Source.valueOf(source), ResourceType.valueOf(type)).stream()
+                .map(importResourceJPAToImportResourceMapper)
+                .toList();
+    }
+
+    @Override
+    public List<ImportResource> findBySource(String source) {
+        return importResourceRepositoryHelper.findBySource(Source.valueOf(source)).stream()
                 .map(importResourceJPAToImportResourceMapper)
                 .toList();
     }
