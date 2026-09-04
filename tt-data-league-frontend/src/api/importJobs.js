@@ -34,16 +34,18 @@ export function uploadImportFile(token, file, onProgress, onUnauthorized, signal
 
 export const uploadImport = uploadImportFile
 
-export function createImportPreview(token, request, onUnauthorized) {
-  return apiRequest(`${basePath}/preview`, { token, method: 'POST', body: request, onUnauthorized })
+export function createImportPreview(token, importResourceId, onUnauthorized) {
+  const params = new URLSearchParams({ importResourceId })
+  return apiRequest(`${basePath}/preview?${params}`, { token, method: 'POST', onUnauthorized })
 }
 
 export function validateImport(token, id, onUnauthorized) {
   return apiRequest(`${basePath}/${id}/validate`, { token, method: 'POST', onUnauthorized })
 }
 
-export function startImport(token, id, onUnauthorized) {
-  return apiRequest(`${basePath}/${id}/start`, { token, method: 'POST', onUnauthorized })
+export function startImport(token, importResourceId, onUnauthorized) {
+  const params = new URLSearchParams({ importResourceId })
+  return apiRequest(`${basePath}/start?${params}`, { token, method: 'POST', onUnauthorized })
 }
 
 export function cancelImport(token, id, onUnauthorized) {

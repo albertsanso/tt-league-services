@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { getImportResourcesBySource, getImportStatus } from './importJobs.js'
+import {
+  createImportPreview,
+  getImportResourcesBySource,
+  getImportStatus,
+  startImport,
+} from './importJobs.js'
 
 describe('import status API', () => {
   beforeEach(() => {
@@ -62,5 +67,39 @@ describe('import status API', () => {
     })
 
     await expect(getImportStatus('session-token')).rejects.toMatchObject({ status: 503 })
+  })
+
+  it('sends the import resource ID as the preview query parameter without a JSON body', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      headers: { get: () => '' },
+    })
+
+    await createImportPreview('session-token', 'resource-1', vi.fn())
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/administration/import/preview?importResourceId=resource-1',
+      expect.objectContaining({
+        method: 'POST',
+        body: undefined,
+      }),
+    )
+  })
+
+  it('sends the import resource ID as the start query parameter without a JSON body', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      headers: { get: () => '' },
+    })
+
+    await startImport('session-token', 'resource-1', vi.fn())
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/administration/import/start?importResourceId=resource-1',
+      expect.objectContaining({
+        method: 'POST',
+        body: undefined,
+      }),
+    )
   })
 })

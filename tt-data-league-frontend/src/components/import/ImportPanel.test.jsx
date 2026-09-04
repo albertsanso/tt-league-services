@@ -76,7 +76,7 @@ describe('ImportPanel resources', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Simula' }))
     await waitFor(() => expect(createImportPreview).toHaveBeenCalledWith(
       'token',
-      { source: 'RFETM', season: '2025-2026', file: null },
+      'resource-1',
       expect.any(Function),
     ))
     fireEvent.click(screen.getByRole('button', { name: 'Importa' }))

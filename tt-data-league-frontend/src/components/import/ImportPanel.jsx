@@ -88,7 +88,7 @@ export default function ImportPanel() {
     setSelectedSeason(season)
     try {
       const result = simulate
-        ? await createImportPreview(token, { source: selectedSource, season: season.id, file: file?.name }, clearSession)
+        ? await createImportPreview(token, season.jobId ?? season.id, clearSession)
         : await startImport(token, season.jobId ?? season.id, clearSession)
       setJob(result)
     } catch (error) {
@@ -101,7 +101,7 @@ export default function ImportPanel() {
     setSelectedSeason(resource)
     try {
       const result = simulate
-        ? await createImportPreview(token, { source: selectedSource, season: resource.season, file: resource.filename }, clearSession)
+        ? await createImportPreview(token, resource.id, clearSession)
         : await startImport(token, resource.id, clearSession)
       setJob(result)
     } catch (error) {

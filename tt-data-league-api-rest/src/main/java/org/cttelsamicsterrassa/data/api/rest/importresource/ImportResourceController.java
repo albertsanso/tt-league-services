@@ -1,14 +1,18 @@
 package org.cttelsamicsterrassa.data.api.rest.importresource;
 
 import io.swagger.v3.oas.annotations.Operation;
+import org.albertsanso.commons.command.CommandBus;
 import org.albertsanso.commons.query.QueryBus;
 import org.cttelsamicsterrassa.data.core.application.importresource.find.FindImportResourcesBySourceQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.find.FindPendingImportsInfoQuery;
+import org.cttelsamicsterrassa.data.core.application.importresource.preview.StartImportPreviewCommand;
+import org.cttelsamicsterrassa.data.core.application.importresource.process.StartImportProcessCommand;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ResourceUploadService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -16,15 +20,18 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.UUID;
 
 @ImportResourceAPIv1Controller
+@PreAuthorize("hasRole('ADMIN')")
 public class ImportResourceController {
 
     @Autowired
     private QueryBus queryBus;
     @Autowired
+    private CommandBus commandBus;
+    @Autowired
     private ResourceUploadService resourceUploadService;
-
 
     @Operation(summary = "Upload a ZIP import resource")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -55,5 +62,17 @@ public class ImportResourceController {
     @GetMapping(value = "/list_by_source", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> listImportSourcesForSource(@RequestParam("source") String source) {
         return ResponseEntity.ok(queryBus.push(new FindImportResourcesBySourceQuery(source)));
+    }
+
+    @Operation(summary = "Preview an import resource")
+    @PostMapping(value = "/preview", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> previewImportResource(@RequestParam("importResourceId") UUID importResourceId) {
+        return ResponseEntity.ok(commandBus.push(new StartImportPreviewCommand(importResourceId)));
+    }
+
+    @Operation(summary = "Start the import process for a specific resource")
+    @PostMapping(value = "/start", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> startImportProcess(@RequestParam("importResourceId") UUID importResourceId) {
+        return ResponseEntity.ok(commandBus.push(new StartImportProcessCommand(importResourceId)));
     }
 }

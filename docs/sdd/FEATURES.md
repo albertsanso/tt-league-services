@@ -28,6 +28,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00026: Display Data Import left Source/Federation selector with dynamic status](### [FEAT-00026] Display Data Import left Source/Federation selector with dynamic status)
 - [FEAT-00027: Integrate upload endpoint with frontend file upload component](### [FEAT-00027] Integrate upload endpoint with frontend file upload component)
 - [FEAT-00028: Display list of imports resources for a given source/federation in Data Import Panel](### [FEAT-00028] Display list of imports resources for a given source/federation in Data Import Panel)
+- [FEAT-00029: Import resource preview process](### [FEAT-00029] Import resource preview process)
 
 ## In Progress
 
@@ -41,6 +42,24 @@ No features currently in review.
 ---
 
 ## Backlog
+
+### [FEAT-00029] Import resource preview process
+- **Status:** idea
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-00028
+
+#### Goal
+Allow administrators to preview an import resource and review its processing result before starting the import.
+
+#### Acceptance Criteria
+- [ ] Selecting **Simulate** for an import resource starts its preview process without importing the resource.
+- [ ] The preview workspace displays loading, successful result, empty-result, and failure states for the selected resource.
+- [ ] Preview validation findings and processing errors are presented accessibly with translated Catalan, Spanish, and English copy.
+- [ ] Administrators can retry a failed preview or proceed from a successful preview to the import action without losing the selected resource context.
+
+#### Feature Details
+→ See [FEAT-00029-DETAILS.md](./FEAT-00029-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
