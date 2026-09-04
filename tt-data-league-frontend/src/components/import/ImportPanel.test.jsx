@@ -10,6 +10,7 @@ vi.mock('../../context/useAuth.js', () => ({ useAuth: vi.fn() }))
 vi.mock('../../api/importJobs.js', () => ({
   createImportPreview: vi.fn(),
   getImportHistory: vi.fn(),
+  getImportPreviewStatus: vi.fn(),
   startImport: vi.fn(),
   uploadImportFile: vi.fn(),
 }))

@@ -5,6 +5,7 @@ import org.albertsanso.commons.command.CommandBus;
 import org.albertsanso.commons.query.QueryBus;
 import org.cttelsamicsterrassa.data.core.application.importresource.find.FindImportResourcesBySourceQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.find.FindPendingImportsInfoQuery;
+import org.cttelsamicsterrassa.data.core.application.importresource.preview.FindImportPreviewStatusQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.StartImportPreviewCommand;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.StartImportProcessCommand;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ResourceUploadService;
@@ -56,6 +57,12 @@ public class ImportResourceController {
     @GetMapping(value = "/status", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> listSourcesWithPendingImports() {
         return ResponseEntity.ok(queryBus.push(new FindPendingImportsInfoQuery()));
+    }
+
+    @Operation(summary = "Find import preview status")
+    @GetMapping(value = "/preview_status", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> findImportPreviewStatus(@RequestParam("importResourceId") UUID importResourceId) {
+        return ResponseEntity.ok(queryBus.push(new FindImportPreviewStatusQuery(importResourceId)));
     }
 
     @Operation(summary = "List import resources for a specific source")

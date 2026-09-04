@@ -1,7 +1,7 @@
 package org.cttelsamicsterrassa.data.core.application.importresource.preview;
 
-import org.albertsanso.commons.command.DomainCommandHandler;
-import org.albertsanso.commons.command.DomainCommandResponse;
+import org.albertsanso.commons.query.DomainQueryHandler;
+import org.albertsanso.commons.query.DomainQueryResponse;
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.dto.ImportPreviewResultDto;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportPreviewResult;
 import org.cttelsamicsterrassa.data.core.domain.load.repository.ImportResourceRepository;
@@ -11,27 +11,28 @@ import javax.inject.Inject;
 import javax.inject.Named;
 
 @Named
-public class StartImportPreviewCommandHandler extends DomainCommandHandler<StartImportPreviewCommand> {
+public class FindImportPreviewStatusQueryHandler
+        extends DomainQueryHandler<FindImportPreviewStatusQuery, ImportPreviewResultDto> {
 
     private final ImportResourceRepository importResourceRepository;
     private final ImportResourcePreviewService importResourcePreviewService;
 
     @Inject
-    public StartImportPreviewCommandHandler(ImportResourceRepository importResourceRepository,
-                                            ImportResourcePreviewService importResourcePreviewService) {
+    public FindImportPreviewStatusQueryHandler(ImportResourceRepository importResourceRepository,
+                                               ImportResourcePreviewService importResourcePreviewService) {
         this.importResourceRepository = importResourceRepository;
         this.importResourcePreviewService = importResourcePreviewService;
     }
 
     @Override
-    public DomainCommandResponse handle(StartImportPreviewCommand startImportPreviewCommand) {
-        return importResourceRepository.findById(startImportPreviewCommand.getImportResourceId())
+    public DomainQueryResponse<ImportPreviewResultDto> handle(FindImportPreviewStatusQuery query) {
+        return importResourceRepository.findById(query.getImportResourceId())
                 .map(importResource -> {
                     ImportPreviewResult result = importResourcePreviewService.preview(importResource);
-                    ImportPreviewResultDto dto = ImportPreviewResultDtoMapper.toDto(importResource, result);
-                    return DomainCommandResponse.successResponse(dto);
+                    return DomainQueryResponse.sucessResponse(
+                            ImportPreviewResultDtoMapper.toDto(importResource, result));
                 })
-                .orElseGet(() -> DomainCommandResponse.failResponse(
-                        ImportPreviewResultDtoMapper.missingResource(startImportPreviewCommand.getImportResourceId())));
+                .orElseGet(() -> DomainQueryResponse.failResponse(
+                        ImportPreviewResultDtoMapper.missingResource(query.getImportResourceId())));
     }
 }

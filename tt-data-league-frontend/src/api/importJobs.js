@@ -14,6 +14,11 @@ export function getImportStatus(token, signal, onUnauthorized) {
   return apiRequest(`${basePath}/status`, { token, signal, onUnauthorized })
 }
 
+export function getImportPreviewStatus(token, importResourceId, signal, onUnauthorized) {
+  const params = new URLSearchParams({ importResourceId })
+  return apiRequest(`${basePath}/preview_status?${params}`, { token, signal, onUnauthorized })
+}
+
 export function getImportResourcesBySource(token, source, signal, onUnauthorized) {
   const params = new URLSearchParams({ source })
   return apiRequest(`${basePath}/list_by_source?${params}`, { token, signal, onUnauthorized })

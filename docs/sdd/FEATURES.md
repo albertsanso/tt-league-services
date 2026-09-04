@@ -39,12 +39,19 @@ No features currently in progress.
 ## In Review
 
 No features currently in review.
+
 ---
 
 ## Backlog
 
+No features currently in backlog.
+
+---
+
+## Done
+
 ### [FEAT-00029] Import resource preview process
-- **Status:** idea
+- **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
 - **Depends on:** FEAT-00028
@@ -52,18 +59,26 @@ No features currently in review.
 #### Goal
 Allow administrators to preview an import resource and review its processing result before starting the import.
 
+#### Description
+1. Analyze the `tt-data-league-import` and `tt-data-league-import-runtime` modules and how the backend implements import processing, including validation, error handling, and result generation.
+2. Wire the existing `StartImportPreviewCommandHandler`, reusing current `tt-data-league-import` processing logic to generate a preview result for the selected resource.
+3. The endpoint `/api/v1/administration/import/preview_status` must provide the preview status for the selected import resource, including loading, success, empty-result, and failure states.
+4. The frontend Data Import Panel currently provides a **Simulate** action for each resource card; it must trigger the preview process and display the result in a dedicated preview workspace.
+5. The preview workspace must present validation findings and processing errors accessibly, with translated copy in Catalan, Spanish, and English.
+6. Administrators must be able to retry a failed preview or proceed from a successful preview to the import action without losing the selected resource context.
+7. The preview process must not import the resource; it is only a simulation to review the processing result.
+
 #### Acceptance Criteria
-- [ ] Selecting **Simulate** for an import resource starts its preview process without importing the resource.
-- [ ] The preview workspace displays loading, successful result, empty-result, and failure states for the selected resource.
-- [ ] Preview validation findings and processing errors are presented accessibly with translated Catalan, Spanish, and English copy.
-- [ ] Administrators can retry a failed preview or proceed from a successful preview to the import action without losing the selected resource context.
+- [x] The **Simulate** action triggers the preview process for the selected import resource and displays the result in a dedicated preview workspace.
+- [x] The preview workspace presents the validation findings and processing errors accessibly, with translated copy in Catalan, Spanish, and English.
+- [x] Administrators can retry a failed preview or proceed from a successful preview to the import action without losing the selected resource context.
+- [x] The preview process does not import the resource; it is only a simulation to review the processing result.
+- [x] The endpoint `/api/v1/administration/import/preview_status` provides the preview status for the selected import resource.
 
 #### Feature Details
 → See [FEAT-00029-DETAILS.md](./FEAT-00029-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-
-## Done
 
 ### [FEAT-00028] Display list of imports resources for a given source/federation in Data Import Panel
 - **Status:** done

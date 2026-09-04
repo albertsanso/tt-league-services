@@ -1,7 +1,9 @@
 package org.cttelsamicsterrassa.data.core.domain.load.service;
 
-import javax.inject.Named;
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResource;
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportPreviewResult;
 
-@Named
-public class ImportResourcePreviewService {
+public interface ImportResourcePreviewService {
+
+    ImportPreviewResult preview(ImportResource importResource);
 }

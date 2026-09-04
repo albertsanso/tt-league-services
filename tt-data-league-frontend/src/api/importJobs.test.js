@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   createImportPreview,
+  getImportPreviewStatus,
   getImportResourcesBySource,
   getImportStatus,
   startImport,
@@ -51,6 +52,27 @@ describe('import status API', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/administration/import/status',
+      expect.objectContaining({
+        signal: controller.signal,
+        headers: expect.objectContaining({ Authorization: expect.any(String) }),
+      }),
+    )
+  })
+
+  it('requests the resource-scoped preview status without changing the source status endpoint', async () => {
+    const response = {
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ response: { status: 'success' } }),
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response)
+    const controller = new AbortController()
+    const onUnauthorized = vi.fn()
+
+    await getImportPreviewStatus('session-token', 'resource-1', controller.signal, onUnauthorized)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/administration/import/preview_status?importResourceId=resource-1',
       expect.objectContaining({
         signal: controller.signal,
         headers: expect.objectContaining({ Authorization: expect.any(String) }),
