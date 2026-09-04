@@ -76,9 +76,9 @@ public class ResourceRepositoryLoaderService {
 
     private void createResourcesAndStartProcessing(ImportManifest importManifest, Path targetFolder) {
         Resource resolvedResource = createOrGetResource(importManifest, targetFolder);
-        importManifest.seasons().stream()
+        importManifest.seasons()
             .forEach(season -> {
-                ImportResource importResource = createOrGetImportResourceForResource(resolvedResource, importManifest, targetFolder, season);
+                ImportResource importResource = createOrGetImportResourceForResource(resolvedResource, importManifest, season);
                 ImportResourceStatus.getAllFinishedStatuses().forEach(status -> {
                     if (importResource.getStatus() == status) {
                         importResource.setPending();
@@ -97,10 +97,10 @@ public class ResourceRepositoryLoaderService {
 
     private ImportResource createOrGetImportResource(ImportManifest importManifest, Path targetFolder, String season) {
         Resource resolvedResource = createOrGetResource(importManifest, targetFolder);
-        return createOrGetImportResourceForResource(resolvedResource, importManifest, targetFolder, season);
+        return createOrGetImportResourceForResource(resolvedResource, importManifest, season);
     }
 
-    private ImportResource createOrGetImportResourceForResource(Resource resource, ImportManifest importManifest, Path targetFolder, String season) {
+    private ImportResource createOrGetImportResourceForResource(Resource resource, ImportManifest importManifest, String season) {
         return importResourceRepository.findBySourceAndTypeAndSeason(importManifest.source(), importManifest.assetType(), season)
                 .orElseGet(() -> {
                     ImportResource importResource = ImportResource.createNew(
