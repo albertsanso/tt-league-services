@@ -19,10 +19,12 @@ public class ResourceCreationService {
         this.resourceRepository = resourceRepository;
     }
 
-    public Resource createNewFromImportManifestAndFolder(ImportManifest importManifest, Path folder) {
-        String logicalPath = ResourceKeys.dataImportKey(importManifest.source(), importManifest.assetType());
+    public Resource createNewFromImportManifestAndFolder(ImportManifest importManifest,
+                                                         String assetType,
+                                                         Path folder) {
+        String logicalPath = ResourceKeys.dataImportKey(importManifest.source(), assetType);
         Resource resource = Resource.createNew(
-                importManifest.assetType(),
+                assetType,
                 logicalPath,
                 folder);
         resourceRepository.save(resource);

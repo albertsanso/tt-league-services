@@ -19,7 +19,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZonedDateTime;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 
 @Named
@@ -50,35 +52,82 @@ public class ResourceRepositoryLoaderService {
             throw new IllegalArgumentException("Configured import folder must exist: " + importFolder);
         }
 
-        Path targetFolder = importFolder.resolve(
-                String.format(IMPORT_FOLDER_TEMPLATE,
-                        importManifest.source().toLowerCase(Locale.ROOT),
-                        importManifest.assetType().toLowerCase(Locale.ROOT))
-        );
+        for (Map.Entry<String, List<String>> asset : importManifest.assets().entrySet()) {
+            String assetType = asset.getKey();
+            Path targetFolder = importFolder.resolve(
+                    String.format(IMPORT_FOLDER_TEMPLATE,
+                            importManifest.source().toLowerCase(Locale.ROOT),
+                            assetType.toLowerCase(Locale.ROOT))
+            );
 
-        try {
-            Files.createDirectories(targetFolder);
-            for (String season : importManifest.seasons()) {
-                Path seasonFolder = targetFolder.resolve(season).normalize();
-                if (!seasonFolder.startsWith(targetFolder)) {
-                    throw new IllegalArgumentException("Invalid season folder: " + season);
+            try {
+                Files.createDirectories(targetFolder);
+                for (String season : importManifest.seasons()) {
+                    Path seasonFolder = targetFolder.resolve(season).normalize();
+                    if (!seasonFolder.startsWith(targetFolder)) {
+                        throw new IllegalArgumentException("Invalid season folder: " + season);
+                    }
+                    deleteRecursively(seasonFolder);
+                    Files.createDirectory(seasonFolder);
+
+                    moveSeasonContent(importManifest, asset.getValue(), season, seasonFolder,
+                            resolveDestinationPathToRemoveForAssetType(assetType, season));
                 }
-                deleteRecursively(seasonFolder);
-                Files.createDirectory(seasonFolder);
-                moveSeasonContent(importManifest, season, seasonFolder);
+            } catch (IOException exception) {
+                throw new IllegalArgumentException("Unable to store extracted ZIP content", exception);
             }
-        } catch (IOException exception) {
-            throw new IllegalArgumentException("Unable to store extracted ZIP content", exception);
-        }
 
-        createResourcesAndStartProcessing(importManifest, targetFolder);
+            if ("ACTAS".equalsIgnoreCase(assetType)) {
+                createResourcesAndStartProcessing(importManifest, assetType, targetFolder);
+            }
+        }
     }
 
-    private void createResourcesAndStartProcessing(ImportManifest importManifest, Path targetFolder) {
-        Resource resolvedResource = createOrGetResource(importManifest, targetFolder);
+    private Path resolveDestinationPathToRemoveForAssetType(String assetType, String season) {
+        if ("TEAMS".equalsIgnoreCase(assetType)) {
+            return Path.of("equipos-json/");
+        } else {
+            return Path.of("actas-json/"+season);
+        }
+    }
+
+    private void moveSeasonContent(ImportManifest importManifest,
+                                   List<String> files,
+                                   String season,
+                                   Path seasonFolder,
+                                   Path pathToRemove) throws IOException {
+        Path extractedSeasonFolder = importManifest.extractionFolder().resolve(season).normalize();
+        if (files.isEmpty() && Files.isDirectory(extractedSeasonFolder)) {
+            moveDirectoryContents(extractedSeasonFolder, seasonFolder);
+            return;
+        }
+
+        for (String file : files) {
+            Path extractedFile = importManifest.extractionFolder().resolve(file).normalize();
+            if (!extractedFile.startsWith(importManifest.extractionFolder())
+                    || !Files.isRegularFile(extractedFile)) {
+                throw new IllegalArgumentException("manifest.json references a missing file: " + file);
+            }
+            Path relativeFile = importManifest.extractionFolder().relativize(extractedFile);
+            if (relativeFile.startsWith(season)) {
+                relativeFile = relativeFile.subpath(1, relativeFile.getNameCount());
+            }
+            Path relativeFileToRemove = pathToRemove.relativize(relativeFile).normalize();
+            Path destination = seasonFolder.resolve(relativeFileToRemove).normalize();
+
+            Files.createDirectories(destination.getParent());
+            Files.move(extractedFile, destination);
+        }
+    }
+
+    private void createResourcesAndStartProcessing(ImportManifest importManifest,
+                                                   String assetType,
+                                                   Path targetFolder) {
+        Resource resolvedResource = createOrGetResource(importManifest, assetType, targetFolder);
         importManifest.seasons()
             .forEach(season -> {
-                ImportResource importResource = createOrGetImportResourceForResource(resolvedResource, importManifest, season);
+                ImportResource importResource = createOrGetImportResourceForResource(
+                        resolvedResource, importManifest, assetType, season);
                 ImportResourceStatus.getAllFinishedStatuses().forEach(status -> {
                     if (importResource.getStatus() == status) {
                         importResource.setPending();
@@ -88,25 +137,26 @@ public class ResourceRepositoryLoaderService {
             });
     }
 
-    private Resource createOrGetResource(ImportManifest importManifest, Path targetFolder) {
-        String logicalPath = ResourceKeys.dataImportKey(importManifest.source(), importManifest.assetType());
-        return resourceRepository.findByLogicPathAndName(logicalPath, importManifest.assetType())
+    private Resource createOrGetResource(ImportManifest importManifest,
+                                         String assetType,
+                                         Path targetFolder) {
+        String logicalPath = ResourceKeys.dataImportKey(importManifest.source(), assetType);
+        return resourceRepository.findByLogicPathAndName(logicalPath, assetType)
                 .orElseGet(() ->
-                        resourceCreationService.createNewFromImportManifestAndFolder(importManifest, targetFolder));
+                        resourceCreationService.createNewFromImportManifestAndFolder(
+                                importManifest, assetType, targetFolder));
     }
 
-    private ImportResource createOrGetImportResource(ImportManifest importManifest, Path targetFolder, String season) {
-        Resource resolvedResource = createOrGetResource(importManifest, targetFolder);
-        return createOrGetImportResourceForResource(resolvedResource, importManifest, season);
-    }
-
-    private ImportResource createOrGetImportResourceForResource(Resource resource, ImportManifest importManifest, String season) {
-        return importResourceRepository.findBySourceAndTypeAndSeason(importManifest.source(), importManifest.assetType(), season)
+    private ImportResource createOrGetImportResourceForResource(Resource resource,
+                                                                ImportManifest importManifest,
+                                                                String assetType,
+                                                                String season) {
+        return importResourceRepository.findBySourceAndTypeAndSeason(importManifest.source(), assetType, season)
                 .orElseGet(() -> {
                     ImportResource importResource = ImportResource.createNew(
                             resource,
                             Optional.empty(),
-                            mapResourceType(importManifest.assetType()),
+                            mapResourceType(assetType),
                             ZonedDateTime.now(),
                             Optional.empty(),
                             Season.fromFormatted(season),
@@ -136,33 +186,6 @@ public class ResourceRepositoryLoaderService {
             return ResourceType.TEAMS;
         } else {
             throw new IllegalArgumentException("Invalid asset_type in manifest.json: " + assetType);
-        }
-    }
-
-    private void moveSeasonContent(ImportManifest importManifest, String season,
-                                   Path seasonFolder) throws IOException {
-        Path extractedSeasonFolder = importManifest.extractionFolder().resolve(season).normalize();
-        if (Files.isDirectory(extractedSeasonFolder)) {
-            moveDirectoryContents(extractedSeasonFolder, seasonFolder);
-            return;
-        }
-
-        for (String file : importManifest.files()) {
-            Path extractedFile = importManifest.extractionFolder().resolve(file).normalize();
-            if (!extractedFile.startsWith(importManifest.extractionFolder())
-                    || !Files.isRegularFile(extractedFile)) {
-                throw new IllegalArgumentException("manifest.json references a missing file: " + file);
-            }
-            Path relativeFile = importManifest.extractionFolder().relativize(extractedFile);
-            if (relativeFile.startsWith(season)) {
-                relativeFile = relativeFile.subpath(1, relativeFile.getNameCount());
-            }
-            Path destination = seasonFolder.resolve(relativeFile).normalize();
-            if (!destination.startsWith(seasonFolder)) {
-                throw new IllegalArgumentException("manifest.json references an invalid file path: " + file);
-            }
-            Files.createDirectories(destination.getParent());
-            Files.move(extractedFile, destination);
         }
     }
 

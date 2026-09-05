@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.core.domain.resource.model.ImportManifest;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -20,7 +21,7 @@ class ResourceUploadServiceTest {
         ResourceZipService resourceZipService = mock(ResourceZipService.class);
         ResourceRepositoryLoaderService resourceRepositoryLoaderService = mock(ResourceRepositoryLoaderService.class);
         ImportManifest manifest = new ImportManifest(
-                "RFETM", List.of("2025-2026"), List.of(), null, "DATA");
+                "RFETM", List.of("2025-2026"), Map.of("DATA", List.of()), null);
         when(resourceZipService.extractZipAndGetManifest(new byte[]{1})).thenReturn(manifest);
 
         AtomicReference<Runnable> scheduledTask = new AtomicReference<>();

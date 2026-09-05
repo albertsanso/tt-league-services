@@ -15,8 +15,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -83,22 +85,15 @@ public class ResourceZipService {
             if (manifest == null || !manifest.isObject()
                     || !manifest.has("source")
                     || !manifest.has("seasons")
-                    || !manifest.has("files")
-                    || !manifest.has("asset_type")
-                    || manifest.size() != 4) {
-                throw new IllegalArgumentException("manifest.json must contain only source, seasons, files, and asset_type");
+                    || !manifest.has("assets")
+                    || manifest.size() != 3) {
+                throw new IllegalArgumentException("manifest.json must contain only source, seasons, and assets");
             }
             JsonNode source = manifest.get("source");
             if (!source.isTextual()) {
                 throw new IllegalArgumentException("manifest.json source must be a valid ImportSource");
             }
             String sourceValue = source.textValue();
-
-            JsonNode assetType = manifest.get("asset_type");
-            if (!assetType.isTextual()) {
-                throw new IllegalArgumentException("manifest.json asset_type must be valid");
-            }
-            String assetTypeValue = assetType.textValue();
 
             try {
                 ImportSource.valueOf(sourceValue);
@@ -117,8 +112,25 @@ public class ResourceZipService {
                     throw new IllegalArgumentException("manifest.json contains an invalid season: " + season, exception);
                 }
             });
-            List<String> files = readTextArray(manifest.get("files"), "files");
-            return new ImportManifest(sourceValue, seasons, files, extractionFolder, assetTypeValue);
+            JsonNode assetsNode = manifest.get("assets");
+            if (!assetsNode.isObject() || assetsNode.isEmpty()) {
+                throw new IllegalArgumentException("manifest.json assets must be a non-empty object");
+            }
+            Map<String, List<String>> assets = new LinkedHashMap<>();
+            var assetFields = assetsNode.fields();
+            while (assetFields.hasNext()) {
+                var asset = assetFields.next();
+                if (asset.getKey().isBlank()
+                        || !asset.getValue().isObject()
+                        || asset.getValue().size() != 1
+                        || !asset.getValue().has("files")) {
+                    throw new IllegalArgumentException(
+                            "manifest.json assets must contain asset objects with only a files array");
+                }
+                assets.put(asset.getKey(), readTextArray(
+                        asset.getValue().get("files"), "assets." + asset.getKey() + ".files"));
+            }
+            return new ImportManifest(sourceValue, seasons, assets, extractionFolder);
         } catch (IOException exception) {
             throw new IllegalArgumentException("Invalid manifest.json", exception);
         }
