@@ -234,3 +234,4 @@
   failures, and the REST test compilation remains blocked by missing pre-existing
   `ImportJobController` and `InMemoryImportJobsService` classes; neither blocker is caused by the
   FEAT-00030 changes.
+- 2026-09-05: User-approved closure recorded; FEAT-00030 is shipped and moved to `done`.

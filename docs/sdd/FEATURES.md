@@ -39,8 +39,20 @@ No features currently in progress.
 
 ## In Review
 
+No features currently in review.
+
+---
+
+## Backlog
+
+No features currently in the backlog.
+
+---
+
+## Done
+
 ### [FEAT-00030] Import resource process
-- **Status:** in-review
+- **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
 - **Depends on:** FEAT-00029
@@ -68,14 +80,6 @@ Allow administrators to start the import of a selected resource and monitor its 
 → See [FEAT-00030-DETAILS.md](./FEAT-00030-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-
-## Backlog
-
-No features currently in the backlog.
-
----
-
-## Done
 
 ### [FEAT-00029] Import resource preview process
 - **Status:** done
