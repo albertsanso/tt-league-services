@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/useAuth.js'
 import { createImportPreview, getImportHistory, startImport, uploadImportFile } from '../../api/importJobs.js'
 import { normalizeImportPreview } from '../../hooks/useImportPreviewStatus.js'
+import { normalizeImportProcess } from '../../hooks/useImportProcessResult.js'
 import { useImportSourceStatus } from '../../hooks/useImportSourceStatus.js'
 import { useImportResources } from '../../hooks/useImportResources.js'
 import SectionLabel from '../ui/SectionLabel.jsx'
@@ -11,6 +12,7 @@ import ImportSourceSelector from './ImportSourceSelector.jsx'
 import ImportResourceList from './ImportResourceList.jsx'
 import SeasonImportList from './SeasonImportList.jsx'
 import ImportPreviewWorkspace from './ImportPreviewWorkspace.jsx'
+import ImportProcessWorkspace from './ImportProcessWorkspace.jsx'
 import ImportReportPanel from './ImportReportPanel.jsx'
 
 const ACTION_MESSAGE_TIMEOUT = 20000
@@ -21,9 +23,6 @@ function emptyPreviewState() {
     loading: false,
     result: null,
     error: null,
-    importing: false,
-    importError: null,
-    importResult: null,
   }
 }
 
@@ -42,8 +41,8 @@ export default function ImportPanel() {
   const [selectedSource, setSelectedSource] = useState('')
   const [selectedSeason, setSelectedSeason] = useState(null)
   const [file, setFile] = useState(null)
-  const [job, setJob] = useState(null)
   const [previewState, setPreviewState] = useState(emptyPreviewState)
+  const [importState, setImportState] = useState({ resource: null, loading: false, result: null, error: null })
   const [history, setHistory] = useState({ data: [], loading: true, error: null })
   const [uploadState, setUploadState] = useState({ status: 'idle', progress: 0, error: null })
   const previousSourceStatuses = useRef(null)
@@ -103,6 +102,7 @@ export default function ImportPanel() {
     if (!resource) return
     try {
       setSelectedSeason(resource)
+      setImportState({ resource: null, loading: false, result: null, error: null })
       setPreviewState({ ...emptyPreviewState(), resource, loading: true })
       const result = await createImportPreview(token, resource.jobId ?? resource.id, clearSession)
       setPreviewState({ ...emptyPreviewState(), resource, result: normalizeImportPreview(result) })
@@ -112,16 +112,25 @@ export default function ImportPanel() {
   }
 
   const proceedFromPreview = async (resource) => {
+    await startProcess(resource)
+  }
+
+  const startProcess = async (resource) => {
     if (!resource) return
     setSelectedSeason(resource)
-    setPreviewState((current) => ({ ...current, importing: true, importError: null, importResult: null }))
+    setPreviewState(emptyPreviewState())
+    setImportState({ resource, loading: true, result: null, error: null })
     try {
       const result = await startImport(token, resource.jobId ?? resource.id, clearSession)
-      setPreviewState((current) => ({ ...current, importing: false, importResult: result }))
-      setJob(result)
+      setImportState({ resource, loading: false, result: normalizeImportProcess(result), error: null })
     } catch (error) {
-      setPreviewState((current) => ({ ...current, importing: false, importError: error }))
+      setImportState({ resource, loading: false, result: null, error })
     }
+  }
+
+  const clearImport = () => {
+    setImportState({ resource: null, loading: false, result: null, error: null })
+    setSelectedSeason(null)
   }
 
   const run = async (season, simulate = false) => {
@@ -130,13 +139,7 @@ export default function ImportPanel() {
       await startPreview(season)
       return
     }
-    setPreviewState(emptyPreviewState())
-    try {
-      const result = await startImport(token, season.jobId ?? season.id, clearSession)
-      setJob(result)
-    } catch (error) {
-      setJob({ error })
-    }
+    await startProcess(season)
   }
 
   const runResource = async (resource, simulate = false) => {
@@ -145,13 +148,7 @@ export default function ImportPanel() {
       await startPreview(resource)
       return
     }
-    setPreviewState(emptyPreviewState())
-    try {
-      const result = await startImport(token, resource.id, clearSession)
-      setJob(result)
-    } catch (error) {
-      setJob({ error })
-    }
+    await startProcess(resource)
   }
 
   const loadFile = async () => {
@@ -206,14 +203,21 @@ export default function ImportPanel() {
             : history.error ? <p role="alert">{t('importPanel.serverError')}</p>
               : seasons.length > 0 ? <SeasonImportList seasons={seasons} onLoad={(season) => run(season)} onSimulate={(season) => run(season, true)} /> : null}
         </div>
-        {previewState.resource
+        {importState.resource
+          ? <ImportProcessWorkspace
+              resource={importState.resource}
+              process={importState}
+              onRetry={startProcess}
+              onBackToResources={clearImport}
+            />
+          : previewState.resource
           ? <ImportPreviewWorkspace
               resource={previewState.resource}
               preview={previewState}
               onRetry={startPreview}
               onProceed={proceedFromPreview}
             />
-          : <ImportReportPanel season={selectedSeason} job={job} />}
+          : <ImportReportPanel season={selectedSeason} />}
       </div>
     </section>
   )

@@ -116,4 +116,72 @@ describe('ImportPanel resources', () => {
     expect(refreshStatus).toHaveBeenCalledOnce()
     expect(refreshResources).toHaveBeenCalledOnce()
   })
+
+  it('routes a direct import to the import process workspace', async () => {
+    useImportResources.mockReturnValue({
+      data: [{ id: 'resource-1', season: '2025-2026', resourceType: 'ACTAS' }],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+      refresh: refreshResources,
+    })
+    startImport.mockResolvedValue({
+      response: {
+        status: 'SUCCESS',
+        filesSeen: 1,
+        itemsPersisted: 2,
+        skipped: 0,
+        findings: [],
+        processingErrors: [],
+      },
+    })
+
+    render(<ImportPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Importa' }))
+
+    await waitFor(() => expect(screen.getByText('Resultat de la importació')).toBeInTheDocument())
+    expect(screen.getByText('La importació ha desat 2 element(s).')).toBeInTheDocument()
+    expect(screen.getByText('Correcta')).toBeInTheDocument()
+  })
+
+  it('routes preview proceed to the same import process workspace', async () => {
+    useImportResources.mockReturnValue({
+      data: [{ id: 'resource-1', season: '2025-2026', resourceType: 'ACTAS' }],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+      refresh: refreshResources,
+    })
+    createImportPreview.mockResolvedValue({
+      response: {
+        status: 'SUCCESS',
+        filesSeen: 1,
+        itemsDispatched: 1,
+        skipped: 0,
+        validationFindings: [],
+        processingErrors: [],
+      },
+    })
+    startImport.mockResolvedValue({
+      response: {
+        status: 'EMPTY_RESULT',
+        filesSeen: 1,
+        itemsPersisted: 0,
+        skipped: 1,
+        findings: [],
+        processingErrors: [],
+      },
+    })
+
+    render(<ImportPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Simula' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Procedeix a importar' })).toBeInTheDocument())
+    fireEvent.click(screen.getByRole('button', { name: 'Procedeix a importar' }))
+
+    await waitFor(() => expect(screen.getByText('Resultat de la importació')).toBeInTheDocument())
+    expect(screen.getByText('Sense resultats')).toBeInTheDocument()
+    expect(startImport).toHaveBeenCalledWith('token', 'resource-1', expect.any(Function))
+  })
 })

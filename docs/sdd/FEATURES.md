@@ -29,6 +29,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00027: Integrate upload endpoint with frontend file upload component](### [FEAT-00027] Integrate upload endpoint with frontend file upload component)
 - [FEAT-00028: Display list of imports resources for a given source/federation in Data Import Panel](### [FEAT-00028] Display list of imports resources for a given source/federation in Data Import Panel)
 - [FEAT-00029: Import resource preview process](### [FEAT-00029] Import resource preview process)
+- [FEAT-00030: Import resource process](### [FEAT-00030] Import resource process)
 
 ## In Progress
 
@@ -38,13 +39,39 @@ No features currently in progress.
 
 ## In Review
 
-No features currently in review.
+### [FEAT-00030] Import resource process
+- **Status:** in-review
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-00029
+
+#### Goal
+Allow administrators to start the import of a selected resource and monitor its processing result.
+
+#### Description
+1. Analyze the `tt-data-league-import` and `tt-data-league-import-runtime` modules and how the backend implements import processing, including validation, error handling, and result generation.
+2. Wire the existing `StartImportCommandHandler`, reusing current `tt-data-league-import` processing logic to start the import for the selected resource.
+3. The endpoint `/api/v1/administration/import/start` must start the import for the selected resource and return the import status, including loading, success, empty-result, and failure states.
+4. The frontend Data Import Panel currently provides an **Import** action for each resource card; it must trigger the import process and display the result in a dedicated import workspace.
+5. The import workspace must present validation findings and processing errors accessibly, with translated copy in Catalan, Spanish, and English.
+6. Administrators must be able to retry a failed import or proceed from a successful import to the next action without losing the selected resource context.
+7. The import process must use the authenticated backend contract and not start a different or unscoped resource.
+
+#### Acceptance Criteria
+- [x] The **Import** action triggers the import process for the selected import resource and displays the result in a dedicated import workspace.
+- [x] The import workspace presents the validation findings and processing errors accessibly, with translated copy in Catalan, Spanish, and English.
+- [x] Administrators can retry a failed import or proceed from a successful import to the next action without losing the selected resource context.
+- [x] The import process uses the authenticated backend contract and does not start a different or unscoped resource.
+- [x] The endpoint `/api/v1/administration/import/start` provides the import status for the selected import resource.
+
+#### Feature Details
+→ See [FEAT-00030-DETAILS.md](./FEAT-00030-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
 ## Backlog
 
-No features currently in backlog.
+No features currently in the backlog.
 
 ---
 

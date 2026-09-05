@@ -8,6 +8,7 @@ import org.cttelsamicsterrassa.data.core.application.importresource.find.FindPen
 import org.cttelsamicsterrassa.data.core.application.importresource.find.dto.PendingImportsInfoDto;
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.FindImportPreviewStatusQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.StartImportPreviewCommand;
+import org.cttelsamicsterrassa.data.core.application.importresource.process.StartImportProcessCommand;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
 
@@ -61,6 +62,20 @@ class ImportResourceControllerTest {
         assertEquals(200, response.getStatusCode().value());
         verify(commandBus).push(argThat(command -> command instanceof StartImportPreviewCommand previewCommand
                 && importResourceId.equals(previewCommand.getImportResourceId())));
+    }
+
+    @Test
+    void startProcessRoutesTheResourceIdToTheCommandBus() {
+        CommandBus commandBus = mock(CommandBus.class);
+        UUID importResourceId = UUID.randomUUID();
+        ImportResourceController controller = controller(mock(QueryBus.class), commandBus);
+        when(commandBus.push(any())).thenReturn(DomainCommandResponse.successResponse("ok"));
+
+        var response = controller.startImportProcess(importResourceId);
+
+        assertEquals(200, response.getStatusCode().value());
+        verify(commandBus).push(argThat(command -> command instanceof StartImportProcessCommand processCommand
+                && importResourceId.equals(processCommand.getImportResourceId())));
     }
 
     private static ImportResourceController controller(QueryBus queryBus, CommandBus commandBus) {
