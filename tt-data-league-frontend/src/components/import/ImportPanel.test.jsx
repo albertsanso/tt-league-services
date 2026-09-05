@@ -5,6 +5,7 @@ import { useAuth } from '../../context/useAuth.js'
 import { createImportPreview, getImportHistory, startImport, uploadImportFile } from '../../api/importJobs.js'
 import { useImportSourceStatus } from '../../hooks/useImportSourceStatus.js'
 import { useImportResources } from '../../hooks/useImportResources.js'
+import { useImportProcessStatus } from '../../hooks/useImportProcessStatus.js'
 
 vi.mock('../../context/useAuth.js', () => ({ useAuth: vi.fn() }))
 vi.mock('../../api/importJobs.js', () => ({
@@ -16,6 +17,7 @@ vi.mock('../../api/importJobs.js', () => ({
 }))
 vi.mock('../../hooks/useImportSourceStatus.js', () => ({ useImportSourceStatus: vi.fn() }))
 vi.mock('../../hooks/useImportResources.js', () => ({ useImportResources: vi.fn() }))
+vi.mock('../../hooks/useImportProcessStatus.js', () => ({ useImportProcessStatus: vi.fn() }))
 
 describe('ImportPanel resources', () => {
   let refreshStatus
@@ -38,9 +40,10 @@ describe('ImportPanel resources', () => {
       retry: vi.fn(),
       refresh: refreshResources,
     })
+    useImportProcessStatus.mockReturnValue({ runId: null, data: null, loading: false, error: null })
     uploadImportFile.mockResolvedValue({ status: 'ACCEPTED' })
     createImportPreview.mockResolvedValue({ status: 'PREVIEW' })
-    startImport.mockResolvedValue({ status: 'STARTED' })
+    startImport.mockResolvedValue({ response: { runId: 'run-1', status: 'queued' } })
     getImportHistory.mockResolvedValue([])
   })
 
@@ -117,7 +120,7 @@ describe('ImportPanel resources', () => {
     expect(refreshResources).toHaveBeenCalledOnce()
   })
 
-  it('routes a direct import to the import process workspace', async () => {
+  it('submits the import asynchronously and polls the run until it succeeds', async () => {
     useImportResources.mockReturnValue({
       data: [{ id: 'resource-1', season: '2025-2026', resourceType: 'ACTAS' }],
       loading: false,
@@ -125,14 +128,19 @@ describe('ImportPanel resources', () => {
       retry: vi.fn(),
       refresh: refreshResources,
     })
-    startImport.mockResolvedValue({
-      response: {
-        status: 'SUCCESS',
-        filesSeen: 1,
-        itemsPersisted: 2,
+    startImport.mockResolvedValue({ response: { runId: 'run-1', status: 'queued' } })
+    useImportProcessStatus.mockReturnValue({
+      runId: 'run-1',
+      loading: false,
+      error: null,
+      data: {
+        status: 'success',
+        processed: 1,
+        total: 1,
+        percentage: 100,
         skipped: 0,
-        findings: [],
-        processingErrors: [],
+        errorCount: 0,
+        result: { status: 'success', filesSeen: 1, itemsPersisted: 2, skipped: 0, findings: [], processingErrors: [] },
       },
     })
 
@@ -140,9 +148,34 @@ describe('ImportPanel resources', () => {
     fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Importa' }))
 
+    await waitFor(() => expect(startImport).toHaveBeenCalledWith('token', 'resource-1', expect.any(Function)))
     await waitFor(() => expect(screen.getByText('Resultat de la importació')).toBeInTheDocument())
     expect(screen.getByText('La importació ha desat 2 element(s).')).toBeInTheDocument()
     expect(screen.getByText('Correcta')).toBeInTheDocument()
+  })
+
+  it('shows queued/running progress before the run reaches a terminal state', async () => {
+    useImportResources.mockReturnValue({
+      data: [{ id: 'resource-1', season: '2025-2026', resourceType: 'ACTAS' }],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+      refresh: refreshResources,
+    })
+    startImport.mockResolvedValue({ response: { runId: 'run-1', status: 'queued' } })
+    useImportProcessStatus.mockReturnValue({
+      runId: 'run-1',
+      loading: false,
+      error: null,
+      data: { status: 'running', processed: 2, total: 5, percentage: 40, skipped: 0, errorCount: 0, result: null },
+    })
+
+    render(<ImportPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Importa' }))
+
+    await waitFor(() => expect(screen.getByText('En curs')).toBeInTheDocument())
+    expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '40')
   })
 
   it('routes preview proceed to the same import process workspace', async () => {
@@ -163,14 +196,19 @@ describe('ImportPanel resources', () => {
         processingErrors: [],
       },
     })
-    startImport.mockResolvedValue({
-      response: {
-        status: 'EMPTY_RESULT',
-        filesSeen: 1,
-        itemsPersisted: 0,
+    startImport.mockResolvedValue({ response: { runId: 'run-2', status: 'queued' } })
+    useImportProcessStatus.mockReturnValue({
+      runId: 'run-2',
+      loading: false,
+      error: null,
+      data: {
+        status: 'empty-result',
+        processed: 0,
+        total: 1,
+        percentage: 0,
         skipped: 1,
-        findings: [],
-        processingErrors: [],
+        errorCount: 0,
+        result: { status: 'empty-result', filesSeen: 1, itemsPersisted: 0, skipped: 1, findings: [], processingErrors: [] },
       },
     })
 

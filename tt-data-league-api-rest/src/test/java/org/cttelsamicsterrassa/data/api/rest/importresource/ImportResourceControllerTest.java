@@ -8,6 +8,7 @@ import org.cttelsamicsterrassa.data.core.application.importresource.find.FindPen
 import org.cttelsamicsterrassa.data.core.application.importresource.find.dto.PendingImportsInfoDto;
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.FindImportPreviewStatusQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.StartImportPreviewCommand;
+import org.cttelsamicsterrassa.data.core.application.importresource.process.FindImportRunStatusQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.StartImportProcessCommand;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -65,7 +66,7 @@ class ImportResourceControllerTest {
     }
 
     @Test
-    void startProcessRoutesTheResourceIdToTheCommandBus() {
+    void startProcessRoutesTheResourceIdToTheCommandBusAndReturnsAcceptedOnSuccess() {
         CommandBus commandBus = mock(CommandBus.class);
         UUID importResourceId = UUID.randomUUID();
         ImportResourceController controller = controller(mock(QueryBus.class), commandBus);
@@ -73,9 +74,47 @@ class ImportResourceControllerTest {
 
         var response = controller.startImportProcess(importResourceId);
 
-        assertEquals(200, response.getStatusCode().value());
+        assertEquals(202, response.getStatusCode().value());
         verify(commandBus).push(argThat(command -> command instanceof StartImportProcessCommand processCommand
                 && importResourceId.equals(processCommand.getImportResourceId())));
+    }
+
+    @Test
+    void startProcessKeepsTheExistingGuardResponseShapeWhenTheCommandFails() {
+        CommandBus commandBus = mock(CommandBus.class);
+        UUID importResourceId = UUID.randomUUID();
+        ImportResourceController controller = controller(mock(QueryBus.class), commandBus);
+        when(commandBus.push(any())).thenReturn(DomainCommandResponse.failResponse("already processing"));
+
+        var response = controller.startImportProcess(importResourceId);
+
+        assertEquals(200, response.getStatusCode().value());
+    }
+
+    @Test
+    void processStatusPollsTheRunStatusQueryAndReturnsOkWhenFound() {
+        QueryBus queryBus = mock(QueryBus.class);
+        UUID runId = UUID.randomUUID();
+        ImportResourceController controller = controller(queryBus, mock(CommandBus.class));
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse("ok"));
+
+        var response = controller.findImportProcessStatus(runId);
+
+        assertEquals(200, response.getStatusCode().value());
+        verify(queryBus).push(argThat(query -> query instanceof FindImportRunStatusQuery runQuery
+                && runId.equals(runQuery.getRunId())));
+    }
+
+    @Test
+    void processStatusReturnsNotFoundWhenTheRunIsUnknown() {
+        QueryBus queryBus = mock(QueryBus.class);
+        UUID runId = UUID.randomUUID();
+        ImportResourceController controller = controller(queryBus, mock(CommandBus.class));
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.failResponse("missing"));
+
+        var response = controller.findImportProcessStatus(runId);
+
+        assertEquals(404, response.getStatusCode().value());
     }
 
     private static ImportResourceController controller(QueryBus queryBus, CommandBus commandBus) {

@@ -1,5 +1,7 @@
 package org.cttelsamicsterrassa.data.load.fctt.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
+import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportContext;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportProcessor;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
@@ -53,11 +55,22 @@ public class FcttActasDirectoryNavigator {
     public TraversalSummary traverse(Path baseFolder, List<FcttMatchReportProcessor> processors)
             throws IOException {
         return traverse(baseFolder, season -> true, processors, new ImportRunContext(
-                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.FCTT, null));
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.FCTT, null),
+                ImportProgressListener.noop());
     }
     public TraversalSummary traverse(Path baseFolder, List<FcttMatchReportProcessor> processors,
                                      ImportRunContext context) throws IOException {
-        return traverse(baseFolder, season -> true, processors, context);
+        return traverse(baseFolder, season -> true, processors, context, ImportProgressListener.noop());
+    }
+
+    /**
+     * As {@link #traverse(Path, List, ImportRunContext)}, additionally reporting file-level progress
+     * while the traversal runs.
+     */
+    public TraversalSummary traverse(Path baseFolder, List<FcttMatchReportProcessor> processors,
+                                     ImportRunContext context, ImportProgressListener progressListener)
+            throws IOException {
+        return traverse(baseFolder, season -> true, processors, context, progressListener);
     }
 
     /**
@@ -80,11 +93,22 @@ public class FcttActasDirectoryNavigator {
     public TraversalSummary traverseSeason(Path baseFolder, String season, List<FcttMatchReportProcessor> processors)
             throws IOException {
         return traverse(baseFolder, season::equals, processors, new ImportRunContext(
-                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.FCTT, season));
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.FCTT, season),
+                ImportProgressListener.noop());
     }
     public TraversalSummary traverseSeason(Path baseFolder, String season, List<FcttMatchReportProcessor> processors,
                                            ImportRunContext context) throws IOException {
-        return traverse(baseFolder, season::equals, processors, context);
+        return traverse(baseFolder, season::equals, processors, context, ImportProgressListener.noop());
+    }
+
+    /**
+     * As {@link #traverseSeason(Path, String, List, ImportRunContext)}, additionally reporting
+     * file-level progress while the traversal runs.
+     */
+    public TraversalSummary traverseSeason(Path baseFolder, String season, List<FcttMatchReportProcessor> processors,
+                                           ImportRunContext context, ImportProgressListener progressListener)
+            throws IOException {
+        return traverse(baseFolder, season::equals, processors, context, progressListener);
     }
 
     /**
@@ -97,7 +121,8 @@ public class FcttActasDirectoryNavigator {
     private TraversalSummary traverse(Path baseFolder,
                                       Predicate<String> seasonFilter,
                                       List<FcttMatchReportProcessor> processors,
-                                      ImportRunContext runContext) throws IOException {
+                                      ImportRunContext runContext,
+                                      ImportProgressListener progressListener) throws IOException {
         if (!Files.isDirectory(baseFolder)) {
             throw new IOException("Base folder is not a directory: " + baseFolder);
         }
@@ -118,7 +143,7 @@ public class FcttActasDirectoryNavigator {
                 LOGGER.debug("Skipping season {} (filtered out)", season);
                 continue;
             }
-            traverseSeasonFolder(seasonFolder, season, processors, counters, runContext);
+            traverseSeasonFolder(seasonFolder, season, processors, counters, runContext, progressListener);
         }
 
         TraversalSummary summary = counters.toSummary();
@@ -129,12 +154,14 @@ public class FcttActasDirectoryNavigator {
     private void traverseSeasonFolder(Path seasonFolder,
                                       String season,
                                       List<FcttMatchReportProcessor> processors,
-                                      Counters counters, ImportRunContext runContext) throws IOException {
+                                      Counters counters, ImportRunContext runContext,
+                                      ImportProgressListener progressListener) throws IOException {
         for (Path competitionFolder : listDirectories(seasonFolder)) {
             String leagueCompetition = competitionFolder.getFileName().toString();
             for (Path groupFolder : listDirectories(competitionFolder)) {
                 String group = groupFolder.getFileName().toString();
-                traverseReportFolder(groupFolder, season, leagueCompetition, group, processors, counters, runContext);
+                traverseReportFolder(groupFolder, season, leagueCompetition, group, processors, counters,
+                        runContext, progressListener);
             }
         }
     }
@@ -144,7 +171,8 @@ public class FcttActasDirectoryNavigator {
                                       String leagueCompetition,
                                       String group,
                                       List<FcttMatchReportProcessor> processors,
-                                      Counters counters, ImportRunContext runContext) throws IOException {
+                                      Counters counters, ImportRunContext runContext,
+                                      ImportProgressListener progressListener) throws IOException {
         for (Path reportFile : listMatchReportFiles(reportFolder)) {
             counters.filesSeen++;
 
@@ -154,12 +182,14 @@ public class FcttActasDirectoryNavigator {
             } catch (ActaParseException e) {
                 counters.skipped++;
                 LOGGER.error("Skipping {}: {}", reportFile, e.getMessage());
+                reportProgress(counters, progressListener);
                 continue;
             }
 
             if (acta.round() == null) {
                 counters.skipped++;
                 LOGGER.warn("Skipping {}: payload carries no match day", reportFile);
+                reportProgress(counters, progressListener);
                 continue;
             }
 
@@ -169,10 +199,17 @@ public class FcttActasDirectoryNavigator {
                 counters.skipped++;
                 LOGGER.warn("Skipping {}: group folder \"{}\" is not G<number> or <number>",
                         reportFile, group);
+                reportProgress(counters, progressListener);
                 continue;
             }
             dispatch(context, processors, counters);
+            reportProgress(counters, progressListener);
         }
+    }
+
+    private static void reportProgress(Counters counters, ImportProgressListener progressListener) {
+        progressListener.onProgress(ImportRunProgress.indeterminate(counters.filesSeen, counters.skipped,
+                counters.processorFailures));
     }
 
     private void dispatch(FcttMatchReportContext context,

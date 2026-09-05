@@ -1,5 +1,7 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
+import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportContext;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue;
@@ -78,11 +80,22 @@ public class BcnesaActasDirectoryNavigator {
     public BcnesaTraversalSummary traverse(Path baseFolder, List<BcnesaMatchReportProcessor> processors)
             throws IOException {
         return traverse(baseFolder, season -> true, processors, new ImportRunContext(
-                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.BCNESA, null));
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.BCNESA, null),
+                ImportProgressListener.noop());
     }
     public BcnesaTraversalSummary traverse(Path baseFolder, List<BcnesaMatchReportProcessor> processors,
                                            ImportRunContext context) throws IOException {
-        return traverse(baseFolder, season -> true, processors, context);
+        return traverse(baseFolder, season -> true, processors, context, ImportProgressListener.noop());
+    }
+
+    /**
+     * As {@link #traverse(Path, List, ImportRunContext)}, additionally reporting file-level progress
+     * while the traversal runs.
+     */
+    public BcnesaTraversalSummary traverse(Path baseFolder, List<BcnesaMatchReportProcessor> processors,
+                                           ImportRunContext context, ImportProgressListener progressListener)
+            throws IOException {
+        return traverse(baseFolder, season -> true, processors, context, progressListener);
     }
 
     /**
@@ -107,12 +120,24 @@ public class BcnesaActasDirectoryNavigator {
     public BcnesaTraversalSummary traverseSeason(Path baseFolder, String season,
                                                  List<BcnesaMatchReportProcessor> processors) throws IOException {
         return traverse(baseFolder, season::equals, processors, new ImportRunContext(
-                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.BCNESA, season));
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.BCNESA, season),
+                ImportProgressListener.noop());
     }
     public BcnesaTraversalSummary traverseSeason(Path baseFolder, String season,
                                                   List<BcnesaMatchReportProcessor> processors,
                                                   ImportRunContext context) throws IOException {
-        return traverse(baseFolder, season::equals, processors, context);
+        return traverse(baseFolder, season::equals, processors, context, ImportProgressListener.noop());
+    }
+
+    /**
+     * As {@link #traverseSeason(Path, String, List, ImportRunContext)}, additionally reporting
+     * file-level progress while the traversal runs.
+     */
+    public BcnesaTraversalSummary traverseSeason(Path baseFolder, String season,
+                                                  List<BcnesaMatchReportProcessor> processors,
+                                                  ImportRunContext context, ImportProgressListener progressListener)
+            throws IOException {
+        return traverse(baseFolder, season::equals, processors, context, progressListener);
     }
 
     /**
@@ -125,7 +150,8 @@ public class BcnesaActasDirectoryNavigator {
     private BcnesaTraversalSummary traverse(Path baseFolder,
                                             Predicate<String> seasonFilter,
                                             List<BcnesaMatchReportProcessor> processors,
-                                            ImportRunContext runContext) throws IOException {
+                                            ImportRunContext runContext,
+                                            ImportProgressListener progressListener) throws IOException {
         if (!Files.isDirectory(baseFolder)) {
             throw new IOException("Base folder is not a directory: " + baseFolder);
         }
@@ -146,7 +172,7 @@ public class BcnesaActasDirectoryNavigator {
                 LOGGER.debug("Skipping season {} (filtered out)", season);
                 continue;
             }
-            traverseSeasonFolder(seasonFolder, season, processors, counters, runContext);
+            traverseSeasonFolder(seasonFolder, season, processors, counters, runContext, progressListener);
         }
 
         BcnesaTraversalSummary summary = counters.toSummary();
@@ -157,7 +183,8 @@ public class BcnesaActasDirectoryNavigator {
     private void traverseSeasonFolder(Path seasonFolder,
                                       String season,
                                       List<BcnesaMatchReportProcessor> processors,
-                                      Counters counters, ImportRunContext runContext) throws IOException {
+                                      Counters counters, ImportRunContext runContext,
+                                      ImportProgressListener progressListener) throws IOException {
         for (Path competitionFolder : listDirectories(seasonFolder)) {
             String leagueCompetition = competitionFolder.getFileName().toString();
             for (Path groupFolder : listDirectories(competitionFolder)) {
@@ -170,7 +197,7 @@ public class BcnesaActasDirectoryNavigator {
                 for (Path phaseFolder : listDirectories(groupFolder)) {
                     String phase = phaseFolder.getFileName().toString();
                     traverseReportFolder(phaseFolder, season, leagueCompetition, group, phase, clubIndex,
-                            processors, counters, runContext);
+                            processors, counters, runContext, progressListener);
                 }
             }
         }
@@ -183,7 +210,8 @@ public class BcnesaActasDirectoryNavigator {
                                       String phase,
                                       BcnesaClubIndex clubIndex,
                                       List<BcnesaMatchReportProcessor> processors,
-                                      Counters counters, ImportRunContext runContext) throws IOException {
+                                      Counters counters, ImportRunContext runContext,
+                                      ImportProgressListener progressListener) throws IOException {
         for (Path reportFile : listJsonFiles(reportFolder)) {
             counters.filesSeen++;
 
@@ -193,12 +221,14 @@ public class BcnesaActasDirectoryNavigator {
             } catch (ActaParseException e) {
                 counters.filesSkipped++;
                 LOGGER.error("Skipping {}: {}", reportFile, e.getMessage());
+                reportProgress(counters, progressListener);
                 continue;
             }
 
             if (acta.round() == null) {
                 counters.filesSkipped++;
                 LOGGER.warn("Skipping {}: payload carries no match day", reportFile);
+                reportProgress(counters, progressListener);
                 continue;
             }
             int round = acta.round();
@@ -209,7 +239,13 @@ public class BcnesaActasDirectoryNavigator {
                 dispatchFixture(reportFile, season, leagueCompetition, group, phase, round, i, fixtures.get(i),
                         acta, processors, counters, runContext);
             }
+            reportProgress(counters, progressListener);
         }
+    }
+
+    private static void reportProgress(Counters counters, ImportProgressListener progressListener) {
+        progressListener.onProgress(ImportRunProgress.indeterminate(counters.fixturesDispatched,
+                counters.filesSkipped + counters.fixturesUnresolved, counters.processorFailures));
     }
 
     private void dispatchFixture(Path reportFile,

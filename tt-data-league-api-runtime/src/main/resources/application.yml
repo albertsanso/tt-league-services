@@ -46,8 +46,8 @@ tt:
     import:
       execution:
         batch-size: ${IMPORT_EXECUTION_BATCH_SIZE:50}
-        club-consolidation: ${IMPORT_EXECUTION_CLUB_CONSOLIDATION:disabled}
-        player-consolidation: ${IMPORT_EXECUTION_PLAYER_CONSOLIDATION:disabled}
+        club-consolidation: ${IMPORT_EXECUTION_CLUB_CONSOLIDATION:enabled}
+        player-consolidation: ${IMPORT_EXECUTION_PLAYER_CONSOLIDATION:enabled}
         rfetm-teams-folder: ${IMPORT_EXECUTION_RFETM_TEAMS_FOLDER:}
 
 security:

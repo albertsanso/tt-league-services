@@ -1,5 +1,7 @@
 package org.cttelsamicsterrassa.data.load.rfetm.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
+import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
 import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubKey;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParseException;
@@ -83,10 +85,20 @@ public class RfetmActasDirectoryNavigator {
      */
     public TraversalSummary traverse(Path baseFolder, List<MatchContextProcessor> processors) throws IOException {
         return traverse(baseFolder, season -> true, processors, new ImportRunContext(
-                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.RFETM, null));
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.RFETM, null),
+                ImportProgressListener.noop());
     }
     public TraversalSummary traverse(Path baseFolder, List<MatchContextProcessor> processors, ImportRunContext context)
-            throws IOException { return traverse(baseFolder, season -> true, processors, context); }
+            throws IOException { return traverse(baseFolder, season -> true, processors, context, ImportProgressListener.noop()); }
+
+    /**
+     * As {@link #traverse(Path, List, ImportRunContext)}, additionally reporting file-level progress
+     * while the traversal runs.
+     */
+    public TraversalSummary traverse(Path baseFolder, List<MatchContextProcessor> processors, ImportRunContext context,
+                                     ImportProgressListener progressListener) throws IOException {
+        return traverse(baseFolder, season -> true, processors, context, progressListener);
+    }
 
     /**
      * Walks {@code baseFolder} and dispatches to the injected processors.
@@ -110,11 +122,22 @@ public class RfetmActasDirectoryNavigator {
     public TraversalSummary traverseSeason(Path baseFolder, String season, List<MatchContextProcessor> processors)
             throws IOException {
         return traverse(baseFolder, season::equals, processors, new ImportRunContext(
-                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.RFETM, season));
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.RFETM, season),
+                ImportProgressListener.noop());
     }
     public TraversalSummary traverseSeason(Path baseFolder, String season, List<MatchContextProcessor> processors,
                                            ImportRunContext context) throws IOException {
-        return traverse(baseFolder, season::equals, processors, context);
+        return traverse(baseFolder, season::equals, processors, context, ImportProgressListener.noop());
+    }
+
+    /**
+     * As {@link #traverseSeason(Path, String, List, ImportRunContext)}, additionally reporting
+     * file-level progress while the traversal runs.
+     */
+    public TraversalSummary traverseSeason(Path baseFolder, String season, List<MatchContextProcessor> processors,
+                                           ImportRunContext context, ImportProgressListener progressListener)
+            throws IOException {
+        return traverse(baseFolder, season::equals, processors, context, progressListener);
     }
 
     /**
@@ -126,7 +149,8 @@ public class RfetmActasDirectoryNavigator {
 
     private TraversalSummary traverse(Path baseFolder,
                                       Predicate<String> seasonFilter,
-                                      List<MatchContextProcessor> processors, ImportRunContext runContext) throws IOException {
+                                      List<MatchContextProcessor> processors, ImportRunContext runContext,
+                                      ImportProgressListener progressListener) throws IOException {
         if (!Files.isDirectory(baseFolder)) {
             throw new IOException("Base folder is not a directory: " + baseFolder);
         }
@@ -147,7 +171,7 @@ public class RfetmActasDirectoryNavigator {
                 LOGGER.debug("Skipping season {} (filtered out)", season);
                 continue;
             }
-            traverseSeasonFolder(seasonFolder, season, processors, counters, runContext);
+            traverseSeasonFolder(seasonFolder, season, processors, counters, runContext, progressListener);
         }
 
         TraversalSummary summary = counters.toSummary();
@@ -158,7 +182,8 @@ public class RfetmActasDirectoryNavigator {
     private void traverseSeasonFolder(Path seasonFolder,
                                       String season,
                                       List<MatchContextProcessor> processors,
-                                      Counters counters, ImportRunContext runContext) throws IOException {
+                                      Counters counters, ImportRunContext runContext,
+                                      ImportProgressListener progressListener) throws IOException {
         for (Path competitionFolder : listDirectories(seasonFolder)) {
             String leagueCompetition = competitionFolder.getFileName().toString();
             for (Path dayFolder : listDirectories(competitionFolder)) {
@@ -173,7 +198,8 @@ public class RfetmActasDirectoryNavigator {
                         LOGGER.warn("Skipping unexpected gender folder {}", sexFolder);
                         continue;
                     }
-                    traverseReportFolder(sexFolder, season, leagueCompetition, day, sex, processors, counters, runContext);
+                    traverseReportFolder(sexFolder, season, leagueCompetition, day, sex, processors, counters,
+                            runContext, progressListener);
                 }
             }
         }
@@ -185,7 +211,8 @@ public class RfetmActasDirectoryNavigator {
                                       String day,
                                       String sex,
                                       List<MatchContextProcessor> processors,
-                                      Counters counters, ImportRunContext runContext) throws IOException {
+                                      Counters counters, ImportRunContext runContext,
+                                      ImportProgressListener progressListener) throws IOException {
         for (Path reportFile : listJsonFiles(reportFolder)) {
             counters.filesSeen++;
 
@@ -195,6 +222,7 @@ public class RfetmActasDirectoryNavigator {
             } catch (ActaParseException e) {
                 counters.skipped++;
                 LOGGER.error("Skipping {}: {}", reportFile, e.getMessage());
+                reportProgress(counters, progressListener);
                 continue;
             }
 
@@ -204,13 +232,20 @@ public class RfetmActasDirectoryNavigator {
             if (homeTeam == null || awayTeam == null) {
                 counters.skipped++;
                 LOGGER.warn("Skipping {}: payload identifies its teams by neither id nor name", reportFile);
+                reportProgress(counters, progressListener);
                 continue;
             }
 
             MatchReportContext context = new MatchReportContext(
                     season, leagueCompetition, day, sex, homeTeam, awayTeam, reportFile, acta, runContext);
             dispatch(context, processors, counters);
+            reportProgress(counters, progressListener);
         }
+    }
+
+    private static void reportProgress(Counters counters, ImportProgressListener progressListener) {
+        progressListener.onProgress(ImportRunProgress.indeterminate(counters.filesSeen, counters.skipped,
+                counters.processorFailures));
     }
 
     /**

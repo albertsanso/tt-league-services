@@ -200,6 +200,25 @@ class BcnesaActasDirectoryNavigatorTest {
     }
 
     @Test
+    void reportsMonotonicIndeterminateProgressWhileTraversing() throws IOException {
+        writeReport("2020-2021", "Preferent", "G1", "1a Fase", "acta_1.json",
+                singleFixtureActa("HOME 1", "AWAY 1", "10", "20", "30", "40"));
+        writeReport("2020-2021", "Preferent", "G1", "1a Fase", "acta_2.json",
+                singleFixtureActa("HOME 2", "AWAY 2", "11", "21", "31", "41"));
+        List<org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress> updates = new ArrayList<>();
+
+        navigatorWith(injected).traverse(baseFolder, List.of(injected),
+                new org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext(
+                        org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.BCNESA, null),
+                updates::add);
+
+        assertEquals(2, updates.size());
+        assertEquals(1, updates.get(0).processed());
+        assertEquals(2, updates.get(1).processed());
+        assertTrue(updates.get(1).total().isEmpty(), "no reliable total is available, so progress stays indeterminate");
+    }
+
+    @Test
     void rejectsABaseFolderThatIsNotADirectory() {
         Path missing = baseFolder.resolve("nope");
 

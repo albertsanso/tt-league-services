@@ -166,13 +166,13 @@
 
 # Acceptance Criteria
 
-- [ ] CLI and API imports invoke the same `ImportExecutionService` and therefore use identical source dispatch, processor order, season filtering, traversal failure rules, and post-processing order.
-- [ ] The shared execution result reports normalized traversal metrics, elapsed time, structured processor issues, persistence counters, and requested post-processing outcomes; the CLI logs it and the endpoint exposes a backward-compatible mapping.
-- [ ] Every execution owns source/season-scoped team, player-season, and match caches, and supported repository writes are flushed in bounded batches without weakening identity, idempotency, or processor-failure isolation.
-- [ ] Club and player consolidation remain independently opt-in, run only after successful traversal in club-then-player order, use the complete source-scoped inventory, and make the overall import fail when a requested phase fails.
-- [ ] The endpoint accepts only the stored import-resource identity/path and server-side consolidation configuration; defaults perform no consolidation and no cache state is shared between requests.
-- [ ] A documented like-for-like benchmark (same source, folder, season, restored database, JVM, and consolidation settings) shows the API shared-executor median within 10% of the CLI median across at least three measured runs, with no behavior or persisted-data regression.
-- [ ] Focused domain, import, navigator, JPA adapter, CLI, REST, and API-runtime wiring tests pass, followed by the full Maven reactor; frontend checks pass if the response contract changes.
+- [x] CLI and API imports invoke the same `ImportExecutionService` and therefore use identical source dispatch, processor order, season filtering, traversal failure rules, and post-processing order.
+- [x] The shared execution result reports normalized traversal metrics, elapsed time, structured processor issues, persistence counters, and requested post-processing outcomes; the CLI logs it and the endpoint exposes a backward-compatible mapping.
+- [x] Every execution owns source/season-scoped team, player-season, and match caches, and supported repository writes are flushed in bounded batches without weakening identity, idempotency, or processor-failure isolation.
+- [x] Club and player consolidation remain independently opt-in, run only after successful traversal in club-then-player order, use the complete source-scoped inventory, and make the overall import fail when a requested phase fails.
+- [x] The endpoint accepts only the stored import-resource identity/path and server-side consolidation configuration; defaults perform no consolidation and no cache state is shared between requests.
+- [x] A documented like-for-like benchmark (same source, folder, season, restored database, JVM, and consolidation settings) shows the API shared-executor median within 10% of the CLI median across at least three measured runs, with no behavior or persisted-data regression.
+- [x] Focused domain, import, navigator, JPA adapter, CLI, REST, and API-runtime wiring tests pass, followed by the full Maven reactor; frontend checks pass if the response contract changes.
 
 # Implementation Guidelines
 
@@ -197,6 +197,7 @@
   repeatable integration procedure proves insufficient.
 
 # Notes
+- 2026-09-05: User confirmed FEAT-00031 is complete; acceptance criteria recorded as delivered.
 
 - Implementation started on 2026-09-05: registry moved from planned through ready to
   in-progress before code changes. The shared execution contract and navigator-backed

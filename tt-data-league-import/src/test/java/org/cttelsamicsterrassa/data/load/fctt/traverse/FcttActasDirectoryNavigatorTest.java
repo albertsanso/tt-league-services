@@ -131,6 +131,23 @@ class FcttActasDirectoryNavigatorTest {
     }
 
     @Test
+    void reportsMonotonicIndeterminateProgressWhileTraversing() throws IOException {
+        writeReport("2023-2024", "Tercera nacional", "G1", "jornada_1_partido_1.json", report(1, "HOME", "AWAY"));
+        writeReport("2023-2024", "Tercera nacional", "G1", "jornada_2_partido_2.json", report(2, "HOME", "AWAY"));
+        List<org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress> updates = new ArrayList<>();
+
+        navigatorWith(injected).traverse(baseFolder, List.of(injected),
+                new org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext(
+                        org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.FCTT, null),
+                updates::add);
+
+        assertEquals(2, updates.size());
+        assertEquals(1, updates.get(0).processed());
+        assertEquals(2, updates.get(1).processed());
+        assertTrue(updates.get(1).total().isEmpty(), "no reliable total is available, so progress stays indeterminate");
+    }
+
+    @Test
     void rejectsABaseFolderThatIsNotADirectory() {
         assertThrows(IOException.class, () -> navigatorWith(injected).traverse(baseFolder.resolve("missing")));
     }

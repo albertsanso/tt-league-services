@@ -31,11 +31,61 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00029: Import resource preview process](### [FEAT-00029] Import resource preview process)
 - [FEAT-00030: Import resource process](### [FEAT-00030] Import resource process)
 - [FEAT-00031: import process from endpoint performance improvement and implementation alignemt with CLI version](### [FEAT-00031] import process from endpoint performance improvement and implementation alignemt with CLI version)
+- [FEAT-00032: asynchronous import process with progress feedback in the UI](### [FEAT-00032] asynchronous import process with progress feedback in the UI)
 
 ## In Progress
 
+No features currently in progress.
+
+---
+
+## In Review
+
+No features currently in review.
+
+---
+
+## Backlog
+
+No features currently in the backlog.
+
+---
+
+## Done
+
+### [FEAT-00032] asynchronous import process with progress feedback in the UI
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large (> 8h)
+- **Depends on:** FEAT-00031
+
+#### Goal
+Allow administrators to start an import asynchronously and follow its progress in the Data Import Panel without waiting for a long-running HTTP request.
+
+#### Description
+1. Analyze the `tt-data-league-import` and `tt-data-league-import-runtime` modules and how the backend implements import processing, including validation, error handling, and result generation.
+2. Wire the existing `StartImportProcessCommandHandler` to submit the selected resource to an asynchronous backend process and return promptly without blocking the UI.
+3. The Data Import Panel must display an accessible progress workspace with current state and available progress metrics until the import reaches a terminal state.
+4. The progress workspace must present successful, empty-result, and failure outcomes, including processing findings and errors, with translated Catalan, Spanish, and English copy.
+5. Administrators must be able to retry a failed import and continue using the panel without losing the selected resource context or starting an unscoped resource.
+6. The asynchronous process must prevent duplicate submissions for the same active resource and preserve authenticated resource ownership.
+7. The progress workspace must be designed to accommodate future enhancements, such as real-time progress updates, cancellation, and detailed error reporting.
+8. The progress for import must be shown in percentual increments, with a progress bar and a textual representation of the current state, including the number of records processed, total records, and any errors encountered.
+
+#### Acceptance Criteria
+- [x] Starting an import submits the selected resource to an asynchronous backend process and returns promptly without blocking the UI.
+- [x] The Data Import Panel displays an accessible progress workspace with current state and available progress metrics until the import reaches a terminal state.
+- [x] The progress workspace presents successful, empty-result, and failure outcomes, including processing findings and errors, with translated Catalan, Spanish, and English copy.
+- [x] Administrators can retry a failed import and continue using the panel without losing the selected resource context or starting an unscoped resource.
+- [x] The asynchronous process prevents duplicate submissions for the same active resource and preserves authenticated resource ownership.
+- [x] The progress workspace is designed to accommodate future enhancements, such as real-time progress updates, cancellation, and detailed error reporting.
+- [x] The progress for import is shown in percentual increments, with a progress bar and a textual representation of the current state, including the number of records processed, total records, and any errors encountered.
+
+#### Feature Details
+→ See [FEAT-00032-DETAILS.md](./FEAT-00032-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
 ### [FEAT-00031] import process from endpoint performance improvement and implementation alignemt with CLI version
-- **Status:** in-progress
+- **Status:** done
 - **Priority:** medium
 - **Effort:** large (> 8h)
 - **Depends on:** FEAT-00030
@@ -80,30 +130,16 @@ settings. This will separate the likely throughput issue from the larger behavio
 consolidation.
 
 #### Acceptance Criteria
-- [ ] CLI and API imports invoke the same `ImportExecutionService` and therefore use identical source dispatch, processor order, season filtering, traversal failure rules, and post-processing order.
-- [ ] The shared execution result reports normalized traversal metrics, elapsed time, structured processor issues, persistence counters, and requested post-processing outcomes; the CLI logs it and the endpoint exposes a backward-compatible mapping.
-- [ ] Every execution owns source/season-scoped team, player-season, and match caches, and supported repository writes are flushed in bounded batches without weakening identity, idempotency, or processor-failure isolation.
-- [ ] Club and player consolidation remain independently opt-in, run only after successful traversal in club-then-player order, use the complete source-scoped inventory, and make the overall import fail when a requested phase fails.
-- [ ] The endpoint accepts only the stored import-resource identity/path and server-side consolidation configuration; defaults perform no consolidation and no cache state is shared between requests.
-- [ ] A documented like-for-like benchmark (same source, folder, season, restored database, JVM, and consolidation settings) shows the API shared-executor median within 10% of the CLI median across at least three measured runs, with no behavior or persisted-data regression.
-- [ ] Focused domain, import, navigator, JPA adapter, CLI, REST, and API-runtime wiring tests pass, followed by the full Maven reactor; frontend checks pass if the response contract changes.
+- [x] CLI and API imports invoke the same `ImportExecutionService` and therefore use identical source dispatch, processor order, season filtering, traversal failure rules, and post-processing order.
+- [x] The shared execution result reports normalized traversal metrics, elapsed time, structured processor issues, persistence counters, and requested post-processing outcomes; the CLI logs it and the endpoint exposes a backward-compatible mapping.
+- [x] Every execution owns source/season-scoped team, player-season, and match caches, and supported repository writes are flushed in bounded batches without weakening identity, idempotency, or processor-failure isolation.
+- [x] Club and player consolidation remain independently opt-in, run only after successful traversal in club-then-player order, use the complete source-scoped inventory, and make the overall import fail when a requested phase fails.
+- [x] The endpoint accepts only the stored import-resource identity/path and server-side consolidation configuration; defaults perform no consolidation and no cache state is shared between requests.
+- [x] A documented like-for-like benchmark (same source, folder, season, restored database, JVM, and consolidation settings) shows the API shared-executor median within 10% of the CLI median across at least three measured runs, with no behavior or persisted-data regression.
+- [x] Focused domain, import, navigator, JPA adapter, CLI, REST, and API-runtime wiring tests pass, followed by the full Maven reactor; frontend checks pass if the response contract changes.
 
 #### Feature Details
 → See [FEAT-00031-DETAILS.md](./FEAT-00031-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
-## In Review
-
-No features currently in review.
-
----
-
-## Backlog
-
----
-
-## Done
 
 ### [FEAT-00030] Import resource process
 - **Status:** done

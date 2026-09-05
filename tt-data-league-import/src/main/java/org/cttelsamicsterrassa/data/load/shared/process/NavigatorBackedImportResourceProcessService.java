@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.load.shared.process;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportPreviewProcessingError;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessResult;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResource;
+import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
 import org.cttelsamicsterrassa.data.core.domain.resource.model.ResourceType;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionOptions;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionRequest;
@@ -28,6 +29,11 @@ public class NavigatorBackedImportResourceProcessService
 
     @Override
     public ImportProcessResult process(ImportResource resource) {
+        return process(resource, ImportProgressListener.noop());
+    }
+
+    @Override
+    public ImportProcessResult process(ImportResource resource, ImportProgressListener listener) {
         if (resource.getType() != ResourceType.ACTAS) {
             return ImportProcessResult.failure(List.of(), List.of(new ImportPreviewProcessingError(
                     "%s import supports ACTAS resources only; %s resources have no match-report navigator."
@@ -36,7 +42,7 @@ public class NavigatorBackedImportResourceProcessService
         }
         ImportExecutionRequest request = new ImportExecutionRequest(resource.getSource(),
                 resource.getResource().getPhysicalPath(), java.util.Optional.ofNullable(resource.getSeason()));
-        ImportExecutionResult result = executionService.execute(request, executionOptions);
+        ImportExecutionResult result = executionService.execute(request, executionOptions, listener);
         List<ImportPreviewProcessingError> errors = result.issues().stream()
                 .map(issue -> new ImportPreviewProcessingError(issue.message(), issue.location()))
                 .toList();

@@ -1,4 +1,4 @@
-﻿import ca from './ca.js'
+import ca from './ca.js'
 
 const es = {
   ...ca,
@@ -205,7 +205,15 @@ es.importPanel = {
   processFilesSeen: 'Archivos leídos',
   processItemsPersisted: 'Elementos guardados',
   processSkipped: 'Omitidos',
+  processProgressLabel: 'Progreso de la importación',
+  processProgressIndeterminate: 'Calculando el progreso...',
+  processProgressValue: 'Progreso: {{percentage}}%',
+  processProcessed: 'Procesados',
+  processTotal: 'Total',
+  processErrorsCount: 'Errores',
   processStatus: {
+    queued: 'En cola',
+    running: 'En curso',
     loading: 'Cargando',
     success: 'Correcta',
     'empty-result': 'Sin resultados',

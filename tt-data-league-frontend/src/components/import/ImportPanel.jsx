@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/useAuth.js'
 import { createImportPreview, getImportHistory, startImport, uploadImportFile } from '../../api/importJobs.js'
 import { normalizeImportPreview } from '../../hooks/useImportPreviewStatus.js'
-import { normalizeImportProcess } from '../../hooks/useImportProcessResult.js'
+import { useImportProcessStatus } from '../../hooks/useImportProcessStatus.js'
 import { useImportSourceStatus } from '../../hooks/useImportSourceStatus.js'
 import { useImportResources } from '../../hooks/useImportResources.js'
 import SectionLabel from '../ui/SectionLabel.jsx'
@@ -26,6 +26,15 @@ function emptyPreviewState() {
   }
 }
 
+function emptyImportState() {
+  return {
+    resource: null,
+    submitting: false,
+    runId: null,
+    error: null,
+  }
+}
+
 function isValidImportFile(candidate) {
   return candidate
     && candidate.size > 0
@@ -42,11 +51,12 @@ export default function ImportPanel() {
   const [selectedSeason, setSelectedSeason] = useState(null)
   const [file, setFile] = useState(null)
   const [previewState, setPreviewState] = useState(emptyPreviewState)
-  const [importState, setImportState] = useState({ resource: null, loading: false, result: null, error: null })
+  const [importState, setImportState] = useState(emptyImportState)
   const [history, setHistory] = useState({ data: [], loading: true, error: null })
   const [uploadState, setUploadState] = useState({ status: 'idle', progress: 0, error: null })
   const previousSourceStatuses = useRef(null)
   const resources = useImportResources(selectedSource)
+  const runStatus = useImportProcessStatus(importState.runId)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -102,7 +112,7 @@ export default function ImportPanel() {
     if (!resource) return
     try {
       setSelectedSeason(resource)
-      setImportState({ resource: null, loading: false, result: null, error: null })
+      setImportState(emptyImportState())
       setPreviewState({ ...emptyPreviewState(), resource, loading: true })
       const result = await createImportPreview(token, resource.jobId ?? resource.id, clearSession)
       setPreviewState({ ...emptyPreviewState(), resource, result: normalizeImportPreview(result) })
@@ -119,17 +129,21 @@ export default function ImportPanel() {
     if (!resource) return
     setSelectedSeason(resource)
     setPreviewState(emptyPreviewState())
-    setImportState({ resource, loading: true, result: null, error: null })
+    setImportState({ resource, submitting: true, runId: null, error: null })
     try {
-      const result = await startImport(token, resource.jobId ?? resource.id, clearSession)
-      setImportState({ resource, loading: false, result: normalizeImportProcess(result), error: null })
+      const accepted = await startImport(token, resource.jobId ?? resource.id, clearSession)
+      const runId = accepted?.response?.runId ?? accepted?.runId ?? null
+      if (!runId) {
+        throw new Error('No s’ha rebut cap identificador d’execució.')
+      }
+      setImportState({ resource, submitting: false, runId, error: null })
     } catch (error) {
-      setImportState({ resource, loading: false, result: null, error })
+      setImportState({ resource, submitting: false, runId: null, error })
     }
   }
 
   const clearImport = () => {
-    setImportState({ resource: null, loading: false, result: null, error: null })
+    setImportState(emptyImportState())
     setSelectedSeason(null)
   }
 
@@ -185,6 +199,12 @@ export default function ImportPanel() {
     setUploadState({ status: 'idle', progress: 0, error: null })
   }
 
+  const processWorkspaceState = {
+    loading: importState.submitting || (Boolean(importState.runId) && runStatus.loading),
+    error: importState.error || runStatus.error,
+    run: runStatus.data,
+  }
+
   return (
     <section className="page-block import-panel" aria-labelledby="import-panel-title">
       <SectionLabel>{t('importPanel.title')}</SectionLabel>
@@ -206,7 +226,7 @@ export default function ImportPanel() {
         {importState.resource
           ? <ImportProcessWorkspace
               resource={importState.resource}
-              process={importState}
+              process={processWorkspaceState}
               onRetry={startProcess}
               onBackToResources={clearImport}
             />

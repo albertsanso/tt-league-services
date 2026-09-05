@@ -3,6 +3,7 @@ import {
   createImportPreview,
   getImportPreviewStatus,
   getImportResourcesBySource,
+  getImportRunStatus,
   getImportStatus,
   startImport,
 } from './importJobs.js'
@@ -73,6 +74,27 @@ describe('import status API', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/v1/administration/import/preview_status?importResourceId=resource-1',
+      expect.objectContaining({
+        signal: controller.signal,
+        headers: expect.objectContaining({ Authorization: expect.any(String) }),
+      }),
+    )
+  })
+
+  it('requests the async run status by runId without changing the preview status endpoint', async () => {
+    const response = {
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ response: { runId: 'run-1', status: 'queued' } }),
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response)
+    const controller = new AbortController()
+    const onUnauthorized = vi.fn()
+
+    await getImportRunStatus('session-token', 'run-1', controller.signal, onUnauthorized)
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/administration/import/process_status?runId=run-1',
       expect.objectContaining({
         signal: controller.signal,
         headers: expect.objectContaining({ Authorization: expect.any(String) }),

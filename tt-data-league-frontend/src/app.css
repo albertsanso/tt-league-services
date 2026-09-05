@@ -1112,6 +1112,48 @@
   color: var(--color-success);
 }
 
+.progress-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.progress-bar-track {
+  position: relative;
+  height: 0.6rem;
+  border-radius: var(--radius-md);
+  background: var(--border-subtle);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-md);
+  background: var(--color-success);
+  transition: width 0.3s ease;
+}
+
+.progress-bar-track--indeterminate::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: var(--color-success);
+  border-radius: var(--radius-md);
+  animation: progress-bar-indeterminate 1.2s ease-in-out infinite;
+}
+
+@keyframes progress-bar-indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+.progress-bar-value-text {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+
 @media (max-width: 1279px) {
   .import-panel-grid {
     grid-template-columns: minmax(16rem, 1fr) minmax(18rem, 2fr);
@@ -1141,7 +1183,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .import-source-status--loading {
+  .import-source-status--loading,
+  .progress-bar-track--indeterminate::before {
     animation: none;
   }
 }

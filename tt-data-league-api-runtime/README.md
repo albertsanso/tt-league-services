@@ -15,6 +15,14 @@ or `IMPORT_EXECUTION_PLAYER_CONSOLIDATION` (`WRITE` or `REPORT`) and
 `IMPORT_EXECUTION_RFETM_TEAMS_FOLDER` when appropriate. The API start endpoint
 accepts only the stored import-resource ID and never a client-supplied path.
 
+The API start endpoint (`POST /api/v1/administration/import/start`) runs the import
+asynchronously: it returns `202 Accepted` immediately with a run id and initial (`queued`)
+status instead of waiting for the traversal to finish. Poll
+`GET /api/v1/administration/import/process_status?runId=<uuid>` for progress (processed/total
+counts, percentage when a reliable total is available, skipped/error counts) and the terminal
+result. The run registry is in-memory per JVM (`InMemoryImportRunRegistry`); it prevents two
+accepted runs for the same import resource but does not persist run history across restarts.
+
 # Considerations:
 
 **JWT_SIGNING_SECRET**: The JWT signing secret is currently hardcoded in the `application.yml` file.

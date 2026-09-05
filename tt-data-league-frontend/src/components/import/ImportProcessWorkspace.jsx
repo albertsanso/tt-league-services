@@ -5,6 +5,9 @@ import Card from '../ui/Card.jsx'
 import EmptyState from '../ui/EmptyState.jsx'
 import ErrorState from '../ui/ErrorState.jsx'
 import LoadingState from '../ui/LoadingState.jsx'
+import ProgressBar from '../ui/ProgressBar.jsx'
+
+const ACTIVE_STATUSES = new Set(['queued', 'running'])
 
 function badgeTone(status) {
   if (status === 'success') return 'success'
@@ -33,22 +36,56 @@ function FindingList({ title, items, emptyText }) {
   </>
 }
 
+/**
+ * Renders the asynchronous import run lifecycle: nothing selected yet, the initial submission
+ * loading, a queued/running progress view, a network/submission error, and the existing
+ * success/empty-result/failure findings once the run reaches a terminal state.
+ *
+ * `process` is `{ loading, error, run }`, where `run` is the normalized run-status snapshot
+ * (`useImportProcessStatus`) with `status` in `queued|running|success|empty-result|failure`,
+ * `processed`, `total` (nullable), `percentage` (nullable), `skipped`, `errorCount`, and `result`
+ * (the terminal `ImportProcessResultDto`-shaped payload, `null` until a terminal status is reached).
+ */
 export default function ImportProcessWorkspace({ resource, process, onRetry, onBackToResources }) {
   const { t } = useTranslation()
-  const result = process.result
+  const run = process.run
+  const active = Boolean(run) && ACTIVE_STATUSES.has(run.status)
+  const result = run && !active ? run.result : null
   const failed = result?.status === 'failure'
   const empty = result?.status === 'empty-result'
   const successful = result?.status === 'success'
+  const progressValueText = !run || run.percentage === null
+    ? t('importPanel.processProgressIndeterminate')
+    : t('importPanel.processProgressValue', { percentage: Math.round(run.percentage) })
 
   return <Card as="aside" className="import-report-panel import-preview-workspace" aria-live="polite">
     <h2>{t('importPanel.processTitle')}</h2>
-    {!resource && !process.loading && !result && !process.error && (
+    {!resource && !process.loading && !run && !process.error && (
       <EmptyState>{t('importPanel.processEmpty')}</EmptyState>
     )}
     {process.loading && <LoadingState>{t('importPanel.processLoading', { resource: resourceLabel(resource, t) })}</LoadingState>}
     {process.error && <ErrorState action={<Button variant="secondary" onClick={() => onRetry(resource)}>{t('importPanel.processRetry')}</Button>}>
       {t(process.error.status === 403 ? 'importPanel.forbidden' : 'importPanel.processFailure')}
     </ErrorState>}
+    {active && !process.loading && !process.error && (
+      <div className="import-preview-content">
+        <div className="import-preview-heading">
+          <strong>{resourceLabel(resource, t)}</strong>
+          <Badge tone={badgeTone(run.status)}>{t(`importPanel.processStatus.${run.status}`)}</Badge>
+        </div>
+        <ProgressBar
+          value={run.percentage}
+          label={t('importPanel.processProgressLabel')}
+          valueText={progressValueText}
+        />
+        <dl className="import-preview-summary">
+          <div><dt>{t('importPanel.processProcessed')}</dt><dd>{run.processed}</dd></div>
+          {run.total !== null && <div><dt>{t('importPanel.processTotal')}</dt><dd>{run.total}</dd></div>}
+          <div><dt>{t('importPanel.processSkipped')}</dt><dd>{run.skipped}</dd></div>
+          <div><dt>{t('importPanel.processErrorsCount')}</dt><dd>{run.errorCount}</dd></div>
+        </dl>
+      </div>
+    )}
     {result && !process.loading && !process.error && (
       <div className="import-preview-content">
         <div className="import-preview-heading">

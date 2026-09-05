@@ -208,6 +208,24 @@ class RfetmActasDirectoryNavigatorTest {
     }
 
     @Test
+    void reportsMonotonicIndeterminateProgressWhileTraversing() throws IOException {
+        writeReport("2023-2024", "super-divisio", "1", "masculino", "acta.json", acta("1", "2"));
+        writeReport("2023-2024", "super-divisio", "2", "masculino", "acta.json", acta("3", "4"));
+        List<org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress> updates = new ArrayList<>();
+
+        navigatorWith(injected).traverse(baseFolder, List.of(injected),
+                new org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext(
+                        org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.RFETM, null),
+                updates::add);
+
+        assertEquals(2, updates.size());
+        assertEquals(1, updates.get(0).processed());
+        assertEquals(2, updates.get(1).processed());
+        assertTrue(updates.get(1).total().isEmpty(), "no reliable total is available, so progress stays indeterminate");
+        assertTrue(updates.get(1).percentage().isEmpty());
+    }
+
+    @Test
     void rejectsABaseFolderThatIsNotADirectory() {
         Path missing = baseFolder.resolve("nope");
 

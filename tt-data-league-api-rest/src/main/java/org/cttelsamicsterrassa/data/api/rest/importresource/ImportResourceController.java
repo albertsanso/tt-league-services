@@ -2,11 +2,13 @@ package org.cttelsamicsterrassa.data.api.rest.importresource;
 
 import io.swagger.v3.oas.annotations.Operation;
 import org.albertsanso.commons.command.CommandBus;
+import org.albertsanso.commons.command.DomainCommandResponse;
 import org.albertsanso.commons.query.QueryBus;
 import org.cttelsamicsterrassa.data.core.application.importresource.find.FindImportResourcesBySourceQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.find.FindPendingImportsInfoQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.FindImportPreviewStatusQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.StartImportPreviewCommand;
+import org.cttelsamicsterrassa.data.core.application.importresource.process.FindImportRunStatusQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.StartImportProcessCommand;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ResourceUploadService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,7 +42,6 @@ public class ImportResourceController {
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "ZIP file is required"));
         }
-
         try {
             resourceUploadService.uploadAndTriggerAsyncLoad(file.getOriginalFilename(), file.getBytes());
             return ResponseEntity.status(HttpStatus.ACCEPTED)
@@ -77,9 +78,19 @@ public class ImportResourceController {
         return ResponseEntity.ok(commandBus.push(new StartImportPreviewCommand(importResourceId)));
     }
 
-    @Operation(summary = "Start the import process for a specific resource")
+    @Operation(summary = "Start an asynchronous import run for a specific resource")
     @PostMapping(value = "/start", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> startImportProcess(@RequestParam("importResourceId") UUID importResourceId) {
-        return ResponseEntity.ok(commandBus.push(new StartImportProcessCommand(importResourceId)));
+        DomainCommandResponse response = commandBus.push(new StartImportProcessCommand(importResourceId));
+        HttpStatus status = response.isSuccess() ? HttpStatus.ACCEPTED : HttpStatus.OK;
+        return ResponseEntity.status(status).body(response);
+    }
+
+    @Operation(summary = "Poll the status of an asynchronous import run")
+    @GetMapping(value = "/process_status", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<?> findImportProcessStatus(@RequestParam("runId") UUID runId) {
+        var response = queryBus.push(new FindImportRunStatusQuery(runId));
+        HttpStatus status = response.isSuccess() ? HttpStatus.OK : HttpStatus.NOT_FOUND;
+        return ResponseEntity.status(status).body(response);
     }
 }
