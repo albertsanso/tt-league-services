@@ -3,7 +3,7 @@ package org.cttelsamicsterrassa.data.core.domain.load.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.cttelsamicsterrassa.data.core.domain.resource.model.ImportManifest;
-import org.cttelsamicsterrassa.data.core.domain.settings.model.SettingCategory;
+import org.cttelsamicsterrassa.data.core.domain.settings.model.ImportFolderSetting;
 import org.cttelsamicsterrassa.data.core.domain.settings.service.SettingFinderService;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -26,7 +26,7 @@ import java.util.zip.ZipInputStream;
 public class ResourceZipService {
 
 
-    public static final String IMPORT_FOLDER = "import-folder";
+    public static final String IMPORT_FOLDER = ImportFolderSetting.NAME;
 
     private final SettingFinderService settingFinderService;
     private final ObjectMapper objectMapper;
@@ -163,7 +163,7 @@ public class ResourceZipService {
     }
 
     public String getFolderFromSetting() {
-        return settingFinderService.findByCategoryAndName(SettingCategory.IMPORT, IMPORT_FOLDER)
+        return settingFinderService.findByCategoryAndName(ImportFolderSetting.CATEGORY, ImportFolderSetting.NAME)
                 .orElseThrow(() -> new IllegalArgumentException("Import folder setting is required"))
                 .getValue();
     }

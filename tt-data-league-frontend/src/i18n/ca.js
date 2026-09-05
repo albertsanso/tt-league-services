@@ -184,6 +184,7 @@ export default {
     maximum: 'Màxim',
     definitionRequired: 'Completa la clau, etiqueta, descripció i valors obligatoris. La clau ha d’utilitzar minúscules i punts.',
     definitionInvalid: 'El valor enter no compleix els límits indicats.',
+    importFolderHint: 'Cam\u00ed absolut de la carpeta del servidor on es desen els fitxers importats (p. ex. c:\\tt-repository).',
     categories: { ALL: 'Totes', GENERAL: 'General', NOTIFICATIONS: 'Notificacions', IMPORT: 'Importació' },
     labels: {
       'notifications.emailEnabled': 'Notificacions per correu',
@@ -192,6 +193,7 @@ export default {
       'import.autoValidate': 'Validació automàtica d’importacions',
       'import.preserveHistory': 'Conservar l’historial d’importació',
       'import.maxBatchSize': 'Mida màxima del lot d’importació',
+      'import-folder': 'Carpeta d’importació per defecte',
     },
   },
   administration: {

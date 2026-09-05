@@ -11,6 +11,10 @@ function settingType(setting) {
   return setting.type?.toUpperCase() ?? 'STRING'
 }
 
+function isImportFolderSetting(setting) {
+  return setting.category === 'IMPORT' && setting.name === 'import-folder'
+}
+
 function SettingValue({ setting, value, onChange }) {
   const { t } = useTranslation()
   const type = settingType(setting)
@@ -30,13 +34,20 @@ function SettingValue({ setting, value, onChange }) {
       </select>
     )
   }
+  const isPathSetting = isImportFolderSetting(setting)
+  const hintId = isPathSetting ? `setting-hint-${setting.name}` : undefined
   return (
-    <input
-      type={type === 'INTEGER' ? 'number' : 'text'}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      aria-label={t('systemSettings.value')}
-    />
+    <>
+      <input
+        type={type === 'INTEGER' ? 'number' : 'text'}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        aria-label={t('systemSettings.value')}
+        aria-describedby={hintId}
+        placeholder={isPathSetting ? 'c:\\tt-repository' : undefined}
+      />
+      {isPathSetting && <p id={hintId} className="setting-hint">{t('systemSettings.importFolderHint')}</p>}
+    </>
   )
 }
 

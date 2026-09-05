@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.core.domain.settings.model.SettingCategory;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -47,5 +48,19 @@ class SettingsControllerTest {
 
         assertEquals(200, response.getStatusCode().value());
         verify(commandBus).push(any());
+    }
+
+    @Test
+    void returnsBadRequestWhenUpdatingASettingWithAnInvalidValue() {
+        QueryBus queryBus = mock(QueryBus.class);
+        CommandBus commandBus = mock(CommandBus.class);
+        when(commandBus.push(any())).thenThrow(
+                new IllegalArgumentException("Setting IMPORT/import-folder must not be blank"));
+        SettingsController controller = new SettingsController(queryBus, commandBus);
+
+        var response = controller.updateSetting(SETTING_ID, new UpdateSettingRequest(""));
+
+        assertEquals(400, response.getStatusCode().value());
+        assertEquals(Map.of("message", "Setting IMPORT/import-folder must not be blank"), response.getBody());
     }
 }

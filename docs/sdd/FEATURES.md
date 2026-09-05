@@ -32,6 +32,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00030: Import resource process](### [FEAT-00030] Import resource process)
 - [FEAT-00031: import process from endpoint performance improvement and implementation alignemt with CLI version](### [FEAT-00031] import process from endpoint performance improvement and implementation alignemt with CLI version)
 - [FEAT-00032: asynchronous import process with progress feedback in the UI](### [FEAT-00032] asynchronous import process with progress feedback in the UI)
+- [FEAT-00033: default system import folder setting](### [FEAT-00033] default system import folder setting)
 
 ## In Progress
 
@@ -41,7 +42,27 @@ No features currently in progress.
 
 ## In Review
 
-No features currently in review.
+### [FEAT-00033] default system import folder setting
+- **Status:** in-review
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** FEAT-00024
+
+#### Goal
+The application must always provide a default folder for import workflows, and administrators must be able to change it through the System settings experience.
+
+#### Description
+1. At application startup, the backend must check for the existence of a system setting named `import-folder` for category `IMPORT`. If it does not exist, the backend must create it with a default value of `c:\tt-repository`.
+
+#### Acceptance Criteria
+- [x] The backend checks for the existence of a system setting named `import-folder` for category `IMPORT` at application startup.
+- [x] If the `import-folder` setting does not exist, the backend creates it with a default value of `c:\tt-repository`.
+- [x] Administrators can view and change the `import-folder` setting through the System settings experience, and the change is persisted in the backend.
+- [x] Import workflows use the configured default folder when no explicit folder is supplied.
+- [x] Invalid, missing, or non-directory configured paths produce clear validation or import errors without silently selecting another folder.
+
+#### Feature Details
+→ See [FEAT-00033-DETAILS.md](./FEAT-00033-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 

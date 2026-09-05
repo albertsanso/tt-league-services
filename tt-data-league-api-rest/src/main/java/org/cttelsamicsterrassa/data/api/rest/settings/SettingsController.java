@@ -113,10 +113,14 @@ public class SettingsController {
         if (request == null || request.value() == null) {
             return badRequest("value is required");
         }
-        DomainCommandResponse response = commandBus.push(new UpdateSettingValueCommand(id, request.value()));
-        return response.isSuccess()
-                ? ResponseEntity.ok(SettingDto.from((Setting) response.getResponse()))
-                : notFound(String.valueOf(response.getResponse()));
+        try {
+            DomainCommandResponse response = commandBus.push(new UpdateSettingValueCommand(id, request.value()));
+            return response.isSuccess()
+                    ? ResponseEntity.ok(SettingDto.from((Setting) response.getResponse()))
+                    : notFound(String.valueOf(response.getResponse()));
+        } catch (IllegalArgumentException exception) {
+            return badRequest(exception.getMessage());
+        }
     }
 
     @DeleteMapping("/{id}")

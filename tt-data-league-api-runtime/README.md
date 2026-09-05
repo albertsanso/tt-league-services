@@ -23,6 +23,15 @@ counts, percentage when a reliable total is available, skipped/error counts) and
 result. The run registry is in-memory per JVM (`InMemoryImportRunRegistry`); it prevents two
 accepted runs for the same import resource but does not persist run history across restarts.
 
+At startup, `ImportFolderSettingStartupInitializer` ensures the `IMPORT/import-folder`
+administrator setting exists, creating it with the default value `c:\tt-repository`
+only when it is absent. Provisioning is idempotent: it never overwrites an
+administrator's configured value, and a persistence failure during startup
+fails application boot instead of leaving the setting unconfigured. Import
+workflows resolve this persisted setting when no explicit folder is supplied;
+administrators can view and change it through the System settings panel, and
+the configured path must exist as a directory at import execution time.
+
 # Considerations:
 
 **JWT_SIGNING_SECRET**: The JWT signing secret is currently hardcoded in the `application.yml` file.

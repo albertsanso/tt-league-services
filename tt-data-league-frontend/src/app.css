@@ -276,6 +276,12 @@
   padding: 0.35rem 0.5rem;
 }
 
+.setting-hint {
+  margin-top: 0.35rem;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
 .setting-toggle {
   display: flex;
   gap: 1rem;
