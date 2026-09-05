@@ -39,6 +39,8 @@ final class ImportProcessResultDtoMapper {
                         f.severity(), f.message(), f.location())).toList(),
                 result.processingErrors().stream().map(e -> new ImportPreviewProcessingErrorDto(
                         e.message(), e.location())).toList(),
-                result.filesSeen(), result.itemsPersisted(), result.skipped(), result.processorFailures());
+                result.filesSeen(), result.itemsPersisted(), result.skipped(), result.processorFailures(),
+                result.elapsedMillis(), result.persistenceWrites(), result.executionIssues(),
+                result.postProcessingOutcomes());
     }
 }

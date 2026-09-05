@@ -2,6 +2,8 @@ package org.cttelsamicsterrassa.data.load.bcnesa.traverse;
 
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportContext;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParseException;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
@@ -75,7 +77,12 @@ public class BcnesaActasDirectoryNavigator {
      */
     public BcnesaTraversalSummary traverse(Path baseFolder, List<BcnesaMatchReportProcessor> processors)
             throws IOException {
-        return traverse(baseFolder, season -> true, processors);
+        return traverse(baseFolder, season -> true, processors, new ImportRunContext(
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.BCNESA, null));
+    }
+    public BcnesaTraversalSummary traverse(Path baseFolder, List<BcnesaMatchReportProcessor> processors,
+                                           ImportRunContext context) throws IOException {
+        return traverse(baseFolder, season -> true, processors, context);
     }
 
     /**
@@ -99,7 +106,13 @@ public class BcnesaActasDirectoryNavigator {
      */
     public BcnesaTraversalSummary traverseSeason(Path baseFolder, String season,
                                                  List<BcnesaMatchReportProcessor> processors) throws IOException {
-        return traverse(baseFolder, season::equals, processors);
+        return traverse(baseFolder, season::equals, processors, new ImportRunContext(
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.BCNESA, season));
+    }
+    public BcnesaTraversalSummary traverseSeason(Path baseFolder, String season,
+                                                  List<BcnesaMatchReportProcessor> processors,
+                                                  ImportRunContext context) throws IOException {
+        return traverse(baseFolder, season::equals, processors, context);
     }
 
     /**
@@ -111,7 +124,8 @@ public class BcnesaActasDirectoryNavigator {
 
     private BcnesaTraversalSummary traverse(Path baseFolder,
                                             Predicate<String> seasonFilter,
-                                            List<BcnesaMatchReportProcessor> processors) throws IOException {
+                                            List<BcnesaMatchReportProcessor> processors,
+                                            ImportRunContext runContext) throws IOException {
         if (!Files.isDirectory(baseFolder)) {
             throw new IOException("Base folder is not a directory: " + baseFolder);
         }
@@ -132,7 +146,7 @@ public class BcnesaActasDirectoryNavigator {
                 LOGGER.debug("Skipping season {} (filtered out)", season);
                 continue;
             }
-            traverseSeasonFolder(seasonFolder, season, processors, counters);
+            traverseSeasonFolder(seasonFolder, season, processors, counters, runContext);
         }
 
         BcnesaTraversalSummary summary = counters.toSummary();
@@ -143,7 +157,7 @@ public class BcnesaActasDirectoryNavigator {
     private void traverseSeasonFolder(Path seasonFolder,
                                       String season,
                                       List<BcnesaMatchReportProcessor> processors,
-                                      Counters counters) throws IOException {
+                                      Counters counters, ImportRunContext runContext) throws IOException {
         for (Path competitionFolder : listDirectories(seasonFolder)) {
             String leagueCompetition = competitionFolder.getFileName().toString();
             for (Path groupFolder : listDirectories(competitionFolder)) {
@@ -156,7 +170,7 @@ public class BcnesaActasDirectoryNavigator {
                 for (Path phaseFolder : listDirectories(groupFolder)) {
                     String phase = phaseFolder.getFileName().toString();
                     traverseReportFolder(phaseFolder, season, leagueCompetition, group, phase, clubIndex,
-                            processors, counters);
+                            processors, counters, runContext);
                 }
             }
         }
@@ -169,7 +183,7 @@ public class BcnesaActasDirectoryNavigator {
                                       String phase,
                                       BcnesaClubIndex clubIndex,
                                       List<BcnesaMatchReportProcessor> processors,
-                                      Counters counters) throws IOException {
+                                      Counters counters, ImportRunContext runContext) throws IOException {
         for (Path reportFile : listJsonFiles(reportFolder)) {
             counters.filesSeen++;
 
@@ -193,7 +207,7 @@ public class BcnesaActasDirectoryNavigator {
             for (int i = 0; i < fixtures.size(); i++) {
                 counters.fixturesSeen++;
                 dispatchFixture(reportFile, season, leagueCompetition, group, phase, round, i, fixtures.get(i),
-                        acta, processors, counters);
+                        acta, processors, counters, runContext);
             }
         }
     }
@@ -208,7 +222,7 @@ public class BcnesaActasDirectoryNavigator {
                                  BcnesaMatchdaySplitter.Fixture fixture,
                                  Acta acta,
                                  List<BcnesaMatchReportProcessor> processors,
-                                 Counters counters) {
+                                 Counters counters, ImportRunContext runContext) {
         if (!fixture.isResolved()) {
             counters.fixturesUnresolved++;
             LOGGER.warn("Skipping fixture {} of {}: clubs could not be attributed ({} games)",
@@ -218,7 +232,7 @@ public class BcnesaActasDirectoryNavigator {
 
         BcnesaMatchReportContext context = new BcnesaMatchReportContext(
                 season, leagueCompetition, group, phase, round, fixtureIndex,
-                fixture.homeTeamName(), fixture.awayTeamName(), reportFile, acta, fixture.games());
+                fixture.homeTeamName(), fixture.awayTeamName(), reportFile,                 acta, fixture.games(), runContext);
         dispatch(context, processors, counters);
     }
 
@@ -231,6 +245,8 @@ public class BcnesaActasDirectoryNavigator {
                 processor.process(context);
             } catch (RuntimeException e) {
                 counters.processorFailures++;
+                counters.issues.add(new ImportExecutionIssue(processor.getClass().getSimpleName(),
+                        context.matchReportFile().toString(), e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
                 LOGGER.error("Processor {} failed on fixture {} of {}",
                         processor.getClass().getSimpleName(), context.fixtureIndex(), context.matchReportFile(), e);
             }
@@ -267,10 +283,11 @@ public class BcnesaActasDirectoryNavigator {
         private long fixturesDispatched;
         private long fixturesUnresolved;
         private long processorFailures;
+        private final List<ImportExecutionIssue> issues = new ArrayList<>();
 
         private BcnesaTraversalSummary toSummary() {
             return new BcnesaTraversalSummary(filesSeen, filesSkipped, fixturesSeen, fixturesDispatched,
-                    fixturesUnresolved, processorFailures);
+                    fixturesUnresolved, processorFailures, issues);
         }
     }
 }

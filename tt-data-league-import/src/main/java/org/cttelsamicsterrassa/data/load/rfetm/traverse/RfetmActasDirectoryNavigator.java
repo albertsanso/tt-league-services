@@ -9,6 +9,8 @@ import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeams;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
 import org.cttelsamicsterrassa.data.load.rfetm.process.MatchContextProcessor;
 import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -80,8 +82,11 @@ public class RfetmActasDirectoryNavigator {
      * ignored.
      */
     public TraversalSummary traverse(Path baseFolder, List<MatchContextProcessor> processors) throws IOException {
-        return traverse(baseFolder, season -> true, processors);
+        return traverse(baseFolder, season -> true, processors, new ImportRunContext(
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.RFETM, null));
     }
+    public TraversalSummary traverse(Path baseFolder, List<MatchContextProcessor> processors, ImportRunContext context)
+            throws IOException { return traverse(baseFolder, season -> true, processors, context); }
 
     /**
      * Walks {@code baseFolder} and dispatches to the injected processors.
@@ -104,7 +109,12 @@ public class RfetmActasDirectoryNavigator {
      */
     public TraversalSummary traverseSeason(Path baseFolder, String season, List<MatchContextProcessor> processors)
             throws IOException {
-        return traverse(baseFolder, season::equals, processors);
+        return traverse(baseFolder, season::equals, processors, new ImportRunContext(
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.RFETM, season));
+    }
+    public TraversalSummary traverseSeason(Path baseFolder, String season, List<MatchContextProcessor> processors,
+                                           ImportRunContext context) throws IOException {
+        return traverse(baseFolder, season::equals, processors, context);
     }
 
     /**
@@ -116,7 +126,7 @@ public class RfetmActasDirectoryNavigator {
 
     private TraversalSummary traverse(Path baseFolder,
                                       Predicate<String> seasonFilter,
-                                      List<MatchContextProcessor> processors) throws IOException {
+                                      List<MatchContextProcessor> processors, ImportRunContext runContext) throws IOException {
         if (!Files.isDirectory(baseFolder)) {
             throw new IOException("Base folder is not a directory: " + baseFolder);
         }
@@ -137,7 +147,7 @@ public class RfetmActasDirectoryNavigator {
                 LOGGER.debug("Skipping season {} (filtered out)", season);
                 continue;
             }
-            traverseSeasonFolder(seasonFolder, season, processors, counters);
+            traverseSeasonFolder(seasonFolder, season, processors, counters, runContext);
         }
 
         TraversalSummary summary = counters.toSummary();
@@ -148,7 +158,7 @@ public class RfetmActasDirectoryNavigator {
     private void traverseSeasonFolder(Path seasonFolder,
                                       String season,
                                       List<MatchContextProcessor> processors,
-                                      Counters counters) throws IOException {
+                                      Counters counters, ImportRunContext runContext) throws IOException {
         for (Path competitionFolder : listDirectories(seasonFolder)) {
             String leagueCompetition = competitionFolder.getFileName().toString();
             for (Path dayFolder : listDirectories(competitionFolder)) {
@@ -163,7 +173,7 @@ public class RfetmActasDirectoryNavigator {
                         LOGGER.warn("Skipping unexpected gender folder {}", sexFolder);
                         continue;
                     }
-                    traverseReportFolder(sexFolder, season, leagueCompetition, day, sex, processors, counters);
+                    traverseReportFolder(sexFolder, season, leagueCompetition, day, sex, processors, counters, runContext);
                 }
             }
         }
@@ -175,7 +185,7 @@ public class RfetmActasDirectoryNavigator {
                                       String day,
                                       String sex,
                                       List<MatchContextProcessor> processors,
-                                      Counters counters) throws IOException {
+                                      Counters counters, ImportRunContext runContext) throws IOException {
         for (Path reportFile : listJsonFiles(reportFolder)) {
             counters.filesSeen++;
 
@@ -198,7 +208,7 @@ public class RfetmActasDirectoryNavigator {
             }
 
             MatchReportContext context = new MatchReportContext(
-                    season, leagueCompetition, day, sex, homeTeam, awayTeam, reportFile, acta);
+                    season, leagueCompetition, day, sex, homeTeam, awayTeam, reportFile, acta, runContext);
             dispatch(context, processors, counters);
         }
     }
@@ -227,6 +237,8 @@ public class RfetmActasDirectoryNavigator {
                 processor.process(context);
             } catch (RuntimeException e) {
                 counters.processorFailures++;
+                counters.issues.add(new ImportExecutionIssue(processor.getClass().getSimpleName(),
+                        context.matchReportFile().toString(), e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
                 LOGGER.error("Processor {} failed on {}",
                         processor.getClass().getSimpleName(), context.matchReportFile(), e);
             }
@@ -261,9 +273,10 @@ public class RfetmActasDirectoryNavigator {
         private long dispatched;
         private long skipped;
         private long processorFailures;
+        private final List<ImportExecutionIssue> issues = new ArrayList<>();
 
         private TraversalSummary toSummary() {
-            return new TraversalSummary(filesSeen, dispatched, skipped, processorFailures);
+            return new TraversalSummary(filesSeen, dispatched, skipped, processorFailures, issues);
         }
     }
 }

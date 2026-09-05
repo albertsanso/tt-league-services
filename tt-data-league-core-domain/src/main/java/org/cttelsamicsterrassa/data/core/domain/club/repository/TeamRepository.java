@@ -24,6 +24,9 @@ public interface TeamRepository {
     List<Team> findAllTeamsBySimilarNameAndSeasonAndSource(String name, Season season, ImportSource source);
 
     void saveTeam(Team team);
+    default void saveTeams(java.util.Collection<Team> teams) {
+        teams.forEach(this::saveTeam);
+    }
     void deleteTeamById(UUID id);
 
     /**

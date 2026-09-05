@@ -6,6 +6,8 @@ import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParseException;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -50,7 +52,12 @@ public class FcttActasDirectoryNavigator {
      */
     public TraversalSummary traverse(Path baseFolder, List<FcttMatchReportProcessor> processors)
             throws IOException {
-        return traverse(baseFolder, season -> true, processors);
+        return traverse(baseFolder, season -> true, processors, new ImportRunContext(
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.FCTT, null));
+    }
+    public TraversalSummary traverse(Path baseFolder, List<FcttMatchReportProcessor> processors,
+                                     ImportRunContext context) throws IOException {
+        return traverse(baseFolder, season -> true, processors, context);
     }
 
     /**
@@ -72,7 +79,12 @@ public class FcttActasDirectoryNavigator {
      */
     public TraversalSummary traverseSeason(Path baseFolder, String season, List<FcttMatchReportProcessor> processors)
             throws IOException {
-        return traverse(baseFolder, season::equals, processors);
+        return traverse(baseFolder, season::equals, processors, new ImportRunContext(
+                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.FCTT, season));
+    }
+    public TraversalSummary traverseSeason(Path baseFolder, String season, List<FcttMatchReportProcessor> processors,
+                                           ImportRunContext context) throws IOException {
+        return traverse(baseFolder, season::equals, processors, context);
     }
 
     /**
@@ -84,7 +96,8 @@ public class FcttActasDirectoryNavigator {
 
     private TraversalSummary traverse(Path baseFolder,
                                       Predicate<String> seasonFilter,
-                                      List<FcttMatchReportProcessor> processors) throws IOException {
+                                      List<FcttMatchReportProcessor> processors,
+                                      ImportRunContext runContext) throws IOException {
         if (!Files.isDirectory(baseFolder)) {
             throw new IOException("Base folder is not a directory: " + baseFolder);
         }
@@ -105,7 +118,7 @@ public class FcttActasDirectoryNavigator {
                 LOGGER.debug("Skipping season {} (filtered out)", season);
                 continue;
             }
-            traverseSeasonFolder(seasonFolder, season, processors, counters);
+            traverseSeasonFolder(seasonFolder, season, processors, counters, runContext);
         }
 
         TraversalSummary summary = counters.toSummary();
@@ -116,12 +129,12 @@ public class FcttActasDirectoryNavigator {
     private void traverseSeasonFolder(Path seasonFolder,
                                       String season,
                                       List<FcttMatchReportProcessor> processors,
-                                      Counters counters) throws IOException {
+                                      Counters counters, ImportRunContext runContext) throws IOException {
         for (Path competitionFolder : listDirectories(seasonFolder)) {
             String leagueCompetition = competitionFolder.getFileName().toString();
             for (Path groupFolder : listDirectories(competitionFolder)) {
                 String group = groupFolder.getFileName().toString();
-                traverseReportFolder(groupFolder, season, leagueCompetition, group, processors, counters);
+                traverseReportFolder(groupFolder, season, leagueCompetition, group, processors, counters, runContext);
             }
         }
     }
@@ -131,7 +144,7 @@ public class FcttActasDirectoryNavigator {
                                       String leagueCompetition,
                                       String group,
                                       List<FcttMatchReportProcessor> processors,
-                                      Counters counters) throws IOException {
+                                      Counters counters, ImportRunContext runContext) throws IOException {
         for (Path reportFile : listMatchReportFiles(reportFolder)) {
             counters.filesSeen++;
 
@@ -151,7 +164,7 @@ public class FcttActasDirectoryNavigator {
             }
 
             FcttMatchReportContext context = new FcttMatchReportContext(
-                    season, leagueCompetition, group, acta.round(), reportFile, acta);
+                    season, leagueCompetition, group, acta.round(), reportFile, acta, runContext);
             if (context.groupNumber().isEmpty()) {
                 counters.skipped++;
                 LOGGER.warn("Skipping {}: group folder \"{}\" is not G<number> or <number>",
@@ -171,6 +184,8 @@ public class FcttActasDirectoryNavigator {
                 processor.process(context);
             } catch (RuntimeException e) {
                 counters.processorFailures++;
+                counters.issues.add(new ImportExecutionIssue(processor.getClass().getSimpleName(),
+                        context.matchReportFile().toString(), e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
                 LOGGER.error("Processor {} failed on {}",
                         processor.getClass().getSimpleName(), context.matchReportFile(), e);
             }
@@ -205,9 +220,10 @@ public class FcttActasDirectoryNavigator {
         private long dispatched;
         private long skipped;
         private long processorFailures;
+        private final List<ImportExecutionIssue> issues = new ArrayList<>();
 
         private TraversalSummary toSummary() {
-            return new TraversalSummary(filesSeen, dispatched, skipped, processorFailures);
+            return new TraversalSummary(filesSeen, dispatched, skipped, processorFailures, issues);
         }
     }
 }

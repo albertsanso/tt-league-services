@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.load.fctt.process;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext;
 
 import java.nio.file.Path;
 import java.util.Objects;
@@ -28,7 +29,14 @@ public record FcttMatchReportContext(
         String group,
         int round,
         Path matchReportFile,
-        Acta acta) {
+        Acta acta,
+        ImportRunContext runContext) {
+
+    public FcttMatchReportContext(String season, String leagueCompetition, String group, int round,
+                                  Path matchReportFile, Acta acta) {
+        this(season, leagueCompetition, group, round, matchReportFile, acta,
+                new ImportRunContext(org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.FCTT, season));
+    }
 
     private static final Pattern GROUP_NUMBER_PATTERN = Pattern.compile("G?(\\d+)");
 
@@ -38,6 +46,7 @@ public record FcttMatchReportContext(
         Objects.requireNonNull(group, "group");
         Objects.requireNonNull(matchReportFile, "matchReportFile");
         Objects.requireNonNull(acta, "acta");
+        Objects.requireNonNull(runContext, "runContext");
     }
 
     /**

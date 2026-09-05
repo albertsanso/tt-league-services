@@ -1,5 +1,9 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.traverse;
 
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue;
+
+import java.util.List;
+import java.util.Objects;
 /**
  * What one BCNESA traversal did.
  *
@@ -21,7 +25,32 @@ public record BcnesaTraversalSummary(long filesSeen,
                                      long fixturesSeen,
                                      long fixturesDispatched,
                                      long fixturesUnresolved,
-                                     long processorFailures) {
+                                     long processorFailures,
+                                     List<ImportExecutionIssue> issues) {
+    public BcnesaTraversalSummary(long filesSeen, long filesSkipped, long fixturesSeen,
+                                   long fixturesDispatched, long fixturesUnresolved, long processorFailures) {
+        this(filesSeen, filesSkipped, fixturesSeen, fixturesDispatched, fixturesUnresolved,
+                processorFailures, List.of());
+    }
+
+    public BcnesaTraversalSummary {
+        issues = issues == null ? List.of() : List.copyOf(issues);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof BcnesaTraversalSummary that
+                && filesSeen == that.filesSeen && filesSkipped == that.filesSkipped
+                && fixturesSeen == that.fixturesSeen && fixturesDispatched == that.fixturesDispatched
+                && fixturesUnresolved == that.fixturesUnresolved
+                && processorFailures == that.processorFailures;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(filesSeen, filesSkipped, fixturesSeen, fixturesDispatched,
+                fixturesUnresolved, processorFailures);
+    }
 
     @Override
     public String toString() {

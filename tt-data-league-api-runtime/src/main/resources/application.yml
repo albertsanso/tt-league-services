@@ -41,6 +41,15 @@ spring:
         order_inserts: true
         order_updates: true
 
+tt:
+  league:
+    import:
+      execution:
+        batch-size: ${IMPORT_EXECUTION_BATCH_SIZE:50}
+        club-consolidation: ${IMPORT_EXECUTION_CLUB_CONSOLIDATION:disabled}
+        player-consolidation: ${IMPORT_EXECUTION_PLAYER_CONSOLIDATION:disabled}
+        rfetm-teams-folder: ${IMPORT_EXECUTION_RFETM_TEAMS_FOLDER:}
+
 security:
   jwt:
     # Required in every environment; use a random value of at least 32 bytes.

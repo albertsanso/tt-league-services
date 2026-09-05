@@ -9,11 +9,24 @@ public record ImportProcessResult(
         long filesSeen,
         long itemsPersisted,
         long skipped,
-        long processorFailures) {
+        long processorFailures,
+        long elapsedMillis,
+        long persistenceWrites,
+        List<String> executionIssues,
+        List<String> postProcessingOutcomes) {
+
+    public ImportProcessResult(ImportProcessStatus status, List<ImportPreviewFinding> findings,
+                               List<ImportPreviewProcessingError> processingErrors, long filesSeen,
+                               long itemsPersisted, long skipped, long processorFailures) {
+        this(status, findings, processingErrors, filesSeen, itemsPersisted, skipped, processorFailures,
+                0, 0, List.of(), List.of());
+    }
 
     public ImportProcessResult {
         findings = findings == null ? List.of() : List.copyOf(findings);
         processingErrors = processingErrors == null ? List.of() : List.copyOf(processingErrors);
+        executionIssues = executionIssues == null ? List.of() : List.copyOf(executionIssues);
+        postProcessingOutcomes = postProcessingOutcomes == null ? List.of() : List.copyOf(postProcessingOutcomes);
     }
 
     public static ImportProcessResult success(List<ImportPreviewFinding> findings,

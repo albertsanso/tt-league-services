@@ -64,6 +64,11 @@ public class TeamRepositoryJpa implements TeamRepository {
     }
 
     @Override
+    public void saveTeams(java.util.Collection<Team> teams) {
+        teamRepositoryHelper.saveAll(teams.stream().map(teamToTeamJPAMapper).toList());
+    }
+
+    @Override
     public void deleteTeamById(UUID id) {
         teamRepositoryHelper.deleteById(id);
     }

@@ -30,10 +30,66 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00028: Display list of imports resources for a given source/federation in Data Import Panel](### [FEAT-00028] Display list of imports resources for a given source/federation in Data Import Panel)
 - [FEAT-00029: Import resource preview process](### [FEAT-00029] Import resource preview process)
 - [FEAT-00030: Import resource process](### [FEAT-00030] Import resource process)
+- [FEAT-00031: import process from endpoint performance improvement and implementation alignemt with CLI version](### [FEAT-00031] import process from endpoint performance improvement and implementation alignemt with CLI version)
 
 ## In Progress
 
-No features currently in progress.
+### [FEAT-00031] import process from endpoint performance improvement and implementation alignemt with CLI version
+- **Status:** in-progress
+- **Priority:** medium
+- **Effort:** large (> 8h)
+- **Depends on:** FEAT-00030
+
+#### Goal
+Improve the import process initiated from the endpoint and align its implementation and behavior with the CLI version.
+
+#### Description
+The import process performs much better from the CLI operation in tt-data-league-import-runtime than the import endpoint.
+
+The endpoint is slower/different mainly because it is not executing the same import pipeline as the CLI:
+- The CLI calls the navigator directly with its normal injected processor list.
+- The endpoint uses NavigatorBackedImportResourceProcessService, which rebuilds processor lists and wraps every processor in recording decorators. This adds per-processor exception handling and error collection on every ACTAS.
+- The endpoint always calls traverseSeason(...); the CLI can call traverse(...) and uses the optimized all-season traversal path.
+- The endpoint is synchronous inside an HTTP request and returns a detailed result, while the CLI only logs the traversal summary.
+- The CLI optionally performs club/team and player consolidation after traversal. The endpoint never does this, so its resulting data can appear materially worse even if traversal time is comparable.
+- Both flows perform many per-record database lookups and writes; the endpoint currently has no run-level caching, batching, transaction strategy, or post-processing phase.
+
+Recommended refactor
+Extract a shared ImportExecutionService in tt-data-league-import.
+
+It should own:
+1. Source-specific navigator selection.
+2. Processor selection and ordering.
+3. Traversal and structured metrics.
+4. A post-traversal phase.
+5. Optional consolidation through explicit policies.
+6. A single execution result model used by both CLI and API.
+
+Then:
+- Make the CLI App a thin adapter that converts CLI arguments into ImportExecutionOptions.
+- Make the API process service call the same executor rather than duplicating navigator orchestration.
+- Replace recording decorators with navigator-level structured error reporting, keeping the hot path free of
+  wrapper try/catch logic.
+- Add run-scoped caches for team/player resolution and batch persistence where repository contracts allow it.
+- Add a post-processing policy. For the endpoint, consolidation should be server-configured and source-scoped,
+  not controlled by arbitrary client paths.
+- Preserve safe defaults: no consolidation unless explicitly enabled, and only mark the import successful after traversal and requested post-processing both succeed.
+
+Before implementing, benchmark both paths against the same source, folder, season, database, and consolidation
+settings. This will separate the likely throughput issue from the larger behavioral difference caused by CLI-only
+consolidation.
+
+#### Acceptance Criteria
+- [ ] CLI and API imports invoke the same `ImportExecutionService` and therefore use identical source dispatch, processor order, season filtering, traversal failure rules, and post-processing order.
+- [ ] The shared execution result reports normalized traversal metrics, elapsed time, structured processor issues, persistence counters, and requested post-processing outcomes; the CLI logs it and the endpoint exposes a backward-compatible mapping.
+- [ ] Every execution owns source/season-scoped team, player-season, and match caches, and supported repository writes are flushed in bounded batches without weakening identity, idempotency, or processor-failure isolation.
+- [ ] Club and player consolidation remain independently opt-in, run only after successful traversal in club-then-player order, use the complete source-scoped inventory, and make the overall import fail when a requested phase fails.
+- [ ] The endpoint accepts only the stored import-resource identity/path and server-side consolidation configuration; defaults perform no consolidation and no cache state is shared between requests.
+- [ ] A documented like-for-like benchmark (same source, folder, season, restored database, JVM, and consolidation settings) shows the API shared-executor median within 10% of the CLI median across at least three measured runs, with no behavior or persisted-data regression.
+- [ ] Focused domain, import, navigator, JPA adapter, CLI, REST, and API-runtime wiring tests pass, followed by the full Maven reactor; frontend checks pass if the response contract changes.
+
+#### Feature Details
+→ See [FEAT-00031-DETAILS.md](./FEAT-00031-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
@@ -44,8 +100,6 @@ No features currently in review.
 ---
 
 ## Backlog
-
-No features currently in the backlog.
 
 ---
 

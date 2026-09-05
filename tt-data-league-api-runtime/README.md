@@ -9,6 +9,12 @@ ZIP import uploads accept files up to 100 MB by default. Override
 different deployment limit is required; the request limit must be at least as
 large as the file limit.
 
+Import execution is configured server-side under `tt.league.import.execution`.
+Consolidation is disabled by default; use `IMPORT_EXECUTION_CLUB_CONSOLIDATION`
+or `IMPORT_EXECUTION_PLAYER_CONSOLIDATION` (`WRITE` or `REPORT`) and
+`IMPORT_EXECUTION_RFETM_TEAMS_FOLDER` when appropriate. The API start endpoint
+accepts only the stored import-resource ID and never a client-supplied path.
+
 # Considerations:
 
 **JWT_SIGNING_SECRET**: The JWT signing secret is currently hardcoded in the `application.yml` file.

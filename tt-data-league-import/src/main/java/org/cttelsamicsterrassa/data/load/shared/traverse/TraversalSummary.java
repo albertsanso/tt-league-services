@@ -1,5 +1,9 @@
 package org.cttelsamicsterrassa.data.load.shared.traverse;
 
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue;
+
+import java.util.List;
+import java.util.Objects;
 /**
  * What one traversal did.
  *
@@ -9,7 +13,27 @@ package org.cttelsamicsterrassa.data.load.shared.traverse;
  *                          not be read
  * @param processorFailures individual processor invocations that threw
  */
-public record TraversalSummary(long filesSeen, long dispatched, long skipped, long processorFailures) {
+public record TraversalSummary(long filesSeen, long dispatched, long skipped, long processorFailures,
+                               List<ImportExecutionIssue> issues) {
+    public TraversalSummary(long filesSeen, long dispatched, long skipped, long processorFailures) {
+        this(filesSeen, dispatched, skipped, processorFailures, List.of());
+    }
+
+    public TraversalSummary {
+        issues = issues == null ? List.of() : List.copyOf(issues);
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        return other instanceof TraversalSummary that
+                && filesSeen == that.filesSeen && dispatched == that.dispatched
+                && skipped == that.skipped && processorFailures == that.processorFailures;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(filesSeen, dispatched, skipped, processorFailures);
+    }
 
     @Override
     public String toString() {

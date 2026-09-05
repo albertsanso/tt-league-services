@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.rfetm.process.MatchContextProcessor;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubKey;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext;
 
 import java.nio.file.Path;
 import java.util.Objects;
@@ -36,7 +37,14 @@ public record MatchReportContext(
         RfetmClubKey homeTeam,
         RfetmClubKey awayTeam,
         Path matchReportFile,
-        Acta acta) {
+        Acta acta,
+        ImportRunContext runContext) {
+
+    public MatchReportContext(String season, String leagueCompetition, String day, String sex,
+                              RfetmClubKey homeTeam, RfetmClubKey awayTeam, Path matchReportFile, Acta acta) {
+        this(season, leagueCompetition, day, sex, homeTeam, awayTeam, matchReportFile, acta,
+                new ImportRunContext(org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.RFETM, season));
+    }
 
     public MatchReportContext {
         Objects.requireNonNull(season, "season");
@@ -46,6 +54,7 @@ public record MatchReportContext(
         Objects.requireNonNull(homeTeam, "homeTeam");
         Objects.requireNonNull(awayTeam, "awayTeam");
         Objects.requireNonNull(matchReportFile, "matchReportFile");
+        Objects.requireNonNull(runContext, "runContext");
     }
 
     /**

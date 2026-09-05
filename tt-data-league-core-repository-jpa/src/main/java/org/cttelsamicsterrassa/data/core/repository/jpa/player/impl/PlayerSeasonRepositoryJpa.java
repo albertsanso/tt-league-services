@@ -97,6 +97,11 @@ public class PlayerSeasonRepositoryJpa implements PlayerSeasonRepository {
     }
 
     @Override
+    public void savePlayerSeasons(Collection<PlayerSeason> playerSeasons) {
+        playerSeasonRepositoryHelper.saveAll(playerSeasons.stream().map(playerSeasonToPlayerSeasonJPAMapper).toList());
+    }
+
+    @Override
     public void deletePlayerSeasonById(UUID id) {
         playerSeasonRepositoryHelper.deleteById(id);
     }

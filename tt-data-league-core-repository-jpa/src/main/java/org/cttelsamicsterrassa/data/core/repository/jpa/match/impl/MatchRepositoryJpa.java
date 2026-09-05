@@ -99,6 +99,11 @@ public class MatchRepositoryJpa implements MatchRepository {
     }
 
     @Override
+    public void saveMatches(Collection<Match> matches) {
+        matchRepositoryHelper.saveAll(matches.stream().map(matchToMatchJPAMapper).toList());
+    }
+
+    @Override
     public List<Match> searchMatches(MatchSearchCriteria criteria) {
         return matchRepositoryHelper.search(Source.valueOf(criteria.source().name()),
                         criteria.season().toString(), criteria.competition(), criteria.fromDate(), criteria.toDate(),

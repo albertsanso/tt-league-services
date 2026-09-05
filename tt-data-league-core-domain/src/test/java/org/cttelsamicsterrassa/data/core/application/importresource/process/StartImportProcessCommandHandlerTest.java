@@ -57,6 +57,23 @@ class StartImportProcessCommandHandlerTest {
     }
 
     @Test
+    void marksResourceAsErrorWhenProcessingFails() {
+        InMemoryImportResources repository = new InMemoryImportResources();
+        ImportResource resource = resource(ImportResourceStatus.PENDING);
+        repository.resources.add(resource);
+        StartImportProcessCommandHandler handler = new StartImportProcessCommandHandler(repository,
+                ignored -> ImportProcessResult.failure(List.of(), List.of(), 1, 0, 0, 1));
+
+        DomainCommandResponse response = handler.handle(new StartImportProcessCommand(resource.getId()));
+
+        ImportProcessResultDto dto = assertInstanceOf(ImportProcessResultDto.class, response.getResponse());
+        assertTrue(response.isSuccess());
+        assertEquals("failure", dto.status());
+        assertEquals(ImportResourceStatus.ERROR, resource.getStatus());
+        assertEquals(1, repository.saveCount);
+    }
+
+    @Test
     void rejectsAResourceAlreadyProcessing() {
         InMemoryImportResources repository = new InMemoryImportResources();
         ImportResource resource = resource(ImportResourceStatus.PROCESSING);

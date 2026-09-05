@@ -82,4 +82,7 @@ public interface MatchRepository {
     }
 
     void saveMatch(Match match);
+    default void saveMatches(Collection<Match> matches) {
+        matches.forEach(this::saveMatch);
+    }
 }

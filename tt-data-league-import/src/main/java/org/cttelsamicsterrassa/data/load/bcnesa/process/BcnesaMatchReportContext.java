@@ -5,6 +5,7 @@ import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaMatchdaySplitter;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaScore;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -54,7 +55,16 @@ public record BcnesaMatchReportContext(
         String awayTeamName,
         Path matchReportFile,
         Acta acta,
-        List<ActaGame> games) {
+        List<ActaGame> games,
+        ImportRunContext runContext) {
+
+    public BcnesaMatchReportContext(String season, String leagueCompetition, String group, String phase,
+                                    int round, int fixtureIndex, String homeTeamName, String awayTeamName,
+                                    Path matchReportFile, Acta acta, List<ActaGame> games) {
+        this(season, leagueCompetition, group, phase, round, fixtureIndex, homeTeamName, awayTeamName,
+                matchReportFile, acta, games,
+                new ImportRunContext(org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.BCNESA, season));
+    }
 
     public BcnesaMatchReportContext {
         Objects.requireNonNull(season, "season");
@@ -63,6 +73,7 @@ public record BcnesaMatchReportContext(
         Objects.requireNonNull(phase, "phase");
         Objects.requireNonNull(matchReportFile, "matchReportFile");
         games = games == null ? List.of() : List.copyOf(games);
+        Objects.requireNonNull(runContext, "runContext");
     }
 
     /**

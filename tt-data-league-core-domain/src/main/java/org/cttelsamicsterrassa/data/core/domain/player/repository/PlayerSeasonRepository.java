@@ -37,5 +37,8 @@ public interface PlayerSeasonRepository {
     }
 
     void savePlayerSeason(PlayerSeason playerSeason);
+    default void savePlayerSeasons(Collection<PlayerSeason> playerSeasons) {
+        playerSeasons.forEach(this::savePlayerSeason);
+    }
     void deletePlayerSeasonById(UUID id);
 }
