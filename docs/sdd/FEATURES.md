@@ -42,8 +42,18 @@ No features currently in progress.
 
 ## In Review
 
+No features currently in review.
+
+## Backlog
+
+No features currently in the backlog.
+
+---
+
+## Done
+
 ### [FEAT-00033] default system import folder setting
-- **Status:** in-review
+- **Status:** done
 - **Priority:** medium
 - **Effort:** medium (2–8h)
 - **Depends on:** FEAT-00024
@@ -65,14 +75,6 @@ The application must always provide a default folder for import workflows, and a
 → See [FEAT-00033-DETAILS.md](./FEAT-00033-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-
-## Backlog
-
-No features currently in the backlog.
-
----
-
-## Done
 
 ### [FEAT-00032] asynchronous import process with progress feedback in the UI
 - **Status:** done

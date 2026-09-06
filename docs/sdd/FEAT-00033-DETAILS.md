@@ -144,3 +144,5 @@
   `npm run build` all pass from `tt-data-league-frontend`.
   Status moved from `planned` to `in-review`; implementation is finalized
   and awaiting user review before any `done` transition.
+- 2026-09-06: User explicitly approved closure; status moved from `in-review`
+  to `done`.
