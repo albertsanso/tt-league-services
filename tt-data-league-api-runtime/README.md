@@ -10,8 +10,11 @@ different deployment limit is required; the request limit must be at least as
 large as the file limit.
 
 Import execution is configured server-side under `tt.league.import.execution`.
-Consolidation is disabled by default; use `IMPORT_EXECUTION_CLUB_CONSOLIDATION`
-or `IMPORT_EXECUTION_PLAYER_CONSOLIDATION` (`WRITE` or `REPORT`) and
+Club and player consolidation run in `WRITE` mode by default; use
+`IMPORT_EXECUTION_CLUB_CONSOLIDATION` or
+`IMPORT_EXECUTION_PLAYER_CONSOLIDATION` (`WRITE`, `REPORT`, or `disabled`) to
+override them. RFETM team consolidation uses
+`C:\tt-repository\import-rfetm\teams` by default; override it with
 `IMPORT_EXECUTION_RFETM_TEAMS_FOLDER` when appropriate. The API start endpoint
 accepts only the stored import-resource ID and never a client-supplied path.
 
