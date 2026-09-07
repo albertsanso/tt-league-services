@@ -2492,6 +2492,36 @@
   border-bottom: 1px solid var(--border-subtle);
   padding: 0.65rem;
   text-align: left;
+  vertical-align: top;
+}
+
+.match-game-list {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 10rem;
+}
+
+.match-game-row {
+  display: block;
+  min-height: 1.65rem;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--border-strong);
+  background: var(--surface-card-sub);
+}
+
+.match-game-result-row {
+  display: flex;
+  gap: 0.65rem;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.match-result-win {
+  color: var(--color-success);
+}
+
+.match-result-loss {
+  color: var(--color-error);
 }
 
 .table-wrap {

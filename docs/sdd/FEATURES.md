@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00038: In Player details, Matches Tab, show the oponent as the Player name instead of theTeam name](### [FEAT-00038] In Player details, Matches Tab, show the oponent as the Player name instead of theTeam name)
+
 - [FEAT-00024: System settings](### [FEAT-00024] System settings)
 - [FEAT-00025: Administration > Data import design theme](### [FEAT-00025] Administration > Data import design theme)
 - [FEAT-00026: Display Data Import left Source/Federation selector with dynamic status](### [FEAT-00026] Display Data Import left Source/Federation selector with dynamic status)
@@ -41,22 +43,81 @@ This file is the single source of truth for planned, in-progress, and completed 
 ## In Progress
 
 No features currently in progress.
-
----
-
 ## In Review
 
 No features currently in review.
-
----
-
 ## Backlog
 
 No features currently in the backlog.
+## Done
+
+### [FEAT-00038] In Player details, Matches Tab, show the oponent as the Player name instead of the Team name
+- **Status:** done
+- **Priority:** medium
+- **Effort:** small
+- **Depends on:** —
+
+#### Goal
+Show the opposing player name in the Player details Matches tab instead of the opposing team name, so match records identify the actual opponent.
+
+#### Description
+In Player details, Matches Tab, show the oponent as the Player name played against (And optionally the Team name but less emphasys),
+and the result of that player to player match instead of the global Team result match.
+
+#### Acceptance Criteria
+- [x] The Matches tab renders each game set score followed by its qualitative win/loss/draw result, with qualitative-only fallback when scores are unavailable.
+- [x] Win result rows use green styling and loss result rows use red styling without changing opponent or match metadata.
+- [x] Games without available opponent information do not render opponent or result sub-rows.
+- [x] Opponent names and game-level scores are resolved consistently for all displayed match rows without changing team metadata or other match metadata.
+- [x] Focused regression coverage verifies aligned multi-game rows, set-score and qualitative results, outcome colors, and removal of unavailable-opponent rows.
+- [x] Match-table cell content is top-aligned so stacked opponent and result rows begin at the same vertical edge.
+- [x] The final score column shows only the numeric global match result with green win/red loss styling, and a separate column on its right shows the opponent team name.
+- [x] The implementation does not introduce any performance regressions or data inconsistencies in the Player details view.
+
+#### Feature Details
+→ See [FEAT-00038-DETAILS.md](./FEAT-00038-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
 
-## Done
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00037] Enable Players to be searched by license id added to the name
 - **Status:** done
@@ -469,5 +530,47 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---

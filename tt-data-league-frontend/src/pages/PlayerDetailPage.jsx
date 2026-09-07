@@ -215,15 +215,16 @@ function MatchHistoryPanel({ matches, t }) {
         <div className="table-wrap">
           <table className="history-table">
             <caption>{t('common.matches')}</caption>
-            <thead><tr><th>{t('common.date')}</th><th>{t('common.source')}</th><th>{t('common.season')}</th><th>{t('common.competition')}</th><th>{t('common.opponent')}</th><th>{t('common.result')}</th><th>{t('common.score')}</th></tr></thead>
+            <thead><tr><th>{t('common.date')}</th><th>{t('common.source')}</th><th>{t('common.season')}</th><th>{t('common.competition')}</th><th>{t('common.opponent')}</th><th>{t('common.result')}</th><th>{t('common.score')}</th><th>{t('common.opponentTeam')}</th></tr></thead>
             <tbody>{visibleMatches.map((item) => <tr key={item.id}>
               <td>{item.dateTime ? new Date(item.dateTime).toLocaleDateString(i18n.language) : t('common.noData')}</td>
               <td>{item.source}</td>
               <td>{item.season}</td>
               <td>{item.competition}</td>
-              <td>{opponentName(item)}</td>
-              <td>{resultLabel(item.result, t)}</td>
-              <td>{scoreLabel(item, t)}</td>
+              <td><div className="match-game-list match-opponent-list" role="list">{matchOpponentRows(item, t)}</div></td>
+              <td><div className="match-game-list match-result-list" role="list">{matchResultRows(item, t)}</div></td>
+              <td>{matchScoreResult(item, t)}</td>
+              <td>{opponentTeamName(item, t)}</td>
             </tr>)}</tbody>
           </table>
         </div>
@@ -431,8 +432,60 @@ function opponentName(match) {
   return match.playerTeam === match.homeTeam ? match.awayTeam : match.homeTeam
 }
 
+function matchOpponentRows(match, t) {
+  const games = gamesWithOpponentInfo(match)
+  return games.map((game) => {
+    const opponents = new Map()
+    game.opponents.forEach((opponent) => {
+      const key = opponentKey(opponent)
+      if (!opponents.has(key)) opponents.set(key, opponent.available ? opponent.name : t('common.unavailable'))
+    })
+    return matchGameRow(opponents.size > 0 ? [...opponents.values()].join(', ') : t('common.unavailable'), game.id)
+  })
+}
+
+function matchResultRows(match, t) {
+  const games = gamesWithOpponentInfo(match)
+  return games.map((game) => matchGameResultRow(game, t))
+}
+
+function gamesWithOpponentInfo(match) {
+  return (match.games ?? []).filter((game) => game.opponents.some((opponent) => opponent.available && opponent.name))
+}
+
+function gameResultLabel(game, t) {
+  return game.homeSetsWon == null || game.awaySetsWon == null
+    ? resultLabel(game.result, t)
+    : `${game.homeSetsWon}-${game.awaySetsWon}`
+}
+
+function matchGameResultRow(game, t) {
+  return <span className={`match-game-row match-game-result-row match-result-${game.result}`} role="listitem" key={game.id}>
+    <span>{gameResultLabel(game, t)}</span>
+    <span>{resultLabel(game.result, t)}</span>
+  </span>
+}
+
+function matchScoreResult(match, t) {
+  return <span className={`match-game-row match-result-${match.result}`}>{scoreLabel(match, t)}</span>
+}
+
+function opponentTeamName(match, t) {
+  return opponentName(match) || t('common.unavailable')
+}
+
+function matchGameRow(content, key) {
+  return <span className="match-game-row" role="listitem" key={key}>{content}</span>
+}
+
 function resultLabel(result, t) {
-  return result === 'win' ? t('detail.win') : result === 'loss' ? t('detail.loss') : t('detail.draw')
+  return result === 'win'
+    ? t('detail.win')
+    : result === 'loss'
+      ? t('detail.loss')
+      : result === 'draw'
+        ? t('detail.draw')
+        : t('common.unavailable')
 }
 
 function scoreLabel(match, t) {

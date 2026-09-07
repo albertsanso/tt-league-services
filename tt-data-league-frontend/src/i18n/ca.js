@@ -17,6 +17,7 @@ export default {
     result: 'Resultat',
     date: 'Data',
     opponent: 'Oponent',
+    opponentTeam: 'Equip oponent',
     score: 'Marcador',
     wins: 'Victòries',
     draws: 'Empats',

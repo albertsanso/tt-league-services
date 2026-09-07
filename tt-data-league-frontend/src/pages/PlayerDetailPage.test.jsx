@@ -148,12 +148,177 @@ describe('PlayerDetailPage', () => {
   it('normalizes an invalid tab and retains a direct matches URL', async () => {
     renderPage('/players/player-id?view=matches')
 
-    expect(screen.getByRole('tabpanel', { name: 'Partits' })).toHaveTextContent('Club Beta')
+    expect(screen.getByRole('tabpanel', { name: 'Partits' })
+      .querySelectorAll('.match-opponent-list .match-game-row, .match-result-list .match-game-row')).toHaveLength(0)
     expect(screen.getAllByText('—')).not.toHaveLength(0)
 
     cleanup()
     renderPage('/players/player-id?view=invalid')
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('view=statistics'))
+  })
+
+  it('shows source-scoped player opponents and player-level results in match rows', () => {
+    usePlayerDetails.mockReturnValue({
+      data: {
+        ...details,
+        matches: [{
+          ...details.matches[0],
+          result: 'loss',
+          games: [{
+            id: 'game-1',
+            gameNumber: 1,
+            type: 'INDIVIDUAL',
+            result: 'win',
+            homeSetsWon: 3,
+            awaySetsWon: 1,
+            opponents: [{
+              playerId: 'opponent-id',
+              federatedPlayerId: 'opponent-federated-id',
+              playerSeasonId: 'opponent-season-id',
+              name: 'Opponent Player',
+              source: 'FCTT',
+              season: '2024-2025',
+              available: true,
+            }],
+          }],
+        }],
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/players/player-id?view=matches')
+
+    const row = screen.getByRole('table').querySelector('tbody tr')
+    expect(row).toHaveTextContent('Opponent Player')
+    expect(row.querySelector('td:last-child')).toHaveTextContent('Club Beta')
+    expect(row.querySelectorAll('.match-opponent-list .match-game-row')).toHaveLength(1)
+    expect(row.querySelectorAll('.match-result-list .match-game-row')).toHaveLength(1)
+    const resultRow = row.querySelector('.match-result-list .match-game-row')
+    expect(resultRow).toHaveTextContent('3-1')
+    expect(resultRow).toHaveTextContent('Victòria')
+    expect(resultRow).toHaveClass('match-result-win')
+    const matchScore = row.querySelector('td:nth-last-child(2) .match-game-row')
+    expect(matchScore).toHaveTextContent('4 — 2')
+    expect(matchScore).not.toHaveTextContent('Derrota')
+    expect(matchScore).toHaveClass('match-result-loss')
+    expect(row.querySelector('td:last-child')).toHaveTextContent('Club Beta')
+  })
+
+  it('styles a losing game result red beside its set score', () => {
+    usePlayerDetails.mockReturnValue({
+      data: {
+        ...details,
+        matches: [{
+          ...details.matches[0],
+          games: [{
+            id: 'game-loss',
+            gameNumber: 1,
+            type: 'INDIVIDUAL',
+            result: 'loss',
+            homeSetsWon: 1,
+            awaySetsWon: 3,
+            opponents: [{
+              playerId: 'opponent-loss',
+              name: 'Opponent Loss',
+              available: true,
+              source: 'FCTT',
+              season: '2024-2025',
+            }],
+          }],
+        }],
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/players/player-id?view=matches')
+
+    const resultRow = screen.getByRole('table').querySelector('.match-result-list .match-game-row')
+    expect(resultRow).toHaveTextContent('1-3')
+    expect(resultRow).toHaveTextContent('Derrota')
+    expect(resultRow).toHaveClass('match-result-loss')
+  })
+
+  it('deduplicates doubles opponents and omits unavailable game rows', () => {
+    usePlayerDetails.mockReturnValue({
+      data: {
+        ...details,
+        matches: [{
+          ...details.matches[0],
+          games: [
+            {
+              id: 'game-1',
+              gameNumber: 1,
+              type: 'DOUBLES',
+              result: 'win',
+              homeSetsWon: 3,
+              awaySetsWon: 2,
+              opponents: [
+                { playerId: 'opponent-a', name: 'Opponent A', available: true, source: 'FCTT', season: '2024-2025' },
+                { playerId: 'opponent-b', name: 'Opponent B', available: true, source: 'FCTT', season: '2024-2025' },
+              ],
+            },
+            {
+              id: 'game-2',
+              gameNumber: 2,
+              type: 'DOUBLES',
+              result: 'unavailable',
+              homeSetsWon: null,
+              awaySetsWon: null,
+              opponents: [{ playerId: null, name: null, available: false, source: 'FCTT', season: '2024-2025' }],
+            },
+          ],
+        }],
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/players/player-id?view=matches')
+
+    const row = screen.getByRole('table').querySelector('tbody tr')
+    expect(row).toHaveTextContent('Opponent A, Opponent B')
+    expect(row.querySelectorAll('.match-opponent-list .match-game-row')).toHaveLength(1)
+    expect(row.querySelectorAll('.match-result-list .match-game-row')).toHaveLength(1)
+    const resultRow = row.querySelectorAll('.match-result-list .match-game-row')[0]
+    expect(resultRow).toHaveTextContent('3-2')
+    expect(resultRow).toHaveTextContent('Victòria')
+    expect(resultRow).toHaveClass('match-result-win')
+    expect(row.querySelector('td:last-child')).toHaveTextContent('Club Beta')
+  })
+
+  it('shows unavailable values when game opponents have no identity', () => {
+    usePlayerDetails.mockReturnValue({
+      data: {
+        ...details,
+        matches: [{
+          ...details.matches[0],
+          games: [{
+            id: 'game-1',
+            gameNumber: 1,
+            type: 'INDIVIDUAL',
+            result: 'unavailable',
+            homeSetsWon: null,
+            awaySetsWon: null,
+            opponents: [{ playerId: null, federatedPlayerId: null, playerSeasonId: null, name: null, available: false }],
+          }],
+        }],
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/players/player-id?view=matches')
+
+    const row = screen.getByRole('table').querySelector('tbody tr')
+    expect(row.querySelectorAll('.match-opponent-list .match-game-row')).toHaveLength(0)
+    expect(row.querySelectorAll('.match-result-list .match-game-row')).toHaveLength(0)
+    expect(row.querySelector('td:last-child')).toHaveTextContent('Club Beta')
   })
 
   it('changes tab with the keyboard without resetting query filters', () => {
@@ -394,17 +559,32 @@ describe('PlayerDetailPage', () => {
       id: `match-${index}`,
       dateTime: new Date(Date.UTC(2025, 0, index + 1)).toISOString(),
       awayTeam: `Club ${index}`,
+      games: [{
+        id: `game-${index}`,
+        gameNumber: 1,
+        type: 'INDIVIDUAL',
+        result: 'win',
+        homeSetsWon: 3,
+        awaySetsWon: 1,
+        opponents: [{
+          playerId: `opponent-${index}`,
+          name: `Opponent ${index}`,
+          available: true,
+          source: 'FCTT',
+          season: '2024-2025',
+        }],
+      }],
     }))
     usePlayerDetails.mockReturnValue({ data: { ...details, matches }, loading: false, error: null, retry: vi.fn() })
     renderPage('/players/player-id?view=matches')
 
     expect(screen.getByRole('table').querySelectorAll('tbody tr')).toHaveLength(10)
-    expect(screen.getByRole('table').querySelector('tbody tr')).toHaveTextContent('Club 10')
+    expect(screen.getByRole('table').querySelector('tbody tr')).toHaveTextContent('Opponent 10')
     expect(screen.getByText('Pàgina 1 de 2')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Següent' }))
     expect(screen.getByRole('table').querySelectorAll('tbody tr')).toHaveLength(1)
-    expect(screen.getByRole('table').querySelector('tbody tr')).toHaveTextContent('Club 0')
+    expect(screen.getByRole('table').querySelector('tbody tr')).toHaveTextContent('Opponent 0')
   })
 
   it('removes the legacy detail sections from the player detail view', () => {
