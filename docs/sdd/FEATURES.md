@@ -36,6 +36,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00034: Fixes pack 1](### [FEAT-00034] Fixes pack 1)
 - [FEAT-00035: Some played matches dont appear for a season while percentage exists](### [FEAT-00035] Some played matches dont appear for a season while percentage exists)
 - [FEAT-00036: Component analysis sorting players criteria](### [FEAT-00036] Component analysis sorting players criteria)
+- [FEAT-00037: Enable Players to be searched by license id added to the name](### [FEAT-00037] Enable Players to be searched by license id added to the name)
 
 ## In Progress
 
@@ -45,7 +46,22 @@ No features currently in progress.
 
 ## In Review
 
-No features currently in review.
+### [FEAT-00037] Enable Players to be searched by license id added to the name
+- **Status:** in-review
+- **Priority:** medium
+- **Effort:** small (< 2h)
+- **Depends on:** —
+
+#### Goal
+Allow users to find a player by searching for the license ID displayed alongside the player's name.
+
+#### Acceptance Criteria
+- [x] Player search matches the license ID included in the player's displayed name.
+- [x] Searching by player name continues to work as before.
+- [x] Search matching is applied consistently wherever players can be searched.
+
+#### Feature Details
+→ See [FEAT-00037-DETAILS.md](./FEAT-00037-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ## Backlog
 

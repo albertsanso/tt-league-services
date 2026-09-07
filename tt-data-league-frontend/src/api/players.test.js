@@ -116,6 +116,16 @@ describe('player API boundary', () => {
     expect(players[0].federatedPlayers).toHaveLength(2)
   })
 
+  it('preserves federated licenses for player search display', () => {
+    const [player] = normalizePlayerSearchResponse([{
+      id: 'player-id',
+      name: 'Anna Player',
+      federatedPlayers: [{ id: 'federated-id', name: 'Anna Player', license: '12345', source: 'RFETM' }],
+    }])
+
+    expect(player.federatedPlayers[0].license).toBe('12345')
+  })
+
   it('rejects malformed source context', () => {
     expect(() => normalizePlayerSearchResponse([{
       id: 'player-id',

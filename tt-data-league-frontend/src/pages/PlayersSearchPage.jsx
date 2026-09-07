@@ -5,6 +5,13 @@ import { routePaths } from '../config/routes.js'
 import { usePlayerSearch } from '../hooks/usePlayers.js'
 import { useTranslation } from 'react-i18next'
 
+function displayName(player) {
+  const licenses = [...new Set((player.federatedPlayers ?? [])
+    .map((federatedPlayer) => federatedPlayer.license)
+    .filter(Boolean))]
+  return licenses.length > 0 ? `${player.name} (${licenses.join(', ')})` : player.name
+}
+
 function PlayersSearchPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const urlQuery = searchParams.get('q') ?? ''
@@ -91,7 +98,7 @@ function PlayersSearchPage() {
                   )}
                 >
                   <span>
-                    <strong>{player.name}</strong>
+                    <strong>{displayName(player)}</strong>
                      <span className="club-source">{t('search.sources', { sources: player.sources.join(', ') || player.source })}</span>
                     <span className="club-source">
                       {t('search.seasons', { seasons: player.seasons.length > 0 ? player.seasons.join(', ') : '—' })}
@@ -102,7 +109,7 @@ function PlayersSearchPage() {
               ) : (
                 <div className="club-result-link">
                   <span>
-                    <strong>{player.name}</strong>
+                    <strong>{displayName(player)}</strong>
                    <span className="club-source">{t('search.sources', { sources: player.sources.join(', ') || player.source })}</span>
                    <span className="club-source">
                      {t('search.seasons', { seasons: player.seasons.length > 0 ? player.seasons.join(', ') : '—' })}

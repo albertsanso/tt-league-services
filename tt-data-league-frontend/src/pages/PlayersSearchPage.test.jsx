@@ -18,7 +18,7 @@ describe('PlayersSearchPage', () => {
         canonicalPlayerId: 'player-id',
         sources: ['RFETM'],
         seasons: ['2024-2025', '2023-2024'],
-        federatedPlayers: [],
+        federatedPlayers: [{ id: 'federated-id', name: 'Anna Player', license: '12345', source: 'RFETM' }],
       }],
       loading: false,
       error: null,
@@ -34,6 +34,16 @@ describe('PlayersSearchPage', () => {
     )
 
     expect(screen.getByText('Temporades: 2024-2025, 2023-2024')).toBeInTheDocument()
+  })
+
+  it('shows the federated license alongside the player name', () => {
+    render(
+      <MemoryRouter initialEntries={['/players?q=Anna']}>
+        <PlayersSearchPage />
+      </MemoryRouter>,
+    )
+
+    expect(screen.getAllByText('Anna Player (12345)')).not.toHaveLength(0)
   })
 
   it('does not render a source selector or pass a source filter', () => {

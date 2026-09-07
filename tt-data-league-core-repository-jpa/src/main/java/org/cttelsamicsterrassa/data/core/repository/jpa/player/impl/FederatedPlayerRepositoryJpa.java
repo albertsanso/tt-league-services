@@ -121,12 +121,16 @@ public class FederatedPlayerRepositoryJpa implements FederatedPlayerRepository {
             List<String> fragments,
             boolean matchAnyFragment) {
         List<Predicate> predicates = fragments.stream()
-                .map(fragment ->
+                .map(fragment -> criteriaBuilder.or(
                         criteriaBuilder.like(
                                 criteriaBuilder.lower(root.get("name")),
                                 "%" + fragment.toLowerCase() + "%"
+                        ),
+                        criteriaBuilder.like(
+                                criteriaBuilder.lower(root.get("licenseId")),
+                                "%" + fragment.toLowerCase() + "%"
                         )
-                ).toList();
+                )).toList();
 
         return matchAnyFragment
                 ? criteriaBuilder.or(predicates.toArray(new Predicate[0]))
