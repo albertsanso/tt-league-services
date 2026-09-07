@@ -46,8 +46,20 @@ No features currently in progress.
 
 ## In Review
 
+No features currently in review.
+
+---
+
+## Backlog
+
+No features currently in the backlog.
+
+---
+
+## Done
+
 ### [FEAT-00037] Enable Players to be searched by license id added to the name
-- **Status:** in-review
+- **Status:** done
 - **Priority:** medium
 - **Effort:** small (< 2h)
 - **Depends on:** —
@@ -63,13 +75,7 @@ Allow users to find a player by searching for the license ID displayed alongside
 #### Feature Details
 → See [FEAT-00037-DETAILS.md](./FEAT-00037-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
-## Backlog
-
-No features currently in the backlog.
-
 ---
-
-## Done
 
 ### [FEAT-00036] Component analysis sorting players criteria
 - **Status:** done

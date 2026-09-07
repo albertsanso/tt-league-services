@@ -43,3 +43,4 @@ based, matching the current name-search behavior.
   of the implementation belongs to the implementation/finalization step.
 - The implementation is complete and the feature is in `in-review`; moving it
   to `done` requires explicit approval.
+- User explicitly approved closure; the feature is now `done`.
