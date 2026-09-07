@@ -46,8 +46,6 @@ No features currently in review.
 
 ## Backlog
 
-No features currently in the backlog.
-
 ---
 
 ## Done
