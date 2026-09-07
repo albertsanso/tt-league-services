@@ -33,6 +33,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00031: import process from endpoint performance improvement and implementation alignemt with CLI version](### [FEAT-00031] import process from endpoint performance improvement and implementation alignemt with CLI version)
 - [FEAT-00032: asynchronous import process with progress feedback in the UI](### [FEAT-00032] asynchronous import process with progress feedback in the UI)
 - [FEAT-00033: default system import folder setting](### [FEAT-00033] default system import folder setting)
+- [FEAT-00034: Fixes pack 1](### [FEAT-00034] Fixes pack 1)
 
 ## In Progress
 
@@ -46,9 +47,40 @@ No features currently in review.
 
 ## Backlog
 
+No features currently in the backlog.
+
 ---
 
 ## Done
+
+### [FEAT-00034] Fixes pack 1
+- **Status:** done
+- **Priority:** low
+- **Effort:** small (< 2h)
+- **Depends on:** —
+
+#### Goal
+Implement and review the Player details statistics-chart fixes with explicit
+played-matches and win-percentage vertical axes.
+
+#### Acceptance Criteria
+- [x] The Player details Statistics tab renders a connected scatter chart with
+  the played-matches and win-percentage series for the selected seasons.
+- [x] The chart calculates independent vertical positions for played matches
+  and win percentage so both datasets remain visible even though their value
+  ranges differ.
+- [x] The chart exposes the win-percentage scale from 0% to 100%, translated
+  left/right vertical-axis labelling, a legend for both datasets, and an
+  accessible text table containing the underlying values.
+- [x] The implemented chart behavior is covered by focused
+  `PlayerDetailPage` tests, including default rendering, both vertical-axis
+  labels and ticks, percentage grid lines, accessible chart description,
+  removal of the chart-type selector, and the `connected-scatter` URL state.
+
+#### Feature Details
+→ See [FEAT-00034-DETAILS.md](./FEAT-00034-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00033] default system import folder setting
 - **Status:** done

@@ -324,7 +324,7 @@ export default {
     statisticsHistory: 'Historial estadístic',
     statisticsEmpty: 'No hi ha dades estadístiques disponibles per als filtres seleccionats.',
     chartLegend: 'Llegenda del gràfic',
-    chartAria: 'Dispersió connectada: sèries de partits jugats i percentatge de victòries de totes les temporades seleccionades en un únic gràfic. Escala vertical de percentatge de victòries del 0% al 100%',
+    chartAria: 'Dispersió connectada: sèries de partits jugats i percentatge de victòries de totes les temporades seleccionades en un únic gràfic. Escala vertical de partits jugats i escala de percentatge de victòries del 0% al 100%',
     historyValues: 'Valors de l’historial estadístic',
     opponentResults: 'Resultats per oponent',
     opponentsEmpty: 'Cap oponent coincideix amb la cerca.',

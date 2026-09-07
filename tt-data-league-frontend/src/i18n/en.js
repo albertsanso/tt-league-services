@@ -21,7 +21,7 @@ const en = {
 
 en.detail.opponentSearchTab = 'Search opponents'
 en.detail.opponentCategorizationTab = 'Opponent categorisation'
-en.detail.chartAria = 'Connected scatter: played matches and win percentage series for all selected seasons in one chart. Vertical scale of win percentage from 0% to 100%'
+en.detail.chartAria = 'Connected scatter: played matches and win percentage series for all selected seasons in one chart. Vertical scale for played matches and a win percentage scale from 0% to 100%'
 en.systemSettings.delete = 'Delete'
 en.systemSettings.deleted = 'Setting deleted.'
 en.systemSettings.deleteError = 'The setting could not be deleted.'

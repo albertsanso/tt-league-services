@@ -450,10 +450,11 @@ function ConnectedScatterPlot({ values }) {
   const { t } = useTranslation()
   const width = 640
   const height = 220
-  const padding = { top: 16, right: 18, bottom: 36, left: 36 }
+  const padding = { top: 16, right: 48, bottom: 36, left: 54 }
   const plotWidth = width - padding.left - padding.right
   const plotHeight = height - padding.top - padding.bottom
   const maxMatches = Math.max(...values.map((item) => item.matchesPlayed), 1)
+  const matchTicks = matchAxisTicks(maxMatches)
   const x = (index) => values.length === 1
     ? padding.left + plotWidth / 2
     : padding.left + index * plotWidth / (values.length - 1)
@@ -472,7 +473,13 @@ function ConnectedScatterPlot({ values }) {
         const y = yWins(tick)
         return <g key={tick}>
           <line className="chart-grid-line percentage-grid-line" x1={padding.left} y1={y} x2={width - padding.right} y2={y} />
-          <text className="chart-axis-tick" x={padding.left - 6} y={y + 3} textAnchor="end">{tick}%</text>
+          <text className="chart-axis-tick percentage-axis-tick" x={width - padding.right + 6} y={y + 3} textAnchor="start">{tick}%</text>
+        </g>
+      })}
+      {matchTicks.map((tick) => {
+        const y = yMatches(tick)
+        return <g key={tick}>
+          <text className="chart-axis-tick matches-axis-tick" x={padding.left - 6} y={y + 3} textAnchor="end">{tick}</text>
         </g>
       })}
       <polyline className="chart-line matches-line" fill="none" points={matchesPoints} />
@@ -482,10 +489,15 @@ function ConnectedScatterPlot({ values }) {
         {item.winPercentage != null && <circle className="chart-point wins-point" cx={x(index)} cy={yWins(item.winPercentage)} r="3" />}
         <text className="chart-season-label" x={x(index)} y={height - 18} textAnchor="middle">{item.season || '—'}</text>
       </g>)}
-      <text className="chart-axis-label" x="10" y={padding.top + plotHeight / 2} textAnchor="middle" transform={`rotate(-90 10 ${padding.top + plotHeight / 2})`}>{t('common.winPercentage')}</text>
+      <text className="chart-axis-label matches-axis-label" x="14" y={padding.top + plotHeight / 2} textAnchor="middle" transform={`rotate(-90 14 ${padding.top + plotHeight / 2})`}>{t('common.playedMatches')}</text>
+      <text className="chart-axis-label percentage-axis-label" x={width - 10} y={padding.top + plotHeight / 2} textAnchor="middle" transform={`rotate(90 ${width - 10} ${padding.top + plotHeight / 2})`}>{t('common.winPercentage')}</text>
       <text className="chart-axis-label" x={width / 2} y={height - 2} textAnchor="middle">{t('common.seasons')}</text>
     </svg>
   </div>
+}
+
+function matchAxisTicks(maxMatches) {
+  return [...new Set([0, 1, 2, 3, 4].map((step) => Math.round(maxMatches * step / 4)))]
 }
 
 function aggregateCompetition(matches, competition) {

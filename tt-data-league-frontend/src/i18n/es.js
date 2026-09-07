@@ -21,7 +21,7 @@ const es = {
 
 es.detail.opponentSearchTab = 'Buscar oponentes'
 es.detail.opponentCategorizationTab = 'Categorización de oponentes'
-es.detail.chartAria = 'Dispersión conectada: series de partidos jugados y porcentaje de victorias de todas las temporadas seleccionadas en un único gráfico. Escala vertical de porcentaje de victorias del 0% al 100%'
+es.detail.chartAria = 'Dispersión conectada: series de partidos jugados y porcentaje de victorias de todas las temporadas seleccionadas en un único gráfico. Escala vertical de partidos jugados y escala de porcentaje de victorias del 0% al 100%'
 es.systemSettings.delete = 'Eliminar'
 es.systemSettings.deleted = 'Configuración eliminada.'
 es.systemSettings.deleteError = 'No se ha podido eliminar la configuración.'
