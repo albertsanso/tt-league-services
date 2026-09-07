@@ -2397,7 +2397,9 @@
 
 .matches-point {
   stroke: var(--secondary);
-  fill: var(--secondary);
+  fill: none;
+  stroke-linecap: round;
+  stroke-width: 3;
 }
 
 .wins-point {

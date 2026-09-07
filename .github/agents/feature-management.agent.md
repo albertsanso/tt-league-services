@@ -1,6 +1,7 @@
 ---
 name: feature-management
 description: Maintain the SDD feature registry and lifecycle under docs/sdd.
+model: GPT-5.6 Luna (copilot)
 ---
 
 # Feature management agent

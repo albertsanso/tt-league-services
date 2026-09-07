@@ -25,6 +25,8 @@ import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -101,7 +103,11 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
                             && registration.getSource() == lineup.getMatch().getSource()
                             && (lineup.getSource() == null || registration.getSource() == lineup.getSource());
                 }).toList();
-        List<Match> allPlayerMatches = lineups.stream().map(Lineup::getMatch).distinct()
+        Map<UUID, Lineup> lineupByMatchId = lineups.stream()
+                .sorted(Comparator.comparing(Lineup::getId))
+                .collect(Collectors.toMap(lineup -> lineup.getMatch().getId(), lineup -> lineup,
+                        (first, ignored) -> first, LinkedHashMap::new));
+        List<Match> allPlayerMatches = lineupByMatchId.values().stream().map(Lineup::getMatch)
                 .sorted(Comparator.comparing(Match::getSeason, Comparator.nullsLast(Comparator.comparing(Object::toString)))
                         .thenComparing(Match::getCompetition, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
                         .thenComparing(Match::getRound).thenComparing(Match::getId)).toList();
@@ -109,17 +115,24 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
                 .filter(match -> matchesFilter(match, query)).toList();
         Map<UUID, List<Game>> gamesByMatch = loadGames(playerMatches);
         Map<UUID, List<DoublesPair>> pairsByGame = loadDoublesPairs(gamesByMatch);
-        List<PlayerSeasonStatisticsReadModel> statistics = playerMatches.stream()
+        Map<StatisticsKey, List<Match>> matchesByStatisticsKey = new LinkedHashMap<>();
+        registrations.stream()
+                .filter(registration -> matchesFilter(registration.getSource(), registration.getSeason(), query))
+                .forEach(registration -> matchesByStatisticsKey.putIfAbsent(
+                        new StatisticsKey(registration.getSource(), registration.getSeason()), List.of()));
+        playerMatches.stream()
                 .collect(Collectors.groupingBy(match -> new StatisticsKey(match.getSource(), match.getSeason()),
-                        LinkedHashMap::new, Collectors.toList())).entrySet().stream()
-                .map(entry -> toStatistics(entry.getKey(), entry.getValue(), lineups))
+                        LinkedHashMap::new, Collectors.toList()))
+                .forEach((key, matchesForKey) -> matchesByStatisticsKey.put(key, matchesForKey));
+        List<PlayerSeasonStatisticsReadModel> statistics = matchesByStatisticsKey.entrySet().stream()
+                .map(entry -> toStatistics(entry.getKey(), entry.getValue(), lineupByMatchId))
                 .sorted(Comparator.comparing(PlayerSeasonStatisticsReadModel::season,
                                 Comparator.nullsLast(Comparator.comparing(Object::toString)))
                         .thenComparing(PlayerSeasonStatisticsReadModel::source,
                                 Comparator.nullsLast(Comparator.comparing(Enum::name))))
                 .toList();
         List<PlayerMatchReadModel> matches = playerMatches.stream()
-                .map(match -> toMatch(match, lineups, registrations, gamesByMatch, pairsByGame)).toList();
+                .map(match -> toMatch(match, lineupByMatchId, registrations, gamesByMatch, pairsByGame)).toList();
         List<PlayerClubReadModel> clubs = lineups.stream().map(Lineup::getTeam)
                 .filter(team -> team != null && team.getFederatedClub().isPresent()).map(this::toClub).distinct()
                 .sorted(Comparator.comparing(PlayerClubReadModel::season,
@@ -141,9 +154,14 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
     }
 
     private boolean matchesFilter(Match match, FindPlayerDetailsQuery query) {
-        return (query.getSource() == null || query.getSource() == match.getSource())
-                && (query.getSeason() == null || Objects.equals(query.getSeason(), match.getSeason()))
+        return matchesFilter(match.getSource(), match.getSeason(), query)
                 && (query.getCompetition() == null || Objects.equals(query.getCompetition(), match.getCompetition()));
+    }
+
+    private boolean matchesFilter(ImportSource source, Season season,
+                                  FindPlayerDetailsQuery query) {
+        return (query.getSource() == null || query.getSource() == source)
+                && (query.getSeason() == null || Objects.equals(query.getSeason(), season));
     }
 
     private PlayerClubReadModel toClub(Team team) {
@@ -151,11 +169,12 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
         return new PlayerClubReadModel(club.getId(), club.getName(), team.getSource(), team.getSeason());
     }
 
-    private PlayerMatchReadModel toMatch(Match match, List<Lineup> lineups, List<PlayerSeason> registrations,
+    private PlayerMatchReadModel toMatch(Match match, Map<UUID, Lineup> lineupByMatchId,
+                                         List<PlayerSeason> registrations,
                                          Map<UUID, List<Game>> gamesByMatch,
                                          Map<UUID, List<DoublesPair>> pairsByGame) {
-        Team playerTeam = lineups.stream().filter(lineup -> lineup.getMatch().getId().equals(match.getId()))
-                .map(Lineup::getTeam).filter(team -> team != null).findFirst().orElse(null);
+        Lineup playerLineup = lineupByMatchId.get(match.getId());
+        Team playerTeam = playerLineup == null ? null : playerLineup.getTeam();
         UUID teamId = playerTeam == null ? null : playerTeam.getId();
         String result = match.getWinnerTeam() == null ? "draw"
                 : match.getWinnerTeam().getId().equals(teamId) ? "win" : "loss";
@@ -257,15 +276,15 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
     }
 
     private PlayerSeasonStatisticsReadModel toStatistics(StatisticsKey key, List<Match> matches,
-                                                         List<Lineup> lineups) {
+                                                         Map<UUID, Lineup> lineupByMatchId) {
         int wins = 0;
         int losses = 0;
         int scoredMatches = 0;
         int scoreTotal = 0;
         for (Match match : matches) {
-            UUID teamId = lineups.stream()
-                    .filter(lineup -> lineup.getMatch().getId().equals(match.getId()))
-                    .map(Lineup::getTeam).filter(team -> team != null).map(Team::getId).findFirst().orElse(null);
+            Lineup playerLineup = lineupByMatchId.get(match.getId());
+            UUID teamId = playerLineup == null || playerLineup.getTeam() == null
+                    ? null : playerLineup.getTeam().getId();
             if (teamId != null && match.getWinnerTeam() != null) {
                 if (match.getWinnerTeam().getId().equals(teamId)) {
                     wins++;

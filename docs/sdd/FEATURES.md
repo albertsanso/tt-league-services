@@ -34,6 +34,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00032: asynchronous import process with progress feedback in the UI](### [FEAT-00032] asynchronous import process with progress feedback in the UI)
 - [FEAT-00033: default system import folder setting](### [FEAT-00033] default system import folder setting)
 - [FEAT-00034: Fixes pack 1](### [FEAT-00034] Fixes pack 1)
+- [FEAT-00035: Some played matches dont appear for a season while percentage exists](### [FEAT-00035] Some played matches dont appear for a season while percentage exists)
+- [FEAT-00036: Component analysis sorting players criteria](### [FEAT-00036] Component analysis sorting players criteria)
 
 ## In Progress
 
@@ -52,6 +54,56 @@ No features currently in the backlog.
 ---
 
 ## Done
+
+### [FEAT-00036] Component analysis sorting players criteria
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** —
+
+#### Goal
+In Players opponents analysis in Player details, the sort criteria must be by Victories percentage, then by number of matches played, and finally by player name.
+
+#### Acceptance Criteria
+- [x] The categorized Players opponents analysis tables in Player details are sorted first by Victories percentage (descending), then by number of matches played (descending), and finally by player name (ascending).
+- [x] The sorting criteria are applied consistently across all seasons and match data available for the selected player.
+
+#### Feature Details
+→ See [FEAT-00036-DETAILS.md](./FEAT-00036-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+### [FEAT-00035] Some played matches dont appear for a season while percentage exists
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium (2–8h)
+- **Depends on:** —
+
+#### Goal
+Ensure that a season's played-match count is available and displayed whenever
+the season has a win percentage derived from played matches.
+
+Use different symbols for scatter plot series:
+- Played matches: cross
+- Win percentage: triangle
+
+#### Acceptance Criteria
+- [x] For every season with an available win percentage derived from match
+  results, the corresponding played-match count is returned and displayed.
+- [x] The underlying season-statistics query or aggregation no longer omits
+  played matches because of inconsistent joins, filters, grouping, or source
+  data handling.
+- [x] Seasons with no played matches remain distinguishable from seasons whose
+  match data is unavailable, without inventing a played-match count.
+- [x] Regression coverage includes the reported mismatch and verifies that
+  unaffected season statistics continue to display correctly.
+- [x] The connected scatter plot uses larger crosses for played matches and
+  triangles for win percentage.
+
+#### Feature Details
+→ See [FEAT-00035-DETAILS.md](./FEAT-00035-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00034] Fixes pack 1
 - **Status:** done

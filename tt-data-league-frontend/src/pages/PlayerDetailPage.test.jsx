@@ -70,6 +70,51 @@ const manyOpponentsDetails = {
   ],
 }
 
+function opponentMatches(name, wins, losses, draws = 0) {
+  return [...Array(wins)].map((_, index) => ({
+    id: `${name}-win-${index}`,
+    source: 'FCTT',
+    season: '2024-2025',
+    competition: 'Preferent',
+    homeTeam: 'Club Terrassa',
+    awayTeam: name,
+    playerTeam: 'Club Terrassa',
+    result: 'win',
+  })).concat([...Array(losses)].map((_, index) => ({
+    id: `${name}-loss-${index}`,
+    source: 'FCTT',
+    season: '2024-2025',
+    competition: 'Preferent',
+    homeTeam: 'Club Terrassa',
+    awayTeam: name,
+    playerTeam: 'Club Terrassa',
+    result: 'loss',
+  }))).concat([...Array(draws)].map((_, index) => ({
+    id: `${name}-draw-${index}`,
+    source: 'FCTT',
+    season: '2024-2025',
+    competition: 'Preferent',
+    homeTeam: 'Club Terrassa',
+    awayTeam: name,
+    playerTeam: 'Club Terrassa',
+    result: 'draw',
+  })))
+}
+
+const sortingDetails = {
+  ...details,
+  matches: [
+    ...opponentMatches('Club Beta', 2, 0),
+    ...opponentMatches('Club Gamma', 1, 0),
+    ...opponentMatches('Club Alfa', 2, 1),
+    ...opponentMatches('Club Omega', 2, 1),
+    ...opponentMatches('Club Delta', 1, 2),
+    ...opponentMatches('Club Epsilon', 2, 3),
+    ...opponentMatches('Club Zeta', 1, 4),
+    ...opponentMatches('Club Eta', 0, 2),
+  ],
+}
+
 function LocationProbe() {
   const location = useLocation()
   return <output data-testid="location">{location.search}</output>
@@ -218,6 +263,20 @@ describe('PlayerDetailPage', () => {
     expect(tables[2]).not.toHaveTextContent('Club Alfa')
   })
 
+  it('sorts every categorized table by percentage, matches, then deterministic name', () => {
+    usePlayerDetails.mockReturnValue({ data: sortingDetails, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=opponents&opponentView=categorization')
+
+    const tables = screen.getAllByRole('table')
+    const names = (table) => [...table.querySelectorAll('tbody tr td:first-child')].map((cell) => cell.textContent)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mostra 1 oponents més' }))
+
+    expect(names(tables[0])).toEqual(['Club Beta', 'Club Gamma', 'Club Alfa', 'Club Omega'])
+    expect(names(tables[1])).toEqual(['Club Epsilon', 'Club Delta'])
+    expect(names(tables[2])).toEqual(['Club Zeta', 'Club Eta'])
+  })
+
   it('shows a specific empty state for every empty category', () => {
     usePlayerDetails.mockReturnValue({ data: drawOnlyDetails, loading: false, error: null, retry: vi.fn() })
     renderPage('/players/player-id?view=opponents')
@@ -264,6 +323,37 @@ describe('PlayerDetailPage', () => {
     expect(chartGroups[1]).toHaveTextContent('2024-2025')
   })
 
+  it('keeps the played-match count visible when a season has a percentage', () => {
+    renderPage('/players/player-id')
+
+    const row = screen.getByRole('table').querySelector('tbody tr')
+    expect(row).toHaveTextContent('2024-2025')
+    expect(row).toHaveTextContent('3')
+    expect(row).toHaveTextContent('50.0%')
+  })
+
+  it('deduplicates repeated competition matches before aggregating statistics', () => {
+    usePlayerDetails.mockReturnValue({
+      data: {
+        ...details,
+        matches: [
+          details.matches[0],
+          details.matches[0],
+          details.matches[1],
+        ],
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+    renderPage('/players/player-id?competition=Preferent')
+
+    const row = screen.getByRole('table').querySelector('tbody tr')
+    expect(row).toHaveTextContent('2024-2025')
+    expect(row).toHaveTextContent('2')
+    expect(row).toHaveTextContent('50.0%')
+  })
+
   it('uses the connected scatter chart with a percentage scale by default', () => {
     renderPage('/players/player-id')
 
@@ -276,6 +366,12 @@ describe('PlayerDetailPage', () => {
     expect([...chart.querySelectorAll('.matches-axis-tick')].map((label) => label.textContent))
       .toEqual(['0', '1', '2', '3'])
     expect(chart.querySelectorAll('.percentage-grid-line')).toHaveLength(5)
+    expect(chart.querySelectorAll('.matches-point')).toHaveLength(1)
+    expect(chart.querySelectorAll('.matches-point')[0].tagName).toBe('path')
+    expect(chart.querySelectorAll('.matches-point')[0]).toHaveAttribute('d', 'M 317 10 L 329 22 M 329 10 L 317 22')
+    expect(chart.querySelectorAll('.wins-point')).toHaveLength(1)
+    expect(chart.querySelectorAll('.wins-point')[0].tagName).toBe('polygon')
+    expect(chart.querySelectorAll('.wins-point')[0]).toHaveAttribute('points', '323,94 317,106 329,106')
     expect(screen.queryByLabelText('Tipus de gràfic')).not.toBeInTheDocument()
   })
 

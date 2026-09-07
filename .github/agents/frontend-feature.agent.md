@@ -1,6 +1,7 @@
 ---
 name: frontend-feature
 description: Implement frontend features using the TT League design system and React conventions.
+model: GPT-5.6 Luna (copilot)
 ---
 
 # Frontend feature agent

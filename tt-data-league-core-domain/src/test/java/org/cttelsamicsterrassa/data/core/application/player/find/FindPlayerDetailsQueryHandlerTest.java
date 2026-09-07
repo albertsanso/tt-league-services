@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -160,5 +161,73 @@ class FindPlayerDetailsQueryHandlerTest {
         assertEquals(List.of(fcttMatch.getId()), details.matches().stream().map(value -> value.id()).toList());
         assertEquals(1, details.statistics().size());
         assertEquals(2, details.competitions().size());
+    }
+
+    @Test
+    void countsOneMatchWhenDuplicateLineupsReferenceTheSameMatch() {
+        UUID playerId = UUID.randomUUID();
+        Season season = Season.of(2025);
+        Player player = Player.createExisting(playerId, "Anna Player");
+        FederatedPlayer federatedPlayer = FederatedPlayer.createExisting(
+                UUID.randomUUID(), ImportSource.RFETM, "Anna Player", player);
+        PlayerSeason registration = PlayerSeason.createExisting(
+                UUID.randomUUID(), ImportSource.RFETM, "Anna Player", "123", federatedPlayer, season);
+        Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Terrassa", season, null);
+        Team awayTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Barcelona", season, null);
+        Match match = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+                .season(season).homeTeam(homeTeam).awayTeam(awayTeam).winnerTeam(homeTeam)
+                .homeGamesWon(4).awayGamesWon(2).createExisting();
+        Lineup first = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).match(match)
+                .team(homeTeam).player(registration).createExisting();
+        Lineup duplicate = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).match(match)
+                .team(homeTeam).player(registration).createExisting();
+
+        PlayerRepository playerRepository = mock(PlayerRepository.class);
+        FederatedPlayerRepository federatedPlayerRepository = mock(FederatedPlayerRepository.class);
+        PlayerSeasonRepository playerSeasonRepository = mock(PlayerSeasonRepository.class);
+        LineupRepository lineupRepository = mock(LineupRepository.class);
+        when(playerRepository.findPlayerById(playerId)).thenReturn(Optional.of(player));
+        when(federatedPlayerRepository.findAllFederatedPlayersByPlayerId(playerId)).thenReturn(List.of(federatedPlayer));
+        when(playerSeasonRepository.findAllPlayerSeasonsByFederatedPlayerIds(List.of(federatedPlayer.getId())))
+                .thenReturn(List.of(registration));
+        when(lineupRepository.findAllLineupsByPlayerSeasonIds(List.of(registration.getId())))
+                .thenReturn(List.of(first, duplicate));
+
+        PlayerDetailsReadModel details = new FindPlayerDetailsQueryHandler(
+                playerRepository, federatedPlayerRepository, playerSeasonRepository, lineupRepository)
+                .handle(new FindPlayerDetailsQuery(playerId)).getResponse();
+
+        assertEquals(1, details.matches().size());
+        assertEquals(1, details.statistics().getFirst().matchesPlayed());
+        assertEquals(100.0, details.statistics().getFirst().winPercentage());
+    }
+
+    @Test
+    void exposesARegisteredSeasonWithNoMatchesAsZeroStatistics() {
+        UUID playerId = UUID.randomUUID();
+        Season season = Season.of(2025);
+        Player player = Player.createExisting(playerId, "Anna Player");
+        FederatedPlayer federatedPlayer = FederatedPlayer.createExisting(
+                UUID.randomUUID(), ImportSource.RFETM, "Anna Player", player);
+        PlayerSeason registration = PlayerSeason.createExisting(
+                UUID.randomUUID(), ImportSource.RFETM, "Anna Player", "123", federatedPlayer, season);
+
+        PlayerRepository playerRepository = mock(PlayerRepository.class);
+        FederatedPlayerRepository federatedPlayerRepository = mock(FederatedPlayerRepository.class);
+        PlayerSeasonRepository playerSeasonRepository = mock(PlayerSeasonRepository.class);
+        LineupRepository lineupRepository = mock(LineupRepository.class);
+        when(playerRepository.findPlayerById(playerId)).thenReturn(Optional.of(player));
+        when(federatedPlayerRepository.findAllFederatedPlayersByPlayerId(playerId)).thenReturn(List.of(federatedPlayer));
+        when(playerSeasonRepository.findAllPlayerSeasonsByFederatedPlayerIds(List.of(federatedPlayer.getId())))
+                .thenReturn(List.of(registration));
+        when(lineupRepository.findAllLineupsByPlayerSeasonIds(List.of(registration.getId())))
+                .thenReturn(List.of());
+
+        PlayerDetailsReadModel details = new FindPlayerDetailsQueryHandler(
+                playerRepository, federatedPlayerRepository, playerSeasonRepository, lineupRepository)
+                .handle(new FindPlayerDetailsQuery(playerId)).getResponse();
+
+        assertEquals(0, details.statistics().getFirst().matchesPlayed());
+        assertNull(details.statistics().getFirst().winPercentage());
     }
 }

@@ -25,6 +25,8 @@ const OPPONENT_VIEWS = {
   SEARCH: 'search',
 }
 const PERCENTAGE_TICKS = [0, 25, 50, 75, 100]
+const MATCHES_MARKER_SIZE = 6
+const WINS_MARKER_SIZE = 6
 const unique = (values) => [...new Set(values.filter(Boolean))].sort()
 const MATCHES_PER_PAGE = 10
 
@@ -279,9 +281,9 @@ function OpponentAnalysisPanel({ matches, opponentView, update, t }) {
     <div id="opponent-tabpanel" role="tabpanel" aria-labelledby={`opponent-${opponentView}-tab`}>
       {opponentView === OPPONENT_VIEWS.CATEGORIZATION ? (
         <>
-          <OpponentCategoryTable id="favorable" title={t('detail.categoryFavorable')} empty={t('detail.categoryFavorableEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'favorable').sort(compareFavorableOpponents)} t={t} />
-          <OpponentCategoryTable id="hard" title={t('detail.categoryHard')} empty={t('detail.categoryHardEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'hard').sort(compareHardOpponents)} t={t} />
-          <OpponentCategoryTable id="problem" title={t('detail.categoryProblem')} empty={t('detail.categoryProblemEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'problem').sort(compareHardOpponents)} t={t} />
+          <OpponentCategoryTable id="favorable" title={t('detail.categoryFavorable')} empty={t('detail.categoryFavorableEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'favorable').sort(compareCategorizedOpponents)} t={t} />
+          <OpponentCategoryTable id="hard" title={t('detail.categoryHard')} empty={t('detail.categoryHardEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'hard').sort(compareCategorizedOpponents)} t={t} />
+          <OpponentCategoryTable id="problem" title={t('detail.categoryProblem')} empty={t('detail.categoryProblemEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'problem').sort(compareCategorizedOpponents)} t={t} />
         </>
       ) : (
         <>
@@ -377,12 +379,12 @@ function compareOpponentNames(left, right) {
     || left.name.localeCompare(right.name, 'ca')
 }
 
-function compareFavorableOpponents(left, right) {
-  return right.playerWinPercentage - left.playerWinPercentage || compareOpponentNames(left, right)
-}
-
-function compareHardOpponents(left, right) {
-  return left.playerWinPercentage - right.playerWinPercentage || compareOpponentNames(left, right)
+function compareCategorizedOpponents(left, right) {
+  if (left.playerWinPercentage == null && right.playerWinPercentage != null) return 1
+  if (left.playerWinPercentage != null && right.playerWinPercentage == null) return -1
+  return (right.playerWinPercentage ?? 0) - (left.playerWinPercentage ?? 0)
+    || right.matches - left.matches
+    || compareOpponentNames(left, right)
 }
 
 function addOpponent(opponents, key, opponent, result) {
@@ -485,8 +487,8 @@ function ConnectedScatterPlot({ values }) {
       <polyline className="chart-line matches-line" fill="none" points={matchesPoints} />
       {winsPoints && <polyline className="chart-line wins-line" fill="none" points={winsPoints} />}
       {values.map((item, index) => <g key={`${item.source}-${item.season}-${index}`}>
-        <circle className="chart-point matches-point" cx={x(index)} cy={yMatches(item.matchesPlayed)} r="3" />
-        {item.winPercentage != null && <circle className="chart-point wins-point" cx={x(index)} cy={yWins(item.winPercentage)} r="3" />}
+        <path className="chart-point matches-point" d={crossPath(x(index), yMatches(item.matchesPlayed), MATCHES_MARKER_SIZE)} />
+        {item.winPercentage != null && <polygon className="chart-point wins-point" points={trianglePoints(x(index), yWins(item.winPercentage), WINS_MARKER_SIZE)} />}
         <text className="chart-season-label" x={x(index)} y={height - 18} textAnchor="middle">{item.season || '—'}</text>
       </g>)}
       <text className="chart-axis-label matches-axis-label" x="14" y={padding.top + plotHeight / 2} textAnchor="middle" transform={`rotate(-90 14 ${padding.top + plotHeight / 2})`}>{t('common.playedMatches')}</text>
@@ -496,12 +498,24 @@ function ConnectedScatterPlot({ values }) {
   </div>
 }
 
+function trianglePoints(centerX, centerY, size) {
+  return `${centerX},${centerY - size} ${centerX - size},${centerY + size} ${centerX + size},${centerY + size}`
+}
+
+function crossPath(centerX, centerY, size) {
+  return `M ${centerX - size} ${centerY - size} L ${centerX + size} ${centerY + size} M ${centerX + size} ${centerY - size} L ${centerX - size} ${centerY + size}`
+}
+
 function matchAxisTicks(maxMatches) {
   return [...new Set([0, 1, 2, 3, 4].map((step) => Math.round(maxMatches * step / 4)))]
 }
 
 function aggregateCompetition(matches, competition) {
-  const selected = matches.filter((item) => item.competition === competition)
+  const selected = [...new Map(
+    matches
+      .filter((item) => item.competition === competition)
+      .map((item) => [item.id, item]),
+  ).values()]
   const grouped = new Map()
   selected.forEach((match) => {
     const key = `${match.source}-${match.season}`
