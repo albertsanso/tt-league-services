@@ -85,10 +85,10 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         }
 
         String competition = context.competition();
-        int groupNumber = context.groupNumber();
+        Integer groupNumber = context.groupNumber();
         int round = context.round();
 
-        if (matchRepository.findMatchByNaturalKey(competition, season, groupNumber, round,
+        if (matchRepository.findMatchByNaturalKey(competition, season, groupNumber, round, context.phase(),
                 homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
             LOGGER.debug("Fixture already stored for {} #{}; skipping", context.matchReportFile(), context.fixtureIndex());
             return;
@@ -109,7 +109,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
     private Match buildMatch(BcnesaMatchReportContext context,
                              Season season,
                              String competition,
-                             int groupNumber,
+                             Integer groupNumber,
                              int round,
                              Team homeTeam,
                              Team awayTeam) {
@@ -124,6 +124,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
                 .season(season)
                 .groupNumber(groupNumber)
                 .round(round)
+                .phase(context.phase())
                 .dateTime(toDateTime(acta))
                 .city(acta.venue() != null ? acta.venue().city() : null)
                 .venue(acta.venue() != null ? acta.venue().venue() : null)

@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.load.bcnesa.traverse;
 
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
+import org.cttelsamicsterrassa.data.load.bcnesa.BcnesaVeteransPhases;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportContext;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -44,7 +46,10 @@ import java.util.regex.Pattern;
  * {@code acta_<matchId>.json}, where the suffix is an arbitrary identifier carrying no meaning for the
  * import. The name is never parsed: the match day comes from the payload's {@code jornada} and the
  * clubs from {@code equipos} plus the group's licence index. Measured over the whole export,
- * {@code jornada} is present in all 2,996 files, so nothing is lost by ignoring the name.</p>
+ * {@code jornada} is present in all 2,996 files, so nothing is lost by ignoring the name. The one
+ * exception is a fixture under a BCNESA Veterans "Other" group (see {@link BcnesaVeteransPhases}): if
+ * its payload carries no {@code jornada}, the match day is instead parsed from the file name
+ * ({@link #OTHER_GROUP_ROUND_FROM_FILE_NAME}).</p>
  *
  * <h2>Failure handling</h2>
  * <p>Nothing a single file or fixture can do aborts the run. Folders that do not fit the layout are
@@ -62,6 +67,15 @@ public class BcnesaActasDirectoryNavigator {
     private static final Pattern MATCH_REPORT_FILE_PATTERN = Pattern.compile("acta.*\\.json");
     private static final Pattern SEASON_FOLDER_PATTERN = Pattern.compile("\\d{4}-\\d{4}");
     private static final Pattern GROUP_FOLDER_PATTERN = Pattern.compile("G\\d+");
+
+    /**
+     * Fallback source for the match day when a payload under a Veterans "Other" group carries no
+     * {@code jornada} (see {@link BcnesaVeteransPhases}): the report file name mirrors the
+     * source PDF's {@code acta_<number>_page_<*>.pdf} naming, where {@code <number>} is the
+     * jornada. Not evidenced against a real "Other"-group export - confirm before relying on it.
+     */
+    private static final Pattern OTHER_GROUP_ROUND_FROM_FILE_NAME =
+            Pattern.compile("acta_(\\d+)_page_.*\\.json", Pattern.CASE_INSENSITIVE);
 
     private final List<BcnesaMatchReportProcessor> processors;
     private final ActaParser actaParser;
@@ -189,7 +203,7 @@ public class BcnesaActasDirectoryNavigator {
             String leagueCompetition = competitionFolder.getFileName().toString();
             for (Path groupFolder : listDirectories(competitionFolder)) {
                 String group = groupFolder.getFileName().toString();
-                if (!GROUP_FOLDER_PATTERN.matcher(group).matches()) {
+                if (!isAcceptedGroupFolder(leagueCompetition, group)) {
                     LOGGER.warn("Skipping unexpected group folder {}", groupFolder);
                     continue;
                 }
@@ -201,6 +215,18 @@ public class BcnesaActasDirectoryNavigator {
                 }
             }
         }
+    }
+
+    /**
+     * A group folder is accepted when it fits the regular {@code G<n>} layout, or when it is the
+     * literal "Other" group folder of a Veterans competition (see {@link BcnesaVeteransPhases}) -
+     * the folder that holds every playoff/promotion/relegation/finals phase and whose fixtures carry
+     * no numbered group. Any other competition's non-{@code G<n>} group folder is rejected (fail
+     * closed) rather than silently imported under wrong assumptions.
+     */
+    private static boolean isAcceptedGroupFolder(String leagueCompetition, String group) {
+        return GROUP_FOLDER_PATTERN.matcher(group).matches()
+                || BcnesaVeteransPhases.isOtherGroup(leagueCompetition, group);
     }
 
     private void traverseReportFolder(Path reportFolder,
@@ -225,13 +251,16 @@ public class BcnesaActasDirectoryNavigator {
                 continue;
             }
 
-            if (acta.round() == null) {
+            Integer round = acta.round();
+            if (round == null && BcnesaVeteransPhases.isOtherGroup(leagueCompetition, group)) {
+                round = parseRoundFromFileName(reportFile);
+            }
+            if (round == null) {
                 counters.filesSkipped++;
                 LOGGER.warn("Skipping {}: payload carries no match day", reportFile);
                 reportProgress(counters, progressListener);
                 continue;
             }
-            int round = acta.round();
 
             List<BcnesaMatchdaySplitter.Fixture> fixtures = splitter.split(acta, clubIndex);
             for (int i = 0; i < fixtures.size(); i++) {
@@ -241,6 +270,17 @@ public class BcnesaActasDirectoryNavigator {
             }
             reportProgress(counters, progressListener);
         }
+    }
+
+    /**
+     * Parses the match day out of a Veterans "Other"-group file name, matching
+     * {@link #OTHER_GROUP_ROUND_FROM_FILE_NAME}. Returns {@code null} when the name does not fit,
+     * so the caller falls back to skipping the file exactly as it does when the payload itself
+     * carries no {@code jornada}.
+     */
+    private static Integer parseRoundFromFileName(Path reportFile) {
+        Matcher matcher = OTHER_GROUP_ROUND_FROM_FILE_NAME.matcher(reportFile.getFileName().toString());
+        return matcher.matches() ? Integer.valueOf(matcher.group(1)) : null;
     }
 
     private static void reportProgress(Counters counters, ImportProgressListener progressListener) {

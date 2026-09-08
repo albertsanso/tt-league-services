@@ -29,7 +29,7 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
                 // Without them a whole matchday would collapse into a single row.
                 @UniqueConstraint(
                         name = "uk_competition_season_group_round_teams",
-                        columnNames = {"competition", "season", "group_num", "round", "home_team_id", "away_team_id"}),
+                        columnNames = {"competition", "season", "group_num", "round", "phase", "home_team_id", "away_team_id"}),
                 @UniqueConstraint(name = "uk_match_external_id", columnNames = {"external_id"})
         }
 )
@@ -50,7 +50,7 @@ public class MatchJPA {
     @Column(name = "season", nullable = true, length = 9)
     private String season;
 
-    @Column(name = "group_num", nullable = false)
+    @Column(name = "group_num", nullable = true)
     private Integer groupNumber;
 
     @Column(name = "round", nullable = false)

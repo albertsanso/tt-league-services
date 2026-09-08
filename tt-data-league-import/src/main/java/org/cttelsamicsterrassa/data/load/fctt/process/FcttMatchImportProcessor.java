@@ -98,7 +98,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         }
 
         int groupNumber = context.groupNumber().orElseThrow();
-        if (matchRepository.findMatchByNaturalKey(context.competition(), season, groupNumber, context.round(),
+        if (matchRepository.findMatchByNaturalKey(context.competition(), season, groupNumber, context.round(), null,
                 homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
             LOGGER.debug("FCTT match already stored for {}; skipping", context.matchReportFile());
             return;

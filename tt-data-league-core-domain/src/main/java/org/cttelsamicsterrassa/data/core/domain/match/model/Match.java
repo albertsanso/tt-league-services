@@ -25,7 +25,7 @@ public class Match extends Entity {
     private final String externalId;
     private final String competition;
     private final Season season;
-    private final int groupNumber;
+    private final Integer groupNumber;
     private final int round;
     private final String phase;
     private final ZonedDateTime dateTime;
@@ -42,7 +42,7 @@ public class Match extends Entity {
     private final Integer awaySetsWon;
     private final boolean protested;
 
-    private Match(UUID id, ImportSource source, String externalId, String competition, Season season, int groupNumber, int round, String phase, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested) {
+    private Match(UUID id, ImportSource source, String externalId, String competition, Season season, Integer groupNumber, int round, String phase, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested) {
         this.id = id;
         this.source = source;
         this.externalId = externalId;
@@ -123,7 +123,7 @@ public class Match extends Entity {
         private String externalId;
         private String competition;
         private Season season;
-        private int groupNumber;
+        private Integer groupNumber;
         private int round;
         private String phase;
         private ZonedDateTime dateTime;
@@ -165,7 +165,7 @@ public class Match extends Entity {
             return this;
         }
 
-        public MatchBuilder groupNumber(int groupNumber) {
+        public MatchBuilder groupNumber(Integer groupNumber) {
             this.groupNumber = groupNumber;
             return this;
         }
@@ -274,7 +274,7 @@ public class Match extends Entity {
         return season;
     }
 
-    public int getGroupNumber() {
+    public Integer getGroupNumber() {
         return groupNumber;
     }
 

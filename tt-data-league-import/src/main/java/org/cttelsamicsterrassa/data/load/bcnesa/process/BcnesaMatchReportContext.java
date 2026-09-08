@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+import org.cttelsamicsterrassa.data.load.bcnesa.BcnesaVeteransPhases;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaMatchdaySplitter;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
@@ -93,9 +94,14 @@ public record BcnesaMatchReportContext(
     }
 
     /**
-     * The group folder's number (for example {@code 1} for {@code G1}).
+     * The group folder's number (for example {@code 1} for {@code G1}), or {@code null} when
+     * {@code group} is the literal Veterans "Other" group (see {@link BcnesaVeteransPhases}), whose
+     * fixtures carry no numbered group regardless of which phase subfolder they sit under.
      */
-    public int groupNumber() {
+    public Integer groupNumber() {
+        if (BcnesaVeteransPhases.isOtherGroup(leagueCompetition, group)) {
+            return null;
+        }
         return Integer.parseInt(group.substring(1));
     }
 

@@ -163,8 +163,9 @@ Top-level team match event.
 | `external_id` | `VARCHAR(20)` | Yes | Unique; `idx_match_external_id` |
 | `competition` | `VARCHAR(255)` | Yes | `idx_match_competition_season_group_round` |
 | `season` | `VARCHAR(9)` | Yes | `idx_match_competition_season_group_round` |
-| `group_num` | `INTEGER` | No | `idx_match_competition_season_group_round` |
+| `group_num` | `INTEGER` | Yes | `idx_match_competition_season_group_round` |
 | `round` | `INTEGER` | No | `idx_match_competition_season_group_round` |
+| `phase` | `VARCHAR(255)` | Yes | — |
 | `match_date` | `DATE` | Yes | — |
 | `match_time` | `TIME` | Yes | — |
 | `city` | `VARCHAR(255)` | Yes | — |
@@ -183,7 +184,10 @@ Top-level team match event.
 The unique constraints are:
 
 - `uk_competition_season_group_round_teams` on
-  `(competition, season, group_num, round, home_team_id, away_team_id)`.
+  `(competition, season, group_num, round, phase, home_team_id, away_team_id)`.
+  `group_num` is nullable: a BCNESA Veterans "Other"-phase fixture (playoffs, promotion/relegation,
+  finals) carries no group, and per SQL's null-handling this constraint does not dedupe two such
+  fixtures by group alone (round, phase, and both teams still must differ).
 - `uk_match_external_id` on `(external_id)`.
 
 `homeTeam`, `awayTeam`, and `winnerTeam` are lazy `@ManyToOne` associations

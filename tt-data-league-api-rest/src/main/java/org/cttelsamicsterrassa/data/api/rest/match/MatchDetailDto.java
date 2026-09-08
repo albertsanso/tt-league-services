@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.UUID;
 
 public record MatchDetailDto(UUID id, String source, String externalId, String competition, String season,
-                             int groupNumber, int round, String phase, ZonedDateTime dateTime, String city,
+                             Integer groupNumber, int round, String phase, ZonedDateTime dateTime, String city,
                              String venue, TeamDto homeTeam, TeamDto awayTeam, TeamDto winnerTeam,
                              String refereeName, String refereeLicense, Integer homeGamesWon,
                              Integer awayGamesWon, Integer homeSetsWon,

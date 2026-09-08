@@ -21,12 +21,15 @@ public interface MatchRepository {
     /**
      * Finds a match by its natural key. Competition, season, group and round alone do not identify
      * a match — a round holds one match per pair of clubs — so both clubs are part of the key. This
-     * is what makes re-importing a season idempotent.
+     * is what makes re-importing a season idempotent. Phase is also part of the key because some
+     * sources (e.g. BCNESA) reuse round numbers across phases within the same group. {@code groupNumber}
+     * may be {@code null} for fixtures with no group (e.g. BCNESA Veterans "Other"-phase fixtures).
      */
     Optional<Match> findMatchByNaturalKey(String competition,
                                           Season season,
-                                          int groupNumber,
+                                          Integer groupNumber,
                                           int round,
+                                          String phase,
                                           UUID homeTeamId,
                                           UUID awayTeamId);
 

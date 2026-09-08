@@ -35,7 +35,8 @@
       "Bash(mvn -pl . -am test -Dtest=DebugScratchTest -Dsurefire.failIfNoSpecifiedTests=false)",
       "Bash(mvn -pl tt-data-league-core-domain,tt-data-league-core-repository-jpa,tt-data-league-import -am test -Dtest=DebugScratchTest -Dsurefire.failIfNoSpecifiedTests=false)",
       "PowerShell(mvn *)",
-      "PowerShell(python \"C:\\\\Users\\\\asanso\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--dev-local-tt-tt-league-2\\\\1b399686-ad67-4b32-b197-2b9ae4218024\\\\scratchpad\\\\scan_ids.py\")"
+      "PowerShell(python \"C:\\\\Users\\\\asanso\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--dev-local-tt-tt-league-2\\\\1b399686-ad67-4b32-b197-2b9ae4218024\\\\scratchpad\\\\scan_ids.py\")",
+      "Bash(mvn *)"
     ],
     "defaultMode": "acceptEdits"
   }

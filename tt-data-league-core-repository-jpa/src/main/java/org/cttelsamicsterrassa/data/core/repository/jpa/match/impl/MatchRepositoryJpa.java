@@ -41,13 +41,14 @@ public class MatchRepositoryJpa implements MatchRepository {
     @Override
     public Optional<Match> findMatchByNaturalKey(String competition,
                                                  Season season,
-                                                 int groupNumber,
+                                                 Integer groupNumber,
                                                  int round,
+                                                 String phase,
                                                  UUID homeTeamId,
                                                  UUID awayTeamId) {
         return matchRepositoryHelper
-                .findByCompetitionAndSeasonAndGroupNumberAndRoundAndHomeTeam_IdAndAwayTeam_Id(
-                        competition, season.toString(), groupNumber, round, homeTeamId, awayTeamId)
+                .findByCompetitionAndSeasonAndGroupNumberAndRoundAndPhaseAndHomeTeam_IdAndAwayTeam_Id(
+                        competition, season.toString(), groupNumber, round, phase, homeTeamId, awayTeamId)
                 .map(matchJPAToMatchMapper);
     }
 

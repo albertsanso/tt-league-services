@@ -143,11 +143,20 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
             @Param("season") String season,
             @Param("competition") String competition);
 
-    Optional<MatchJPA> findByCompetitionAndSeasonAndGroupNumberAndRoundAndHomeTeam_IdAndAwayTeam_Id(
-            String competition,
-            String season,
-            Integer groupNumber,
-            Integer round,
-            UUID homeTeamId,
-            UUID awayTeamId);
+    @Query("""
+            select m from MatchJPA m
+            where m.competition = :competition and m.season = :season
+              and (:groupNumber is null and m.groupNumber is null or m.groupNumber = :groupNumber)
+              and m.round = :round
+              and (:phase is null and m.phase is null or m.phase = :phase)
+              and m.homeTeam.id = :homeTeamId and m.awayTeam.id = :awayTeamId
+            """)
+    Optional<MatchJPA> findByCompetitionAndSeasonAndGroupNumberAndRoundAndPhaseAndHomeTeam_IdAndAwayTeam_Id(
+            @Param("competition") String competition,
+            @Param("season") String season,
+            @Param("groupNumber") Integer groupNumber,
+            @Param("round") Integer round,
+            @Param("phase") String phase,
+            @Param("homeTeamId") UUID homeTeamId,
+            @Param("awayTeamId") UUID awayTeamId);
 }

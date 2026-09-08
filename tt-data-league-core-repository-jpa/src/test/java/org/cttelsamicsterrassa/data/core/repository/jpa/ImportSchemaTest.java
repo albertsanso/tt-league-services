@@ -232,13 +232,83 @@ class ImportSchemaTest {
         matchRepository.saveMatch(match(c, d));
 
         Optional<Match> found = matchRepository.findMatchByNaturalKey(
-                "super-divisio-masculino", SEASON, 0, 1, c.getId(), d.getId());
+                "super-divisio-masculino", SEASON, 0, 1, null, c.getId(), d.getId());
 
         assertTrue(found.isPresent());
         assertEquals(c.getId(), found.get().getHomeTeam().getId());
         assertEquals(1, found.get().getRound());
         assertTrue(matchRepository.findMatchByNaturalKey(
-                "super-divisio-masculino", SEASON, 0, 1, a.getId(), d.getId()).isEmpty());
+                "super-divisio-masculino", SEASON, 0, 1, null, a.getId(), d.getId()).isEmpty());
+    }
+
+    @Test
+    void distinguishesMatchesSharingARoundButBelongingToDifferentPhases() {
+        Team a = storedTeam("1", "CLUB A");
+        Team b = storedTeam("2", "CLUB B");
+
+        Match firstPhase = Match.builder()
+                .id(UUID.randomUUID())
+                .competition("super-divisio-masculino")
+                .season(SEASON)
+                .groupNumber(0)
+                .round(1)
+                .phase("1a Fase")
+                .homeTeam(a)
+                .awayTeam(b)
+                .createNew();
+        Match secondPhase = Match.builder()
+                .id(UUID.randomUUID())
+                .competition("super-divisio-masculino")
+                .season(SEASON)
+                .groupNumber(0)
+                .round(1)
+                .phase("2a Fase")
+                .homeTeam(a)
+                .awayTeam(b)
+                .createNew();
+
+        matchRepository.saveMatch(firstPhase);
+        matchRepository.saveMatch(secondPhase);
+
+        Optional<Match> foundFirst = matchRepository.findMatchByNaturalKey(
+                "super-divisio-masculino", SEASON, 0, 1, "1a Fase", a.getId(), b.getId());
+        Optional<Match> foundSecond = matchRepository.findMatchByNaturalKey(
+                "super-divisio-masculino", SEASON, 0, 1, "2a Fase", a.getId(), b.getId());
+
+        assertTrue(foundFirst.isPresent());
+        assertTrue(foundSecond.isPresent());
+        assertEquals(firstPhase.getId(), foundFirst.get().getId());
+        assertEquals(secondPhase.getId(), foundSecond.get().getId());
+
+        assertTrue(matchRepository.findMatchByNaturalKey(
+                "super-divisio-masculino", SEASON, 0, 1, "1a Fase", a.getId(), b.getId()).isPresent());
+    }
+
+    @Test
+    void persistsAndDedupesAMatchWithANullGroupNumber() {
+        Team a = storedTeam("1", "CLUB A");
+        Team b = storedTeam("2", "CLUB B");
+
+        Match otherPhase = Match.builder()
+                .id(UUID.randomUUID())
+                .competition("veterans")
+                .season(SEASON)
+                .groupNumber(null)
+                .round(1)
+                .phase("Play Off")
+                .homeTeam(a)
+                .awayTeam(b)
+                .createNew();
+        matchRepository.saveMatch(otherPhase);
+
+        Optional<Match> found = matchRepository.findMatchByNaturalKey(
+                "veterans", SEASON, null, 1, "Play Off", a.getId(), b.getId());
+
+        assertTrue(found.isPresent());
+        assertNull(found.get().getGroupNumber());
+        assertTrue(matchRepository.findMatchByNaturalKey(
+                "veterans", SEASON, 0, 1, "Play Off", a.getId(), b.getId()).isEmpty(),
+                "a numbered group must not match a null-group fixture");
     }
 
     @Test

@@ -13,7 +13,7 @@ public record MatchDetailReadModel(
         String externalId,
         String competition,
         Season season,
-        int groupNumber,
+        Integer groupNumber,
         int round,
         String phase,
         ZonedDateTime dateTime,

@@ -420,14 +420,16 @@ public final class InMemoryRepositories {
         @Override
         public Optional<Match> findMatchByNaturalKey(String competition,
                                                      Season season,
-                                                     int groupNumber,
+                                                     Integer groupNumber,
                                                      int round,
+                                                     String phase,
                                                      UUID homeTeamId,
                                                      UUID awayTeamId) {
             return saved.stream()
                     .filter(m -> competition.equals(m.getCompetition()))
                     .filter(m -> season.equals(m.getSeason()))
-                    .filter(m -> m.getGroupNumber() == groupNumber && m.getRound() == round)
+                    .filter(m -> Objects.equals(groupNumber, m.getGroupNumber()) && m.getRound() == round)
+                    .filter(m -> Objects.equals(phase, m.getPhase()))
                     .filter(m -> homeTeamId.equals(m.getHomeTeam().getId()))
                     .filter(m -> awayTeamId.equals(m.getAwayTeam().getId()))
                     .findFirst();

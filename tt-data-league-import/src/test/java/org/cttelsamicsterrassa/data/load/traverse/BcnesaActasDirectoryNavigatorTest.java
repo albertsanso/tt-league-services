@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -216,6 +217,88 @@ class BcnesaActasDirectoryNavigatorTest {
         assertEquals(1, updates.get(0).processed());
         assertEquals(2, updates.get(1).processed());
         assertTrue(updates.get(1).total().isEmpty(), "no reliable total is available, so progress stays indeterminate");
+    }
+
+    @Test
+    void veteransOtherGroupFixtureIsIngestedWithANullGroupNumber() throws IOException {
+        // Regression for the production bug: a fixture under <Competition>/Other/<phase>/ used to be
+        // silently skipped because the group-folder filter only accepted G<n>.
+        writeReport("2020-2021", "Veterans", "Other", "Play Off", "acta.json",
+                singleFixtureActa(5, "HOME CLUB", "AWAY CLUB", "10", "20", "30", "40"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(0, summary.filesSkipped());
+        BcnesaMatchReportContext context = injected.single();
+        assertEquals("Play Off", context.phase());
+        assertEquals(5, context.round());
+        assertEquals(null, context.groupNumber());
+    }
+
+    @Test
+    void veteransOtherGroupFixtureWithNoJornadaTakesTheRoundFromTheFileName() throws IOException {
+        writeReport("2020-2021", "Veterans", "Other", "ASCENS", "acta_5_page_1.json",
+                singleFixtureActa("HOME CLUB", "AWAY CLUB", "10", "20", "30", "40")
+                        .replace("\"jornada\": 1,", "\"jornada\": null,"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(0, summary.filesSkipped());
+        BcnesaMatchReportContext context = injected.single();
+        assertEquals(5, context.round());
+        assertEquals(null, context.groupNumber());
+    }
+
+    @Test
+    void everyPhaseUnderTheVeteransOtherGroupIsIngested() throws IOException {
+        writeReport("2020-2021", "Veterans", "Other", "Play Off", "acta.json",
+                singleFixtureActa("HOME 1", "AWAY 1", "10", "20", "30", "40"));
+        writeReport("2020-2021", "Veterans", "Other", "ASCENS", "acta.json",
+                singleFixtureActa("HOME 2", "AWAY 2", "11", "21", "31", "41"));
+        writeReport("2020-2021", "Veterans", "Other", "DESCENS", "acta.json",
+                singleFixtureActa("HOME 3", "AWAY 3", "12", "22", "32", "42"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(3, summary.fixturesDispatched());
+        assertEquals(Set.of("Play Off", "ASCENS", "DESCENS"),
+                injected.contexts.stream().map(BcnesaMatchReportContext::phase).collect(java.util.stream.Collectors.toSet()));
+    }
+
+    @Test
+    void realVeteransCompetitionFolderNamingIsRecognised() throws IOException {
+        // Regression: production Veterans competition folders are named "Vet 1a", "Vet 2a", etc. -
+        // not "Veterans" - and must be recognised the same way.
+        writeReport("2020-2021", "Vet 1a", "Other", "Play Off", "acta.json",
+                singleFixtureActa(5, "HOME CLUB", "AWAY CLUB", "10", "20", "30", "40"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(0, summary.filesSkipped());
+        BcnesaMatchReportContext context = injected.single();
+        assertEquals("Play Off", context.phase());
+        assertEquals(null, context.groupNumber());
+    }
+
+    @Test
+    void nonVeteransCompetitionWithAnOtherGroupFolderIsStillSkipped() throws IOException {
+        writeReport("2020-2021", "Preferent", "Other", "Play Off", "acta.json",
+                singleFixtureActa("HOME CLUB", "AWAY CLUB", "10", "20", "30", "40"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(0, summary.filesSeen(), "the Other group folder itself is skipped for a non-Veterans competition");
+        assertTrue(injected.contexts.isEmpty());
+    }
+
+    @Test
+    void veteransFirstPhaseFixtureUnderANumberedGroupKeepsTheRegularGroupNumber() throws IOException {
+        writeReport("2020-2021", "Veterans", "G1", "1a Fase", "acta.json",
+                singleFixtureActa("HOME CLUB", "AWAY CLUB", "10", "20", "30", "40"));
+
+        navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(1, injected.single().groupNumber());
     }
 
     @Test

@@ -100,7 +100,7 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
         int groupNumber = acta.group() != null ? acta.group() : 0;
         int round = context.round();
 
-        if (matchRepository.findMatchByNaturalKey(competition, season, groupNumber, round,
+        if (matchRepository.findMatchByNaturalKey(competition, season, groupNumber, round, null,
                 homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
             LOGGER.debug("Match already stored for {}; skipping", context.matchReportFile());
             return;

@@ -23,10 +23,9 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00040: Import process for BCNESA with phases](### [FEAT-00040] Import process for BCNESA with phases)
 - [FEAT-00039: Add Phase property into league matches](### [FEAT-00039] Add Phase property into league matches)
-
 - [FEAT-00038: In Player details, Matches Tab, show the oponent as the Player name instead of theTeam name](### [FEAT-00038] In Player details, Matches Tab, show the oponent as the Player name instead of theTeam name)
-
 - [FEAT-00024: System settings](### [FEAT-00024] System settings)
 - [FEAT-00025: Administration > Data import design theme](### [FEAT-00025] Administration > Data import design theme)
 - [FEAT-00026: Display Data Import left Source/Federation selector with dynamic status](### [FEAT-00026] Display Data Import left Source/Federation selector with dynamic status)
@@ -47,8 +46,86 @@ This file is the single source of truth for planned, in-progress, and completed 
 No features currently in progress.
 ## In Review
 
+No features currently in review.
+## Backlog
+
+No features currently in the backlog.
+## Done
+
+### [FEAT-00040] Import process for BCNESA with phases
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** FEAT-00039
+
+# Summary
+
+The bcnesa import process must support phases for matches.
+This means that when importing data, the system should be able to handle different stages or phases of the import process,
+allowing for better organization and management of the data being imported.
+
+#### Goal
+Wire the BCNESA import process to populate the match phase property from source data, and make phase part of match identity so fixtures
+from different phases with the same round number are not skipped or collided as duplicates.
+
+# Description
+
+The new unzipped folder structure is as follows:
+```
+/
+├── actas-json/
+│   └── <season>/
+│       └── <Competition>/
+│           └── <Group>/
+│               └── <Phase>/
+```
+
+Where for Veterans, the `<Phase>` folder can be "1a Fase" or "Other".
+In case of "Other", the parser should not assume that only that one phase exists. The value "Other" means that the parse value for Group is `null`.
+In case of "Other" phases, the file name format is `acta_<number>_page_<*>.pdf`, where `<number>` is the "jornada" property number for that phase.
+Possible values for phases when "Other" is used are "Play Off", "ASCENS", "DESCENS", "Finals", etc.
+The "fase" field should be populated based on the folder structure, specifically from the `<Phase>` folder name.
+
+**Correction (2026-09-08, confirmed by production bug report):** the folder that is literally named
+`Other` is `<Group>`, not `<Phase>`. Under `<Competition>/Other/`, the `<Phase>` subfolders are named
+"Play Off", "ASCENS", "DESCENS", "Finals", etc. (there can be several, sitting side by side). It is
+`<Group>=Other` that means the parsed Group value is `null` for every fixture under it, regardless of
+which of those phases it belongs to.
+
+# Acceptance Criteria
+- [x] this modification on import process focuses only in BCNESA Veterans competitions.
+- [x] The import process should correctly identify and handle different phases of matches based on the folder structure. Only for Veterans competitions.
+- [x] The "fase" field should be correctly populated in the imported data based on the `<Phase>` folder name.
+- [x] The import process should be able to handle cases where the `<Group>` folder is named "Other" and correctly interpret the phase information from the `<Phase>` subfolders and, when needed, the file names.
+- [x] The import process should correctly handle multiple phases within the "Other" group.
+- [x] The import process should correctly handle cases where the `<Phase>` folder is named "1a Fase".
+- [x] The BCNESA import pipeline sets Match.phase from the phase already parsed into BcnesaMatchReportContext for every imported fixture.
+- [x] The BCNESA match natural-key lookup and unique constraint distinguish fixtures that share competition, season, group, and round but belong to different phases, so no fixture is skipped or rejected as a false duplicate.
+- [x] Existing BCNESA matches already imported without a phase are left unaffected (no forced backfill) while newly imported/re-imported fixtures carry the correct phase.
+- [x] Focused regression coverage in tt-data-league-import (and tt-data-league-core-repository-jpa if the natural key changes) verifies phase is persisted, that same-round fixtures across different phases are both imported, and that fixtures under a Veterans `<Group>=Other` folder (any of Play Off/ASCENS/DESCENS/Finals) are actually ingested rather than skipped.
+
+#### Feature Details
+→ See [FEAT-00040-DETAILS.md](./FEAT-00040-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+**Fixed (2026-09-08):** production reported that actas under `<Group>=Other` with `<Phase>` in
+{Play Off, ASCENS, DESCENS} were not being ingested at all. Part B had keyed its "Other" detection off
+the `<Phase>` folder name instead of `<Group>`, so the pre-existing `G\d+`-only group-folder filter
+silently skipped the whole `Other` group before phase was ever considered. Part C re-keys the
+detection off the literal `<Group>=Other` folder and accepts it for Veterans competitions; re-running
+the import now ingests every previously-skipped fixture with `groupNumber = null` and its correct
+`phase`. See `FEAT-00040-DETAILS.md` Part C and Notes for the full change and residual risk (the
+Veterans-competition name heuristic is still not verified against a full real export).
+
+**Fixed (2026-09-08):** the Veterans-competition name heuristic flagged as a residual risk above was
+confirmed wrong - real BCNESA Veterans competition folders are named `"Vet 1a"`, `"Vet 2a"`, etc.
+(starting with `"Vet "`), not containing "veteran" as Part B/C assumed, so Part C's `<Group>=Other`
+fix never actually applied to any real competition. Part D widens the Veterans-competition match to
+also accept a `"Vet "`-prefixed name. See `FEAT-00040-DETAILS.md` Part D and Notes.
+
+---
+
 ### [FEAT-00039] Add Phase property into league matches
-- **Status:** in-review
+- **Status:** done
 - **Priority:** medium
 - **Effort:** medium
 - **Depends on:** —
@@ -73,18 +150,6 @@ Record which competition phase (e.g. regular season, playoffs) a league match be
 → See [FEAT-00039-DETAILS.md](./FEAT-00039-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-
----
-
----
-
----
-
----
-## Backlog
-
-No features currently in the backlog.
-## Done
 
 ### [FEAT-00038] In Player details, Matches Tab, show the oponent as the Player name instead of the Team name
 - **Status:** done
@@ -565,6 +630,14 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
 
 ---
 

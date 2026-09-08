@@ -134,6 +134,50 @@ class BcnesaImportProcessorsTest {
     }
 
     @Test
+    void storesThePhaseParsedFromTheReportContextOnEachImportedFixture() {
+        run(firstFixture());
+
+        Match first = matches.saved.stream()
+                .filter(m -> "FALCONS DE SABADELL".equals(homeName(m)))
+                .findFirst().orElseThrow();
+        assertEquals("1a Fase", first.getPhase());
+    }
+
+    @Test
+    void importsFixturesSharingARoundButBelongingToDifferentPhasesAsSeparateMatches() {
+        BcnesaMatchReportContext firstPhase = firstFixture();
+        BcnesaMatchReportContext secondPhase = fixtureContext(0, "FALCONS DE SABADELL", "CTT DELS HORTS", "2a Fase");
+
+        run(firstPhase);
+        run(secondPhase);
+
+        assertEquals(2, matches.saved.size());
+        assertTrue(matches.saved.stream().anyMatch(m -> "1a Fase".equals(m.getPhase())));
+        assertTrue(matches.saved.stream().anyMatch(m -> "2a Fase".equals(m.getPhase())));
+    }
+
+    @Test
+    void veteransOtherGroupFixtureIsPersistedWithANullGroupNumber() {
+        run(veteransOtherGroupFixture());
+
+        Match match = matches.saved.stream()
+                .filter(m -> "FALCONS DE SABADELL".equals(homeName(m)))
+                .findFirst().orElseThrow();
+        assertNull(match.getGroupNumber());
+        assertEquals("Play Off", match.getPhase());
+    }
+
+    @Test
+    void reRunningTheSameVeteransOtherGroupFixtureStoresNothingTwiceDespiteTheNullGroup() {
+        BcnesaMatchReportContext context = veteransOtherGroupFixture();
+
+        run(context);
+        run(context);
+
+        assertEquals(1, matches.saved.size());
+    }
+
+    @Test
     void storesLineupsFromTheFixturesOwnGamesRatherThanFileLevelAlineaciones() {
         run(secondFixture());
 
@@ -199,11 +243,24 @@ class BcnesaImportProcessorsTest {
     }
 
     private BcnesaMatchReportContext fixtureContext(int fixtureIndex, String homeTeam, String awayTeam) {
+        return fixtureContext(fixtureIndex, homeTeam, awayTeam, "1a Fase");
+    }
+
+    private BcnesaMatchReportContext fixtureContext(int fixtureIndex, String homeTeam, String awayTeam, String phase) {
+        return fixtureContext(fixtureIndex, homeTeam, awayTeam, "Preferent", "G1", phase);
+    }
+
+    private BcnesaMatchReportContext veteransOtherGroupFixture() {
+        return fixtureContext(0, "FALCONS DE SABADELL", "CTT DELS HORTS", "Veterans", "Other", "Play Off");
+    }
+
+    private BcnesaMatchReportContext fixtureContext(int fixtureIndex, String homeTeam, String awayTeam,
+                                                     String competition, String group, String phase) {
         List<ActaGame> allGames = acta.games();
         int gamesPerFixture = allGames.size() / 2;
         List<ActaGame> fixtureGames = allGames.subList(fixtureIndex * gamesPerFixture,
                 (fixtureIndex + 1) * gamesPerFixture);
-        return new BcnesaMatchReportContext("2020-2021", "Preferent", "G1", "1a Fase", 7,fixtureIndex,
+        return new BcnesaMatchReportContext("2020-2021", competition, group, phase, 7,fixtureIndex,
                 homeTeam, awayTeam, fixture("acta_matchday.json"), acta, fixtureGames);
     }
 
