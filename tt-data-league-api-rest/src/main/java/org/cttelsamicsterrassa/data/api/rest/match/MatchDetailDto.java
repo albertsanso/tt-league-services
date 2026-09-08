@@ -7,15 +7,16 @@ import java.util.List;
 import java.util.UUID;
 
 public record MatchDetailDto(UUID id, String source, String externalId, String competition, String season,
-                             int groupNumber, int round, ZonedDateTime dateTime, String city, String venue,
-                             TeamDto homeTeam, TeamDto awayTeam, TeamDto winnerTeam, String refereeName,
-                             String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon,
+                             int groupNumber, int round, String phase, ZonedDateTime dateTime, String city,
+                             String venue, TeamDto homeTeam, TeamDto awayTeam, TeamDto winnerTeam,
+                             String refereeName, String refereeLicense, Integer homeGamesWon,
+                             Integer awayGamesWon, Integer homeSetsWon,
                              Integer awaySetsWon, boolean protested, List<LineupDto> lineups,
                              List<GameDto> games) {
     static MatchDetailDto from(MatchDetailReadModel value) {
         return new MatchDetailDto(value.id(), value.source() == null ? null : value.source().name(),
                 value.externalId(), value.competition(), value.season() == null ? null : value.season().toString(),
-                value.groupNumber(), value.round(), value.dateTime(), value.city(), value.venue(),
+                value.groupNumber(), value.round(), value.phase(), value.dateTime(), value.city(), value.venue(),
                 team(value.homeTeam()), team(value.awayTeam()), team(value.winnerTeam()), value.refereeName(),
                 value.refereeLicense(),
                 value.homeGamesWon(), value.awayGamesWon(), value.homeSetsWon(), value.awaySetsWon(),

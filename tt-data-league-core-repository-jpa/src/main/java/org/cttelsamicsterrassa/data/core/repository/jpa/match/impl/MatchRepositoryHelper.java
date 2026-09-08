@@ -21,6 +21,7 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
             where m.source = :source and m.season = :season and m.competition = :competition
               and (:fromDate is null or m.matchDate >= :fromDate)
               and (:toDate is null or m.matchDate <= :toDate)
+              and (:phase is null or m.phase = :phase)
               and (:playerName = '' or exists (
                   select l.id from LineupJPA l join l.player p
                   where l.match = m and p.source = :source
@@ -46,13 +47,15 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                           @Param("toDate") java.time.LocalDate toDate,
                           @Param("playerId") UUID playerId,
                           @Param("playerLocation") String playerLocation,
-                          @Param("playerName") String playerName, Pageable pageable);
+                          @Param("playerName") String playerName,
+                          @Param("phase") String phase, Pageable pageable);
 
     @Query("""
             select count(m) from MatchJPA m
             where m.source = :source and m.season = :season and m.competition = :competition
               and (:fromDate is null or m.matchDate >= :fromDate)
               and (:toDate is null or m.matchDate <= :toDate)
+              and (:phase is null or m.phase = :phase)
               and (:playerName = '' or exists (
                   select l.id from LineupJPA l join l.player p
                   where l.match = m and p.source = :source
@@ -73,7 +76,8 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                      @Param("toDate") java.time.LocalDate toDate,
                      @Param("playerId") UUID playerId,
                      @Param("playerLocation") String playerLocation,
-                     @Param("playerName") String playerName);
+                     @Param("playerName") String playerName,
+                     @Param("phase") String phase);
 
     @Query("select m from MatchJPA m where m.source = :source order by m.matchDate desc, m.id asc")
     List<MatchJPA> findAllBySource(@Param("source") Source source);

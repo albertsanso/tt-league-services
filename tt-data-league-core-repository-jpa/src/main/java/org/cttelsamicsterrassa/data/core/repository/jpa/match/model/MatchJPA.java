@@ -56,6 +56,9 @@ public class MatchJPA {
     @Column(name = "round", nullable = false)
     private Integer round;
 
+    @Column(name = "phase", nullable = true, length = 255)
+    private String phase;
+
     @Column(name = "match_date", nullable = true)
     private LocalDate matchDate;
 

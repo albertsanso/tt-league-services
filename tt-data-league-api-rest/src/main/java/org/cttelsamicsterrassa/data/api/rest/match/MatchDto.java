@@ -7,14 +7,15 @@ import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 
-public record MatchDto(UUID id, String source, String competition, String season, int round,
+public record MatchDto(UUID id, String source, String competition, String season, int round, String phase,
                        ZonedDateTime dateTime, String homeTeam, String awayTeam, String winnerTeam,
                        Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon,
                        Integer awaySetsWon, boolean protested,
                        List<PlayerDto> homePlayers, List<PlayerDto> awayPlayers) {
     static MatchDto from(MatchSearchReadModel value) {
         return new MatchDto(value.id(), name(value.source()), value.competition(),
-                value.season() == null ? null : value.season().toString(), value.round(), value.dateTime(),
+                value.season() == null ? null : value.season().toString(), value.round(), value.phase(),
+                value.dateTime(),
                 value.homeTeam(), value.awayTeam(), value.winnerTeam(), value.homeGamesWon(),
                 value.awayGamesWon(), value.homeSetsWon(), value.awaySetsWon(), value.protested(),
                 value.homePlayers().stream().map(PlayerDto::from).toList(),

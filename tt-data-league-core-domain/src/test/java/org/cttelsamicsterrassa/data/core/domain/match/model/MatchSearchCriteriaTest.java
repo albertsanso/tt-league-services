@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import java.time.LocalDate;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class MatchSearchCriteriaTest {
@@ -26,5 +27,17 @@ class MatchSearchCriteriaTest {
         assertEquals("Ana", criteria.playerName());
         assertEquals(LocalDate.of(2023, 1, 1), criteria.fromDate());
         assertEquals(10, criteria.pageSize());
+        assertNull(criteria.phase());
+    }
+
+    @Test
+    void normalizesBlankPhaseToNullAndKeepsATrimmedPhase() {
+        var blank = new MatchSearchCriteria(ImportSource.RFETM, Season.of(2023), "Liga",
+                null, null, null, null, null, "  ", 0, 10);
+        assertNull(blank.phase());
+
+        var trimmed = new MatchSearchCriteria(ImportSource.RFETM, Season.of(2023), "Liga",
+                null, null, null, null, null, " 1a Fase ", 0, 10);
+        assertEquals("1a Fase", trimmed.phase());
     }
 }

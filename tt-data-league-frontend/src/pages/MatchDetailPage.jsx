@@ -32,6 +32,7 @@ function MatchDetailPage() {
         <dt>{t('matchesPage.season')}</dt><dd>{match.season ?? t('common.unavailable')}</dd>
         <dt>{t('matchesPage.round')}</dt><dd>{match.round}</dd>
         <dt>{t('matchesPage.group')}</dt><dd>{match.groupNumber}</dd>
+        <dt>{t('matchesPage.phase')}</dt><dd>{match.phase ?? t('common.unavailable')}</dd>
         <dt>{t('matchesPage.venue')}</dt><dd>{[match.city, match.venue].filter(Boolean).join(' · ') || t('common.unavailable')}</dd>
         <dt>{t('matchesPage.winner')}</dt><dd>{match.winnerTeam?.name ?? t('common.unavailable')}</dd>
         <dt>{t('matchesPage.referee')}</dt>

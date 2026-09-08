@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
@@ -31,6 +32,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -263,6 +265,7 @@ class ImportSchemaTest {
                 .homeSetsWon(13)
                 .awaySetsWon(8)
                 .protested(true)
+                .phase("1a Fase")
                 .createNew();
         matchRepository.saveMatch(saved);
 
@@ -276,6 +279,59 @@ class ImportSchemaTest {
         assertEquals(home.getId(), found.getWinnerTeam().getId());
         assertEquals(4, found.getHomeGamesWon());
         assertTrue(found.isProtested());
+        assertEquals("1a Fase", found.getPhase());
+    }
+
+    @Test
+    void matchWithoutAPhaseIsStoredAndReadBackAsNull() {
+        Team home = storedTeam("1", "CLUB A");
+        Team away = storedTeam("2", "CLUB B");
+        Match saved = match(home, away);
+        matchRepository.saveMatch(saved);
+
+        assertNull(matchRepository.findMatchById(saved.getId()).orElseThrow().getPhase());
+    }
+
+    @Test
+    void searchMatchesFiltersByPhaseWhenProvided() {
+        Team home = storedTeam("1", "CLUB A");
+        Team away = storedTeam("2", "CLUB B");
+        Match firstPhase = Match.builder()
+                .id(UUID.randomUUID())
+                .source(ImportSource.BCNESA)
+                .competition("Preferent")
+                .season(SEASON)
+                .groupNumber(1)
+                .round(1)
+                .phase("1a Fase")
+                .homeTeam(home)
+                .awayTeam(away)
+                .createNew();
+        Match secondPhase = Match.builder()
+                .id(UUID.randomUUID())
+                .source(ImportSource.BCNESA)
+                .competition("Preferent")
+                .season(SEASON)
+                .groupNumber(1)
+                .round(1)
+                .phase("2a Fase")
+                .homeTeam(away)
+                .awayTeam(home)
+                .createNew();
+        matchRepository.saveMatch(firstPhase);
+        matchRepository.saveMatch(secondPhase);
+
+        MatchSearchCriteria unfiltered = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
+                null, null, null, null, null, null, 0, 10);
+        assertEquals(2, matchRepository.searchMatches(unfiltered).size());
+        assertEquals(2, matchRepository.countMatches(unfiltered));
+
+        MatchSearchCriteria filtered = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
+                null, null, null, null, null, "1a Fase", 0, 10);
+        List<Match> results = matchRepository.searchMatches(filtered);
+        assertEquals(1, results.size());
+        assertEquals(firstPhase.getId(), results.getFirst().getId());
+        assertEquals(1, matchRepository.countMatches(filtered));
     }
 
     private FederatedClub storedClub(String externalId, String name) {

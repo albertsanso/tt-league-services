@@ -31,6 +31,7 @@ public class MatchJPAToMatchMapper implements Function<MatchJPA, Match> {
                 .season(matchJpa.getSeason() != null ? Season.fromFormatted(matchJpa.getSeason()) : null)
                 .groupNumber(matchJpa.getGroupNumber())
                 .round(matchJpa.getRound())
+                .phase(matchJpa.getPhase())
                 .dateTime(toDateTime(matchJpa))
                 .city(matchJpa.getCity())
                 .venue(matchJpa.getVenue())

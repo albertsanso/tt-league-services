@@ -27,6 +27,7 @@ public class Match extends Entity {
     private final Season season;
     private final int groupNumber;
     private final int round;
+    private final String phase;
     private final ZonedDateTime dateTime;
     private final String city;
     private final String venue;
@@ -41,7 +42,7 @@ public class Match extends Entity {
     private final Integer awaySetsWon;
     private final boolean protested;
 
-    private Match(UUID id, ImportSource source, String externalId, String competition, Season season, int groupNumber, int round, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested) {
+    private Match(UUID id, ImportSource source, String externalId, String competition, Season season, int groupNumber, int round, String phase, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested) {
         this.id = id;
         this.source = source;
         this.externalId = externalId;
@@ -49,6 +50,7 @@ public class Match extends Entity {
         this.season = season;
         this.groupNumber = groupNumber;
         this.round = round;
+        this.phase = phase;
         this.dateTime = dateTime;
         this.city = city;
         this.venue = venue;
@@ -77,6 +79,7 @@ public class Match extends Entity {
                 builder.season,
                 builder.groupNumber,
                 builder.round,
+                builder.phase,
                 builder.dateTime,
                 builder.city,
                 builder.venue,
@@ -122,6 +125,7 @@ public class Match extends Entity {
         private Season season;
         private int groupNumber;
         private int round;
+        private String phase;
         private ZonedDateTime dateTime;
         private String city;
         private String venue;
@@ -168,6 +172,11 @@ public class Match extends Entity {
 
         public MatchBuilder round(int round) {
             this.round = round;
+            return this;
+        }
+
+        public MatchBuilder phase(String phase) {
+            this.phase = phase;
             return this;
         }
 
@@ -271,6 +280,10 @@ public class Match extends Entity {
 
     public int getRound() {
         return round;
+    }
+
+    public String getPhase() {
+        return phase;
     }
 
     public ZonedDateTime getDateTime() {

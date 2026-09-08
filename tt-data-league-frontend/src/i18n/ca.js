@@ -254,7 +254,7 @@ export default {
     results: 'Resultats', loading: 'Carregant...', empty: 'No s’han trobat partits.',
     error: 'No s’han pogut carregar els partits.', unauthorized: 'La sessió no permet consultar partits.',
     loadMore: 'Carrega’n més', back: 'Torna als partits', lineups: 'Alineacions', games: 'Jocs',
-    round: 'Jornada', group: 'Grup', venue: 'Pavelló', winner: 'Guanyador', referee: 'Àrbitre',
+    round: 'Jornada', group: 'Grup', phase: 'Fase', venue: 'Pavelló', winner: 'Guanyador', referee: 'Àrbitre',
     protested: 'Partit protestat',
     allSources: 'Totes les fonts', dateRange: 'Interval de dates',
   },

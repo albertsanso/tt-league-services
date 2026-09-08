@@ -13,6 +13,7 @@ public record MatchSearchReadModel(
         String competition,
         Season season,
         int round,
+        String phase,
         ZonedDateTime dateTime,
         String homeTeam,
         String awayTeam,

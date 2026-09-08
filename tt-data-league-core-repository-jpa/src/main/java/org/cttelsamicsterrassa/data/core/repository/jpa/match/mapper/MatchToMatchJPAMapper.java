@@ -35,6 +35,7 @@ public class MatchToMatchJPAMapper implements Function<Match, MatchJPA> {
         matchJPA.setSeason(match.getSeason() != null ? match.getSeason().toString() : null);
         matchJPA.setGroupNumber(match.getGroupNumber());
         matchJPA.setRound(match.getRound());
+        matchJPA.setPhase(match.getPhase());
         matchJPA.setCity(match.getCity());
         matchJPA.setVenue(match.getVenue());
         matchJPA.setRefereeName(match.getRefereeName());

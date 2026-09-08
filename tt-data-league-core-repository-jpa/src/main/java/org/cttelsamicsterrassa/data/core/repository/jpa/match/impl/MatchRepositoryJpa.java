@@ -110,6 +110,7 @@ public class MatchRepositoryJpa implements MatchRepository {
                         criteria.playerId(),
                         criteria.playerLocation() == null ? PlayerLocation.EITHER.name() : criteria.playerLocation().name(),
                         criteria.playerName() == null ? "" : criteria.playerName(),
+                        criteria.phase(),
                         PageRequest.of(criteria.page(), criteria.pageSize()))
                 .stream().map(matchJPAToMatchMapper).toList();
     }
@@ -120,7 +121,8 @@ public class MatchRepositoryJpa implements MatchRepository {
                 criteria.season().toString(), criteria.competition(), criteria.fromDate(), criteria.toDate(),
                 criteria.playerId(),
                 criteria.playerLocation() == null ? PlayerLocation.EITHER.name() : criteria.playerLocation().name(),
-                criteria.playerName() == null ? "" : criteria.playerName());
+                criteria.playerName() == null ? "" : criteria.playerName(),
+                criteria.phase());
     }
 
     @Override

@@ -65,6 +65,7 @@ public class FindMatchDetailsQueryHandler
                 .collect(Collectors.groupingBy(pair -> pair.getGame().getId()));
         return new MatchDetailReadModel(match.getId(), match.getSource(), match.getExternalId(),
                 match.getCompetition(), match.getSeason(), match.getGroupNumber(), match.getRound(),
+                match.getPhase(),
                 match.getDateTime(), match.getCity(), match.getVenue(), team(match.getHomeTeam()),
                 team(match.getAwayTeam()), team(match.getWinnerTeam()), match.getRefereeName(),
                 match.getRefereeLicense(),

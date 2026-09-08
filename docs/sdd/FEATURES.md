@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00039: Add Phase property into league matches](### [FEAT-00039] Add Phase property into league matches)
+
 - [FEAT-00038: In Player details, Matches Tab, show the oponent as the Player name instead of theTeam name](### [FEAT-00038] In Player details, Matches Tab, show the oponent as the Player name instead of theTeam name)
 
 - [FEAT-00024: System settings](### [FEAT-00024] System settings)
@@ -45,7 +47,40 @@ This file is the single source of truth for planned, in-progress, and completed 
 No features currently in progress.
 ## In Review
 
-No features currently in review.
+### [FEAT-00039] Add Phase property into league matches
+- **Status:** in-review
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Record which competition phase (e.g. regular season, playoffs) a league match belongs to.
+
+#### Description
+1. The match domain model must expose an `phase` property that can be set during import and persisted for matches.
+2. Existing matches without a known phase must have a sensible default or handling
+3. The scope of this feature is limited to the domain model and services, jpa/persistence, Rest api and UI/Frontend. It does not include any changes to the import process or data sources, which will be handled in a separate feature.
+
+#### Acceptance Criteria
+- [x] The match domain model exposes a `phase` property that can be set during import and persisted for matches.
+- [x] Existing matches without a known phase have a sensible default or handling.
+- [x] The `phase` property is exposed in the Rest API and UI/Frontend for league matches, allowing users to view and filter matches by phase.
+- [x] The implementation does not introduce any performance regressions or data inconsistencies in the match domain model, services, jpa/persistence, Rest api or UI/Frontend.
+- [x] Focused regression coverage verifies the correct handling of the `phase` property in all relevant components.
+- [x] Users can view and filter league matches by the `phase` property in the UI/Frontend.
+
+#### Feature Details
+→ See [FEAT-00039-DETAILS.md](./FEAT-00039-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 ## Backlog
 
 No features currently in the backlog.
@@ -530,6 +565,16 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

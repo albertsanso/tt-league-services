@@ -24,6 +24,7 @@ function MatchesSearchPage() {
     toDate: params.get('toDate') ?? '',
     playerLocation: params.get('playerLocation') ?? '',
     playerName: params.get('playerName') ?? '',
+    phase: params.get('phase') ?? '',
   }), [params])
   const filterKey = useMemo(() => JSON.stringify(filters), [filters])
 
@@ -37,6 +38,7 @@ function MatchesSearchPage() {
     filters.toDate,
     filters.playerLocation,
     filters.playerName,
+    filters.phase,
   ])
 
   useEffect(() => {
@@ -186,6 +188,9 @@ function MatchesSearchPage() {
           <label className="match-filter-field match-player-name">{t('matchesPage.playerName')}
             <input value={filters.playerName} onChange={(event) => update('playerName', event.target.value)} />
           </label>
+          <label className="match-filter-field">{t('matchesPage.phase')}
+            <input value={filters.phase} onChange={(event) => update('phase', event.target.value)} />
+          </label>
         </div>
         <button type="button" disabled={!canSearch || loading} onClick={search}>{loading ? t('matchesPage.loading') : t('common.search')}</button>
       </article>
@@ -202,7 +207,7 @@ function MatchesSearchPage() {
                   <strong>{match.homeTeam} – {match.awayTeam}</strong>
                   <span>{[...(match.homePlayers ?? []), ...(match.awayPlayers ?? [])]
                     .map((player) => `${player.name} (${player.license ?? '—'})`).join(' · ')}</span>
-                  <span>{match.dateTime ? new Date(match.dateTime).toLocaleString() : t('common.unavailable')} · {match.competition} · {match.homeGamesWon ?? '—'}–{match.awayGamesWon ?? '—'}</span>
+                  <span>{match.dateTime ? new Date(match.dateTime).toLocaleString() : t('common.unavailable')} · {match.competition}{match.phase ? ` · ${match.phase}` : ''} · {match.homeGamesWon ?? '—'}–{match.awayGamesWon ?? '—'}</span>
                 </Link>
               </li>
             ))}

@@ -59,7 +59,7 @@ public class SearchMatchesQueryHandler extends DomainQueryHandler<SearchMatchesQ
                         && match.getAwayTeam() != null && match.getAwayTeam().getId().equals(value.getTeam().getId()))
                 .map(SearchMatchesQueryHandler::player).toList();
         return new MatchSearchReadModel(match.getId(), match.getSource(), match.getCompetition(),
-                match.getSeason(), match.getRound(), match.getDateTime(),
+                match.getSeason(), match.getRound(), match.getPhase(), match.getDateTime(),
                 match.getHomeTeam() == null ? null : match.getHomeTeam().getName(),
                 match.getAwayTeam() == null ? null : match.getAwayTeam().getName(),
                 match.getWinnerTeam() == null ? null : match.getWinnerTeam().getName(),

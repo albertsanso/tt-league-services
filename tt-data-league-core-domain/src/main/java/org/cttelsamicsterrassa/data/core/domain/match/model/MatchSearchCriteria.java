@@ -15,6 +15,7 @@ public record MatchSearchCriteria(
         UUID playerId,
         PlayerLocation playerLocation,
         String playerName,
+        String phase,
         int page,
         int pageSize) {
 
@@ -30,6 +31,7 @@ public record MatchSearchCriteria(
         }
         competition = competition.trim();
         playerName = playerName == null || playerName.isBlank() ? null : playerName.trim();
+        phase = phase == null || phase.isBlank() ? null : phase.trim();
     }
 
     public MatchSearchCriteria(
@@ -41,6 +43,6 @@ public record MatchSearchCriteria(
             UUID playerId,
             PlayerLocation playerLocation,
             String playerName) {
-        this(source, season, competition, fromDate, toDate, playerId, playerLocation, playerName, 0, 10);
+        this(source, season, competition, fromDate, toDate, playerId, playerLocation, playerName, null, 0, 10);
     }
 }

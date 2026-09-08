@@ -15,6 +15,7 @@ public record MatchDetailReadModel(
         Season season,
         int groupNumber,
         int round,
+        String phase,
         ZonedDateTime dateTime,
         String city,
         String venue,

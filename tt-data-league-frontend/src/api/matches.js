@@ -27,7 +27,7 @@ export function searchMatches(filters, token, signal, onUnauthorized) {
     pageSize: '10',
   })
   const optional = [['fromDate', filters.fromDate], ['toDate', filters.toDate], ['playerId', filters.playerId],
-    ['playerLocation', filters.playerLocation], ['playerName', filters.playerName]]
+    ['playerLocation', filters.playerLocation], ['playerName', filters.playerName], ['phase', filters.phase]]
   optional.forEach(([key, value]) => {
     if (value) params.set(key, value)
   })
