@@ -48,7 +48,12 @@ public class RfetmClubConsolidationProcessor {
     }
 
     public ClubConsolidationSummary process(Path teamsFolder, ConsolidationMode mode) {
+        return process(teamsFolder, null, mode);
+    }
+
+    public ClubConsolidationSummary process(Path teamsFolder, String season, ConsolidationMode mode) {
         Objects.requireNonNull(mode, "mode must not be null");
+        Path scanRoot = season == null || season.isBlank() ? teamsFolder : teamsFolder.resolve(season);
         List<ConsolidationWarning> warnings = new ArrayList<>();
         List<ConsolidationWarning> errors = new ArrayList<>();
         List<ConsolidatedClub> consolidations = new ArrayList<>();
@@ -68,7 +73,7 @@ public class RfetmClubConsolidationProcessor {
         Map<String, FederatedClub> clubCache = new LinkedHashMap<>();
         Map<String, List<Team>> membersByClub = new LinkedHashMap<>();
 
-        for (Path file : listTeamFiles(teamsFolder, warnings)) {
+        for (Path file : listTeamFiles(scanRoot, warnings)) {
             List<org.cttelsamicsterrassa.data.load.shared.parse.team.Team> parsedRows;
             try {
                 parsedRows = teamParser.parse(file);
@@ -156,7 +161,7 @@ public class RfetmClubConsolidationProcessor {
                 List.copyOf(consolidations),
                 List.copyOf(warnings),
                 List.copyOf(errors));
-        LOGGER.info("RFETM team-folder consolidation finished for {} in {} mode: {}", teamsFolder, mode, summary);
+        LOGGER.info("RFETM team-folder consolidation finished for {} in {} mode: {}", scanRoot, mode, summary);
         return summary;
     }
 
@@ -165,10 +170,10 @@ public class RfetmClubConsolidationProcessor {
             warnings.add(new ConsolidationWarning("RFETM teams folder is not a directory: " + teamsFolder));
             return List.of();
         }
-        try (Stream<Path> stream = Files.list(teamsFolder)) {
+        try (Stream<Path> stream = Files.walk(teamsFolder)) {
             return stream
                     .filter(path -> Files.isRegularFile(path) && path.getFileName().toString().endsWith(".json"))
-                    .sorted(Comparator.comparing(path -> path.getFileName().toString()))
+                    .sorted(Comparator.comparing(Path::toString))
                     .toList();
         } catch (IOException e) {
             warnings.add(new ConsolidationWarning("Cannot list RFETM team files in " + teamsFolder + ": " + e.getMessage()));

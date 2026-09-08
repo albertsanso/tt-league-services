@@ -105,7 +105,7 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
         List<PostProcessingOutcome> outcomes = new ArrayList<>();
         if (status == ImportProcessStatus.SUCCESS) {
             if (effective.clubConsolidationMode() != null) {
-                outcomes.add(runClubs(request.source(), effective));
+                outcomes.add(runClubs(request.source(), season, effective));
             }
             if (effective.playerConsolidationMode() != null) {
                 outcomes.add(runPlayers(request.source(), effective.playerConsolidationMode()));
@@ -156,7 +156,7 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
         };
     }
 
-    private PostProcessingOutcome runClubs(ImportSource source, ImportExecutionOptions options) {
+    private PostProcessingOutcome runClubs(ImportSource source, String season, ImportExecutionOptions options) {
         Instant started = Instant.now();
         try {
             if (source == ImportSource.RFETM) {
@@ -164,9 +164,17 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
                     return failureOutcome("clubs", options.clubConsolidationMode(), started,
                             "RFETM teams folder and consolidation processor are required");
                 }
+                if (canonicalClubs == null) {
+                    return failureOutcome("clubs", options.clubConsolidationMode(), started,
+                            "Club consolidation processors are not configured");
+                }
                 ClubConsolidationSummary sourceSummary = rfetmClubs.process(
-                        options.rfetmTeamsFolder(), options.clubConsolidationMode());
-                return clubOutcome(sourceSummary, started);
+                        options.rfetmTeamsFolder(), season, options.clubConsolidationMode());
+                ClubConsolidationSummary canonical = canonicalClubs.consolidate(source, options.clubConsolidationMode());
+                return new PostProcessingOutcome("clubs", options.clubConsolidationMode(),
+                        Duration.between(started, Instant.now()),
+                        sourceSummary.scannedRegistrations() + canonical.scannedRegistrations(),
+                        warnings(sourceSummary, canonical), errors(sourceSummary, canonical));
             }
             if (teamToClub == null || canonicalClubs == null) {
                 return failureOutcome("clubs", options.clubConsolidationMode(), started,
@@ -197,12 +205,6 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
         } catch (RuntimeException exception) {
             return failureOutcome("players", mode, started, safeMessage(exception));
         }
-    }
-
-    private static PostProcessingOutcome clubOutcome(ClubConsolidationSummary summary, Instant started) {
-        return new PostProcessingOutcome("clubs", summary.mode(), Duration.between(started, Instant.now()),
-                summary.scannedRegistrations(), summary.warnings().stream().map(Object::toString).toList(),
-                summary.errors().stream().map(Object::toString).toList());
     }
 
     private static List<String> warnings(ClubConsolidationSummary first, ClubConsolidationSummary second) {
