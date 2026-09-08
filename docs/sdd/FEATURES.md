@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00041: Clubs consolidation on Club search results](### [FEAT-00041] Clubs consolidation on Club search results)
+
 - [FEAT-00040: Import process for BCNESA with phases](### [FEAT-00040] Import process for BCNESA with phases)
 - [FEAT-00039: Add Phase property into league matches](### [FEAT-00039] Add Phase property into league matches)
 - [FEAT-00038: In Player details, Matches Tab, show the oponent as the Player name instead of theTeam name](### [FEAT-00038] In Player details, Matches Tab, show the oponent as the Player name instead of theTeam name)
@@ -49,7 +51,35 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-No features currently in the backlog.
+### [FEAT-00041] Clubs consolidation action on Club search results
+- **Status:** ready
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+The Administration > Clubs search results must provide a **Consolidate** action for consolidating all the selected clubs into a single club, allowing administrators to merge duplicate or related club records.
+
+#### Description
+- The Club search results are selectable, and the **Consolidate** action is enabled only when at least two clubs are selected.
+- When the **Consolidate** action is triggered, the user is prompted with a dialog allowing to enter a Canonical Name for the consolidated club and select which of the selected clubs will be the primary club to retain its identity.
+- The consolidation process merges the selected clubs into a single club, preserving the underlying teams, player-season, and match history references.
+- If the consolidation process provoques orphan Club records, the system must handle them gracefully, either by deleting them or reassigning them to the consolidated club.
+
+#### Acceptance Criteria
+- [ ] The Club search results provide a **Consolidate** action that is enabled only when at least two clubs are selected.
+- [ ] When the **Consolidate** action is triggered, a dialog prompts the user to enter a Canonical Name for the consolidated club and select the primary club to retain its identity.
+- [ ] The consolidation process merges the selected clubs into a single club, preserving the underlying teams, player-season, and match history references.
+- [ ] The system handles orphan Club records gracefully, either by deleting them or reassigning them to the consolidated club.
+
+#### Feature Details
+→ See [FEAT-00041-DETAILS.md](./FEAT-00041-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
 ## Done
 
 ### [FEAT-00040] Import process for BCNESA with phases
@@ -630,6 +660,12 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
 
 ---
 
