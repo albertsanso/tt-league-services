@@ -16,7 +16,9 @@ import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClub
 import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClubByIdQuery;
 import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClubDetailsQuery;
 import org.cttelsamicsterrassa.data.core.application.club.find.FindClubsByStringInNameQuery;
+import org.cttelsamicsterrassa.data.core.application.club.consolidate.ConsolidateClubsCommand;
 import org.cttelsamicsterrassa.data.core.application.club.update.ModifyFederatedClubNameCommand;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -24,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -209,6 +212,36 @@ public class ClubController {
         if (commandResponse.isSuccess()) {
             return ResponseEntity.ok(ClubDto.fromObject(
                     (FederatedClub) commandResponse.getResponse()));
+        }
+
+        String error = String.valueOf(commandResponse.getResponse());
+        if (error.startsWith("Club not found:")) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage(error));
+        }
+        return ResponseEntity.badRequest().body(new ErrorMessage(error));
+    }
+
+    @PostMapping("/consolidate")
+    @PreAuthorize("hasAuthority('clubs:write')")
+    @Operation(summary = "Consolidate clubs", description = "Merges the selected clubs into a single primary club; administrators only")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Clubs consolidated"),
+            @ApiResponse(responseCode = "400", description = "Consolidation request is invalid"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Missing clubs:write permission"),
+            @ApiResponse(responseCode = "404", description = "A selected club was not found"),
+            @ApiResponse(responseCode = "500", description = "Unexpected update failure")
+    })
+    public ResponseEntity<?> consolidateClubs(@Valid @RequestBody ConsolidateClubsRequest request) {
+        ConsolidateClubsCommand command = new ConsolidateClubsCommand(
+                ZonedDateTime.now(),
+                UUID.randomUUID().toString(),
+                request.clubIds(),
+                request.canonicalName(),
+                request.primaryClubId());
+        DomainCommandResponse commandResponse = commandBus.push(command);
+        if (commandResponse.isSuccess()) {
+            return ResponseEntity.ok(ClubDto.fromObject((Club) commandResponse.getResponse()));
         }
 
         String error = String.valueOf(commandResponse.getResponse());

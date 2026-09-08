@@ -4,7 +4,9 @@ import org.albertsanso.commons.model.Entity;
 import org.cttelsamicsterrassa.data.core.domain.club.event.ClubCreatedEvent;
 import org.cttelsamicsterrassa.data.core.domain.club.event.ClubDeletedEvent;
 import org.cttelsamicsterrassa.data.core.domain.club.event.ClubNameModifiedEvent;
+import org.cttelsamicsterrassa.data.core.domain.club.event.ClubsConsolidatedEvent;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -40,6 +42,10 @@ public class Club extends Entity {
 
     public void delete() {
         publishClubDeletedEvent();
+    }
+
+    public void consolidate(List<UUID> mergedClubIds) {
+        publishEvent(ClubsConsolidatedEvent.of(id, name, mergedClubIds));
     }
 
     public UUID getId() {

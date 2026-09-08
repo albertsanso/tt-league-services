@@ -23,6 +23,7 @@ const SearchResultsPage = lazy(() => import('./pages/SearchResultsPage.jsx'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage.jsx'))
 const AdministrationPage = lazy(() => import('./pages/AdministrationPage.jsx'))
 const UsersRolesPage = lazy(() => import('./pages/UsersRolesPage.jsx'))
+const ClubsConsolidationPanel = lazy(() => import('./pages/ClubsConsolidationPanel.jsx'))
 const LoginPage = lazy(() => import('./pages/LoginPage.jsx'))
 const RegisterPage = lazy(() => import('./pages/RegisterPage.jsx'))
 const ForgotPasswordPage = lazy(() => import('./pages/ForgotPasswordPage.jsx'))
@@ -82,6 +83,7 @@ function App() {
           <Route path="administration/users" element={<ProtectedPage><UsersRolesPage /></ProtectedPage>} />
           <Route path="administration/settings" element={<ProtectedPage><AdministrationPage /></ProtectedPage>} />
           <Route path="administration/import" element={<ProtectedPage><AdministrationPage /></ProtectedPage>} />
+          <Route path="administration/clubs" element={<ProtectedPage><ClubsConsolidationPanel /></ProtectedPage>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

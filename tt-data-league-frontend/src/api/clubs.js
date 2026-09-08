@@ -341,3 +341,40 @@ export function updateClubName(clubId, name, token, signal, onUnauthorized) {
     onUnauthorized,
   }).then((payload) => (payload ? normalizeClub(payload) : null))
 }
+
+export function consolidateClubs({ clubIds, canonicalName, primaryClubId }, token, signal, onUnauthorized) {
+  return Promise.resolve().then(() => {
+    if (!Array.isArray(clubIds) || clubIds.some((id) => typeof id !== 'string' || !id.trim())) {
+      throw new ApiError('Els identificadors dels clubs no són vàlids.', 400, clubIds)
+    }
+    const distinctClubIds = [...new Set(clubIds)]
+    if (distinctClubIds.length < 2) {
+      throw new ApiError('Cal seleccionar almenys dos clubs per consolidar-los.', 400, clubIds)
+    }
+    if (typeof canonicalName !== 'string') {
+      throw new ApiError('El nom canònic no és vàlid.', 400, canonicalName)
+    }
+    const normalizedCanonicalName = canonicalName.trim()
+    if (normalizedCanonicalName.length < 2) {
+      throw new ApiError('El nom canònic necessita almenys 2 caràcters.', 400)
+    }
+    if (normalizedCanonicalName.length > 255) {
+      throw new ApiError('El nom canònic no pot superar els 255 caràcters.', 400)
+    }
+    if (typeof primaryClubId !== 'string' || !distinctClubIds.includes(primaryClubId)) {
+      throw new ApiError('El club principal ha de ser un dels clubs seleccionats.', 400, primaryClubId)
+    }
+
+    return apiRequest('/api/v1/club/consolidate', {
+      method: 'POST',
+      body: {
+        clubIds: distinctClubIds,
+        canonicalName: normalizedCanonicalName,
+        primaryClubId,
+      },
+      token,
+      signal,
+      onUnauthorized,
+    })
+  }).then((payload) => (payload ? normalizeClub(payload) : null))
+}

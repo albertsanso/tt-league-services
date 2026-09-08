@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.api.rest.club;
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubFederatedReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubCompetitionReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubSearchReadModel;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 
 import java.util.List;
@@ -27,6 +28,10 @@ public record ClubDto(
     public ClubDto(UUID id, String name, String source, UUID canonicalClubId, String canonicalClubName) {
         this(id, name, source, canonicalClubId, canonicalClubName, List.of(),
                 source == null ? List.of() : List.of(source), List.of(), 0, List.of());
+    }
+
+    public static ClubDto fromObject(Club club) {
+        return new ClubDto(club.getId(), club.getName(), null, club.getId(), club.getName());
     }
 
     public static ClubDto fromObject(FederatedClub club) {

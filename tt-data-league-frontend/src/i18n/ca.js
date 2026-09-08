@@ -56,6 +56,7 @@ export default {
     administrationUsers: 'Usuaris i rols',
     administrationSettings: 'Configuració del sistema',
     administrationImport: 'Importació de dades',
+    administrationClubs: 'Consolidació de clubs',
     administrationToggle: 'Mostrar o amagar les opcions d’administració',
   },
   routes: {
@@ -74,6 +75,7 @@ export default {
     administrationUsers: 'Usuaris i rols',
     administrationSettings: 'Configuració del sistema',
     administrationImport: 'Importació de dades',
+    administrationClubs: 'Consolidació de clubs',
   },
   shell: {
     skip: 'Vés al contingut principal',
@@ -213,6 +215,10 @@ export default {
     administrationImport: {
       title: 'Importació de dades',
       description: 'El panell d’importació de dades estarà disponible properament.',
+    },
+    administrationClubs: {
+      title: 'Consolidació de clubs',
+      description: 'Fusiona clubs duplicats en un únic club canònic.',
     },
   },
   search: {
@@ -577,5 +583,21 @@ export default {
       'empty-result': 'Sense resultats',
       failure: 'Fallida',
     },
+  },
+  clubsConsolidation: {
+    title: 'Consolidació de clubs',
+    description: 'Selecciona diversos clubs duplicats per fusionar-los en un únic club canònic, conservant equips, jugadors i partits.',
+    selectAll: 'Selecciona tots els resultats',
+    selectClub: 'Selecciona {{name}}',
+    selectedCount: '{{count}} clubs seleccionats',
+    consolidate: 'Consolida',
+    consolidateAriaLabel: 'Consolida els clubs seleccionats',
+    dialogTitle: 'Consolida els clubs seleccionats',
+    canonicalNameLabel: 'Nom canònic',
+    primaryClubLabel: 'Club principal',
+    confirm: 'Consolida',
+    consolidating: 'Consolidant...',
+    success: 'Els clubs s’han consolidat correctament.',
+    error: 'No s’han pogut consolidar els clubs.',
   },
 }
