@@ -4,6 +4,91 @@ This service provides the runtime API for the TT League application.
 It is built using Spring Boot and connects to a PostgreSQL database. 
 The configuration for the service, including database connection details, JWT settings, mail server settings, and multipart upload limits, can be found in the `application.yml` file.
 
+## Requirements
+
+- Java 21
+- Maven
+- PostgreSQL (see `.podman/podman-compose.yaml` for a local instance)
+
+## Configuration
+
+The application reads its configuration from environment variables at startup; defaults are for local development and must be overridden in shared or production environments. Do not commit credentials or environment-specific configuration.
+
+| Environment variable | Default | Purpose |
+| --- | --- | --- |
+| `DB_TTLEAGUEDATA_JDBC_URL` | `jdbc:postgresql://localhost:5432/ttleaguedata` | PostgreSQL JDBC URL |
+| `DB_TTLEAGUEDATA_CREDENTIAL_USERNAME` | `postgres` | Database username |
+| `DB_TTLEAGUEDATA_CREDENTIAL_PASSWORD` | `admin` | Database password |
+| `JWT_SIGNING_SECRET` | dev-only placeholder | JWT signing secret; required, at least 32 bytes, see Considerations below |
+| `JWT_EXPIRATION_MILLIS` | `108000000` | JWT token expiration, in milliseconds |
+| `PASSWORD_RECOVERY_FROM` | `no-reply@localhost` | From-address used on password recovery emails |
+| `PASSWORD_RECOVERY_RESET_URL` | `http://localhost:5173/reset-password` | Frontend reset-password URL embedded in recovery emails |
+| `MAIL_HOST` | `localhost` | SMTP host |
+| `MAIL_PORT` | `25` | SMTP port |
+| `MAIL_USERNAME` / `MAIL_PASSWORD` | empty | SMTP credentials |
+| `IMPORT_UPLOAD_MAX_FILE_SIZE` | `100MB` | Max ZIP import upload file size |
+| `IMPORT_UPLOAD_MAX_REQUEST_SIZE` | `100MB` | Max import upload request size; must be `>=` the file size limit |
+| `IMPORT_EXECUTION_BATCH_SIZE` | `50` | Import batch size |
+| `IMPORT_EXECUTION_CLUB_CONSOLIDATION` | `write` | `write`, `report`, or `disabled` |
+| `IMPORT_EXECUTION_PLAYER_CONSOLIDATION` | `write` | `write`, `report`, or `disabled` |
+
+The HTTP API listens on the default Spring Boot port (`8080`); a separate Actuator management port is exposed on `9090`, including `http://localhost:9090/actuator/health`.
+
+## Build
+
+Run the module tests and build all required reactor dependencies from the repository root:
+
+```powershell
+mvn -pl tt-data-league-api-runtime -am test
+```
+
+Run all repository tests from the root when validating changes that affect shared modules:
+
+```powershell
+mvn test
+```
+
+## Package
+
+Build the executable Spring Boot jar:
+
+```powershell
+mvn -pl tt-data-league-api-runtime -am package -DskipTests
+```
+
+The packaged jar is created under:
+
+```text
+tt-data-league-api-runtime/target/tt-data-league-api-runtime-0.0.1-SNAPSHOT.jar
+```
+
+Skip tests when only a jar is needed (for example, when tests already passed in CI):
+
+```powershell
+mvn -pl tt-data-league-api-runtime -am package -DskipTests
+```
+
+## Deploy
+
+Set the required environment variables — at minimum a production `JWT_SIGNING_SECRET` and the database credentials — then run the packaged jar:
+
+```powershell
+$env:JWT_SIGNING_SECRET = "<random value, at least 32 bytes>"
+$env:DB_TTLEAGUEDATA_JDBC_URL = "jdbc:postgresql://<host>:5432/ttleaguedata"
+$env:DB_TTLEAGUEDATA_CREDENTIAL_USERNAME = "<username>"
+$env:DB_TTLEAGUEDATA_CREDENTIAL_PASSWORD = "<password>"
+
+java -jar tt-data-league-api-runtime\target\tt-data-league-api-runtime-0.0.1-SNAPSHOT.jar
+```
+
+Notes for a deployment target:
+
+- The target database must be reachable and match the schema managed by `tt-data-league-core-repository-jpa`; `ddl-auto: update` is not a substitute for the reviewed migrations under `docs/migrations/`. Apply any pending migration before starting the service.
+- `ImportFolderSettingStartupInitializer` provisions the `IMPORT/repository-folder` administrator setting at startup if absent, defaulting to `c:\tt-repository`; a persistence failure here fails application boot. Ensure the configured import folder exists as a directory before launch, or set it afterwards through the System settings panel.
+- The run registry backing the async import endpoints is in-memory per JVM; it does not survive a restart or a multi-instance deployment. Run a single instance, or provide a persistent `ImportJobsPort`/run-registry adapter before scaling out.
+- Run the process as a long-lived service (for example, a Windows service via NSSM, or a systemd unit on Linux) so it restarts on failure and on host reboot; there is no bundled service unit in this repository.
+- Monitor `http://<host>:9090/actuator/health` for liveness once deployed.
+
 ZIP import uploads accept files up to 100 MB by default. Override
 `IMPORT_UPLOAD_MAX_FILE_SIZE` and `IMPORT_UPLOAD_MAX_REQUEST_SIZE` when a
 different deployment limit is required; the request limit must be at least as
@@ -13,10 +98,8 @@ Import execution is configured server-side under `tt.league.import.execution`.
 Club and player consolidation run in `WRITE` mode by default; use
 `IMPORT_EXECUTION_CLUB_CONSOLIDATION` or
 `IMPORT_EXECUTION_PLAYER_CONSOLIDATION` (`WRITE`, `REPORT`, or `disabled`) to
-override them. RFETM team consolidation uses
-`C:\tt-repository\import-rfetm\teams` by default; override it with
-`IMPORT_EXECUTION_RFETM_TEAMS_FOLDER` when appropriate. The API start endpoint
-accepts only the stored import-resource ID and never a client-supplied path.
+override them. The API start endpoint accepts only the stored import-resource
+ID and never a client-supplied path.
 
 The API start endpoint (`POST /api/v1/administration/import/start`) runs the import
 asynchronously: it returns `202 Accepted` immediately with a run id and initial (`queued`)
@@ -26,7 +109,7 @@ counts, percentage when a reliable total is available, skipped/error counts) and
 result. The run registry is in-memory per JVM (`InMemoryImportRunRegistry`); it prevents two
 accepted runs for the same import resource but does not persist run history across restarts.
 
-At startup, `ImportFolderSettingStartupInitializer` ensures the `IMPORT/import-folder`
+At startup, `ImportFolderSettingStartupInitializer` ensures the `IMPORT/repository-folder`
 administrator setting exists, creating it with the default value `c:\tt-repository`
 only when it is absent. Provisioning is idempotent: it never overwrites an
 administrator's configured value, and a persistence failure during startup
@@ -34,6 +117,16 @@ fails application boot instead of leaving the setting unconfigured. Import
 workflows resolve this persisted setting when no explicit folder is supplied;
 administrators can view and change it through the System settings panel, and
 the configured path must exist as a directory at import execution time.
+
+Similarly, `RfetmTeamsFolderSettingStartupInitializer` ensures the
+`IMPORT/rfetm-teams-folder` administrator setting exists, creating it with the
+default value `import-rfetm\teams` only when it is absent. RFETM club
+consolidation resolves this setting on every run (via
+`RfetmTeamsFolderPathResolver`), joined onto the `IMPORT/repository-folder`
+setting to build the absolute teams folder path, so administrator changes to
+either setting take effect without an application restart. This replaces the
+previous `IMPORT_EXECUTION_RFETM_TEAMS_FOLDER` environment variable, which no
+longer exists.
 
 # Considerations:
 

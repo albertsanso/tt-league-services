@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.api.runtime.config;
 
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportResourceProcessService;
+import org.cttelsamicsterrassa.data.core.domain.settings.service.RfetmTeamsFolderPathResolver;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionOptions;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionService;
 import org.cttelsamicsterrassa.data.load.shared.process.NavigatorBackedImportResourceProcessService;
@@ -20,7 +21,9 @@ public class ImportExecutionConfiguration {
     @Bean
     @Primary
     ImportResourceProcessService importResourceProcessService(ImportExecutionService executionService,
-                                                              ImportExecutionOptions options) {
-        return new NavigatorBackedImportResourceProcessService(executionService, options);
+                                                              ImportExecutionOptions options,
+                                                              RfetmTeamsFolderPathResolver rfetmTeamsFolderResolver) {
+        return new NavigatorBackedImportResourceProcessService(executionService, options,
+                rfetmTeamsFolderResolver::resolve);
     }
 }

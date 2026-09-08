@@ -196,7 +196,8 @@ export default {
       'import.autoValidate': 'Validació automàtica d’importacions',
       'import.preserveHistory': 'Conservar l’historial d’importació',
       'import.maxBatchSize': 'Mida màxima del lot d’importació',
-      'import-folder': 'Carpeta d’importació per defecte',
+      'repository-folder': 'Carpeta d’importació per defecte',
+      'rfetm-teams-folder': 'Carpeta d’equips RFETM',
     },
   },
   administration: {

@@ -11,8 +11,10 @@ function settingType(setting) {
   return setting.type?.toUpperCase() ?? 'STRING'
 }
 
+const pathSettingNames = new Set(['repository-folder', 'rfetm-teams-folder'])
+
 function isImportFolderSetting(setting) {
-  return setting.category === 'IMPORT' && setting.name === 'import-folder'
+  return setting.category === 'IMPORT' && pathSettingNames.has(setting.name)
 }
 
 function SettingValue({ setting, value, onChange }) {

@@ -7,7 +7,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 
 /**
- * Ensures the {@code IMPORT/import-folder} administrator setting always exists. Idempotent: it only
+ * Ensures the {@code IMPORT/repository-folder} administrator setting always exists. Idempotent: it only
  * creates the setting with {@link ImportFolderSetting#DEFAULT_VALUE} when it is absent, and never
  * overwrites an administrator's configured value.
  */

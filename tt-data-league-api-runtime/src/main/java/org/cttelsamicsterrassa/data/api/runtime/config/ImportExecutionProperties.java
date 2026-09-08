@@ -4,18 +4,20 @@ import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMo
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionOptions;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-import java.nio.file.Path;
-
 @ConfigurationProperties(prefix = "tt.league.import.execution")
 public class ImportExecutionProperties {
     private int batchSize = 50;
     private String clubConsolidation = "disabled";
     private String playerConsolidation = "disabled";
-    private Path rfetmTeamsFolder;
 
+    /**
+     * The RFETM teams folder is not bound here: it is resolved at call time from the persisted
+     * {@code IMPORT/rfetm-teams-folder} administrator setting (see {@code ImportExecutionConfiguration}),
+     * so it is left {@code null} in these static options.
+     */
     public ImportExecutionOptions toOptions() {
         return new ImportExecutionOptions(mode(clubConsolidation), mode(playerConsolidation),
-                rfetmTeamsFolder, batchSize);
+                null, batchSize);
     }
 
     private static ConsolidationMode mode(String value) {
@@ -36,9 +38,5 @@ public class ImportExecutionProperties {
 
     public void setPlayerConsolidation(String playerConsolidation) {
         this.playerConsolidation = playerConsolidation;
-    }
-
-    public void setRfetmTeamsFolder(Path rfetmTeamsFolder) {
-        this.rfetmTeamsFolder = rfetmTeamsFolder;
     }
 }

@@ -21,7 +21,7 @@ class SettingModificationServiceTest {
     @Test
     void rejectsABlankImportFolderValueById() {
         UUID id = UUID.randomUUID();
-        Setting existing = Setting.createExisting(id, SettingCategory.IMPORT, "import-folder", "c:\\tt-repository");
+        Setting existing = Setting.createExisting(id, SettingCategory.IMPORT, "repository-folder", "c:\\tt-repository");
         SettingRepository settingRepository = mock(SettingRepository.class);
         when(settingRepository.findById(id)).thenReturn(Optional.of(existing));
         SettingModificationService service = new SettingModificationService(settingRepository);
@@ -36,7 +36,7 @@ class SettingModificationServiceTest {
         SettingModificationService service = new SettingModificationService(settingRepository);
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.modifyValue(SettingCategory.IMPORT, "import-folder", " "));
+                () -> service.modifyValue(SettingCategory.IMPORT, "repository-folder", " "));
         verify(settingRepository, never()).findByCategoryAndName(any(), any());
         verify(settingRepository, never()).save(any(Setting.class));
     }
@@ -44,7 +44,7 @@ class SettingModificationServiceTest {
     @Test
     void acceptsAValidImportFolderValue() {
         UUID id = UUID.randomUUID();
-        Setting existing = Setting.createExisting(id, SettingCategory.IMPORT, "import-folder", "c:\\tt-repository");
+        Setting existing = Setting.createExisting(id, SettingCategory.IMPORT, "repository-folder", "c:\\tt-repository");
         SettingRepository settingRepository = mock(SettingRepository.class);
         when(settingRepository.findById(id)).thenReturn(Optional.of(existing));
         SettingModificationService service = new SettingModificationService(settingRepository);
@@ -52,6 +52,31 @@ class SettingModificationServiceTest {
         Setting result = service.modifyValue(id, "d:\\new-repository");
 
         assertEquals("d:\\new-repository", result.getValue());
+        verify(settingRepository).save(existing);
+    }
+
+    @Test
+    void rejectsABlankRfetmTeamsFolderValueByCategoryAndName() {
+        SettingRepository settingRepository = mock(SettingRepository.class);
+        SettingModificationService service = new SettingModificationService(settingRepository);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.modifyValue(SettingCategory.IMPORT, "rfetm-teams-folder", " "));
+        verify(settingRepository, never()).findByCategoryAndName(any(), any());
+        verify(settingRepository, never()).save(any(Setting.class));
+    }
+
+    @Test
+    void acceptsAValidRfetmTeamsFolderValue() {
+        UUID id = UUID.randomUUID();
+        Setting existing = Setting.createExisting(id, SettingCategory.IMPORT, "rfetm-teams-folder", "import-rfetm\\teams");
+        SettingRepository settingRepository = mock(SettingRepository.class);
+        when(settingRepository.findById(id)).thenReturn(Optional.of(existing));
+        SettingModificationService service = new SettingModificationService(settingRepository);
+
+        Setting result = service.modifyValue(id, "d:\\tt-repository\\import-rfetm\\teams");
+
+        assertEquals("d:\\tt-repository\\import-rfetm\\teams", result.getValue());
         verify(settingRepository).save(existing);
     }
 

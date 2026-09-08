@@ -13,14 +13,14 @@ class ImportFolderSettingTest {
     @Test
     void exposesTheExactCategoryNameAndDefaultValue() {
         assertEquals(SettingCategory.IMPORT, ImportFolderSetting.CATEGORY);
-        assertEquals("import-folder", ImportFolderSetting.NAME);
+        assertEquals("repository-folder", ImportFolderSetting.NAME);
         assertEquals("c:\\tt-repository", ImportFolderSetting.DEFAULT_VALUE);
     }
 
     @Test
     void matchesOnlyTheExactCategoryAndName() {
-        assertTrue(ImportFolderSetting.matches(SettingCategory.IMPORT, "import-folder"));
-        assertFalse(ImportFolderSetting.matches(SettingCategory.GENERAL, "import-folder"));
+        assertTrue(ImportFolderSetting.matches(SettingCategory.IMPORT, "repository-folder"));
+        assertFalse(ImportFolderSetting.matches(SettingCategory.GENERAL, "repository-folder"));
         assertFalse(ImportFolderSetting.matches(SettingCategory.IMPORT, "other-name"));
     }
 

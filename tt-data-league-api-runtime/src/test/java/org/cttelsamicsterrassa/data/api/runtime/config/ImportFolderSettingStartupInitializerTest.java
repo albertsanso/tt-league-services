@@ -18,7 +18,7 @@ class ImportFolderSettingStartupInitializerTest {
     void delegatesProvisioningToTheDomainServiceOnStartup() throws Exception {
         ImportFolderSettingProvisioningService provisioningService = mock(ImportFolderSettingProvisioningService.class);
         Setting provisioned = Setting.createExisting(
-                UUID.randomUUID(), SettingCategory.IMPORT, "import-folder", "c:\\tt-repository");
+                UUID.randomUUID(), SettingCategory.IMPORT, "repository-folder", "c:\\tt-repository");
         when(provisioningService.ensureDefaultExists()).thenReturn(provisioned);
         ImportFolderSettingStartupInitializer initializer =
                 new ImportFolderSettingStartupInitializer(provisioningService);

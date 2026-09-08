@@ -55,12 +55,12 @@ class SettingsControllerTest {
         QueryBus queryBus = mock(QueryBus.class);
         CommandBus commandBus = mock(CommandBus.class);
         when(commandBus.push(any())).thenThrow(
-                new IllegalArgumentException("Setting IMPORT/import-folder must not be blank"));
+                new IllegalArgumentException("Setting IMPORT/repository-folder must not be blank"));
         SettingsController controller = new SettingsController(queryBus, commandBus);
 
         var response = controller.updateSetting(SETTING_ID, new UpdateSettingRequest(""));
 
         assertEquals(400, response.getStatusCode().value());
-        assertEquals(Map.of("message", "Setting IMPORT/import-folder must not be blank"), response.getBody());
+        assertEquals(Map.of("message", "Setting IMPORT/repository-folder must not be blank"), response.getBody());
     }
 }

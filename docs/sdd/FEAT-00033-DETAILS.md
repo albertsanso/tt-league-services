@@ -1,8 +1,8 @@
 # Build Plan
 
-1. **Define the canonical import-folder setting contract.**
+1. **Define the canonical repository-folder setting contract.**
    - Reuse `SettingCategory.IMPORT`, the existing `ResourceZipService.IMPORT_FOLDER`
-     key (`import-folder`), and the exact default value `c:\tt-repository`
+     key (`repository-folder`), and the exact default value `c:\tt-repository`
      already registered in `FEATURES.md`.
    - Add one shared domain-level definition or provisioning service so startup,
      import lookup, validation, and tests cannot drift on the category, key, or
@@ -13,7 +13,7 @@
 2. **Provision the default setting during backend startup.**
    - Add an idempotent startup initializer in the API runtime that queries
      `SettingRepository` through the existing domain service/port and creates
-     the setting only when `(IMPORT, import-folder)` is absent.
+     the setting only when `(IMPORT, repository-folder)` is absent.
    - Wire it into the existing Spring Boot startup lifecycle without changing
      the command-line import execution path or creating duplicate settings on
      restart.
@@ -22,7 +22,7 @@
 
 3. **Validate and consume the configured folder consistently.**
    - Update the existing setting validation path used by create/update/bulk
-     settings operations so `IMPORT/import-folder` is non-blank, syntactically
+     settings operations so `IMPORT/repository-folder` is non-blank, syntactically
      usable as a filesystem path, and produces a clear client-visible error for
      invalid values.
    - Keep filesystem existence checks at import execution time: report a
@@ -36,7 +36,7 @@
    - Reuse the current authenticated settings REST endpoints, DTOs, optimistic
      update behavior, and `SettingsPanel`; do not add a feature-specific
      endpoint or duplicate settings state.
-   - Add the `import-folder` label and any validation/error copy to Catalan,
+   - Add the `repository-folder` label and any validation/error copy to Catalan,
      English, and Spanish translations, and render it as a path-capable text
      control with accessible feedback.
    - Preserve category filtering, search, create/update behavior, authorization,
@@ -44,7 +44,7 @@
 
 5. **Add focused regression coverage.**
    - Core domain: provisioning when absent, no-op when present, exact category/
-     name/default value, and invalid import-folder values.
+     name/default value, and invalid repository-folder values.
    - Runtime/startup: initializer wiring, restart/idempotency behavior, and
      propagation of repository failures.
    - Import: configured-folder lookup, missing/non-directory error messages,
@@ -74,7 +74,7 @@
 - Reuse `SettingFinderService`, `SettingCreationService`, `SettingRepository`,
   `ResourceZipService`, and the existing settings command/query handlers before
   introducing new ports or adapters.
-- Treat `(SettingCategory.IMPORT, "import-folder")` as a unique logical setting.
+- Treat `(SettingCategory.IMPORT, "repository-folder")` as a unique logical setting.
   Startup provisioning must be safe on repeated launches and must not overwrite
   an administrator's configured value.
 - Validate path input explicitly and preserve the existing clear failure
@@ -87,16 +87,16 @@
 
 # Acceptance Criteria
 
-- [x] The backend checks for the existence of a system setting named `import-folder` for category `IMPORT` at application startup.
-- [x] If the `import-folder` setting does not exist, the backend creates it with a default value of `c:\tt-repository`.
-- [x] Administrators can view and change the `import-folder` setting through the System settings experience, and the change is persisted in the backend.
+- [x] The backend checks for the existence of a system setting named `repository-folder` for category `IMPORT` at application startup.
+- [x] If the `repository-folder` setting does not exist, the backend creates it with a default value of `c:\tt-repository`.
+- [x] Administrators can view and change the `repository-folder` setting through the System settings experience, and the change is persisted in the backend.
 - [x] Import workflows use the configured default folder when no explicit folder is supplied.
 - [x] Invalid, missing, or non-directory configured paths produce clear validation or import errors without silently selecting another folder.
 
 # Notes
 
 - 2026-09-06: Build plan drafted from the existing settings domain/API/frontend
-  and `ResourceZipService`/`ResourceRepositoryLoaderService` import-folder
+  and `ResourceZipService`/`ResourceRepositoryLoaderService` repository-folder
   integration. Status should move to `planned`; implementation remains blocked
   from starting until the plan is approved and status is changed to `ready`.
 - 2026-09-06: Implemented end-to-end. Added the canonical
@@ -106,14 +106,14 @@
   `ImportFolderSettingStartupInitializer` (`CommandLineRunner`) in
   `tt-data-league-api-runtime` that lets persistence/initialization failures
   fail application startup. `SettingCreationService` and
-  `SettingModificationService` now validate `IMPORT/import-folder` values
+  `SettingModificationService` now validate `IMPORT/repository-folder` values
   on create/update; `SettingsController.updateSetting` now maps
   `IllegalArgumentException` to a 400 response with a clear message,
   matching the existing `createSetting` behavior.
   `ResourceRepositoryLoaderService` already resolved the persisted setting
   and reported missing/non-directory configured folders as import errors; this
   behavior is preserved and now covered by focused tests.
-  Frontend: added the `import-folder` label and an accessible
+  Frontend: added the `repository-folder` label and an accessible
   `importFolderHint` translation (Catalan, English, Spanish) and rendered a
   `setting-hint` paragraph linked via `aria-describedby` for that setting in
   `SettingsPanel`; no new endpoint or duplicated settings state was added.

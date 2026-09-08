@@ -21,7 +21,7 @@ class ImportFolderSettingProvisioningServiceTest {
     @Test
     void createsTheDefaultSettingWhenAbsent() {
         SettingRepository settingRepository = mock(SettingRepository.class);
-        when(settingRepository.findByCategoryAndName(SettingCategory.IMPORT, "import-folder"))
+        when(settingRepository.findByCategoryAndName(SettingCategory.IMPORT, "repository-folder"))
                 .thenReturn(Optional.empty());
         SettingFinderService finderService = new SettingFinderService(settingRepository);
         SettingCreationService creationService = new SettingCreationService(settingRepository);
@@ -31,7 +31,7 @@ class ImportFolderSettingProvisioningServiceTest {
         Setting created = provisioningService.ensureDefaultExists();
 
         assertEquals(SettingCategory.IMPORT, created.getSettingCategory());
-        assertEquals("import-folder", created.getName());
+        assertEquals("repository-folder", created.getName());
         assertEquals(ImportFolderSetting.DEFAULT_VALUE, created.getValue());
         verify(settingRepository).save(any(Setting.class));
     }
@@ -40,8 +40,8 @@ class ImportFolderSettingProvisioningServiceTest {
     void isANoOpWhenTheSettingAlreadyExists() {
         SettingRepository settingRepository = mock(SettingRepository.class);
         Setting existing = Setting.createExisting(
-                UUID.randomUUID(), SettingCategory.IMPORT, "import-folder", "d:\\custom-repository");
-        when(settingRepository.findByCategoryAndName(SettingCategory.IMPORT, "import-folder"))
+                UUID.randomUUID(), SettingCategory.IMPORT, "repository-folder", "d:\\custom-repository");
+        when(settingRepository.findByCategoryAndName(SettingCategory.IMPORT, "repository-folder"))
                 .thenReturn(Optional.of(existing));
         SettingFinderService finderService = new SettingFinderService(settingRepository);
         SettingCreationService creationService = new SettingCreationService(settingRepository);

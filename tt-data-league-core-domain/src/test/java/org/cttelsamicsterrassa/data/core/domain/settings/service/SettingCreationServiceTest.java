@@ -31,7 +31,7 @@ class SettingCreationServiceTest {
         SettingCreationService service = new SettingCreationService(settingRepository);
 
         assertThrows(IllegalArgumentException.class,
-                () -> service.create(SettingCategory.IMPORT, "import-folder", "   "));
+                () -> service.create(SettingCategory.IMPORT, "repository-folder", "   "));
         verify(settingRepository, never()).save(any(Setting.class));
     }
 
@@ -40,9 +40,30 @@ class SettingCreationServiceTest {
         SettingRepository settingRepository = mock(SettingRepository.class);
         SettingCreationService service = new SettingCreationService(settingRepository);
 
-        Setting created = service.create(SettingCategory.IMPORT, "import-folder", "d:\\tt-repository");
+        Setting created = service.create(SettingCategory.IMPORT, "repository-folder", "d:\\tt-repository");
 
         assertEquals("d:\\tt-repository", created.getValue());
+        verify(settingRepository).save(created);
+    }
+
+    @Test
+    void rejectsABlankRfetmTeamsFolderValue() {
+        SettingRepository settingRepository = mock(SettingRepository.class);
+        SettingCreationService service = new SettingCreationService(settingRepository);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> service.create(SettingCategory.IMPORT, "rfetm-teams-folder", "   "));
+        verify(settingRepository, never()).save(any(Setting.class));
+    }
+
+    @Test
+    void acceptsAValidRfetmTeamsFolderValue() {
+        SettingRepository settingRepository = mock(SettingRepository.class);
+        SettingCreationService service = new SettingCreationService(settingRepository);
+
+        Setting created = service.create(SettingCategory.IMPORT, "rfetm-teams-folder", "d:\\tt-repository\\import-rfetm\\teams");
+
+        assertEquals("d:\\tt-repository\\import-rfetm\\teams", created.getValue());
         verify(settingRepository).save(created);
     }
 }

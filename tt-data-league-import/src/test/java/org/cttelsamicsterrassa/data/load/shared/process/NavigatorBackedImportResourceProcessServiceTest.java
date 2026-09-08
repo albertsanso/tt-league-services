@@ -74,6 +74,30 @@ class NavigatorBackedImportResourceProcessServiceTest {
         assertEquals(ImportProcessStatus.EMPTY_RESULT, result.status());
     }
 
+    @Test
+    void resolvesTheRfetmTeamsFolderOnEveryCallWhenAResolverIsProvided() {
+        java.util.List<ImportExecutionOptions> receivedOptions = new java.util.ArrayList<>();
+        ImportExecutionService executionService = new ImportExecutionService() {
+            @Override
+            public ImportExecutionResult execute(ImportExecutionRequest request, ImportExecutionOptions options) {
+                receivedOptions.add(options);
+                return new ImportExecutionResult(request.source(), request.season().map(Object::toString),
+                        ImportProcessStatus.EMPTY_RESULT, new ImportExecutionMetrics(0, 0, 0, 0, 0, 1), List.of(), List.of());
+            }
+        };
+        java.util.concurrent.atomic.AtomicInteger callCount = new java.util.concurrent.atomic.AtomicInteger();
+        NavigatorBackedImportResourceProcessService service = new NavigatorBackedImportResourceProcessService(
+                executionService, ImportExecutionOptions.defaults(),
+                () -> Path.of("teams-" + callCount.incrementAndGet()));
+
+        service.process(resource());
+        service.process(resource());
+
+        assertEquals(2, receivedOptions.size());
+        assertEquals(Path.of("teams-1"), receivedOptions.get(0).rfetmTeamsFolder());
+        assertEquals(Path.of("teams-2"), receivedOptions.get(1).rfetmTeamsFolder());
+    }
+
     private static ImportResource resource() {
         Resource source = Resource.createExisting(UUID.randomUUID(), "ACTAS", "import/actas",
                 Path.of("import", "actas"));
