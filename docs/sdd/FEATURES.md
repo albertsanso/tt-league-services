@@ -48,11 +48,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 No features currently in progress.
 ## In Review
 
-No features currently in review.
-## Backlog
-
 ### [FEAT-00041] Clubs consolidation action on Club search results
-- **Status:** ready
+- **Status:** in-review
 - **Priority:** medium
 - **Effort:** medium
 - **Depends on:** —
@@ -80,6 +77,13 @@ The Administration > Clubs search results must provide a **Consolidate** action 
 ---
 
 ---
+
+---
+
+---
+## Backlog
+
+No features currently in the backlog.
 ## Done
 
 ### [FEAT-00040] Import process for BCNESA with phases
@@ -660,6 +664,10 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
 
 ---
 

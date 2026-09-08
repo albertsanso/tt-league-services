@@ -48,3 +48,4 @@
 # Implementation Guidelines
 
 # Notes
+- Implemented ConsolidateClubsCommand/Handler, POST /consolidate REST endpoint, and Administration > Clubs consolidation panel. Backend tests: 71 passed (core-domain), 57 passed (api-rest). Frontend: lint clean, 160/160 tests passed, build succeeds. Merged to main in commit 5851b03.
