@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  consolidateClubs,
   normalizeClubDetailsResponse,
   normalizeClubCompetitionDetailsResponse,
   getClubCompetitionDetails,
@@ -156,5 +157,67 @@ describe('club API boundary', () => {
       matches: null,
     }))
       .toThrow('La resposta detallada de la competició no és vàlida')
+  })
+
+  it('consolidates clubs and normalizes the resulting canonical club', async () => {
+    const response = {
+      ok: true,
+      headers: { get: () => 'application/json' },
+      json: async () => ({ id: 'primary-id', name: 'Consolidated Club', source: null }),
+    }
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(response)
+
+    const club = await consolidateClubs({
+      clubIds: ['primary-id', 'secondary-id'],
+      canonicalName: '  Consolidated Club  ',
+      primaryClubId: 'primary-id',
+    }, 'session-token')
+
+    expect(club).toEqual({ id: 'primary-id', name: 'Consolidated Club', source: '—' })
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/v1/club/consolidate',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          clubIds: ['primary-id', 'secondary-id'],
+          canonicalName: 'Consolidated Club',
+          primaryClubId: 'primary-id',
+        }),
+        headers: expect.objectContaining({ Authorization: 'Bearer session-token' }),
+      }),
+    )
+  })
+
+  it('rejects consolidation requests with fewer than two distinct clubs', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    await expect(consolidateClubs({
+      clubIds: ['only-id', 'only-id'],
+      canonicalName: 'Consolidated Club',
+      primaryClubId: 'only-id',
+    }, 'session-token')).rejects.toMatchObject({ status: 400 })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects consolidation requests when the primary club is not among the selected clubs', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    await expect(consolidateClubs({
+      clubIds: ['club-a', 'club-b'],
+      canonicalName: 'Consolidated Club',
+      primaryClubId: 'club-c',
+    }, 'session-token')).rejects.toMatchObject({ status: 400 })
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects consolidation requests with a too-short canonical name', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch')
+
+    await expect(consolidateClubs({
+      clubIds: ['club-a', 'club-b'],
+      canonicalName: 'A',
+      primaryClubId: 'club-a',
+    }, 'session-token')).rejects.toMatchObject({ status: 400 })
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 })

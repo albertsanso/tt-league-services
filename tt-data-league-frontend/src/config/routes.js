@@ -47,6 +47,7 @@ export const routePaths = {
   administrationUsers: '/administration/users',
   administrationSettings: '/administration/settings',
   administrationImport: '/administration/import',
+  administrationClubs: '/administration/clubs',
 }
 
 const translate = (key) => i18n.t(key)
@@ -175,6 +176,20 @@ export const routesMeta = [
     section: translate('routes.general'),
     auth: true,
     role: 'ADMIN',
+  },
+  {
+    path: routePaths.administrationClubs,
+    label: translate('routes.administrationClubs'),
+    labelKey: 'routes.administrationClubs',
+    section: translate('routes.general'),
+    auth: true,
+    role: 'ADMIN',
+    permission: 'clubs:write',
+    breadcrumb: () => [
+      generalBreadcrumb(),
+      { label: translate('routes.administration'), path: routePaths.administration },
+      { label: translate('routes.administrationClubs') },
+    ],
   },
 ]
 

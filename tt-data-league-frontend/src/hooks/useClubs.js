@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
+  consolidateClubs,
   getClubCompetitionDetails,
   getClubDetails,
   searchClubs,
@@ -93,4 +94,43 @@ export function useClubCompetitionDetails(clubId, season, competition) {
 
   const enabled = Boolean(clubId && season && competition)
   return useRequest(request, enabled, `${clubId}-${season}-${competition}`)
+}
+
+/**
+ * Mutation hook for merging duplicate clubs into a single canonical club.
+ */
+export function useConsolidateClubs() {
+  const { token, clearSession } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(null)
+
+  const consolidate = useCallback(async ({ clubIds, canonicalName, primaryClubId }) => {
+    const controller = new AbortController()
+    setLoading(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const result = await consolidateClubs(
+        { clubIds, canonicalName, primaryClubId },
+        token,
+        controller.signal,
+        clearSession,
+      )
+      setSuccess(result)
+      return result
+    } catch (requestError) {
+      setError(requestError)
+      throw requestError
+    } finally {
+      setLoading(false)
+    }
+  }, [clearSession, token])
+
+  const reset = useCallback(() => {
+    setError(null)
+    setSuccess(null)
+  }, [])
+
+  return { consolidate, loading, error, success, reset }
 }

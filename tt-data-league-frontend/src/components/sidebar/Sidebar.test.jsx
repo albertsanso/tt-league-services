@@ -51,6 +51,7 @@ describe('Sidebar route matching', () => {
       routePaths.administrationUsers,
       routePaths.administrationSettings,
       routePaths.administrationImport,
+      routePaths.administrationClubs,
     ])
     expect(isRouteActive(routePaths.administrationUsers, routePaths.administration)).toBe(true)
     expect(isRouteActive(routePaths.administrationImport, routePaths.administrationImport)).toBe(true)
@@ -69,6 +70,7 @@ describe('Sidebar route matching', () => {
     expect(screen.getByText('Usuaris i rols')).toBeInTheDocument()
     expect(screen.getByText('Configuració del sistema')).toBeInTheDocument()
     expect(screen.getByText('Importació de dades')).toBeInTheDocument()
+    expect(screen.getByText('Consolidació de clubs')).toBeInTheDocument()
 
     fireEvent.click(toggle)
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
@@ -82,5 +84,6 @@ describe('Sidebar route matching', () => {
     expect(screen.queryByText('Usuaris i rols')).not.toBeInTheDocument()
     expect(screen.queryByText('Configuració del sistema')).not.toBeInTheDocument()
     expect(screen.queryByText('Importació de dades')).not.toBeInTheDocument()
+    expect(screen.queryByText('Consolidació de clubs')).not.toBeInTheDocument()
   })
 })

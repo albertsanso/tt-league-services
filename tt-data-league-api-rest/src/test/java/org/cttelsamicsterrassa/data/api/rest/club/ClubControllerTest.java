@@ -13,6 +13,7 @@ import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClub
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubFederatedReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubSearchReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -173,6 +174,61 @@ class ClubControllerTest {
 
         var malformed = controller.findClubCompetitionDetails(CLUB_ID, "2023", "Preferent");
         assertEquals(HttpStatus.BAD_REQUEST, malformed.getStatusCode());
+    }
+
+    @Test
+    void consolidatesClubsSuccessfully() {
+        CommandBus commandBus = mock(CommandBus.class);
+        ClubController controller = controllerWith(mock(QueryBus.class), commandBus);
+        Club primary = Club.createExisting(CLUB_ID, "Consolidated Club");
+        when(commandBus.push(any())).thenReturn(DomainCommandResponse.successResponse(primary));
+
+        var response = controller.consolidateClubs(new ConsolidateClubsRequest(
+                List.of(CLUB_ID, UUID.randomUUID()), "Consolidated Club", CLUB_ID));
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        ClubDto body = (ClubDto) response.getBody();
+        assertEquals(CLUB_ID, body.id());
+        assertEquals("Consolidated Club", body.name());
+    }
+
+    @Test
+    void mapsMissingClubOnConsolidateToNotFound() {
+        CommandBus commandBus = mock(CommandBus.class);
+        ClubController controller = controllerWith(mock(QueryBus.class), commandBus);
+        UUID missingId = UUID.randomUUID();
+        when(commandBus.push(any())).thenReturn(DomainCommandResponse.failResponse("Club not found: " + missingId));
+
+        var response = controller.consolidateClubs(new ConsolidateClubsRequest(
+                List.of(CLUB_ID, missingId), "Consolidated Club", CLUB_ID));
+
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+    }
+
+    @Test
+    void mapsFewerThanTwoClubsOnConsolidateToBadRequest() {
+        CommandBus commandBus = mock(CommandBus.class);
+        ClubController controller = controllerWith(mock(QueryBus.class), commandBus);
+        when(commandBus.push(any())).thenReturn(
+                DomainCommandResponse.failResponse("At least two distinct clubs must be selected for consolidation"));
+
+        var response = controller.consolidateClubs(new ConsolidateClubsRequest(
+                List.of(CLUB_ID, CLUB_ID), "Consolidated Club", CLUB_ID));
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void mapsPrimaryNotInSelectionOnConsolidateToBadRequest() {
+        CommandBus commandBus = mock(CommandBus.class);
+        ClubController controller = controllerWith(mock(QueryBus.class), commandBus);
+        when(commandBus.push(any())).thenReturn(
+                DomainCommandResponse.failResponse("Primary club must be one of the selected clubs"));
+
+        var response = controller.consolidateClubs(new ConsolidateClubsRequest(
+                List.of(CLUB_ID, UUID.randomUUID()), "Consolidated Club", UUID.randomUUID()));
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
 
     private static ClubController controllerWith(QueryBus queryBus, CommandBus commandBus) {
