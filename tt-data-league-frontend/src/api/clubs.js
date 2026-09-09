@@ -317,6 +317,31 @@ export function getClubCompetitionDetails(
   ).then(normalizeClubCompetitionDetailsResponse)
 }
 
+export function getClubMatchesByCompetitions(clubId, competitions, token, signal, onUnauthorized) {
+  if (!clubId || typeof clubId !== 'string') {
+    throw new ApiError('L’identificador del club no és vàlid.', 400)
+  }
+  if (!Array.isArray(competitions)) {
+    throw new ApiError('Les competicions no són vàlides.', 400, competitions)
+  }
+
+  return Promise.all(
+    competitions.map((item) => getClubCompetitionDetails(
+      clubId,
+      item.season,
+      item.name,
+      token,
+      signal,
+      onUnauthorized,
+    )),
+  ).then((results) => results.map((result, index) => ({
+    competition: competitions[index].name,
+    season: competitions[index].season,
+    source: competitions[index].source ?? result.source,
+    matches: [...result.matches].sort((left, right) => left.round - right.round),
+  })))
+}
+
 export function updateClubName(clubId, name, token, signal, onUnauthorized) {
   if (!clubId || typeof clubId !== 'string') {
     throw new ApiError('L’identificador del club no és vàlid.', 400)

@@ -3,7 +3,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ClubDetailPage from './ClubDetailPage.jsx'
 import { useAuth } from '../context/useAuth.js'
-import { useClubDetails } from '../hooks/useClubs.js'
+import { useClubDetails, useClubMatches } from '../hooks/useClubs.js'
 
 vi.mock('../context/useAuth.js', () => ({
   useAuth: vi.fn(),
@@ -11,6 +11,7 @@ vi.mock('../context/useAuth.js', () => ({
 
 vi.mock('../hooks/useClubs.js', () => ({
   useClubDetails: vi.fn(),
+  useClubMatches: vi.fn(),
 }))
 
 const club = {
@@ -64,6 +65,28 @@ function renderPage(path) {
   )
 }
 
+function matchGroupsFor(competitions) {
+  return competitions.map((competition) => ({
+    competition: competition.name,
+    season: competition.season,
+    source: competition.source ?? 'RFETM',
+    matches: [{
+      id: `${competition.name}-${competition.season}-match`,
+      homeTeam: 'Club Terrassa 1',
+      awayTeam: 'Club Rival 1',
+      homeGamesWon: 3,
+      awayGamesWon: 1,
+      result: 'win',
+      round: 1,
+      venue: null,
+    }],
+  }))
+}
+
+function expandNode(name) {
+  fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${name} `) }))
+}
+
 describe('ClubDetailPage', () => {
   afterEach(() => {
     cleanup()
@@ -72,12 +95,65 @@ describe('ClubDetailPage', () => {
   beforeEach(() => {
     useAuth.mockReturnValue({ hasRole: () => false })
     useClubDetails.mockReturnValue({ data: club, loading: false, error: null, retry: vi.fn() })
+    useClubMatches.mockImplementation((clubId, competitions) => ({
+      data: matchGroupsFor(competitions),
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    }))
   })
 
-  it('keeps filters interdependent and preserves them in competition links', () => {
+  it('renders every group collapsed by default, showing only the top-level source', () => {
     renderPage('/clubs/club-id?view=matches&season=2024-2025&competition=Preferent')
 
-    expect(screen.getByRole('link', { name: /Preferent/ })).toHaveAttribute(
+    const sourceToggle = screen.getByRole('button', { name: /^RFETM/ })
+    expect(sourceToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('button', { name: /^2024-2025/ })).not.toBeInTheDocument()
+    expect(screen.queryByText('Club Terrassa 1 — Club Rival 1')).not.toBeInTheDocument()
+  })
+
+  it('reveals season, then competition, then matches as each level is expanded', () => {
+    renderPage('/clubs/club-id?view=matches&season=2024-2025&competition=Preferent')
+
+    expandNode('RFETM')
+    const seasonToggle = screen.getByRole('button', { name: /^2024-2025/ })
+    expect(seasonToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('button', { name: /^Preferent/ })).not.toBeInTheDocument()
+
+    expandNode('2024-2025')
+    const competitionToggle = screen.getByRole('button', { name: /^Preferent/ })
+    expect(competitionToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Club Terrassa 1 — Club Rival 1')).not.toBeInTheDocument()
+
+    expandNode('Preferent')
+    expect(screen.getByText('Club Terrassa 1 — Club Rival 1')).toBeInTheDocument()
+    expect(screen.getByText('Jornada 1')).toBeInTheDocument()
+    expect(screen.getByText('3 — 1')).toBeInTheDocument()
+
+    fireEvent.click(competitionToggle)
+    expect(competitionToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Club Terrassa 1 — Club Rival 1')).not.toBeInTheDocument()
+  })
+
+  it('sorts seasons within a source descending (most recent first)', () => {
+    renderPage('/clubs/club-id?view=matches&season=all')
+
+    expandNode('RFETM')
+    const seasonToggles = screen.getAllByRole('button', { name: /^20\d{2}-20\d{2}/ })
+    expect(seasonToggles.map((toggle) => toggle.textContent)).toEqual([
+      expect.stringContaining('2024-2025'),
+      expect.stringContaining('2023-2024'),
+    ])
+  })
+
+  it('keeps filters interdependent and preserves them in the view-competition link', () => {
+    renderPage('/clubs/club-id?view=matches&season=2024-2025&competition=Preferent')
+
+    expandNode('RFETM')
+    expandNode('2024-2025')
+    expandNode('Preferent')
+
+    expect(screen.getByRole('link', { name: 'Veure la competició' })).toHaveAttribute(
       'href',
       '/clubs/club-id/competition/2024-2025/Preferent?view=matches&season=2024-2025&competition=Preferent',
     )
@@ -85,10 +161,27 @@ describe('ClubDetailPage', () => {
     fireEvent.change(screen.getByLabelText('Temporada'), { target: { value: '2023-2024' } })
 
     expect(screen.getByLabelText('Competició')).toHaveValue('Preferent')
-    expect(screen.getByRole('link', { name: /Preferent/ })).toHaveAttribute(
+
+    expandNode('2023-2024')
+    expandNode('Preferent')
+
+    expect(screen.getByRole('link', { name: 'Veure la competició' })).toHaveAttribute(
       'href',
       '/clubs/club-id/competition/2023-2024/Preferent?view=matches&season=2023-2024&competition=Preferent',
     )
+  })
+
+  it('shows the club-level empty state when no competitions match the current filters', () => {
+    useClubDetails.mockReturnValue({
+      data: { ...club, competitions: [] },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/clubs/club-id?view=matches')
+
+    expect(screen.getByText('No hi ha partits disponibles per als filtres seleccionats.')).toBeInTheDocument()
   })
 
   it('switches to the roster tab using an accessible tab', () => {
@@ -101,16 +194,18 @@ describe('ClubDetailPage', () => {
     expect(screen.getByRole('tab', { name: /Jugadors/ })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('shows competition summaries across all seasons when selected', () => {
+  it('shows both competition groups nested under one source when all seasons are selected', () => {
     renderPage('/clubs/club-id?view=matches&season=2024-2025')
 
     const seasonSelect = screen.getByLabelText('Temporada')
     expect(screen.getByRole('option', { name: 'Totes les temporades' })).toBeInTheDocument()
 
     fireEvent.change(seasonSelect, { target: { value: 'all' } })
-
     expect(seasonSelect).toHaveValue('all')
-    expect(screen.getAllByRole('link', { name: /Preferent/ })).toHaveLength(2)
+
+    expandNode('RFETM')
+    expect(screen.getByRole('button', { name: /^2024-2025/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^2023-2024/ })).toBeInTheDocument()
   })
 
   it('offers all sources and resets dependent filters when a source changes', () => {
@@ -124,7 +219,10 @@ describe('ClubDetailPage', () => {
 
     expect(screen.getByLabelText('Temporada')).toHaveValue('all')
     expect(screen.getByLabelText('Competició')).toHaveValue('')
-    expect(screen.getAllByRole('link', { name: /Preferent/ })).toHaveLength(2)
+
+    expandNode('RFETM')
+    expect(screen.getByRole('button', { name: /^2024-2025/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^2023-2024/ })).toBeInTheDocument()
   })
 
   it('limits season choices to the selected competition seasons', () => {

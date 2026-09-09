@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   consolidateClubs,
   getClubCompetitionDetails,
   getClubDetails,
+  getClubMatchesByCompetitions,
   searchClubs,
 } from '../api/clubs.js'
 import { useAuth } from '../context/useAuth.js'
@@ -94,6 +95,30 @@ export function useClubCompetitionDetails(clubId, season, competition) {
 
   const enabled = Boolean(clubId && season && competition)
   return useRequest(request, enabled, `${clubId}-${season}-${competition}`)
+}
+
+export function useClubMatches(clubId, competitions) {
+  const competitionsKey = competitions.map((item) => `${item.season}-${item.name}`).join('|')
+  // Keep a stable competitions reference across renders that carry the same
+  // competition set, so the fetch effect below only re-runs when it changes.
+  const stableCompetitions = useMemo(
+    () => competitions,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [competitionsKey],
+  )
+  const request = useCallback(
+    (token, signal, onUnauthorized) => getClubMatchesByCompetitions(
+      clubId,
+      stableCompetitions,
+      token,
+      signal,
+      onUnauthorized,
+    ),
+    [clubId, stableCompetitions],
+  )
+
+  const enabled = Boolean(clubId) && stableCompetitions.length > 0
+  return useRequest(request, enabled, `${clubId}-${competitionsKey}`)
 }
 
 /**

@@ -23,8 +23,9 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00045: Initial users by default](### [FEAT-00045] Initial users by default)
+- [FEAT-00044: Grouped matches list in club details, matches tab](### [FEAT-00044] Grouped matches list in club details, matches tab)
 - [FEAT-00043: Clubs consolidation fixes 1](### [FEAT-00043] Clubs consolidation fixes 1)
-
 - [FEAT-00042: Synchronize refreshes in import screen](### [FEAT-00042] Synchronize refreshes in import screen)
 - [FEAT-00041: Clubs consolidation on Club search results](### [FEAT-00041] Clubs consolidation on Club search results)
 - [FEAT-00040: Import process for BCNESA with phases](### [FEAT-00040] Import process for BCNESA with phases)
@@ -55,6 +56,63 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00045] Initial users by default
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Ensure the system provisions a default set of initial users (at least one ADMIN) automatically on first startup, so a freshly deployed environment is never left without any way to log in and manage users.
+List of users:
+- username: `albert`, password: `albert`, role: `ADMIN`
+- username: `oscar`, password: `Oscar&1234`, role: `ADMIN`
+
+#### Acceptance Criteria
+- [x] On first startup, the system provisions a default set of initial users (at least one ADMIN) automatically.
+- [x] The default users are created with the specified usernames, passwords, and roles.
+- [x] The system does not create duplicate users if it is restarted after the initial provisioning.
+
+#### Feature Details
+→ See [FEAT-00045-DETAILS.md](./FEAT-00045-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+### [FEAT-00044] Grouped matches list in club details, matches tab
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Show individual matches in the club details page's Matches tab as a collapsible three-level hierarchy (Source > Season > Competition), instead of only competition summary cards or a flat per-competition list, so users can scan actual fixtures/results at whatever level of detail they choose. All groups are collapsed by default, so only the top-level Source groups are visible until expanded; existing source/season/competition filters continue to narrow which groups and matches are shown.
+
+#### Acceptance Criteria
+- [x] Matches tab shows a three-level collapsible hierarchy: Source > Season > Competition, with individual matches listed under each Competition group; seasons within a Source are sorted descending (most recent season first)
+- [x] By default every group at every level is collapsed, so only the top-level Source groups are visible until the user expands them
+- [x] Existing source/season/competition filters continue to narrow which Source/Season/Competition groups and matches are shown
+- [x] Each match entry shows teams, round, and result consistent with the existing competition matches list
+- [x] Empty state is shown when no matches match the current filters
+
+#### Feature Details
+→ See [FEAT-00044-DETAILS.md](./FEAT-00044-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00043] Clubs consolidation fixes 1
 - **Status:** done
@@ -752,6 +810,32 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

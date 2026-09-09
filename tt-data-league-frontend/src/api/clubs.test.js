@@ -4,6 +4,7 @@ import {
   normalizeClubDetailsResponse,
   normalizeClubCompetitionDetailsResponse,
   getClubCompetitionDetails,
+  getClubMatchesByCompetitions,
   normalizeClubSearchResponse,
   searchClubs,
 } from './clubs.js'
@@ -145,6 +146,99 @@ describe('club API boundary', () => {
         headers: expect.objectContaining({ Authorization: expect.any(String) }),
       }),
     )
+  })
+
+  it('fetches matches for each competition in parallel and groups them in input order, sorted by round', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      if (url.includes('/competition/2024-2025/Preferent')) {
+        return Promise.resolve({
+          ok: true,
+          headers: { get: () => 'application/json' },
+          json: async () => ({
+            clubId: 'club-id',
+            clubName: 'Club A',
+            source: 'RFETM',
+            competition: 'Preferent',
+            season: '2024-2025',
+            matches: [
+              { id: 'm2', homeTeam: 'A', awayTeam: 'B', result: 'win', round: 3 },
+              { id: 'm1', homeTeam: 'A', awayTeam: 'C', result: 'loss', round: 1 },
+            ],
+          }),
+        })
+      }
+      return Promise.resolve({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => ({
+          clubId: 'club-id',
+          clubName: 'Club A',
+          source: 'BCNESA',
+          competition: 'Copa',
+          season: '2023-2024',
+          matches: [
+            { id: 'm3', homeTeam: 'A', awayTeam: 'D', result: 'draw', round: 2 },
+          ],
+        }),
+      })
+    })
+
+    const groups = await getClubMatchesByCompetitions(
+      'club-id',
+      [
+        { name: 'Preferent', season: '2024-2025' },
+        { name: 'Copa', season: '2023-2024' },
+      ],
+      'session-token',
+    )
+
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(groups).toEqual([
+      {
+        competition: 'Preferent',
+        season: '2024-2025',
+        source: 'RFETM',
+        matches: [
+          expect.objectContaining({ id: 'm1', round: 1 }),
+          expect.objectContaining({ id: 'm2', round: 3 }),
+        ],
+      },
+      {
+        competition: 'Copa',
+        season: '2023-2024',
+        source: 'BCNESA',
+        matches: [expect.objectContaining({ id: 'm3', round: 2 })],
+      },
+    ])
+  })
+
+  it('propagates a rejection when any competition fetch fails', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      if (url.includes('Copa')) {
+        return Promise.resolve({ ok: false, status: 500, headers: { get: () => 'application/json' }, json: async () => ({}) })
+      }
+      return Promise.resolve({
+        ok: true,
+        headers: { get: () => 'application/json' },
+        json: async () => ({
+          clubId: 'club-id',
+          clubName: 'Club A',
+          source: 'RFETM',
+          competition: 'Preferent',
+          season: '2024-2025',
+          matches: [],
+        }),
+      })
+    })
+
+    await expect(getClubMatchesByCompetitions(
+      'club-id',
+      [
+        { name: 'Preferent', season: '2024-2025' },
+        { name: 'Copa', season: '2023-2024' },
+      ],
+      'session-token',
+    )).rejects.toBeTruthy()
   })
 
   it('rejects malformed competition payloads', () => {

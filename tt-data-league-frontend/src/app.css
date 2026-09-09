@@ -2688,6 +2688,60 @@
   gap: 0.85rem;
 }
 
+.club-match-hierarchy,
+.club-match-hierarchy-list {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.club-match-hierarchy-list {
+  padding-left: 1.25rem;
+}
+
+.club-match-hierarchy-item {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.club-match-hierarchy-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  background: var(--surface-card);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.club-match-hierarchy-toggle:hover {
+  border-color: var(--accent-primary);
+  background: var(--surface-card-sub);
+}
+
+.club-match-hierarchy-toggle strong {
+  flex: 1;
+}
+
+.club-match-hierarchy-count {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.club-match-group-body {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0 0 0 1.25rem;
+}
+
 .club-detail-section h2 {
   margin: 0;
   font-size: 1.05rem;
