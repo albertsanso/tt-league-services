@@ -131,7 +131,7 @@ class FcttActasDirectoryNavigatorTest {
     }
 
     @Test
-    void reportsMonotonicIndeterminateProgressWhileTraversing() throws IOException {
+    void reportsMonotonicDeterminateProgressWithARealTotalWhileTraversing() throws IOException {
         writeReport("2023-2024", "Tercera nacional", "G1", "jornada_1_partido_1.json", report(1, "HOME", "AWAY"));
         writeReport("2023-2024", "Tercera nacional", "G1", "jornada_2_partido_2.json", report(2, "HOME", "AWAY"));
         List<org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress> updates = new ArrayList<>();
@@ -141,10 +141,13 @@ class FcttActasDirectoryNavigatorTest {
                         org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.FCTT, null),
                 updates::add);
 
-        assertEquals(2, updates.size());
-        assertEquals(1, updates.get(0).processed());
-        assertEquals(2, updates.get(1).processed());
-        assertTrue(updates.get(1).total().isEmpty(), "no reliable total is available, so progress stays indeterminate");
+        assertEquals(3, updates.size(), "an initial pre-count snapshot plus one update per file");
+        assertEquals(0, updates.get(0).processed());
+        assertEquals(1, updates.get(1).processed());
+        assertEquals(2, updates.get(2).processed());
+        updates.forEach(update -> assertEquals(2L, update.total().orElseThrow(),
+                "the real total is known upfront and stays constant"));
+        assertEquals(100.0, updates.get(2).percentage().orElseThrow());
     }
 
     @Test

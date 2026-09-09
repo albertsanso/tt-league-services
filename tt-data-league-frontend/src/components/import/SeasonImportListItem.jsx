@@ -5,14 +5,14 @@ import Card from '../ui/Card.jsx'
 
 const tone = (status) => ['COMPLETED', 'SUCCESS', 'DONE'].includes(status) ? 'success' : ['FAILED', 'ERROR'].includes(status) ? 'error' : status ? 'warning' : 'subtle'
 
-export default function SeasonImportListItem({ season, onLoad, onSimulate }) {
+export default function SeasonImportListItem({ season, onLoad, onSimulate, disabled = false }) {
   const { t } = useTranslation()
   const status = season.status ?? season.importStatus
   return <Card as="article" className="import-season-item">
     <div><strong>{season.season ?? season.id}</strong><small>{season.updatedAt ?? season.lastRun ?? t('importPanel.neverRun')}</small></div>
     <div className="import-season-actions">
-      <Button variant="secondary" className="import-start-button" onClick={() => onLoad(season)}>{t('importPanel.load')}</Button><Badge tone={tone(status)}>{status ?? t('importPanel.ready')}</Badge>
-      <Button variant="secondary" onClick={() => onSimulate(season)}>{t('importPanel.simulate')}</Button><Badge tone={tone(season.simulationStatus)}>{season.simulationStatus ?? t('importPanel.ready')}</Badge>
+      <Button variant="secondary" className="import-start-button" onClick={() => onLoad(season)} disabled={disabled}>{t('importPanel.load')}</Button><Badge tone={tone(status)}>{status ?? t('importPanel.ready')}</Badge>
+      <Button variant="secondary" onClick={() => onSimulate(season)} disabled={disabled}>{t('importPanel.simulate')}</Button><Badge tone={tone(season.simulationStatus)}>{season.simulationStatus ?? t('importPanel.ready')}</Badge>
     </div>
   </Card>
 }

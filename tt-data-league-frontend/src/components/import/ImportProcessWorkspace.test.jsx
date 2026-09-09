@@ -29,6 +29,20 @@ describe('ImportProcessWorkspace', () => {
     expect(screen.getByText('10')).toBeInTheDocument()
   })
 
+  it('displays the source/federation name alongside the resource while a run is active', () => {
+    render(<ImportProcessWorkspace resource={resource}
+      process={{ loading: false, error: null, run: { source: 'BCNESA', status: 'running', processed: 3, total: 10, percentage: 30, skipped: 1, errorCount: 0, result: null } }}
+      {...callbacks} />)
+    expect(screen.getByText('BCNESA · ACTAS · 2025-2026')).toBeInTheDocument()
+  })
+
+  it('displays the source/federation name alongside the resource once a run reaches a terminal status', () => {
+    render(<ImportProcessWorkspace resource={resource}
+      process={{ loading: false, error: null, run: { source: 'RFETM', status: 'success', processed: 1, total: 1, percentage: 100, skipped: 0, errorCount: 0, result: { status: 'success', itemsPersisted: 2, filesSeen: 1, skipped: 0, findings: [], processingErrors: [] } } }}
+      {...callbacks} />)
+    expect(screen.getByText('RFETM · ACTAS · 2025-2026')).toBeInTheDocument()
+  })
+
   it('renders each terminal result state and retry/back actions', () => {
     const { rerender } = render(<ImportProcessWorkspace resource={resource}
       process={{ loading: false, error: null, run: { status: 'success', processed: 1, total: 1, percentage: 100, skipped: 0, errorCount: 0, result: { status: 'success', itemsPersisted: 2, filesSeen: 1, skipped: 0, findings: [], processingErrors: [] } } }}

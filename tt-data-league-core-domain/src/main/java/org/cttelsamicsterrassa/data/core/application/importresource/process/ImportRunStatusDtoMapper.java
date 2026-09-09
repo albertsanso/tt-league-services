@@ -41,6 +41,11 @@ final class ImportRunStatusDtoMapper {
                 "Import resource is already processing: " + importResourceId, null);
     }
 
+    static ImportRunStatusDto anotherRunActive(UUID importResourceId) {
+        return new ImportRunStatusDto(null, importResourceId, null, null, "failure", 0L, null, null, 0, 1,
+                "Another import is already running; only one import can run at a time.", null);
+    }
+
     static ImportRunStatusDto missingRun(UUID runId) {
         return new ImportRunStatusDto(runId, null, null, null, "failure", 0L, null, null, 0, 1,
                 "Import run not found: " + runId, null);

@@ -16,8 +16,8 @@ function badgeTone(status) {
   return 'subtle'
 }
 
-function resourceLabel(resource, t) {
-  return [resource?.resourceType, resource?.season].filter(Boolean).join(' · ') || t('importPanel.resource')
+function resourceLabel(resource, source, t) {
+  return [source, resource?.resourceType, resource?.season].filter(Boolean).join(' · ') || t('importPanel.resource')
 }
 
 function FindingList({ title, items, emptyText }) {
@@ -63,14 +63,14 @@ export default function ImportProcessWorkspace({ resource, process, onRetry, onB
     {!resource && !process.loading && !run && !process.error && (
       <EmptyState>{t('importPanel.processEmpty')}</EmptyState>
     )}
-    {process.loading && <LoadingState>{t('importPanel.processLoading', { resource: resourceLabel(resource, t) })}</LoadingState>}
+    {process.loading && <LoadingState>{t('importPanel.processLoading', { resource: resourceLabel(resource, run?.source, t) })}</LoadingState>}
     {process.error && <ErrorState action={<Button variant="secondary" onClick={() => onRetry(resource)}>{t('importPanel.processRetry')}</Button>}>
       {t(process.error.status === 403 ? 'importPanel.forbidden' : 'importPanel.processFailure')}
     </ErrorState>}
     {active && !process.loading && !process.error && (
       <div className="import-preview-content">
         <div className="import-preview-heading">
-          <strong>{resourceLabel(resource, t)}</strong>
+          <strong>{resourceLabel(resource, run.source, t)}</strong>
           <Badge tone={badgeTone(run.status)}>{t(`importPanel.processStatus.${run.status}`)}</Badge>
         </div>
         <ProgressBar
@@ -89,7 +89,7 @@ export default function ImportProcessWorkspace({ resource, process, onRetry, onB
     {result && !process.loading && !process.error && (
       <div className="import-preview-content">
         <div className="import-preview-heading">
-          <strong>{resourceLabel(resource, t)}</strong>
+          <strong>{resourceLabel(resource, run.source, t)}</strong>
           <Badge tone={badgeTone(result.status)}>{t(`importPanel.processStatus.${result.status}`)}</Badge>
         </div>
         {successful && <p>{t('importPanel.processSuccess', { count: result.itemsPersisted })}</p>}

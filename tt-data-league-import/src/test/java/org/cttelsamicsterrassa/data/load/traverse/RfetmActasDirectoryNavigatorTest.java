@@ -208,7 +208,7 @@ class RfetmActasDirectoryNavigatorTest {
     }
 
     @Test
-    void reportsMonotonicIndeterminateProgressWhileTraversing() throws IOException {
+    void reportsMonotonicDeterminateProgressWithARealTotalWhileTraversing() throws IOException {
         writeReport("2023-2024", "super-divisio", "1", "masculino", "acta.json", acta("1", "2"));
         writeReport("2023-2024", "super-divisio", "2", "masculino", "acta.json", acta("3", "4"));
         List<org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress> updates = new ArrayList<>();
@@ -218,11 +218,13 @@ class RfetmActasDirectoryNavigatorTest {
                         org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.RFETM, null),
                 updates::add);
 
-        assertEquals(2, updates.size());
-        assertEquals(1, updates.get(0).processed());
-        assertEquals(2, updates.get(1).processed());
-        assertTrue(updates.get(1).total().isEmpty(), "no reliable total is available, so progress stays indeterminate");
-        assertTrue(updates.get(1).percentage().isEmpty());
+        assertEquals(3, updates.size(), "an initial pre-count snapshot plus one update per file");
+        assertEquals(0, updates.get(0).processed());
+        assertEquals(1, updates.get(1).processed());
+        assertEquals(2, updates.get(2).processed());
+        updates.forEach(update -> assertEquals(2L, update.total().orElseThrow(),
+                "the real total is known upfront and stays constant"));
+        assertEquals(100.0, updates.get(2).percentage().orElseThrow());
     }
 
     @Test

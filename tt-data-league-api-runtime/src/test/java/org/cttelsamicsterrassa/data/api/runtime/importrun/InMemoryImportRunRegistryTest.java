@@ -58,6 +58,63 @@ class InMemoryImportRunRegistryTest {
     }
 
     @Test
+    void rejectsAQueuedRunForAnotherResourceWhileOneIsAlreadyActive() {
+        InMemoryImportRunRegistry registry = new InMemoryImportRunRegistry();
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        registry.registerQueued(first, ImportSource.RFETM, "2025-2026").orElseThrow();
+
+        Optional<ImportRunSnapshot> rejected = registry.registerQueued(second, ImportSource.BCNESA, "2025-2026");
+
+        assertTrue(rejected.isEmpty(), "only one import may run at a time, regardless of resource or source");
+    }
+
+    @Test
+    void allowsARunForAnotherResourceOnceThePreviousOneReachedATerminalStatus() {
+        InMemoryImportRunRegistry registry = new InMemoryImportRunRegistry();
+        UUID first = UUID.randomUUID();
+        UUID second = UUID.randomUUID();
+        ImportRunSnapshot firstRun = registry.registerQueued(first, ImportSource.RFETM, "2025-2026").orElseThrow();
+        registry.complete(firstRun.runId(), ImportRunStatus.SUCCESS, ImportRunProgress.zero(),
+                ImportProcessResult.success(List.of(), List.of(), 0, 0, 0, 0), null);
+
+        Optional<ImportRunSnapshot> secondRun = registry.registerQueued(second, ImportSource.BCNESA, "2025-2026");
+
+        assertTrue(secondRun.isPresent());
+    }
+
+    @Test
+    void onlyOneConcurrentSubmissionWinsAcrossDifferentResources() throws InterruptedException {
+        InMemoryImportRunRegistry registry = new InMemoryImportRunRegistry();
+        int attempts = 20;
+        CountDownLatch start = new CountDownLatch(1);
+        AtomicInteger accepted = new AtomicInteger();
+        ExecutorService pool = Executors.newFixedThreadPool(attempts);
+        try {
+            for (int i = 0; i < attempts; i++) {
+                UUID resourceId = UUID.randomUUID();
+                pool.submit(() -> {
+                    try {
+                        start.await();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    if (registry.registerQueued(resourceId, ImportSource.RFETM, "2025-2026").isPresent()) {
+                        accepted.incrementAndGet();
+                    }
+                });
+            }
+            start.countDown();
+            pool.shutdown();
+            assertTrue(pool.awaitTermination(5, TimeUnit.SECONDS));
+        } finally {
+            pool.shutdownNow();
+        }
+
+        assertEquals(1, accepted.get(), "exactly one concurrent submission may be accepted system-wide");
+    }
+
+    @Test
     void allowsANewRunAfterThePreviousOneReachedATerminalStatus() {
         InMemoryImportRunRegistry registry = new InMemoryImportRunRegistry();
         UUID resourceId = UUID.randomUUID();

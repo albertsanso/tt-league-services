@@ -12,6 +12,7 @@ export default function ImportFileControls({ file, onFileChange, onLoad, disable
   return <div className="import-file-controls">
     <label htmlFor="import-file">{t('importPanel.fileChooser')}</label>
     <Input
+      key={file ? file.name : 'empty'}
       id="import-file"
       type="file"
       accept=".zip,application/zip,application/x-zip-compressed"

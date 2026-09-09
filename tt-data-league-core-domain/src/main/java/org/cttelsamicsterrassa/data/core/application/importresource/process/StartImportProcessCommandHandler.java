@@ -25,6 +25,10 @@ import java.util.logging.Logger;
  * Accepts an import start request and runs it asynchronously on {@code executor}, returning
  * immediately with a queued run snapshot. Callers poll {@link FindImportRunStatusQueryHandler} for
  * progress and the terminal outcome instead of waiting on this call.
+ *
+ * <p>Only one import may run at a time, system-wide: a request is rejected when the target
+ * resource is already {@link ImportResourceStatus#PROCESSING}, and also when {@code runRegistry}
+ * reports another resource's run is currently active (see {@link ImportRunRegistry#registerQueued}).</p>
  */
 @Named
 public class StartImportProcessCommandHandler extends DomainCommandHandler<StartImportProcessCommand> {
@@ -55,7 +59,7 @@ public class StartImportProcessCommandHandler extends DomainCommandHandler<Start
             return runRegistry.registerQueued(resource.getId(), resource.getSource(), resource.getSeason().toString())
                     .map(snapshot -> accept(resource, snapshot))
                     .orElseGet(() -> DomainCommandResponse.failResponse(
-                            ImportRunStatusDtoMapper.alreadyProcessing(resource.getId())));
+                            ImportRunStatusDtoMapper.anotherRunActive(resource.getId())));
         }).orElseGet(() -> DomainCommandResponse.failResponse(
                 ImportRunStatusDtoMapper.missingResource(command.getImportResourceId())));
     }

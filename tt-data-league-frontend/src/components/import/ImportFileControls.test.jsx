@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import ImportFileControls from './ImportFileControls.jsx'
 
@@ -40,5 +40,32 @@ describe('ImportFileControls', () => {
     expect(screen.getByRole('alert')).toHaveTextContent('No s’ha pogut pujar el fitxer')
     fireEvent.click(retry)
     expect(onLoad).toHaveBeenCalledOnce()
+  })
+
+  it('clears the native file input once the selected file is reset after a successful upload', () => {
+    const { container, rerender } = render(
+      <ImportFileControls
+        file={new File(['data'], 'season.zip')}
+        onFileChange={vi.fn()}
+        onLoad={vi.fn()}
+        uploadState={{ status: 'success', progress: 100 }}
+      />,
+    )
+    const input = within(container).getByLabelText('Fitxer d’importació')
+    const file = new File(['data'], 'season.zip')
+    fireEvent.change(input, { target: { files: [file] } })
+    expect(input.files).toHaveLength(1)
+
+    rerender(
+      <ImportFileControls
+        file={null}
+        onFileChange={vi.fn()}
+        onLoad={vi.fn()}
+        uploadState={{ status: 'idle', progress: 0 }}
+      />,
+    )
+
+    const resetInput = within(container).getByLabelText('Fitxer d’importació')
+    expect(resetInput.files).toHaveLength(0)
   })
 })

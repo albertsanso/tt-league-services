@@ -25,7 +25,7 @@ function formatUploadDate(value, fallback) {
   return fallback
 }
 
-export default function ImportResourceList({ resources, onSimulate, onImport }) {
+export default function ImportResourceList({ resources, onSimulate, onImport, disabled = false }) {
   const { t } = useTranslation()
 
   return <section className="import-resource-list" aria-labelledby="import-resources-title">
@@ -33,8 +33,8 @@ export default function ImportResourceList({ resources, onSimulate, onImport }) 
     <div className="import-resource-items" role="list">
       {resources.map((resource) => <Card as="article" className="import-resource-item" key={resource.id} role="listitem">
         <div className="import-resource-actions">
-          <Button variant="secondary" onClick={() => onSimulate(resource)}>{t('importPanel.simulate')}</Button>
-          <Button variant="primary" onClick={() => onImport(resource)}>{t('importPanel.import')}</Button>
+          <Button variant="secondary" onClick={() => onSimulate(resource)} disabled={disabled}>{t('importPanel.simulate')}</Button>
+          <Button variant="primary" onClick={() => onImport(resource)} disabled={disabled}>{t('importPanel.import')}</Button>
         </div>
         <div className="import-resource-content">
           <div className="import-resource-heading">

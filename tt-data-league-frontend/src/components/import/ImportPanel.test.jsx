@@ -17,13 +17,17 @@ vi.mock('../../api/importJobs.js', () => ({
 }))
 vi.mock('../../hooks/useImportSourceStatus.js', () => ({ useImportSourceStatus: vi.fn() }))
 vi.mock('../../hooks/useImportResources.js', () => ({ useImportResources: vi.fn() }))
-vi.mock('../../hooks/useImportProcessStatus.js', () => ({ useImportProcessStatus: vi.fn() }))
+vi.mock('../../hooks/useImportProcessStatus.js', () => ({
+  useImportProcessStatus: vi.fn(),
+  isActiveImportRunStatus: (status) => ['queued', 'running'].includes(status),
+}))
 
 describe('ImportPanel resources', () => {
   let refreshStatus
   let refreshResources
 
   beforeEach(() => {
+    window.sessionStorage.clear()
     refreshStatus = vi.fn()
     refreshResources = vi.fn()
     useAuth.mockReturnValue({ token: 'token', clearSession: vi.fn() })
@@ -178,6 +182,55 @@ describe('ImportPanel resources', () => {
     expect(screen.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '40')
   })
 
+  it('disables starting or simulating another import while one is already running', async () => {
+    useImportResources.mockReturnValue({
+      data: [
+        { id: 'resource-1', season: '2025-2026', resourceType: 'ACTAS' },
+        { id: 'resource-2', season: '2024-2025', resourceType: 'ACTAS' },
+      ],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+      refresh: refreshResources,
+    })
+    startImport.mockResolvedValue({ response: { runId: 'run-1', status: 'queued' } })
+    useImportProcessStatus.mockReturnValue({
+      runId: 'run-1',
+      loading: false,
+      error: null,
+      data: { status: 'running', processed: 1, total: 2, percentage: 50, skipped: 0, errorCount: 0, result: null },
+    })
+
+    const { rerender } = render(<ImportPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Importa' })[0])
+
+    await waitFor(() => expect(startImport).toHaveBeenCalledWith('token', 'resource-1', expect.any(Function)))
+    await waitFor(() => expect(screen.getByText('En curs')).toBeInTheDocument())
+
+    screen.getAllByRole('button', { name: 'Importa' }).forEach((button) => expect(button).toBeDisabled())
+    screen.getAllByRole('button', { name: 'Simula' }).forEach((button) => expect(button).toBeDisabled())
+
+    useImportProcessStatus.mockReturnValue({
+      runId: 'run-1',
+      loading: false,
+      error: null,
+      data: {
+        status: 'success',
+        processed: 2,
+        total: 2,
+        percentage: 100,
+        skipped: 0,
+        errorCount: 0,
+        result: { status: 'success', filesSeen: 2, itemsPersisted: 2, skipped: 0, findings: [], processingErrors: [] },
+      },
+    })
+    rerender(<ImportPanel />)
+
+    screen.getAllByRole('button', { name: 'Importa' }).forEach((button) => expect(button).not.toBeDisabled())
+    screen.getAllByRole('button', { name: 'Simula' }).forEach((button) => expect(button).not.toBeDisabled())
+  })
+
   it('routes preview proceed to the same import process workspace', async () => {
     useImportResources.mockReturnValue({
       data: [{ id: 'resource-1', season: '2025-2026', resourceType: 'ACTAS' }],
@@ -221,5 +274,105 @@ describe('ImportPanel resources', () => {
     await waitFor(() => expect(screen.getByText('Resultat de la importació')).toBeInTheDocument())
     expect(screen.getByText('Sense resultats')).toBeInTheDocument()
     expect(startImport).toHaveBeenCalledWith('token', 'resource-1', expect.any(Function))
+  })
+
+  it('refreshes seasons and the selected source resource list when that source status transitions', async () => {
+    useImportSourceStatus.mockReturnValue({
+      data: [{ id: 'RFETM', label: 'RFETM', status: 'pending' }],
+      loading: false,
+      error: null,
+      refresh: refreshStatus,
+    })
+    const { rerender } = render(<ImportPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
+    await waitFor(() => expect(getImportHistory).toHaveBeenCalledTimes(1))
+
+    useImportSourceStatus.mockReturnValue({
+      data: [{ id: 'RFETM', label: 'RFETM', status: 'available' }],
+      loading: false,
+      error: null,
+      refresh: refreshStatus,
+    })
+    rerender(<ImportPanel />)
+
+    await waitFor(() => expect(getImportHistory).toHaveBeenCalledTimes(2))
+    expect(refreshResources).toHaveBeenCalled()
+  })
+
+  it('refreshes seasons and the resource list once an active import run reaches a terminal status', async () => {
+    useImportResources.mockReturnValue({
+      data: [{ id: 'resource-1', season: '2025-2026', resourceType: 'ACTAS' }],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+      refresh: refreshResources,
+    })
+    startImport.mockResolvedValue({ response: { runId: 'run-1', status: 'queued' } })
+    useImportProcessStatus.mockReturnValue({
+      runId: 'run-1',
+      loading: false,
+      error: null,
+      data: { status: 'running', processed: 1, total: 2, percentage: 50, skipped: 0, errorCount: 0, result: null },
+    })
+
+    const { rerender } = render(<ImportPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Importa' }))
+    await waitFor(() => expect(startImport).toHaveBeenCalled())
+    await waitFor(() => expect(getImportHistory).toHaveBeenCalledTimes(1))
+
+    useImportProcessStatus.mockReturnValue({
+      runId: 'run-1',
+      loading: false,
+      error: null,
+      data: {
+        status: 'success',
+        processed: 2,
+        total: 2,
+        percentage: 100,
+        skipped: 0,
+        errorCount: 0,
+        result: { status: 'success', filesSeen: 2, itemsPersisted: 2, skipped: 0, findings: [], processingErrors: [] },
+      },
+    })
+    rerender(<ImportPanel />)
+
+    await waitFor(() => expect(refreshResources).toHaveBeenCalled())
+    expect(getImportHistory).toHaveBeenCalledTimes(2)
+  })
+
+  it('persists the active run to sessionStorage and rehydrates it on remount', async () => {
+    useImportResources.mockReturnValue({
+      data: [{ id: 'resource-1', season: '2025-2026', resourceType: 'ACTAS' }],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+      refresh: refreshResources,
+    })
+    startImport.mockResolvedValue({ response: { runId: 'run-1', status: 'queued' } })
+    useImportProcessStatus.mockReturnValue({
+      runId: 'run-1',
+      loading: false,
+      error: null,
+      data: { status: 'running', processed: 1, total: 2, percentage: 50, skipped: 0, errorCount: 0, result: null },
+    })
+
+    const { unmount } = render(<ImportPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Importa' }))
+    await waitFor(() => expect(startImport).toHaveBeenCalled())
+
+    await waitFor(() => {
+      const stored = JSON.parse(window.sessionStorage.getItem('import-panel:active-run'))
+      expect(stored.runId).toBe('run-1')
+      expect(stored.source).toBe('RFETM')
+      expect(stored.resource.id).toBe('resource-1')
+    })
+    unmount()
+
+    render(<ImportPanel />)
+
+    expect(useImportProcessStatus).toHaveBeenLastCalledWith('run-1')
+    expect(screen.getByText('En curs')).toBeInTheDocument()
   })
 })

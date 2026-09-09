@@ -131,6 +131,8 @@ public class FcttActasDirectoryNavigator {
         }
 
         Counters counters = new Counters();
+        counters.total = countReportFiles(baseFolder, seasonFilter);
+        progressListener.onProgress(ImportRunProgress.determinate(0, counters.total, 0, 0));
         LOGGER.info("Traversing FCTT match reports under {}", baseFolder);
 
         for (Path seasonFolder : listDirectories(baseFolder)) {
@@ -208,8 +210,29 @@ public class FcttActasDirectoryNavigator {
     }
 
     private static void reportProgress(Counters counters, ImportProgressListener progressListener) {
-        progressListener.onProgress(ImportRunProgress.indeterminate(counters.filesSeen, counters.skipped,
-                counters.processorFailures));
+        progressListener.onProgress(ImportRunProgress.determinate(counters.filesSeen, counters.total,
+                counters.skipped, counters.processorFailures));
+    }
+
+    /**
+     * Counts the report files a traversal will visit, using the same folder/file predicates as
+     * {@link #traverseSeasonFolder} without parsing anything, so progress can report a real total
+     * from the first callback instead of discovering it only once traversal finishes.
+     */
+    private long countReportFiles(Path baseFolder, Predicate<String> seasonFilter) throws IOException {
+        long total = 0;
+        for (Path seasonFolder : listDirectories(baseFolder)) {
+            String season = seasonFolder.getFileName().toString();
+            if (!SEASON_FOLDER_PATTERN.matcher(season).matches() || !seasonFilter.test(season)) {
+                continue;
+            }
+            for (Path competitionFolder : listDirectories(seasonFolder)) {
+                for (Path groupFolder : listDirectories(competitionFolder)) {
+                    total += listMatchReportFiles(groupFolder).size();
+                }
+            }
+        }
+        return total;
     }
 
     private void dispatch(FcttMatchReportContext context,
@@ -253,6 +276,7 @@ public class FcttActasDirectoryNavigator {
 
     /** Mutable tally kept for the duration of one traversal. */
     private static final class Counters {
+        private long total;
         private long filesSeen;
         private long dispatched;
         private long skipped;

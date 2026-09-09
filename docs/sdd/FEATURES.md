@@ -23,6 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00042: Synchronize refreshes in import screen](### [FEAT-00042] Synchronize refreshes in import screen)
 - [FEAT-00041: Clubs consolidation on Club search results](### [FEAT-00041] Clubs consolidation on Club search results)
 - [FEAT-00040: Import process for BCNESA with phases](### [FEAT-00040] Import process for BCNESA with phases)
 - [FEAT-00039: Add Phase property into league matches](### [FEAT-00039] Add Phase property into league matches)
@@ -52,6 +53,59 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00042] Synchronize refreshes in import screen
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Coordinate the independent refresh/polling mechanisms on the administration import screen so source status, seasons, and report panels update on a single 
+synchronized cycle instead of drifting out of sync.
+
+#### Description
+
+1) When load a ZIP file with the endpoint `/api/v1/administration/import/upload`, at the time the status polling gets a status change from the 
+endpoint `/api/v1/administration/import/status` for a source/federation then:
+- the seasons list and report panels should also refresh to reflect the new state of the import resource.
+- The import resource list for that season/federation should also refresh to reflect the new state of the import resource.
+- The ZIP file chooser must be cleaned and reset to its initial state after a successful upload so no file is selected and the user can select a new file to upload.
+- Keep the star in green color in the source/federation selector to indicate that the source/federation has a new import resource available for processing.
+2) When an Import operation is finished from the triggered action by the endpoint `/api/v1/administration/import/start?importResourceId=<import-resource-id>`, 
+the import resource list for that season/federation should also refresh to reflect the new state of the import resource.
+3) Import progress feedback in the UI must be shown in percentual increments, with a progress bar and a textual representation of the current state, including the 
+number of records processed, total records, and any errors encountered. Now is only counted the processed, not the total records, so the user cannot know how many records are
+in the import resource and how many are left to process.
+4) The import process feedback must be persisted, so if another source/federation is selected and then the user comes back to the previous source/federation, 
+the import progress must continue in the background and feedback must be shown in the UI with the current state of the import process.
+5) Allow 1 import process running only. When an import process is running, no more import processes are allowed to be started, regardless of the
+source/federation or import resource targeted.
+6) Display the source/federation name (e.g. RFETM, BCNESA, FCTT) alongside the import result/progress status in the UI, so it is clear which
+source/federation the currently shown progress or result belongs to.
+
+#### Acceptance Criteria
+- [x] The import screen refreshes the seasons list and report panels when a new import resource is uploaded or when an import operation is finished.
+- [x] The import resource list for the selected season/federation refreshes to reflect the new state of the import resource after an upload or import operation.
+- [x] The ZIP file chooser is reset to its initial state after a successful upload, allowing the user to select a new file.
+- [x] The star in the source/federation selector remains green to indicate that the source/federation has a new import resource available for processing.
+- [x] The import progress feedback in the UI shows percentual increments, a progress bar, and a textual representation of the current state, including the number of records processed, total records, and any errors encountered.
+- [x] The import process feedback is persisted, allowing the user to switch between sources/federations and return to the previous one while still seeing the current state of the import process.
+- [x] Starting a new import process is rejected while another import process is already running, regardless of which resource or source/federation either one targets.
+- [x] The import result/progress status displayed in the UI shows the source/federation name it belongs to.
+
+#### Feature Details
+→ See [FEAT-00042-DETAILS.md](./FEAT-00042-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00041] Clubs consolidation action on Club search results
 - **Status:** done
@@ -665,6 +719,18 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

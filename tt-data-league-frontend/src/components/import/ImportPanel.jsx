@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/useAuth.js'
 import { createImportPreview, getImportHistory, startImport, uploadImportFile } from '../../api/importJobs.js'
 import { normalizeImportPreview } from '../../hooks/useImportPreviewStatus.js'
-import { useImportProcessStatus } from '../../hooks/useImportProcessStatus.js'
+import { isActiveImportRunStatus, useImportProcessStatus } from '../../hooks/useImportProcessStatus.js'
 import { useImportSourceStatus } from '../../hooks/useImportSourceStatus.js'
 import { useImportResources } from '../../hooks/useImportResources.js'
 import SectionLabel from '../ui/SectionLabel.jsx'
@@ -16,6 +16,7 @@ import ImportProcessWorkspace from './ImportProcessWorkspace.jsx'
 import ImportReportPanel from './ImportReportPanel.jsx'
 
 const ACTION_MESSAGE_TIMEOUT = 20000
+const ACTIVE_RUN_STORAGE_KEY = 'import-panel:active-run'
 
 function emptyPreviewState() {
   return {
@@ -28,6 +29,7 @@ function emptyPreviewState() {
 
 function emptyImportState() {
   return {
+    source: null,
     resource: null,
     submitting: false,
     runId: null,
@@ -43,28 +45,66 @@ function isValidImportFile(candidate) {
       || /\.zip$/i.test(candidate.name ?? ''))
 }
 
+function readStoredRun() {
+  try {
+    const raw = window.sessionStorage.getItem(ACTIVE_RUN_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.runId || !parsed?.resource) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writeStoredRun(source, resource, runId) {
+  try {
+    if (!runId || !resource) {
+      window.sessionStorage.removeItem(ACTIVE_RUN_STORAGE_KEY)
+      return
+    }
+    window.sessionStorage.setItem(ACTIVE_RUN_STORAGE_KEY, JSON.stringify({ source, resource, runId }))
+  } catch {
+    // best-effort UI convenience; ignore storage failures (e.g. private browsing)
+  }
+}
+
+function normalizeHistoryPayload(payload) {
+  const data = Array.isArray(payload) ? payload : (payload?.items ?? payload?.content ?? [])
+  return Array.isArray(data) ? data : []
+}
+
 export default function ImportPanel() {
   const { t } = useTranslation()
   const { token, clearSession } = useAuth()
   const sources = useImportSourceStatus()
-  const [selectedSource, setSelectedSource] = useState('')
+  const [selectedSource, setSelectedSource] = useState(() => readStoredRun()?.source ?? '')
   const [selectedSeason, setSelectedSeason] = useState(null)
   const [file, setFile] = useState(null)
   const [previewState, setPreviewState] = useState(emptyPreviewState)
-  const [importState, setImportState] = useState(emptyImportState)
+  const [importState, setImportState] = useState(() => {
+    const stored = readStoredRun()
+    return stored
+      ? { source: stored.source, resource: stored.resource, submitting: false, runId: stored.runId, error: null }
+      : emptyImportState()
+  })
   const [history, setHistory] = useState({ data: [], loading: true, error: null })
   const [uploadState, setUploadState] = useState({ status: 'idle', progress: 0, error: null })
   const previousSourceStatuses = useRef(null)
+  const lastHandledRunTransition = useRef(null)
   const resources = useImportResources(selectedSource)
   const runStatus = useImportProcessStatus(importState.runId)
+
+  const refreshHistory = useCallback(() => {
+    getImportHistory(token, '', clearSession)
+      .then((payload) => setHistory({ data: normalizeHistoryPayload(payload), loading: false, error: null }))
+      .catch((error) => setHistory({ data: [], loading: false, error }))
+  }, [clearSession, token])
 
   useEffect(() => {
     const controller = new AbortController()
     getImportHistory(token, '', clearSession, controller.signal)
-      .then((payload) => {
-        const data = Array.isArray(payload) ? payload : (payload?.items ?? payload?.content ?? [])
-        setHistory({ data: Array.isArray(data) ? data : [], loading: false, error: null })
-      })
+      .then((payload) => setHistory({ data: normalizeHistoryPayload(payload), loading: false, error: null }))
       .catch((error) => {
         if (error.name !== 'AbortError') setHistory({ data: [], loading: false, error })
       })
@@ -83,20 +123,24 @@ export default function ImportPanel() {
   useEffect(() => {
     const currentStatuses = new Map(sources.data.map((source) => [source.id ?? source.code, source.status]))
     const previousStatuses = previousSourceStatuses.current
-    const sourceCompletedAction = previousStatuses
-      && [...currentStatuses].some(([id, status]) => (
-        ['available', 'error'].includes(status)
-        && previousStatuses.get(id) !== status
-      ))
+    const transitioned = previousStatuses
+      ? [...currentStatuses]
+        .filter(([id, status]) => ['available', 'error'].includes(status) && previousStatuses.get(id) !== status)
+        .map(([id]) => id)
+      : []
 
-    if (sourceCompletedAction) {
+    if (transitioned.length > 0) {
       setUploadState((current) => current.status === 'success'
         ? { status: 'idle', progress: 0, error: null }
         : current)
+      refreshHistory()
+      if (selectedSource && transitioned.includes(selectedSource)) {
+        resources.refresh()
+      }
     }
 
     previousSourceStatuses.current = currentStatuses
-  }, [sources.data])
+  }, [sources.data, selectedSource, refreshHistory, resources])
 
   useEffect(() => {
     if (uploadState.status === 'idle') return undefined
@@ -108,8 +152,32 @@ export default function ImportPanel() {
     return () => window.clearTimeout(timer)
   }, [uploadState.status])
 
+  useEffect(() => {
+    writeStoredRun(importState.source, importState.resource, importState.runId)
+  }, [importState.source, importState.resource, importState.runId])
+
+  useEffect(() => {
+    const runId = runStatus.runId
+    const status = runStatus.data?.status
+    if (!runId || !status || isActiveImportRunStatus(status)) return
+
+    const transitionKey = `${runId}:${status}`
+    if (lastHandledRunTransition.current === transitionKey) return
+    lastHandledRunTransition.current = transitionKey
+
+    refreshHistory()
+    if (importState.source && importState.source === selectedSource) {
+      resources.refresh()
+    }
+  }, [runStatus.runId, runStatus.data?.status, importState.source, selectedSource, refreshHistory, resources])
+
+  // Only one import process may run at a time; while the active run hasn't reached a terminal
+  // status yet (or its outcome hasn't been fetched), starting another one is blocked.
+  const importInProgress = importState.submitting
+    || (Boolean(importState.runId) && (!runStatus.data || isActiveImportRunStatus(runStatus.data.status)))
+
   const startPreview = async (resource) => {
-    if (!resource) return
+    if (!resource || importInProgress) return
     try {
       setSelectedSeason(resource)
       setImportState(emptyImportState())
@@ -126,19 +194,19 @@ export default function ImportPanel() {
   }
 
   const startProcess = async (resource) => {
-    if (!resource) return
+    if (!resource || importInProgress) return
     setSelectedSeason(resource)
     setPreviewState(emptyPreviewState())
-    setImportState({ resource, submitting: true, runId: null, error: null })
+    setImportState({ source: selectedSource, resource, submitting: true, runId: null, error: null })
     try {
       const accepted = await startImport(token, resource.jobId ?? resource.id, clearSession)
       const runId = accepted?.response?.runId ?? accepted?.runId ?? null
       if (!runId) {
         throw new Error('No s’ha rebut cap identificador d’execució.')
       }
-      setImportState({ resource, submitting: false, runId, error: null })
+      setImportState({ source: selectedSource, resource, submitting: false, runId, error: null })
     } catch (error) {
-      setImportState({ resource, submitting: false, runId: null, error })
+      setImportState({ source: selectedSource, resource, submitting: false, runId: null, error })
     }
   }
 
@@ -180,14 +248,10 @@ export default function ImportPanel() {
         clearSession,
       )
       setUploadState({ status: 'success', progress: 100, error: null })
+      setFile(null)
       sources.refresh?.()
       resources.refresh()
-      getImportHistory(token, '', clearSession)
-        .then((payload) => {
-          const data = Array.isArray(payload) ? payload : (payload?.items ?? payload?.content ?? [])
-          setHistory({ data: Array.isArray(data) ? data : [], loading: false, error: null })
-        })
-        .catch((error) => setHistory({ data: [], loading: false, error }))
+      refreshHistory()
     } catch (error) {
       if (error.name === 'AbortError') return
       setUploadState({ status: 'error', progress: 0, error })
@@ -218,10 +282,20 @@ export default function ImportPanel() {
           : resources.loading ? <p role="status">{t('importPanel.resourcesLoading')}</p>
           : resources.error ? <div role="alert">{t(resources.error.status === 403 ? 'importPanel.forbidden' : resources.error.status === 401 ? 'importPanel.unauthorized' : 'importPanel.serverError')} <button type="button" onClick={resources.retry}>{t('common.retry')}</button></div>
             : resources.data.length === 0 ? <p>{t('importPanel.resourcesEmpty')}</p>
-              : <ImportResourceList resources={resources.data} onSimulate={(resource) => runResource(resource, true)} onImport={(resource) => runResource(resource)} />}
+              : <ImportResourceList
+                  resources={resources.data}
+                  onSimulate={(resource) => runResource(resource, true)}
+                  onImport={(resource) => runResource(resource)}
+                  disabled={importInProgress}
+                />}
           {history.loading ? <p role="status">{t('importPanel.seasonsLoading')}</p>
             : history.error ? <p role="alert">{t('importPanel.serverError')}</p>
-              : seasons.length > 0 ? <SeasonImportList seasons={seasons} onLoad={(season) => run(season)} onSimulate={(season) => run(season, true)} /> : null}
+              : seasons.length > 0 ? <SeasonImportList
+                  seasons={seasons}
+                  onLoad={(season) => run(season)}
+                  onSimulate={(season) => run(season, true)}
+                  disabled={importInProgress}
+                /> : null}
         </div>
         {importState.resource
           ? <ImportProcessWorkspace
