@@ -286,7 +286,17 @@ function ClubDetailContent({
       <div id="club-tabpanel" role="tabpanel" aria-label={view === VIEWS.PLAYERS ? t('common.players') : t('common.matches')}>
         {view === VIEWS.PLAYERS
           ? <PlayersPanel players={players} t={t} />
-          : <MatchesPanel club={club} competitions={filteredCompetitions} returnSearch={searchParams.toString()} t={t} />}
+          : (
+            <MatchesPanel
+              club={club}
+              competitions={filteredCompetitions}
+              returnSearch={searchParams.toString()}
+              sourceFilter={sourceFilter}
+              season={season}
+              competition={competition}
+              t={t}
+            />
+          )}
       </div>
     </section>
   )
@@ -312,7 +322,7 @@ function PlayersPanel({ players, t }) {
   )
 }
 
-function MatchesPanel({ club, competitions, returnSearch, t }) {
+function MatchesPanel({ club, competitions, returnSearch, sourceFilter, season, competition, t }) {
   const competitionsWithSource = useMemo(
     () => competitions.map((item) => ({ ...item, source: item.source ?? club.source })),
     [competitions, club.source],
@@ -355,122 +365,190 @@ function MatchesPanel({ club, competitions, returnSearch, t }) {
     )
   }
 
-  const hierarchy = groupMatchesHierarchy(matchGroups)
+  const omitLevels = new Set()
+  if (sourceFilter) omitLevels.add('source')
+  if (season) omitLevels.add('season')
+  if (competition) omitLevels.add('competition')
+
+  const hierarchy = groupMatchesHierarchy(matchGroups, { teams: club.teams, omitLevels })
+  const ctx = { club, returnSearch, season, competition, omitLevels, expanded, toggle, t }
 
   return (
     <section className="club-detail-section" aria-labelledby="club-matches-title">
       <h2 id="club-matches-title">{t('common.matches')}</h2>
       <ul className="club-match-hierarchy" aria-label={t('common.matches')}>
-        {hierarchy.map((sourceNode) => {
-          const sourceKey = sourceNode.source
-          const sourceMatchCount = sourceNode.seasons.reduce(
-            (sum, seasonNode) => sum + seasonNode.competitions.reduce(
-              (seasonSum, group) => seasonSum + group.matches.length,
-              0,
-            ),
-            0,
-          )
-          return (
-            <li key={sourceKey} className="club-match-hierarchy-item">
-              <HierarchyToggle
-                level={1}
-                label={sourceKey}
-                count={sourceMatchCount}
-                expanded={expanded.has(sourceKey)}
-                onToggle={() => toggle(sourceKey)}
-                t={t}
-              />
-              {expanded.has(sourceKey) ? (
-                <ul className="club-match-hierarchy-list">
-                  {sourceNode.seasons.map((seasonNode) => {
-                    const seasonKey = `${sourceKey}::${seasonNode.season}`
-                    const seasonMatchCount = seasonNode.competitions.reduce(
-                      (sum, group) => sum + group.matches.length,
-                      0,
-                    )
-                    return (
-                      <li key={seasonKey} className="club-match-hierarchy-item">
-                        <HierarchyToggle
-                          level={2}
-                          label={seasonNode.season}
-                          count={seasonMatchCount}
-                          expanded={expanded.has(seasonKey)}
-                          onToggle={() => toggle(seasonKey)}
-                          t={t}
-                        />
-                        {expanded.has(seasonKey) ? (
-                          <ul className="club-match-hierarchy-list">
-                            {seasonNode.competitions.map((group) => {
-                              const competitionKey = `${seasonKey}::${group.competition}`
-                              return (
-                                <li key={competitionKey} className="club-match-hierarchy-item">
-                                  <HierarchyToggle
-                                    level={3}
-                                    label={group.competition}
-                                    count={group.matches.length}
-                                    expanded={expanded.has(competitionKey)}
-                                    onToggle={() => toggle(competitionKey)}
-                                    t={t}
-                                  />
-                                  {expanded.has(competitionKey) ? (
-                                    <div className="club-match-group-body">
-                                      <Link
-                                        className="secondary-button"
-                                        to={routePaths.clubCompetitionDetails(
-                                          club.id,
-                                          group.season,
-                                          group.competition,
-                                          returnSearch,
-                                        )}
-                                      >
-                                        {t('detail.viewCompetition')}
-                                      </Link>
-                                      {group.matches.length === 0 ? (
-                                        <p className="club-empty card">{t('detail.competitionEmpty')}</p>
-                                      ) : (
-                                        <ul className="club-match-list" aria-label={t('detail.competitionMatchesLabel')}>
-                                          {group.matches.map((match) => (
-                                            <li key={match.id} className="club-match-card card">
-                                              <div>
-                                                <strong>{match.homeTeam} — {match.awayTeam}</strong>
-                                                <span>
-                                                  {t('detail.round', { round: match.round })}
-                                                  {match.venue ? ` · ${match.venue}` : ''}
-                                                </span>
-                                              </div>
-                                              <div className={`club-match-result is-${match.result}`}>
-                                                <strong>
-                                                  {match.homeGamesWon == null || match.awayGamesWon == null
-                                                    ? t('detail.pendingResult')
-                                                    : `${match.homeGamesWon} — ${match.awayGamesWon}`}
-                                                </strong>
-                                                <span>
-                                                  {match.result === 'win'
-                                                    ? t('detail.win')
-                                                    : match.result === 'loss' ? t('detail.loss') : t('detail.draw')}
-                                                </span>
-                                              </div>
-                                            </li>
-                                          ))}
-                                        </ul>
-                                      )}
-                                    </div>
-                                  ) : null}
-                                </li>
-                              )
-                            })}
-                          </ul>
-                        ) : null}
-                      </li>
-                    )
-                  })}
-                </ul>
-              ) : null}
-            </li>
-          )
-        })}
+        {renderSourceLevel(hierarchy, ctx)}
       </ul>
     </section>
+  )
+}
+
+function countMatches(node) {
+  if (node.matches) return node.matches.length
+  if (node.teams) return node.teams.reduce((sum, teamNode) => sum + countMatches(teamNode), 0)
+  if (node.competitions) return node.competitions.reduce((sum, compNode) => sum + countMatches(compNode), 0)
+  if (node.seasons) return node.seasons.reduce((sum, seasonNode) => sum + countMatches(seasonNode), 0)
+  return 0
+}
+
+function renderSourceLevel(hierarchy, ctx) {
+  return hierarchy.flatMap((sourceNode) => {
+    const path = sourceNode.source
+    const children = renderSeasonLevel(sourceNode, path, ctx)
+
+    if (ctx.omitLevels.has('source')) {
+      return children
+    }
+
+    return (
+      <li key={path} className="club-match-hierarchy-item">
+        <HierarchyToggle
+          level={1}
+          label={sourceNode.source}
+          count={countMatches(sourceNode)}
+          expanded={ctx.expanded.has(path)}
+          onToggle={() => ctx.toggle(path)}
+          t={ctx.t}
+        />
+        {ctx.expanded.has(path) ? <ul className="club-match-hierarchy-list">{children}</ul> : null}
+      </li>
+    )
+  })
+}
+
+function renderSeasonLevel(sourceNode, path, ctx) {
+  if (!sourceNode.seasons) {
+    return renderCompetitionLevel(sourceNode, `${path}::${ctx.season}`, ctx.season, ctx)
+  }
+
+  return sourceNode.seasons.flatMap((seasonNode) => {
+    const seasonPath = `${path}::${seasonNode.season}`
+    const children = renderCompetitionLevel(seasonNode, seasonPath, seasonNode.season, ctx)
+
+    return (
+      <li key={seasonPath} className="club-match-hierarchy-item">
+        <HierarchyToggle
+          level={2}
+          label={seasonNode.season}
+          count={countMatches(seasonNode)}
+          expanded={ctx.expanded.has(seasonPath)}
+          onToggle={() => ctx.toggle(seasonPath)}
+          t={ctx.t}
+        />
+        {ctx.expanded.has(seasonPath) ? <ul className="club-match-hierarchy-list">{children}</ul> : null}
+      </li>
+    )
+  })
+}
+
+function renderCompetitionLevel(node, path, seasonValue, ctx) {
+  if (!node.competitions) {
+    const competitionPath = `${path}::${ctx.competition}`
+    return [
+      <li key={competitionPath} className="club-match-hierarchy-item">
+        <CompetitionBody
+          club={ctx.club}
+          season={seasonValue}
+          competitionName={ctx.competition}
+          teams={node.teams}
+          returnSearch={ctx.returnSearch}
+          keyPrefix={competitionPath}
+          expanded={ctx.expanded}
+          toggle={ctx.toggle}
+          t={ctx.t}
+        />
+      </li>,
+    ]
+  }
+
+  return node.competitions.map((compNode) => {
+    const competitionPath = `${path}::${compNode.competition}`
+    return (
+      <li key={competitionPath} className="club-match-hierarchy-item">
+        <HierarchyToggle
+          level={3}
+          label={compNode.competition}
+          count={countMatches(compNode)}
+          expanded={ctx.expanded.has(competitionPath)}
+          onToggle={() => ctx.toggle(competitionPath)}
+          t={ctx.t}
+        />
+        {ctx.expanded.has(competitionPath) ? (
+          <CompetitionBody
+            club={ctx.club}
+            season={seasonValue}
+            competitionName={compNode.competition}
+            teams={compNode.teams}
+            returnSearch={ctx.returnSearch}
+            keyPrefix={competitionPath}
+            expanded={ctx.expanded}
+            toggle={ctx.toggle}
+            t={ctx.t}
+          />
+        ) : null}
+      </li>
+    )
+  })
+}
+
+function CompetitionBody({ club, season, competitionName, teams, returnSearch, keyPrefix, expanded, toggle, t }) {
+  return (
+    <div className="club-match-group-body">
+      <Link
+        className="secondary-button"
+        to={routePaths.clubCompetitionDetails(club.id, season, competitionName, returnSearch)}
+      >
+        {t('detail.viewCompetition')}
+      </Link>
+      {teams.length === 0 ? (
+        <p className="club-empty card">{t('detail.competitionEmpty')}</p>
+      ) : (
+        <ul className="club-match-hierarchy-list">
+          {teams.map((teamNode) => {
+            const teamPath = `${keyPrefix}::${teamNode.team ?? '__unknown__'}`
+            return (
+              <li key={teamPath} className="club-match-hierarchy-item">
+                <HierarchyToggle
+                  level={4}
+                  label={teamNode.team ?? t('detail.unknownTeam')}
+                  count={teamNode.matches.length}
+                  expanded={expanded.has(teamPath)}
+                  onToggle={() => toggle(teamPath)}
+                  t={t}
+                />
+                {expanded.has(teamPath) ? (
+                  <ul className="club-match-list" aria-label={t('detail.competitionMatchesLabel')}>
+                    {teamNode.matches.map((match) => (
+                      <li key={match.id} className="club-match-card card">
+                        <div>
+                          <strong>{match.homeTeam} — {match.awayTeam}</strong>
+                          <span>
+                            {t('detail.round', { round: match.round })}
+                            {match.venue ? ` · ${match.venue}` : ''}
+                          </span>
+                        </div>
+                        <div className={`club-match-result is-${match.result}`}>
+                          <strong>
+                            {match.homeGamesWon == null || match.awayGamesWon == null
+                              ? t('detail.pendingResult')
+                              : `${match.homeGamesWon} — ${match.awayGamesWon}`}
+                          </strong>
+                          <span>
+                            {match.result === 'win'
+                              ? t('detail.win')
+                              : match.result === 'loss' ? t('detail.loss') : t('detail.draw')}
+                          </span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+    </div>
   )
 }
 

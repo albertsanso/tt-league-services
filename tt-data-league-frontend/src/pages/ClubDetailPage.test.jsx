@@ -72,8 +72,8 @@ function matchGroupsFor(competitions) {
     source: competition.source ?? 'RFETM',
     matches: [{
       id: `${competition.name}-${competition.season}-match`,
-      homeTeam: 'Club Terrassa 1',
-      awayTeam: 'Club Rival 1',
+      homeTeam: 'Sènior',
+      awayTeam: 'Rival TT',
       homeGamesWon: 3,
       awayGamesWon: 1,
       result: 'win',
@@ -109,11 +109,11 @@ describe('ClubDetailPage', () => {
     const sourceToggle = screen.getByRole('button', { name: /^RFETM/ })
     expect(sourceToggle).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('button', { name: /^2024-2025/ })).not.toBeInTheDocument()
-    expect(screen.queryByText('Club Terrassa 1 — Club Rival 1')).not.toBeInTheDocument()
+    expect(screen.queryByText('Sènior — Rival TT')).not.toBeInTheDocument()
   })
 
-  it('reveals season, then competition, then matches as each level is expanded', () => {
-    renderPage('/clubs/club-id?view=matches&season=2024-2025&competition=Preferent')
+  it('reveals season, competition, team, then matches as each level is expanded', () => {
+    renderPage('/clubs/club-id?view=matches&season=all')
 
     expandNode('RFETM')
     const seasonToggle = screen.getByRole('button', { name: /^2024-2025/ })
@@ -123,16 +123,21 @@ describe('ClubDetailPage', () => {
     expandNode('2024-2025')
     const competitionToggle = screen.getByRole('button', { name: /^Preferent/ })
     expect(competitionToggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByText('Club Terrassa 1 — Club Rival 1')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Sènior/ })).not.toBeInTheDocument()
 
     expandNode('Preferent')
-    expect(screen.getByText('Club Terrassa 1 — Club Rival 1')).toBeInTheDocument()
+    const teamToggle = screen.getByRole('button', { name: /^Sènior/ })
+    expect(teamToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Sènior — Rival TT')).not.toBeInTheDocument()
+
+    expandNode('Sènior')
+    expect(screen.getByText('Sènior — Rival TT')).toBeInTheDocument()
     expect(screen.getByText('Jornada 1')).toBeInTheDocument()
     expect(screen.getByText('3 — 1')).toBeInTheDocument()
 
-    fireEvent.click(competitionToggle)
-    expect(competitionToggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByText('Club Terrassa 1 — Club Rival 1')).not.toBeInTheDocument()
+    fireEvent.click(teamToggle)
+    expect(teamToggle).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByText('Sènior — Rival TT')).not.toBeInTheDocument()
   })
 
   it('sorts seasons within a source descending (most recent first)', () => {
@@ -146,12 +151,38 @@ describe('ClubDetailPage', () => {
     ])
   })
 
+  it('omits the Season and Competition levels once both filters select a specific value', () => {
+    renderPage('/clubs/club-id?view=matches&season=2024-2025&competition=Preferent')
+
+    expandNode('RFETM')
+
+    expect(screen.queryByRole('button', { name: /^2024-2025/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /^Preferent/ })).not.toBeInTheDocument()
+
+    const teamToggle = screen.getByRole('button', { name: /^Sènior/ })
+    expect(teamToggle).toHaveAttribute('aria-expanded', 'false')
+
+    fireEvent.click(teamToggle)
+    expect(screen.getByText('Sènior — Rival TT')).toBeInTheDocument()
+  })
+
+  it('restores the Season and Competition groupings once their filters go back to "all"', () => {
+    renderPage('/clubs/club-id?view=matches&season=2024-2025&competition=Preferent')
+
+    expandNode('RFETM')
+    expect(screen.getByRole('button', { name: /^Sènior/ })).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Temporada'), { target: { value: 'all' } })
+    fireEvent.change(screen.getByLabelText('Competició'), { target: { value: '' } })
+
+    expect(screen.getByRole('button', { name: /^2024-2025/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^2023-2024/ })).toBeInTheDocument()
+  })
+
   it('keeps filters interdependent and preserves them in the view-competition link', () => {
     renderPage('/clubs/club-id?view=matches&season=2024-2025&competition=Preferent')
 
     expandNode('RFETM')
-    expandNode('2024-2025')
-    expandNode('Preferent')
 
     expect(screen.getByRole('link', { name: 'Veure la competició' })).toHaveAttribute(
       'href',
@@ -161,9 +192,6 @@ describe('ClubDetailPage', () => {
     fireEvent.change(screen.getByLabelText('Temporada'), { target: { value: '2023-2024' } })
 
     expect(screen.getByLabelText('Competició')).toHaveValue('Preferent')
-
-    expandNode('2023-2024')
-    expandNode('Preferent')
 
     expect(screen.getByRole('link', { name: 'Veure la competició' })).toHaveAttribute(
       'href',
@@ -208,7 +236,7 @@ describe('ClubDetailPage', () => {
     expect(screen.getByRole('button', { name: /^2023-2024/ })).toBeInTheDocument()
   })
 
-  it('offers all sources and resets dependent filters when a source changes', () => {
+  it('omits the Source level and resets dependent filters when a specific source is selected', () => {
     renderPage('/clubs/club-id?view=matches&season=2024-2025&competition=Preferent&source=all')
 
     const sourceSelect = screen.getByLabelText('Font')
@@ -220,7 +248,7 @@ describe('ClubDetailPage', () => {
     expect(screen.getByLabelText('Temporada')).toHaveValue('all')
     expect(screen.getByLabelText('Competició')).toHaveValue('')
 
-    expandNode('RFETM')
+    expect(screen.queryByRole('button', { name: /^RFETM/ })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^2024-2025/ })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /^2023-2024/ })).toBeInTheDocument()
   })

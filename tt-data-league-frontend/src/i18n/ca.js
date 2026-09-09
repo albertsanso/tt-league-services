@@ -306,6 +306,7 @@ export default {
     matchesAvailable: '{{count}} partits disponibles',
     clubMatchesEmpty: 'No hi ha partits disponibles per als filtres seleccionats.',
     clubMatchesLoadError: 'No s’han pogut carregar els partits del club.',
+    unknownTeam: 'Equip desconegut',
     viewCompetition: 'Veure la competició',
     competition: 'Competició',
     competitionNotFound: 'Competició no trobada',

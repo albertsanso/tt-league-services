@@ -86,7 +86,10 @@ List of users:
 - **Depends on:** —
 
 #### Goal
-Show individual matches in the club details page's Matches tab as a collapsible three-level hierarchy (Source > Season > Competition), instead of only competition summary cards or a flat per-competition list, so users can scan actual fixtures/results at whatever level of detail they choose. All groups are collapsed by default, so only the top-level Source groups are visible until expanded; existing source/season/competition filters continue to narrow which groups and matches are shown.
+Show individual matches in the club details page's Matches tab as a collapsible four-level hierarchy (Source > Season > Competition > Team), 
+instead of only competition summary cards or a flat per-competition list, so users can scan actual fixtures/results at whatever level of detail they choose. 
+
+All groups are collapsed by default, so only the top-level Source groups are visible until expanded; existing source/season/competition filters continue to narrow which groups and matches are shown.
 
 #### Acceptance Criteria
 - [x] Matches tab shows a three-level collapsible hierarchy: Source > Season > Competition, with individual matches listed under each Competition group; seasons within a Source are sorted descending (most recent season first)
@@ -94,13 +97,12 @@ Show individual matches in the club details page's Matches tab as a collapsible 
 - [x] Existing source/season/competition filters continue to narrow which Source/Season/Competition groups and matches are shown
 - [x] Each match entry shows teams, round, and result consistent with the existing competition matches list
 - [x] Empty state is shown when no matches match the current filters
+- [x] Hierarchy is extended to a fourth, lowest-priority level, Team, so the order is Source > Season > Competition > Team, with individual matches listed under each Team group
+- [x] The new Team level follows the same collapsed-by-default and disclosure behavior as the other three levels
+- [x] When the Source, Season, or Competition filter has a specific selection (not "all"), that level's grouping is omitted from the hierarchy — since its cardinality drops from 1-N (a group per distinct value) to 1-1 (a single value already fixed by the filter) — showing only the remaining levels with more than one possible value; the omitted level's matches still remain correctly scoped to the selected value
 
 #### Feature Details
 → See [FEAT-00044-DETAILS.md](./FEAT-00044-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
----
 
 ---
 
@@ -810,6 +812,18 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

@@ -5,7 +5,6 @@ import {
   Merge,
   Shield,
   Settings,
-  Swords,
   Upload,
   Users,
 } from 'lucide-react'
@@ -34,12 +33,14 @@ export const navigationSections = [
         path: routePaths.players(),
         icon: Users,
       },
-      {
-        id: 'partits',
-        labelKey: 'navigation.matches',
-        path: routePaths.matches(),
-        icon: Swords,
-      },
+      // Hidden from the main menu; route still works, just not linked from the sidebar.
+      // To restore: uncomment below and re-add `Swords` to the lucide-react import above.
+      // {
+      //   id: 'partits',
+      //   labelKey: 'navigation.matches',
+      //   path: routePaths.matches(),
+      //   icon: Swords,
+      // },
     ],
   },
   {

@@ -71,6 +71,61 @@
    - `getClubMatchesByCompetitions` / `useClubMatches` tests updated only if the `source`
      resolution change from step 1 affects their existing assertions.
 
+7. **Add a 4th hierarchy level, Team, below Competition (Source > Season > Competition > Team).**
+   For each match in a Competition group, resolve which side (`homeTeam` or `awayTeam`) is the
+   viewed club's own team: match `homeTeam`/`awayTeam` (`api/clubs.js` `normalizeMatch`) against
+   `club.teams` (`{ id, name, source, season }`, already loaded via `getClubDetails` /
+   `normalizeClubDetailsResponse`) filtered to the Competition group's `source`/`season`, by
+   exact name; the resolved team name is the Team-level bucket key. A match whose neither side
+   matches a known club team (data inconsistency) falls back to a single `t('detail.unknownTeam')`
+   bucket rather than being dropped, so no match silently disappears from the hierarchy.
+   - Extend `groupMatchesHierarchy` (`utils/clubMatches.js`) to take the club's `teams` list and
+     produce `[{ source, seasons: [{ season, competitions: [{ competition, teams: [{ team,
+     matches }] }] }] }]`, sorted: sources alphabetically, seasons descending, competitions
+     alphabetically (all unchanged), teams alphabetically by name.
+   - Extend `MatchesPanel`'s tree with a 4th disclosure level (Team) between Competition and the
+     match list, reusing the same `HierarchyToggle` component and expansion-state `Set<string>`
+     pattern (node key `${source}::${season}::${competition}::${team}`) — collapsed by default
+     like the other three levels; the existing per-competition "view competition" link and
+     empty state move to sit above the Team list, one level up from the match cards.
+   - Add `detail.unknownTeam` i18n key (`ca.js`/`en.js`/`es.js`) for the fallback bucket; reuse
+     `detail.matchesAvailable` for the Team row's aggregate count, consistent with the other
+     levels.
+   - Tests: `clubMatches.test.js` covers Team bucketing (home-side team, away-side team, and the
+     unknown-team fallback) and alphabetical team ordering; `ClubDetailPage.test.jsx` covers
+     expanding a Competition to reveal its Teams and expanding a Team to reveal its matches,
+     plus that existing filters still narrow correctly through the added level.
+
+8. **Omit a hierarchy level when its filter fixes a single value.** `ClubDetailContent`
+   (`ClubDetailPage.jsx`) already computes `sourceFilter`, `season`, and `competition` as
+   non-empty strings only when a specific value is selected (empty string means "all", per the
+   existing filter logic around lines 90-134). Pass these three values down into `MatchesPanel`
+   alongside `club`/`competitions`, and thread them into `groupMatchesHierarchy` (or a sibling
+   helper) as an `omitLevels` set (`source` when `sourceFilter` is set, `season` when `season` is
+   set, `competition` when `competition` is set).
+   - `groupMatchesHierarchy` skips building a grouping array for each omitted level and instead
+     passes the (already-filtered, necessarily single-valued) matches straight through to the
+     next level down — e.g. with only `season` omitted, the shape collapses to
+     `[{ source, competitions: [{ competition, teams: [...] }] }]` with no `seasons` array in
+     between; with `season` and `competition` both omitted, it collapses further to
+     `[{ source, teams: [...] }]` (no `seasons` and no `competitions` array); omitting `source`
+     as well changes nothing about this data shape, since Source is never omitted from the
+     *data* shape (it is always the outermost grouping) — only skip rendering it as a disclosure
+     row when `sourceFilter` is set, since with one source selected there is always exactly one
+     Source group.
+   - `MatchesPanel` renders each level conditionally: an omitted level's node key segment and
+     `HierarchyToggle` row are not rendered — its children render directly, one nesting level
+     shallower, without needing that level's own expand/collapse state (a level with a fixed,
+     single value adds no useful disclosure). Non-omitted levels keep their existing disclosure
+     behavior unchanged, including collapsed-by-default and independent expansion per node.
+   - This changes only which grouping *rows* are shown, never which matches are shown — the
+     existing filter narrowing (`filteredCompetitions`, per-level match content) is unaffected.
+   - Tests: `clubMatches.test.js` covers the hierarchy shape with each level individually omitted
+     and with combinations omitted (e.g. season+competition, all three); `ClubDetailPage.test.jsx`
+     covers that selecting a specific Source/Season/Competition in the filter removes that
+     level's toggle row from the tree while its matches remain reachable one level up, and that
+     switching a filter back to "all" restores that level's grouping.
+
 # Implementation Guidelines
 
 - Do not change the `/api/v1/club/{id}/competition/{season}/{competition}` backend endpoint
@@ -88,7 +143,9 @@
   logic in `api/clubs.js` rather than duplicating match-shape parsing.
 - Out of scope: persisting expand/collapse state across navigations or reloads, encoding it
   in the URL, pagination/virtualization of large match lists, a bulk backend endpoint,
-  grouping by round instead of by competition, and changes to
+  grouping by round instead of by competition, a Team-level filter (the existing
+  source/season/competition filters are unaffected; Team is a display-only grouping level),
+  and changes to
   `ClubCompetitionDetailPage.jsx` itself (it keeps working as the per-competition drill-down
   view, now optionally reachable from a Competition-level "view competition" link as well as
   from the old competition-card flow).
@@ -151,3 +208,31 @@
   instead of competition-scoped. Not undertaken now to keep this change frontend-only.
 - `CompetitionsPanel` is confirmed dead-code-to-be once `MatchesPanel` lands (only reference
   is its own definition/usage in `ClubDetailPage.jsx`).
+- Reopened 2026-09-09 for re-verification per user request.
+- Scope extended 2026-09-09: add a 4th hierarchy level, Team, below Competition (Source > Season > Competition > Team), lowest priority in the tree. Moved back to in-progress to implement this addition. Build Plan step 7 covers resolving the club's own team per match (matched against `club.teams` by name/source/season, with an `unknownTeam` fallback bucket), the extended `groupMatchesHierarchy` shape, the 4th `MatchesPanel` disclosure level, and the corresponding tests.
+- Scope extended 2026-09-09: when the Source, Season, or Competition filter is set to a specific value rather than "all", that level's grouping must disappear from the hierarchy, since a fixed filter value collapses that level's cardinality from 1-N to 1-1 (a redundant single-item group). Build Plan step 8 covers threading the existing `sourceFilter`/`season`/`competition` filter values into the hierarchy builder as an omit-set, collapsing the data shape accordingly, and skipping the corresponding disclosure row(s) in `MatchesPanel` — matches themselves stay correctly scoped, only the redundant grouping row is omitted.
+- Plan finalized and reviewed (step 8 example corrected); confirmed ready for implementation of Team level (step 7) and filter-driven level omission (step 8).
+- Implementation started 2026-09-09: Build Plan steps 7 (Team level) and 8 (filter-driven level omission).
+- Implementation complete (2026-09-09) for Build Plan steps 7 and 8. `utils/clubMatches.js`:
+  `groupMatchesHierarchy` now takes `{ teams, omitLevels }`; resolves each match's own-club team
+  via `homeTeam`/`awayTeam` matched against `club.teams` scoped by source+season (home side
+  checked first, then away), falling back to the `UNKNOWN_TEAM` (`null`) bucket sorted last;
+  `omitLevels` (`'source' | 'season' | 'competition'`) skips building the `seasons`/`competitions`
+  wrapper arrays and passes groups straight through to the next level — `source` is accepted but
+  has no effect on the data shape (always the outermost array), only on rendering. `ClubDetailPage.jsx`:
+  `MatchesPanel` now receives `sourceFilter`/`season`/`competition` and derives `omitLevels` from
+  them; the render tree was refactored into `renderSourceLevel` / `renderSeasonLevel` /
+  `renderCompetitionLevel` / `CompetitionBody`, each returning an array of `<li>` items — an
+  omitted level contributes no toggle row and its children's `<li>`s splice directly into the
+  parent's list, one nesting level shallower. `CompetitionBody` now hosts the "view competition"
+  link, the per-competition empty state (checked via `teams.length === 0`), and the Team-level
+  toggle list (`detail.unknownTeam` label for the fallback bucket), used identically whether the
+  Competition level renders its own toggle or is itself omitted. Added `detail.unknownTeam` i18n
+  key to `ca.js`/`en.js`/`es.js`. Rewrote `clubMatches.test.js` (Team bucketing home/away/unknown,
+  scoping by source+season, alphabetical-with-unknown-last sort, and level-omission combinations)
+  and updated `ClubDetailPage.test.jsx` (full 4-level expand/collapse walk, omission of Season+
+  Competition when both filters are fixed, omission of Source when a specific source is selected,
+  restoring groupings when filters return to "all", and the view-competition link staying correct
+  under omission). Full frontend test suite (191 tests), `eslint .`, and `vite build` all pass.
+  Not verified in a running browser against a live backend in this session.
+- Verified all acceptance criteria (Team level, filter-driven level omission) against delivered behavior; full test suite/eslint/build pass.
