@@ -3,13 +3,6 @@ import { Search } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { useClubSearch, useConsolidateClubs } from '../hooks/useClubs.js'
 
-function longestName(clubs) {
-  return clubs.reduce(
-    (longest, club) => (club.name.length > longest.length ? club.name : longest),
-    clubs[0]?.name ?? '',
-  )
-}
-
 function ClubsConsolidationPanel() {
   const { t } = useTranslation()
   const [inputValue, setInputValue] = useState('')
@@ -18,6 +11,8 @@ function ClubsConsolidationPanel() {
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [dialogOpen, setDialogOpen] = useState(false)
   const [canonicalName, setCanonicalName] = useState('')
+  const [canonicalNameEditable, setCanonicalNameEditable] = useState(false)
+  const [canonicalNameTouched, setCanonicalNameTouched] = useState(false)
   const [primaryClubId, setPrimaryClubId] = useState(null)
   const [mutationError, setMutationError] = useState(null)
   const [mutationSuccess, setMutationSuccess] = useState(null)
@@ -65,11 +60,20 @@ function ClubsConsolidationPanel() {
 
   function openDialog() {
     if (!canConsolidate) return
-    setCanonicalName(longestName(selectedClubs))
+    setCanonicalName(selectedClubs[0]?.name ?? '')
+    setCanonicalNameEditable(false)
+    setCanonicalNameTouched(false)
     setPrimaryClubId(selectedClubs[0]?.id ?? null)
     setMutationError(null)
     setMutationSuccess(null)
     setDialogOpen(true)
+  }
+
+  function selectPrimaryClub(club) {
+    setPrimaryClubId(club.id)
+    if (!canonicalNameTouched) {
+      setCanonicalName(club.name)
+    }
   }
 
   function closeDialog() {
@@ -202,15 +206,30 @@ function ClubsConsolidationPanel() {
 
           <label className="auth-field" htmlFor="consolidate-canonical-name">
             {t('clubsConsolidation.canonicalNameLabel')}
-            <input
-              id="consolidate-canonical-name"
-              type="text"
-              value={canonicalName}
-              onChange={(event) => setCanonicalName(event.target.value)}
-              minLength={2}
-              maxLength={255}
-              required
-            />
+            <div className="canonical-name-field">
+              <input
+                id="consolidate-canonical-name"
+                type="text"
+                value={canonicalName}
+                onChange={(event) => {
+                  setCanonicalNameTouched(true)
+                  setCanonicalName(event.target.value)
+                }}
+                readOnly={!canonicalNameEditable}
+                aria-readonly={!canonicalNameEditable}
+                minLength={2}
+                maxLength={255}
+                required
+              />
+              <button
+                className="secondary-button"
+                type="button"
+                onClick={() => setCanonicalNameEditable(true)}
+                disabled={canonicalNameEditable}
+              >
+                {t('clubsConsolidation.editCanonicalName')}
+              </button>
+            </div>
           </label>
 
           <fieldset className="user-form-roles">
@@ -221,7 +240,7 @@ function ClubsConsolidationPanel() {
                   type="radio"
                   name="consolidate-primary-club"
                   checked={primaryClubId === club.id}
-                  onChange={() => setPrimaryClubId(club.id)}
+                  onChange={() => selectPrimaryClub(club)}
                 />
                 {club.name}
               </label>

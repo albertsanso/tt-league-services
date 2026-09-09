@@ -2881,6 +2881,22 @@
   background: var(--surface-input-foc);
 }
 
+.auth-field input[readonly] {
+  color: var(--text-muted);
+  background: var(--surface-card);
+}
+
+.canonical-name-field {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.canonical-name-field input {
+  flex: 1;
+  min-width: 0;
+}
+
 .auth-submit {
   width: 100%;
   margin-top: 0.5rem;

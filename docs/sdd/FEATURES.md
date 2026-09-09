@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00043: Clubs consolidation fixes 1](### [FEAT-00043] Clubs consolidation fixes 1)
+
 - [FEAT-00042: Synchronize refreshes in import screen](### [FEAT-00042] Synchronize refreshes in import screen)
 - [FEAT-00041: Clubs consolidation on Club search results](### [FEAT-00041] Clubs consolidation on Club search results)
 - [FEAT-00040: Import process for BCNESA with phases](### [FEAT-00040] Import process for BCNESA with phases)
@@ -53,6 +55,37 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00043] Clubs consolidation fixes 1
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Fix the Club consolidation dialog (FEAT-00041) so the Canonical Name field is locked by default and only becomes editable when the user explicitly requests to edit it.
+
+#### Acceptance Criteria
+- [x] The Canonical Name input is read-only when the Consolidate dialog opens
+- [x] The field becomes editable only after the user clicks an explicit Edit control
+- [x] Reopening the dialog resets the field back to read-only
+- [x] The Canonical Name defaults to and stays synchronized with the selected Main (primary) club's name as long as it has not been manually edited
+- [x] If the Canonical Name is manually edited, consolidating renames the selected Main club to that edited name
+
+#### Feature Details
+→ See [FEAT-00043-DETAILS.md](./FEAT-00043-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00042] Synchronize refreshes in import screen
 - **Status:** done
@@ -719,6 +752,20 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

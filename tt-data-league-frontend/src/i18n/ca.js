@@ -595,6 +595,7 @@ export default {
     consolidateAriaLabel: 'Consolida els clubs seleccionats',
     dialogTitle: 'Consolida els clubs seleccionats',
     canonicalNameLabel: 'Nom canònic',
+    editCanonicalName: 'Edita el nom',
     primaryClubLabel: 'Club principal',
     confirm: 'Consolida',
     consolidating: 'Consolidant...',
