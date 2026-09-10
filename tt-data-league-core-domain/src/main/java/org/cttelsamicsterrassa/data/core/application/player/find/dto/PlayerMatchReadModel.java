@@ -9,31 +9,35 @@ import java.util.Objects;
 import java.util.UUID;
 
 public record PlayerMatchReadModel(
-        UUID id, ImportSource source, String competition, Season season, int round, ZonedDateTime dateTime,
-        String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon, String result,
-        Integer playerGamesWon, String playerTeam, List<PlayerGameReadModel> games) {
+        UUID id, ImportSource source, String competition, Season season, Integer groupNumber, int round,
+        String phase, ZonedDateTime dateTime, String homeTeam, String awayTeam, Integer homeGamesWon,
+        Integer awayGamesWon, String result, Integer playerGamesWon, String playerTeam,
+        List<PlayerGameReadModel> games) {
     public PlayerMatchReadModel {
         games = List.copyOf(Objects.requireNonNull(games));
     }
 
-    public PlayerMatchReadModel(UUID id, ImportSource source, String competition, Season season, int round,
-                                ZonedDateTime dateTime, String homeTeam, String awayTeam, Integer homeGamesWon,
-                                Integer awayGamesWon, String result) {
-        this(id, source, competition, season, round, dateTime, homeTeam, awayTeam, homeGamesWon, awayGamesWon,
-                result, null, null, List.of());
+    public PlayerMatchReadModel(UUID id, ImportSource source, String competition, Season season,
+                                Integer groupNumber, int round, String phase, ZonedDateTime dateTime,
+                                String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon,
+                                String result) {
+        this(id, source, competition, season, groupNumber, round, phase, dateTime, homeTeam, awayTeam, homeGamesWon,
+                awayGamesWon, result, null, null, List.of());
     }
 
-    public PlayerMatchReadModel(UUID id, ImportSource source, String competition, Season season, int round,
-                                ZonedDateTime dateTime, String homeTeam, String awayTeam, Integer homeGamesWon,
-                                Integer awayGamesWon, String result, Integer playerGamesWon) {
-        this(id, source, competition, season, round, dateTime, homeTeam, awayTeam, homeGamesWon, awayGamesWon,
-                result, playerGamesWon, null, List.of());
+    public PlayerMatchReadModel(UUID id, ImportSource source, String competition, Season season,
+                                Integer groupNumber, int round, String phase, ZonedDateTime dateTime,
+                                String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon,
+                                String result, Integer playerGamesWon) {
+        this(id, source, competition, season, groupNumber, round, phase, dateTime, homeTeam, awayTeam, homeGamesWon,
+                awayGamesWon, result, playerGamesWon, null, List.of());
     }
 
-    public PlayerMatchReadModel(UUID id, ImportSource source, String competition, Season season, int round,
-                                ZonedDateTime dateTime, String homeTeam, String awayTeam, Integer homeGamesWon,
-                                Integer awayGamesWon, String result, Integer playerGamesWon, String playerTeam) {
-        this(id, source, competition, season, round, dateTime, homeTeam, awayTeam, homeGamesWon, awayGamesWon,
-                result, playerGamesWon, playerTeam, List.of());
+    public PlayerMatchReadModel(UUID id, ImportSource source, String competition, Season season,
+                                Integer groupNumber, int round, String phase, ZonedDateTime dateTime,
+                                String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon,
+                                String result, Integer playerGamesWon, String playerTeam) {
+        this(id, source, competition, season, groupNumber, round, phase, dateTime, homeTeam, awayTeam, homeGamesWon,
+                awayGamesWon, result, playerGamesWon, playerTeam, List.of());
     }
 }

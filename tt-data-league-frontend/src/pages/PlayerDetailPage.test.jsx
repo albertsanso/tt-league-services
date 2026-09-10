@@ -206,6 +206,30 @@ describe('PlayerDetailPage', () => {
     expect(row.querySelector('td:last-child')).toHaveTextContent('Club Beta')
   })
 
+  it('shows round, group number, and phase for each match, falling back to unavailable when missing', () => {
+    usePlayerDetails.mockReturnValue({
+      data: {
+        ...details,
+        matches: [
+          { ...details.matches[0], round: 3, groupNumber: 2, phase: 'Regular Season' },
+          { ...details.matches[1], round: 4, groupNumber: null, phase: null },
+        ],
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/players/player-id?view=matches')
+
+    const rows = screen.getByRole('table').querySelectorAll('tbody tr')
+    expect(rows[0]).toHaveTextContent('4')
+    expect(rows[0]).toHaveTextContent('No disponible')
+    expect(rows[1]).toHaveTextContent('3')
+    expect(rows[1]).toHaveTextContent('2')
+    expect(rows[1]).toHaveTextContent('Regular Season')
+  })
+
   it('styles a losing game result red beside its set score', () => {
     usePlayerDetails.mockReturnValue({
       data: {

@@ -42,7 +42,8 @@ class FindPlayerDetailsQueryHandlerTest {
         Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Terrassa", season, null);
         Team awayTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Barcelona", season, null);
         Match match = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
-                .season(season).homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(3).awayGamesWon(3)
+                .season(season).groupNumber(2).round(5).phase("Regular Season")
+                .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(3).awayGamesWon(3)
                 .createExisting();
         Lineup lineup = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).match(match)
                 .team(awayTeam).player(registration).createExisting();
@@ -63,6 +64,9 @@ class FindPlayerDetailsQueryHandlerTest {
 
         assertEquals("draw", details.matches().getFirst().result());
         assertEquals("Club Barcelona", details.matches().getFirst().playerTeam());
+        assertEquals(2, details.matches().getFirst().groupNumber());
+        assertEquals(5, details.matches().getFirst().round());
+        assertEquals("Regular Season", details.matches().getFirst().phase());
     }
 
     @Test

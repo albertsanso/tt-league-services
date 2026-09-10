@@ -215,12 +215,15 @@ function MatchHistoryPanel({ matches, t }) {
         <div className="table-wrap">
           <table className="history-table">
             <caption>{t('common.matches')}</caption>
-            <thead><tr><th>{t('common.date')}</th><th>{t('common.source')}</th><th>{t('common.season')}</th><th>{t('common.competition')}</th><th>{t('common.opponent')}</th><th>{t('common.result')}</th><th>{t('common.score')}</th><th>{t('common.opponentTeam')}</th></tr></thead>
+            <thead><tr><th>{t('common.date')}</th><th>{t('common.source')}</th><th>{t('common.season')}</th><th>{t('common.competition')}</th><th>{t('matchesPage.round')}</th><th>{t('matchesPage.group')}</th><th>{t('matchesPage.phase')}</th><th>{t('common.opponent')}</th><th>{t('common.result')}</th><th>{t('common.score')}</th><th>{t('common.opponentTeam')}</th></tr></thead>
             <tbody>{visibleMatches.map((item) => <tr key={item.id}>
               <td>{item.dateTime ? new Date(item.dateTime).toLocaleDateString(i18n.language) : t('common.noData')}</td>
               <td>{item.source}</td>
               <td>{item.season}</td>
               <td>{item.competition}</td>
+              <td>{item.round ?? t('common.unavailable')}</td>
+              <td>{item.groupNumber ?? t('common.unavailable')}</td>
+              <td>{item.phase ?? t('common.unavailable')}</td>
               <td><div className="match-game-list match-opponent-list" role="list">{matchOpponentRows(item, t)}</div></td>
               <td><div className="match-game-list match-result-list" role="list">{matchResultRows(item, t)}</div></td>
               <td>{matchScoreResult(item, t)}</td>

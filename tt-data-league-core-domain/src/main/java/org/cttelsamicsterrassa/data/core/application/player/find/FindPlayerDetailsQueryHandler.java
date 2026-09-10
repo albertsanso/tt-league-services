@@ -185,8 +185,9 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
                 : gamesForMatch(registrations.stream().map(PlayerSeason::getId).collect(Collectors.toSet()),
                 gamesByMatch.getOrDefault(match.getId(), List.of()), pairsByGame);
         return new PlayerMatchReadModel(match.getId(), match.getSource(), match.getCompetition(), match.getSeason(),
-                match.getRound(), match.getDateTime(), match.getHomeTeam().getName(), match.getAwayTeam().getName(),
-                match.getHomeGamesWon(), match.getAwayGamesWon(), result, playerGamesWon,
+                match.getGroupNumber(), match.getRound(), match.getPhase(), match.getDateTime(),
+                match.getHomeTeam().getName(), match.getAwayTeam().getName(), match.getHomeGamesWon(),
+                match.getAwayGamesWon(), result, playerGamesWon,
                 playerTeam == null ? null : playerTeam.getName(), games);
     }
 

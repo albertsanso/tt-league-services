@@ -85,8 +85,8 @@ class PlayerControllerTest {
                 PLAYER_ID, "Anna Canonical",
                 List.of(new PlayerFederatedReadModel(UUID.randomUUID(), "Anna RFETM", "123", ImportSource.RFETM)),
                 List.of(), List.of(), List.of(), List.of(new PlayerMatchReadModel(UUID.randomUUID(), ImportSource.RFETM,
-                        "Preferent", org.cttelsamicsterrassa.data.core.domain.shared.model.Season.of(2025), 1,
-                        null, "Club Terrassa", "Club Barcelona", 4, 3, "draw", 4, "Club Terrassa")),
+                        "Preferent", org.cttelsamicsterrassa.data.core.domain.shared.model.Season.of(2025), 2, 1,
+                        "Phase 1", null, "Club Terrassa", "Club Barcelona", 4, 3, "draw", 4, "Club Terrassa")),
                 List.of(new PlayerSeasonStatisticsReadModel(ImportSource.RFETM,
                         org.cttelsamicsterrassa.data.core.domain.shared.model.Season.of(2025),
                         4, 3, 1, 75.0, 2.5)));
@@ -99,6 +99,9 @@ class PlayerControllerTest {
         assertEquals("RFETM", ((PlayerDetailsDto) response.getBody()).federatedPlayers().getFirst().source());
         assertEquals(75.0, ((PlayerDetailsDto) response.getBody()).statistics().getFirst().winPercentage());
         assertEquals("Club Terrassa", ((PlayerDetailsDto) response.getBody()).matches().getFirst().playerTeam());
+        assertEquals(2, ((PlayerDetailsDto) response.getBody()).matches().getFirst().groupNumber());
+        assertEquals(1, ((PlayerDetailsDto) response.getBody()).matches().getFirst().round());
+        assertEquals("Phase 1", ((PlayerDetailsDto) response.getBody()).matches().getFirst().phase());
 
         when(queryBus.push(any())).thenReturn(DomainQueryResponse.failResponse(null));
         assertEquals(HttpStatus.NOT_FOUND, controller.findPlayerDetailsById(PLAYER_ID).getStatusCode());
@@ -166,7 +169,7 @@ class PlayerControllerTest {
                 List.of(new PlayerOpponentReadModel(opponentId, null, null, "Opponent Player",
                         ImportSource.FCTT, Season.of(2024), true)), null);
         PlayerMatchReadModel match = new PlayerMatchReadModel(
-                UUID.randomUUID(), ImportSource.FCTT, "Preferent", Season.of(2024), 1, null,
+                UUID.randomUUID(), ImportSource.FCTT, "Preferent", Season.of(2024), 3, 1, "Phase 2", null,
                 "Club Terrassa", "Club Beta", 4, 2, "win", 4, "Club Terrassa", List.of(game));
         PlayerDetailsReadModel details = new PlayerDetailsReadModel(
                 PLAYER_ID, "Anna Canonical", List.of(), List.of(), List.of(), List.of(), List.of(match), List.of());

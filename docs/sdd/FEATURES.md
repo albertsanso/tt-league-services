@@ -23,6 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00046: Show round, group number, phase in players matches](### [FEAT-00046] Show round, group number, phase in players matches)
 - [FEAT-00045: Initial users by default](### [FEAT-00045] Initial users by default)
 - [FEAT-00044: Grouped matches list in club details, matches tab](### [FEAT-00044] Grouped matches list in club details, matches tab)
 - [FEAT-00043: Clubs consolidation fixes 1](### [FEAT-00043] Clubs consolidation fixes 1)
@@ -56,6 +57,31 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00046] Show round, group number, phase in players matches
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Show the match round, group number, and phase alongside each match in the Player details Matches tab, so a player's match history carries the same competition-structure context already shown in the league-wide matches view.
+
+#### Acceptance Criteria
+- [x] Each match row in the Player details Matches tab shows its round, group number, and phase; group number and phase render an explicit unavailable value when absent instead of being omitted or blank; the PlayerDetailsDto.MatchDto (and its backing PlayerMatchReadModel) exposes groupNumber and phase alongside the existing round field; existing match filters, pagination, sorting, opponent rendering, and score/result columns are unchanged
+
+#### Feature Details
+→ See [FEAT-00046-DETAILS.md](./FEAT-00046-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00045] Initial users by default
 - **Status:** done
@@ -812,6 +838,18 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

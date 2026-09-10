@@ -20,6 +20,7 @@ describe('player API boundary', () => {
       matches: [{
         id: 'match-id', competition: 'Preferent', season: '2025', source: 'RFETM',
         homeTeam: 'Club Terrassa', awayTeam: 'Club Barcelona', playerTeam: 'Club Terrassa', result: 'draw',
+        round: 3, groupNumber: 2, phase: 'Regular Season',
       }],
       statistics: [{
         source: 'RFETM', season: '2025-2026', matchesPlayed: 2, wins: 1, losses: 1,
@@ -30,6 +31,9 @@ describe('player API boundary', () => {
     expect(details.id).toBe('player-id')
     expect(details.registrations[0].season).toBe('2025')
     expect(details.matches[0].homeTeam).toBe('Club Terrassa')
+    expect(details.matches[0].round).toBe(3)
+    expect(details.matches[0].groupNumber).toBe(2)
+    expect(details.matches[0].phase).toBe('Regular Season')
     expect(details.statistics[0].winPercentage).toBe(50)
   })
 

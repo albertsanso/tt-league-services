@@ -35,7 +35,8 @@ public record PlayerDetailsDto(
                                 value.season() == null ? null : value.season().toString(), value.matchCount())).toList(),
                 details.matches().stream().map(value -> new MatchDto(value.id(),
                         value.source() == null ? null : value.source().name(), value.competition(),
-                        value.season() == null ? null : value.season().toString(), value.round(),
+                        value.season() == null ? null : value.season().toString(), value.groupNumber(),
+                        value.round(), value.phase(),
                         value.dateTime(), value.homeTeam(), value.awayTeam(), value.homeGamesWon(),
                         value.awayGamesWon(), value.result(), value.playerGamesWon(), value.playerTeam(),
                         value.games().stream().map(game -> new GameDto(game.id(), game.gameNumber(), game.type(),
@@ -66,20 +67,21 @@ public record PlayerDetailsDto(
     }
 
     public record MatchDto(
-            UUID id, String source, String competition, String season, int round, ZonedDateTime dateTime,
-            String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon, String result,
-            Integer playerGamesWon, String playerTeam, List<GameDto> games) {
-        public MatchDto(UUID id, String source, String competition, String season, int round, ZonedDateTime dateTime,
-                        String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon, String result) {
-            this(id, source, competition, season, round, dateTime, homeTeam, awayTeam, homeGamesWon, awayGamesWon,
-                    result, null, null, List.of());
+            UUID id, String source, String competition, String season, Integer groupNumber, int round, String phase,
+            ZonedDateTime dateTime, String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon,
+            String result, Integer playerGamesWon, String playerTeam, List<GameDto> games) {
+        public MatchDto(UUID id, String source, String competition, String season, Integer groupNumber, int round,
+                        String phase, ZonedDateTime dateTime, String homeTeam, String awayTeam,
+                        Integer homeGamesWon, Integer awayGamesWon, String result) {
+            this(id, source, competition, season, groupNumber, round, phase, dateTime, homeTeam, awayTeam,
+                    homeGamesWon, awayGamesWon, result, null, null, List.of());
         }
 
-        public MatchDto(UUID id, String source, String competition, String season, int round, ZonedDateTime dateTime,
-                        String homeTeam, String awayTeam, Integer homeGamesWon, Integer awayGamesWon, String result,
-                        Integer playerGamesWon) {
-            this(id, source, competition, season, round, dateTime, homeTeam, awayTeam, homeGamesWon, awayGamesWon,
-                    result, playerGamesWon, null, List.of());
+        public MatchDto(UUID id, String source, String competition, String season, Integer groupNumber, int round,
+                        String phase, ZonedDateTime dateTime, String homeTeam, String awayTeam,
+                        Integer homeGamesWon, Integer awayGamesWon, String result, Integer playerGamesWon) {
+            this(id, source, competition, season, groupNumber, round, phase, dateTime, homeTeam, awayTeam,
+                    homeGamesWon, awayGamesWon, result, playerGamesWon, null, List.of());
         }
     }
 
