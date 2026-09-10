@@ -103,6 +103,8 @@ class ImportProcessorsTest {
         assertEquals("super-divisio-masculino", match.getCompetition());
         assertEquals(Season.of(2023), match.getSeason());
         assertEquals(0, match.getGroupNumber());
+        // The fixture's jornada (1) equals its day folder ("1"), so this alone does not distinguish
+        // payload-sourced from path-sourced round; see the two tests below for that.
         assertEquals(1, match.getRound());
         assertEquals(LocalDate.of(2023, 9, 29), match.getDateTime().toLocalDate());
         assertEquals("PABELLON PEREZ PUIG", match.getVenue());
@@ -111,6 +113,28 @@ class ImportProcessorsTest {
         assertEquals(9, match.getAwaySetsWon());
         // The report is a 3-3 draw, so no club won it.
         assertNull(match.getWinnerTeam());
+    }
+
+    @Test
+    void storesTheMatchRoundFromThePayloadWhenItDisagreesWithTheDayFolder() {
+        run(context("super-divisio", "2", "masculino", "193", "23", "acta_singles.json"));
+
+        assertEquals(1, matches.saved.size());
+        // acta_singles.json has "jornada": 1, which must win over the "2" day folder used here.
+        assertEquals(1, matches.saved.getFirst().getRound());
+    }
+
+    @Test
+    void fallsBackToTheDayFolderRoundWhenThePayloadHasNoJornada() {
+        Path file = fixture("acta_singles.json");
+        Acta withoutRound = withRound(new ActaParser().parse(file), null);
+        MatchReportContext context = new MatchReportContext("2023-2024", "super-divisio", "5", "masculino",
+                RfetmClubKey.ofFederationId("193", null), RfetmClubKey.ofFederationId("23", null), file, withoutRound);
+
+        run(context);
+
+        assertEquals(1, matches.saved.size());
+        assertEquals(5, matches.saved.getFirst().getRound());
     }
 
     @Test
@@ -174,6 +198,25 @@ class ImportProcessorsTest {
     }
 
     @Test
+    void resolvesAnUndeclaredSubstituteByNameWhenTheGameEntryHasNoLicence() {
+        // The first report seeds the home team's roster: FERNANDEZ PARDO (Y), TAIWO (X) and
+        // GUILLOT RUIZ (Z) all get a lineup entry, and so become known players of that team/season.
+        run(singlesContext());
+
+        // The second report re-declares the same lineup letters, but letter Y was actually played
+        // by GUILLOT RUIZ (normally letter Z) and the game entry carries no licencia for him, only
+        // his name - mirroring an undeclared substitute in a real acta.
+        run(singlesContextWithSubstituteAtLetterY());
+
+        Game game = games.saved.stream()
+                .filter(g -> g.getMatch().getRound() == 2 && "C vs Y".equals(g.getCrossover()))
+                .findFirst()
+                .orElseThrow();
+        // GUILLOT RUIZ's own licence (21851), not letter Y's declared player (FERNANDEZ, 29194).
+        assertEquals("21851", game.getHomePlayer().getLicense());
+    }
+
+    @Test
     void reRunningTheSameReportStoresNothingTwice() {
         MatchReportContext context = singlesContext();
 
@@ -218,6 +261,12 @@ class ImportProcessorsTest {
                 RfetmClubKey.ofFederationId("16207", null), RfetmClubKey.ofFederationId("2017543", null), file, acta);
     }
 
+    private static Acta withRound(Acta original, Integer round) {
+        return new Acta(original.federation(), original.season(), original.competition(), original.group(), round,
+                original.date(), original.time(), original.venue(), original.teams(), original.abcIsHome(), original.officials(),
+                original.lineups(), original.doubles(), original.games(), original.finalResult(), original.protested());
+    }
+
     private static Acta doublesActaWithUnlistedHomePlayer() {
         Acta original = new ActaParser().parse(fixture("acta_doubles.json"));
         ActaLineupPlayer unlistedPlayer = new ActaLineupPlayer(null, "ALVAREZ IGLESIAS, MIGUEL", "38106", null);
@@ -227,6 +276,37 @@ class ImportProcessorsTest {
         return new Acta(original.federation(), original.season(), original.competition(), original.group(), original.round(),
                 original.date(), original.time(), original.venue(), original.teams(), original.abcIsHome(), original.officials(),
                 original.lineups(), original.doubles(), games, original.finalResult(), original.protested());
+    }
+
+    private static MatchReportContext singlesContextWithSubstituteAtLetterY() {
+        Acta original = new ActaParser().parse(fixture("acta_singles.json"));
+        Acta withSubstitute = withRound(singlesActaWithNamedSubstituteAtLetterY(original), 2);
+        return new MatchReportContext("2023-2024", "super-divisio", "2", "masculino",
+                RfetmClubKey.ofFederationId("193", null), RfetmClubKey.ofFederationId("23", null),
+                fixture("acta_singles.json"), withSubstitute);
+    }
+
+    /**
+     * Game 5 ("C vs Y") is replayed with letter Y actually played by GUILLOT RUIZ (letter Z in the
+     * declared lineup) instead of the declared FERNANDEZ PARDO, and with no licencia on the entry -
+     * the shape RFETM sometimes sends for an undeclared substitute.
+     */
+    private static Acta singlesActaWithNamedSubstituteAtLetterY(Acta original) {
+        ActaLineupPlayer substitute = new ActaLineupPlayer(null, "GUILLOT RUIZ, JOSE CARLOS", null, null);
+        List<ActaGame> games = original.games().stream()
+                .map(game -> game.number() == 5 ? gameWithSubstituteHomePlayer(game, substitute) : game)
+                .toList();
+        return new Acta(original.federation(), original.season(), original.competition(), original.group(), original.round(),
+                original.date(), original.time(), original.venue(), original.teams(), original.abcIsHome(), original.officials(),
+                original.lineups(), original.doubles(), games, original.finalResult(), original.protested());
+    }
+
+    private static ActaGame gameWithSubstituteHomePlayer(ActaGame game, ActaLineupPlayer substitute) {
+        ActaParticipant home = game.home();
+        ActaParticipant replacementHome = new ActaParticipant(home.letter(), substitute.name(), substitute.license(),
+                home.rfetmId(), home.ranking(), home.doublesPlayers());
+        return new ActaGame(game.number(), game.type(), game.crossover(), replacementHome, game.away(), game.sets(),
+                game.setsWon(), game.winner(), game.cumulativeScore(), game.notPlayed(), game.reason());
     }
 
     private static ActaGame gameWithUnlistedHomePlayer(ActaGame game, ActaLineupPlayer unlistedPlayer) {

@@ -98,7 +98,7 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
 
         String competition = context.competition();
         int groupNumber = acta.group() != null ? acta.group() : 0;
-        int round = context.round();
+        int round = resolveRound(acta, context);
 
         if (matchRepository.findMatchByNaturalKey(competition, season, groupNumber, round, null,
                 homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
@@ -118,6 +118,19 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
     }
 
     // --- match -----------------------------------------------------------------------------
+
+    /**
+     * The round is taken from the payload's {@code jornada} field when present; the day folder is
+     * only a fallback for the reports where that field is missing.
+     */
+    private int resolveRound(Acta acta, MatchReportContext context) {
+        if (acta.round() != null) {
+            return acta.round();
+        }
+        LOGGER.warn("No jornada in payload for {}; using the day folder {}",
+                context.matchReportFile(), context.day());
+        return context.round();
+    }
 
     private Match buildMatch(MatchReportContext context,
                              Acta acta,
@@ -282,7 +295,7 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
                 LOGGER.warn("Game without a number in {}; left out", context.matchReportFile());
                 continue;
             }
-            Game game = buildGame(actaGame, match, home, away);
+            Game game = buildGame(actaGame, match, home, away, context.toSeason(), context);
             games.add(game);
             setScores.addAll(buildSetScores(actaGame, game));
             if (actaGame.isDoubles()) {
@@ -295,14 +308,15 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
         doublesPairRepository.saveDoublesPairs(doublesPairs);
     }
 
-    private Game buildGame(ActaGame actaGame, Match match, SideLineup home, SideLineup away) {
+    private Game buildGame(ActaGame actaGame, Match match, SideLineup home, SideLineup away, Season season,
+                           MatchReportContext context) {
         boolean doubles = actaGame.isDoubles();
         ActaScore setsWon = actaGame.setsWon();
         ActaScore cumulative = actaGame.cumulativeScore();
         String winnerSide = toSide(actaGame.winner());
 
-        PlayerSeason homePlayer = doubles ? null : playerOf(actaGame.home(), home);
-        PlayerSeason awayPlayer = doubles ? null : playerOf(actaGame.away(), away);
+        PlayerSeason homePlayer = doubles ? null : playerOf(actaGame.home(), home, season, match.getHomeTeam(), context);
+        PlayerSeason awayPlayer = doubles ? null : playerOf(actaGame.away(), away, season, match.getAwayTeam(), context);
 
         return Game.builder()
                 .id(UUID.randomUUID())
@@ -338,11 +352,59 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
         return SIDE_AWAY.equals(winnerSide) ? awayPlayer : null;
     }
 
-    private static PlayerSeason playerOf(ActaParticipant participant, SideLineup side) {
+    /**
+     * The lineup letter names the player declared for that slot, but the actual participant can
+     * differ (an undeclared substitute). The participant's own licence, when the payload carries
+     * one, is authoritative over the letter; lacking a licence, a name mismatch against the
+     * declared player is resolved against the team's known roster for the season.
+     */
+    private PlayerSeason playerOf(ActaParticipant participant, SideLineup side, Season season, Team team,
+                                  MatchReportContext context) {
         if (participant == null || participant.letter() == null) {
             return null;
         }
-        return side.byLetter().get(participant.letter());
+        PlayerSeason lineupPlayer = side.byLetter().get(participant.letter());
+        if (participant.license() != null) {
+            if (lineupPlayer != null && participant.license().equals(lineupPlayer.getLicense())) {
+                return lineupPlayer;
+            }
+            PlayerSeason byLicense = playerSeasonRepository
+                    .findPlayerSeasonBySourceLicenseAndSeason(ImportSource.RFETM, participant.license(), season)
+                    .orElse(null);
+            if (byLicense == null) {
+                LOGGER.warn("Participant \"{}\" (licence {}) at letter {} could not be resolved in {}; game left unattributed",
+                        participant.name(), participant.license(), participant.letter(), context.matchReportFile());
+            }
+            return byLicense;
+        }
+        if (participant.name() == null || participant.name().equals(nameOf(lineupPlayer))) {
+            return lineupPlayer;
+        }
+        PlayerSeason byRosterName = findPlayerSeasonByNameInTeamRoster(participant.name(), team, season);
+        if (byRosterName == null) {
+            LOGGER.warn("Participant \"{}\" at letter {} does not match the declared player \"{}\" in {}, "
+                            + "and no unambiguous roster match was found; game left unattributed",
+                    participant.name(), participant.letter(), nameOf(lineupPlayer), context.matchReportFile());
+            return null;
+        }
+        return byRosterName;
+    }
+
+    private static String nameOf(PlayerSeason player) {
+        return player != null ? player.getName() : null;
+    }
+
+    private PlayerSeason findPlayerSeasonByNameInTeamRoster(String name, Team team, Season season) {
+        if (team == null) {
+            return null;
+        }
+        List<PlayerSeason> matches = playerSeasonRepository
+                .findAllPlayerSeasonsByTeamIdsAndSource(List.of(team.getId()), ImportSource.RFETM)
+                .stream()
+                .filter(playerSeason -> season.equals(playerSeason.getSeason()))
+                .filter(playerSeason -> name.equals(playerSeason.getName()))
+                .toList();
+        return matches.size() == 1 ? matches.get(0) : null;
     }
 
     private PlayerSeason playerOf(ActaLineupPlayer participant, SideLineup side, Season season) {

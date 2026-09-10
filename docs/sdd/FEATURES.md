@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00047: Import process takes jornada property from JSON actas files, no longer a path-derived value](### [FEAT-00047] Import process takes jornada property from JSON actas files, no longer a path-derived value)
+
 - [FEAT-00046: Show round, group number, phase in players matches](### [FEAT-00046] Show round, group number, phase in players matches)
 - [FEAT-00045: Initial users by default](### [FEAT-00045] Initial users by default)
 - [FEAT-00044: Grouped matches list in club details, matches tab](### [FEAT-00044] Grouped matches list in club details, matches tab)
@@ -57,6 +59,32 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00047] Import process takes jornada property from JSON actas files, no longer a path-derived value
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Derive a match's round (jornada) from the acta.json payload's jornada field during all sources/federations import instead of from the day-folder path segment, so imported round data reflects the source's own reported value rather than an assumption inferred from directory naming.
+
+#### Acceptance Criteria
+- [x] RfetmMatchImportProcessor sets Match.round from Acta.round() (the JSON jornada field) instead of MatchReportContext.round() (the day-folder path segment); a clear, logged fallback behavior is defined for reports where the JSON jornada field is null or missing (falls back to the day-folder value with a warning log); existing RFETM import tests are updated to cover both a report with an explicit jornada value and one without; the day-folder path segment is still used for directory traversal and file discovery, only round derivation changes
+- [x] FCTT and BCNESA import already derive round solely from the payload's jornada field (FcttActasDirectoryNavigator/BcnesaActasDirectoryNavigator skip reports with no jornada rather than falling back to a path-derived value); confirmed during this feature and left unchanged, since they already satisfy the "not path-derived" goal
+
+#### Feature Details
+→ See [FEAT-00047-DETAILS.md](./FEAT-00047-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00046] Show round, group number, phase in players matches
 - **Status:** done
@@ -838,6 +866,18 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 
