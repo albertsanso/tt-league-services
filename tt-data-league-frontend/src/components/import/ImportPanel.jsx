@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../../context/useAuth.js'
-import { createImportPreview, getImportHistory, startImport, uploadImportFile } from '../../api/importJobs.js'
+import { createImportPreview, startImport, uploadImportFile } from '../../api/importJobs.js'
 import { normalizeImportPreview } from '../../hooks/useImportPreviewStatus.js'
 import { isActiveImportRunStatus, useImportProcessStatus } from '../../hooks/useImportProcessStatus.js'
 import { useImportSourceStatus } from '../../hooks/useImportSourceStatus.js'
@@ -10,7 +10,6 @@ import SectionLabel from '../ui/SectionLabel.jsx'
 import ImportFileControls from './ImportFileControls.jsx'
 import ImportSourceSelector from './ImportSourceSelector.jsx'
 import ImportResourceList from './ImportResourceList.jsx'
-import SeasonImportList from './SeasonImportList.jsx'
 import ImportPreviewWorkspace from './ImportPreviewWorkspace.jsx'
 import ImportProcessWorkspace from './ImportProcessWorkspace.jsx'
 import ImportReportPanel from './ImportReportPanel.jsx'
@@ -71,11 +70,6 @@ function writeStoredRun(source, resource, runId) {
   }
 }
 
-function normalizeHistoryPayload(payload) {
-  const data = Array.isArray(payload) ? payload : (payload?.items ?? payload?.content ?? [])
-  return Array.isArray(data) ? data : []
-}
-
 export default function ImportPanel() {
   const { t } = useTranslation()
   const { token, clearSession } = useAuth()
@@ -90,7 +84,6 @@ export default function ImportPanel() {
       ? { source: stored.source, resource: stored.resource, submitting: false, runId: stored.runId, error: null }
       : emptyImportState()
   })
-  const [history, setHistory] = useState({ data: [], loading: true, error: null })
   const [uploadState, setUploadState] = useState({ status: 'idle', progress: 0, error: null })
   const [uploadPollActive, setUploadPollActive] = useState(false)
   const previousSourceStatuses = useRef(null)
@@ -99,31 +92,6 @@ export default function ImportPanel() {
   const uploadPollAttempts = useRef(0)
   const resources = useImportResources(selectedSource)
   const runStatus = useImportProcessStatus(importState.runId)
-
-  const refreshHistory = useCallback(() => {
-    getImportHistory(token, '', clearSession)
-      .then((payload) => setHistory({ data: normalizeHistoryPayload(payload), loading: false, error: null }))
-      .catch((error) => setHistory({ data: [], loading: false, error }))
-  }, [clearSession, token])
-
-  useEffect(() => {
-    const controller = new AbortController()
-    getImportHistory(token, '', clearSession, controller.signal)
-      .then((payload) => setHistory({ data: normalizeHistoryPayload(payload), loading: false, error: null }))
-      .catch((error) => {
-        if (error.name !== 'AbortError') setHistory({ data: [], loading: false, error })
-      })
-    return () => controller.abort()
-  }, [clearSession, token])
-
-  const seasons = useMemo(() => {
-    const map = new Map()
-    history.data.forEach((item) => {
-      const season = item.season ?? item.seasonId ?? item.seasonRange
-      if (season !== undefined && !map.has(String(season))) map.set(String(season), item)
-    })
-    return [...map.entries()].map(([id, item]) => ({ ...item, id, season: id }))
-  }, [history.data])
 
   useEffect(() => {
     const currentStatuses = new Map(sources.data.map((source) => [source.id ?? source.code, source.status]))
@@ -138,14 +106,13 @@ export default function ImportPanel() {
       setUploadState((current) => current.status === 'success'
         ? { status: 'idle', progress: 0, error: null }
         : current)
-      refreshHistory()
       if (selectedSource && transitioned.includes(selectedSource)) {
         resources.refresh()
       }
     }
 
     previousSourceStatuses.current = currentStatuses
-  }, [sources.data, selectedSource, refreshHistory, resources])
+  }, [sources.data, selectedSource, resources])
 
   useEffect(() => {
     if (uploadState.status === 'idle') return undefined
@@ -203,14 +170,11 @@ export default function ImportPanel() {
 
     // Refresh on every status change (including queued/running), so the resource card's status
     // badge and processing indicator reflect the backend's current state without requiring a
-    // manual refresh; only refresh history once the run reaches a terminal status.
+    // manual refresh.
     if (importState.source && importState.source === selectedSource) {
       resources.refresh()
     }
-    if (!isActiveImportRunStatus(status)) {
-      refreshHistory()
-    }
-  }, [runStatus.runId, runStatus.data?.status, importState.source, selectedSource, refreshHistory, resources])
+  }, [runStatus.runId, runStatus.data?.status, importState.source, selectedSource, resources])
 
   // Only one import process may run at a time; while the active run hasn't reached a terminal
   // status yet (or its outcome hasn't been fetched), starting another one is blocked.
@@ -256,15 +220,6 @@ export default function ImportPanel() {
     setSelectedSeason(null)
   }
 
-  const run = async (season, simulate = false) => {
-    setSelectedSeason(season)
-    if (simulate) {
-      await startPreview(season)
-      return
-    }
-    await startProcess(season)
-  }
-
   const runResource = async (resource, simulate = false) => {
     setSelectedSeason(resource)
     if (simulate) {
@@ -295,7 +250,6 @@ export default function ImportPanel() {
       uploadPollAttempts.current = 0
       resources.refresh()
       setUploadPollActive(true)
-      refreshHistory()
     } catch (error) {
       if (error.name === 'AbortError') return
       setUploadState({ status: 'error', progress: 0, error })
@@ -332,14 +286,6 @@ export default function ImportPanel() {
                   onImport={(resource) => runResource(resource)}
                   disabled={importInProgress}
                 />}
-          {history.loading ? <p role="status">{t('importPanel.seasonsLoading')}</p>
-            : history.error ? <p role="alert">{t('importPanel.serverError')}</p>
-              : seasons.length > 0 ? <SeasonImportList
-                  seasons={seasons}
-                  onLoad={(season) => run(season)}
-                  onSimulate={(season) => run(season, true)}
-                  disabled={importInProgress}
-                /> : null}
         </div>
         {importState.resource
           ? <ImportProcessWorkspace

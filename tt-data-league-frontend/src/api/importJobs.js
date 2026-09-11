@@ -65,8 +65,3 @@ export function cancelImport(token, id, onUnauthorized) {
 export function rollbackImport(token, id, onUnauthorized) {
   return apiRequest(`${basePath}/${id}/rollback`, { token, method: 'POST', onUnauthorized })
 }
-
-export function getImportHistory(token, query = '', onUnauthorized, signal) {
-  const params = new URLSearchParams({ query, limit: '100' })
-  return apiRequest(`${basePath}?${params}`, { token, signal, onUnauthorized })
-}

@@ -2,7 +2,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-libra
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ImportPanel from './ImportPanel.jsx'
 import { useAuth } from '../../context/useAuth.js'
-import { createImportPreview, getImportHistory, startImport, uploadImportFile } from '../../api/importJobs.js'
+import { createImportPreview, startImport, uploadImportFile } from '../../api/importJobs.js'
 import { useImportSourceStatus } from '../../hooks/useImportSourceStatus.js'
 import { useImportResources } from '../../hooks/useImportResources.js'
 import { useImportProcessStatus } from '../../hooks/useImportProcessStatus.js'
@@ -10,7 +10,6 @@ import { useImportProcessStatus } from '../../hooks/useImportProcessStatus.js'
 vi.mock('../../context/useAuth.js', () => ({ useAuth: vi.fn() }))
 vi.mock('../../api/importJobs.js', () => ({
   createImportPreview: vi.fn(),
-  getImportHistory: vi.fn(),
   getImportPreviewStatus: vi.fn(),
   startImport: vi.fn(),
   uploadImportFile: vi.fn(),
@@ -48,7 +47,6 @@ describe('ImportPanel resources', () => {
     uploadImportFile.mockResolvedValue({ status: 'ACCEPTED' })
     createImportPreview.mockResolvedValue({ status: 'PREVIEW' })
     startImport.mockResolvedValue({ response: { runId: 'run-1', status: 'queued' } })
-    getImportHistory.mockResolvedValue([])
   })
 
   afterEach(() => {
@@ -346,7 +344,7 @@ describe('ImportPanel resources', () => {
     expect(startImport).toHaveBeenCalledWith('token', 'resource-1', expect.any(Function))
   })
 
-  it('refreshes seasons and the selected source resource list when that source status transitions', async () => {
+  it('refreshes the selected source resource list when that source status transitions', async () => {
     useImportSourceStatus.mockReturnValue({
       data: [{ id: 'RFETM', label: 'RFETM', status: 'pending' }],
       loading: false,
@@ -355,7 +353,6 @@ describe('ImportPanel resources', () => {
     })
     const { rerender } = render(<ImportPanel />)
     fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
-    await waitFor(() => expect(getImportHistory).toHaveBeenCalledTimes(1))
 
     useImportSourceStatus.mockReturnValue({
       data: [{ id: 'RFETM', label: 'RFETM', status: 'available' }],
@@ -365,11 +362,10 @@ describe('ImportPanel resources', () => {
     })
     rerender(<ImportPanel />)
 
-    await waitFor(() => expect(getImportHistory).toHaveBeenCalledTimes(2))
-    expect(refreshResources).toHaveBeenCalled()
+    await waitFor(() => expect(refreshResources).toHaveBeenCalled())
   })
 
-  it('refreshes seasons and the resource list once an active import run reaches a terminal status', async () => {
+  it('refreshes the resource list once an active import run reaches a terminal status', async () => {
     useImportResources.mockReturnValue({
       data: [{ id: 'resource-1', season: '2025-2026', resourceType: 'ACTAS' }],
       loading: false,
@@ -389,7 +385,6 @@ describe('ImportPanel resources', () => {
     fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Importa' }))
     await waitFor(() => expect(startImport).toHaveBeenCalled())
-    await waitFor(() => expect(getImportHistory).toHaveBeenCalledTimes(1))
 
     useImportProcessStatus.mockReturnValue({
       runId: 'run-1',
@@ -408,7 +403,6 @@ describe('ImportPanel resources', () => {
     rerender(<ImportPanel />)
 
     await waitFor(() => expect(refreshResources).toHaveBeenCalled())
-    expect(getImportHistory).toHaveBeenCalledTimes(2)
   })
 
   it('persists the active run to sessionStorage and rehydrates it on remount', async () => {

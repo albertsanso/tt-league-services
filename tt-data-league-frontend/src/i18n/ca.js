@@ -189,16 +189,6 @@ export default {
     definitionInvalid: 'El valor enter no compleix els límits indicats.',
     importFolderHint: 'Cam\u00ed absolut de la carpeta del servidor on es desen els fitxers importats (p. ex. c:\\tt-repository).',
     categories: { ALL: 'Totes', GENERAL: 'General', NOTIFICATIONS: 'Notificacions', IMPORT: 'Importació' },
-    labels: {
-      'notifications.emailEnabled': 'Notificacions per correu',
-      'notifications.inAppEnabled': 'Notificacions dins l’aplicació',
-      'notifications.importCompleted': 'Notificacions de finalització d’importació',
-      'import.autoValidate': 'Validació automàtica d’importacions',
-      'import.preserveHistory': 'Conservar l’historial d’importació',
-      'import.maxBatchSize': 'Mida màxima del lot d’importació',
-      'repository-folder': 'Carpeta d’importació per defecte',
-      'rfetm-teams-folder': 'Carpeta d’equips RFETM',
-    },
   },
   administration: {
     administration: {

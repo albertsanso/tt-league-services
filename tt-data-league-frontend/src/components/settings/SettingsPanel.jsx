@@ -56,12 +56,11 @@ function SettingValue({ setting, value, onChange }) {
 function SettingCard({ setting, pendingValue, onChange, onSave, onDelete, saving }) {
   const { t } = useTranslation()
   const value = pendingValue ?? setting.value ?? ''
-  const label = t(`systemSettings.labels.${setting.name}`, { defaultValue: setting.name })
   return (
     <article className={`system-setting-card card ${pendingValue !== undefined ? 'is-modified' : ''}`}>
       <div className="system-setting-heading">
         <div>
-          <h2>{label}</h2>
+          <h2>{setting.name}</h2>
         </div>
       </div>
 
