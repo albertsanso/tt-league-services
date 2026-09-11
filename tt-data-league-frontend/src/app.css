@@ -905,10 +905,45 @@
   padding: 0.85rem;
 }
 
+.import-resource-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.import-resource-group h3 {
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
 .import-resource-items {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+.import-resource-processing-indicator {
+  display: inline-flex;
+  align-items: center;
+}
+
+.import-resource-processing-indicator span[aria-hidden='true'] {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-warning);
+  animation: import-resource-processing-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes import-resource-processing-pulse {
+  0%, 100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .import-resource-item {

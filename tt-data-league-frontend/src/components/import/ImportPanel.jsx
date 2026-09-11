@@ -17,6 +17,8 @@ import ImportReportPanel from './ImportReportPanel.jsx'
 
 const ACTION_MESSAGE_TIMEOUT = 20000
 const ACTIVE_RUN_STORAGE_KEY = 'import-panel:active-run'
+const UPLOAD_POLL_INTERVAL_MS = 2000
+const UPLOAD_POLL_MAX_ATTEMPTS = 10
 
 function emptyPreviewState() {
   return {
@@ -90,8 +92,11 @@ export default function ImportPanel() {
   })
   const [history, setHistory] = useState({ data: [], loading: true, error: null })
   const [uploadState, setUploadState] = useState({ status: 'idle', progress: 0, error: null })
+  const [uploadPollActive, setUploadPollActive] = useState(false)
   const previousSourceStatuses = useRef(null)
   const lastHandledRunTransition = useRef(null)
+  const preUploadResourceIds = useRef(new Set())
+  const uploadPollAttempts = useRef(0)
   const resources = useImportResources(selectedSource)
   const runStatus = useImportProcessStatus(importState.runId)
 
@@ -156,18 +161,54 @@ export default function ImportPanel() {
     writeStoredRun(importState.source, importState.resource, importState.runId)
   }, [importState.source, importState.resource, importState.runId])
 
+  // Poll after a successful upload until the resulting import resource shows up as PENDING:
+  // the backend registers it asynchronously, so the immediate refresh right after upload can
+  // still miss it.
+  useEffect(() => {
+    if (!uploadPollActive || resources.loading) return undefined
+
+    const priorIds = preUploadResourceIds.current
+    const pendingResourceAppeared = resources.data.some(
+      (resource) => !priorIds.has(resource.id) && resource.status?.toUpperCase() === 'PENDING',
+    )
+
+    if (pendingResourceAppeared || uploadPollAttempts.current >= UPLOAD_POLL_MAX_ATTEMPTS) {
+      setUploadPollActive(false)
+      uploadPollAttempts.current = 0
+      return undefined
+    }
+
+    const timer = window.setTimeout(() => {
+      uploadPollAttempts.current += 1
+      resources.refresh()
+    }, UPLOAD_POLL_INTERVAL_MS)
+
+    return () => window.clearTimeout(timer)
+  }, [uploadPollActive, resources])
+
+  const handleSelectSource = (source) => {
+    setUploadPollActive(false)
+    uploadPollAttempts.current = 0
+    setSelectedSource(source)
+  }
+
   useEffect(() => {
     const runId = runStatus.runId
     const status = runStatus.data?.status
-    if (!runId || !status || isActiveImportRunStatus(status)) return
+    if (!runId || !status) return
 
     const transitionKey = `${runId}:${status}`
     if (lastHandledRunTransition.current === transitionKey) return
     lastHandledRunTransition.current = transitionKey
 
-    refreshHistory()
+    // Refresh on every status change (including queued/running), so the resource card's status
+    // badge and processing indicator reflect the backend's current state without requiring a
+    // manual refresh; only refresh history once the run reaches a terminal status.
     if (importState.source && importState.source === selectedSource) {
       resources.refresh()
+    }
+    if (!isActiveImportRunStatus(status)) {
+      refreshHistory()
     }
   }, [runStatus.runId, runStatus.data?.status, importState.source, selectedSource, refreshHistory, resources])
 
@@ -250,7 +291,10 @@ export default function ImportPanel() {
       setUploadState({ status: 'success', progress: 100, error: null })
       setFile(null)
       sources.refresh?.()
+      preUploadResourceIds.current = new Set(resources.data.map((resource) => resource.id))
+      uploadPollAttempts.current = 0
       resources.refresh()
+      setUploadPollActive(true)
       refreshHistory()
     } catch (error) {
       if (error.name === 'AbortError') return
@@ -276,7 +320,7 @@ export default function ImportPanel() {
       <p className="page-description">{t('importPanel.description')}</p>
       <ImportFileControls file={file} onFileChange={handleFileChange} onLoad={loadFile} uploadState={uploadState} />
       <div className="import-panel-grid">
-        <ImportSourceSelector sources={sources} selected={selectedSource} onSelect={setSelectedSource} />
+        <ImportSourceSelector sources={sources} selected={selectedSource} onSelect={handleSelectSource} />
         <div>
           {!selectedSource ? <p>{t('importPanel.chooseSource')}</p>
           : resources.loading ? <p role="status">{t('importPanel.resourcesLoading')}</p>

@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import Badge from '../ui/Badge.jsx'
 import Button from '../ui/Button.jsx'
@@ -25,11 +26,22 @@ function formatUploadDate(value, fallback) {
   return fallback
 }
 
-export default function ImportResourceList({ resources, onSimulate, onImport, disabled = false }) {
-  const { t } = useTranslation()
+function isImported(resource) {
+  return resource.status?.toUpperCase() === 'PROCESSED'
+}
 
-  return <section className="import-resource-list" aria-labelledby="import-resources-title">
-    <h2 id="import-resources-title">{t('importPanel.resourcesTitle')}</h2>
+function isProcessing(resource) {
+  return resource.status?.toUpperCase() === 'PROCESSING'
+}
+
+const bySeasonDesc = (a, b) =>
+  String(b.season ?? '').localeCompare(String(a.season ?? ''), undefined, { numeric: true })
+
+function ImportResourceGroup({ titleKey, resources, onSimulate, onImport, disabled, t }) {
+  if (resources.length === 0) return null
+
+  return <div className="import-resource-group">
+    <h3>{t(titleKey)}</h3>
     <div className="import-resource-items" role="list">
       {resources.map((resource) => <Card as="article" className="import-resource-item" key={resource.id} role="listitem">
         <div className="import-resource-actions">
@@ -39,6 +51,14 @@ export default function ImportResourceList({ resources, onSimulate, onImport, di
         <div className="import-resource-content">
           <div className="import-resource-heading">
             <Badge tone={tone(resource.status)}>{displayValue(resource.status, t('importPanel.resourceReady'))}</Badge>
+            {isProcessing(resource) && <span
+              className="import-resource-processing-indicator"
+              role="status"
+              aria-live="polite"
+            >
+              <span aria-hidden="true" />
+              <span className="visually-hidden">{t('importPanel.resourceProcessing')}</span>
+            </span>}
           </div>
           <dl className="import-resource-details">
             <div className="import-resource-emphasis"><dt>{t('importPanel.resourceType')}</dt><dd>{displayValue(resource.resourceType, t('importPanel.unavailable'))}</dd></div>
@@ -48,5 +68,35 @@ export default function ImportResourceList({ resources, onSimulate, onImport, di
         </div>
       </Card>)}
     </div>
+  </div>
+}
+
+export default function ImportResourceList({ resources, onSimulate, onImport, disabled = false }) {
+  const { t } = useTranslation()
+
+  const { imported, pending } = useMemo(() => {
+    const importedResources = resources.filter(isImported).sort(bySeasonDesc)
+    const pendingResources = resources.filter((resource) => !isImported(resource)).sort(bySeasonDesc)
+    return { imported: importedResources, pending: pendingResources }
+  }, [resources])
+
+  return <section className="import-resource-list" aria-labelledby="import-resources-title">
+    <h2 id="import-resources-title">{t('importPanel.resourcesTitle')}</h2>
+    <ImportResourceGroup
+      titleKey="importPanel.resourcesImportedTitle"
+      resources={imported}
+      onSimulate={onSimulate}
+      onImport={onImport}
+      disabled={disabled}
+      t={t}
+    />
+    <ImportResourceGroup
+      titleKey="importPanel.resourcesPendingTitle"
+      resources={pending}
+      onSimulate={onSimulate}
+      onImport={onImport}
+      disabled={disabled}
+      t={t}
+    />
   </section>
 }

@@ -23,8 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00048: Sort ImportResources list and group by imported/pending](### [FEAT-00048] Sort ImportResources list and group by imported/pending)
 - [FEAT-00047: Import process takes jornada property from JSON actas files, no longer a path-derived value](### [FEAT-00047] Import process takes jornada property from JSON actas files, no longer a path-derived value)
-
 - [FEAT-00046: Show round, group number, phase in players matches](### [FEAT-00046] Show round, group number, phase in players matches)
 - [FEAT-00045: Initial users by default](### [FEAT-00045] Initial users by default)
 - [FEAT-00044: Grouped matches list in club details, matches tab](### [FEAT-00044] Grouped matches list in club details, matches tab)
@@ -59,6 +59,51 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00048] Sort ImportResources list and group by imported/pending
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Make it easy to scan the ImportResources list in the frontend by sorting entries and separating them into imported and pending sections.
+Must organize Import Resources list into 2 sections: "Imported" and "Pending", and sort each section by season DESC.
+
+#### Sub-goals
+- Sort ImportResources list by season DESC within each section
+- Separate ImportResources list into "Imported" and "Pending" sections based on import status
+- The "Imported" section should display resources that have been successfully imported, while the "Pending" section should display resources that are yet to be imported or are in progress.
+- The Import Resources card which are in progress must show an icon or indicator to show that the import is currently running, so users can easily identify which resources are being processed.
+- In Data import, after uploading a file and the new import resource becomes available in 'pending' state, the import resources list must refresh automatically.
+
+#### Acceptance Criteria
+- [x] ImportResources list is sorted (e.g. by date/name) within each section
+- [x] ImportResources list is split into an 'Imported' section and a 'Pending' section based on import status
+- [x] The 'Imported' section displays resources that have been successfully imported, while the 'Pending' section displays resources that are yet to be imported or are in progress.
+- [x] The Import Resources card which are in progress shows an icon or indicator to show that the import is currently running, so users can easily identify which resources are being processed.
+- [x] After uploading a file in Data import, once the resulting new import resource is available and in 'pending' state, the import resources list refreshes automatically without requiring manual user action.
+
+#### Feature Details
+→ See [FEAT-00048-DETAILS.md](./FEAT-00048-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00047] Import process takes jornada property from JSON actas files, no longer a path-derived value
 - **Status:** done
@@ -866,6 +911,26 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

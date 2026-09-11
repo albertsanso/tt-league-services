@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ImportPanel from './ImportPanel.jsx'
 import { useAuth } from '../../context/useAuth.js'
@@ -122,6 +122,76 @@ describe('ImportPanel resources', () => {
     await waitFor(() => expect(uploadImportFile).toHaveBeenCalled())
     expect(refreshStatus).toHaveBeenCalledOnce()
     expect(refreshResources).toHaveBeenCalledOnce()
+  })
+
+  it('polls for the newly uploaded resource until it shows up as PENDING, then stops refreshing', async () => {
+    vi.useFakeTimers()
+    try {
+      let mockState = { data: [], loading: false, error: null, retry: vi.fn(), refresh: refreshResources }
+      useImportResources.mockImplementation(() => mockState)
+
+      const { rerender } = render(<ImportPanel />)
+      fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
+
+      const file = new File(['zip'], 'season.zip', { type: 'application/zip' })
+      fireEvent.change(screen.getByLabelText('Fitxer d’importació'), { target: { files: [file] } })
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'Carrega' }))
+        await Promise.resolve()
+        await Promise.resolve()
+      })
+      expect(refreshResources).toHaveBeenCalledTimes(1)
+
+      // Backend hasn't registered the new resource yet: the poll fires again after the interval.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      expect(refreshResources).toHaveBeenCalledTimes(2)
+
+      // The resource now shows up as PENDING (simulating the hook's state updating after refresh).
+      mockState = {
+        ...mockState,
+        data: [{ id: 'new-resource', season: '2025-2026', resourceType: 'ACTAS', status: 'PENDING' }],
+      }
+      await act(async () => {
+        rerender(<ImportPanel />)
+      })
+
+      // Polling stops: no further refresh calls even after another interval elapses.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(2000)
+      })
+      expect(refreshResources).toHaveBeenCalledTimes(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('refreshes the resource list as soon as the run becomes active, before it finishes', async () => {
+    useImportResources.mockReturnValue({
+      data: [{ id: 'resource-1', season: '2025-2026', resourceType: 'ACTAS', status: 'PENDING' }],
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+      refresh: refreshResources,
+    })
+    startImport.mockResolvedValue({ response: { runId: 'run-1', status: 'queued' } })
+    useImportProcessStatus.mockImplementation((runId) => (runId
+      ? {
+          runId,
+          loading: false,
+          error: null,
+          data: { status: 'running', processed: 0, total: 5, percentage: 0, skipped: 0, errorCount: 0, result: null },
+        }
+      : { runId: null, loading: false, error: null, data: null }))
+
+    render(<ImportPanel />)
+    fireEvent.click(screen.getByRole('button', { name: /Marca RFETM/i }))
+    expect(refreshResources).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Importa' }))
+
+    await waitFor(() => expect(startImport).toHaveBeenCalledWith('token', 'resource-1', expect.any(Function)))
+    await waitFor(() => expect(refreshResources).toHaveBeenCalled())
   })
 
   it('submits the import asynchronously and polls the run until it succeeds', async () => {
