@@ -23,6 +23,10 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00052: Add more statistics to player details](### [FEAT-00052] Add more statistics to player details)
+- [FEAT-00051: Improve responsiveness of Player details Matches and Opponent Analysis tabs](### [FEAT-00051] Improve responsiveness of Player details Matches and Opponent Analysis tabs)
+- [FEAT-00050: Improve Player Opponent Analysis](### [FEAT-00050] Improve Player Opponent Analysis)
+- [FEAT-00049: Fix Opponent Analysis tab in Player details](### [FEAT-00049] Fix Opponent Analysis tab in Player details)
 - [FEAT-00048: Sort ImportResources list and group by imported/pending](### [FEAT-00048] Sort ImportResources list and group by imported/pending)
 - [FEAT-00047: Import process takes jornada property from JSON actas files, no longer a path-derived value](### [FEAT-00047] Import process takes jornada property from JSON actas files, no longer a path-derived value)
 - [FEAT-00046: Show round, group number, phase in players matches](### [FEAT-00046] Show round, group number, phase in players matches)
@@ -59,6 +63,98 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00052] Add more statistics to player details
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Give users deeper insight into a player's performance by expanding the Statistics tab beyond matches played and win percentage per season.
+
+#### Match result spectrum (tug-of-war)
+Show a plot of the player's match results over time, with a spectrum from "strong win" to "strong loss" (e.g. 3-0 win vs 3-2 win vs 3-2 loss vs 0-3 loss) to visualize the player's performance trend and consistency.
+Place this plot just on the right of the historical plot of matches played and win percentage per season, so users can see both the quantity and quality of matches over time.
+Connect this plot to the filters in the Statistics tab, so users can see how the player's performance varies by season, competition, or opponent category.
+
+#### Acceptance Criteria
+- [x] The Statistics tab's per-season table shows an "Average score" column populated from the existing backend `averageScore` field (currently returned but unused on the frontend)
+- [x] The Statistics tab shows a career summary (matches played, win percentage, current streak, longest win streak, singles win percentage, doubles win percentage, average set margin per game) computed from the currently filtered matches, consistent with the active source/season/competition filters
+- [x] The Statistics tab shows a match result spectrum plot (strong loss → strong win, based on games-won margin per match) next to the existing matches-played/win-percentage history plot, reflecting the currently selected source/season/competition filters
+- [x] The career summary, average score column, and match result spectrum plot update correctly when the source/season/competition filters change, and render a sensible empty/placeholder state when no matches are available for the selected filters
+- [x] New UI text is available in Catalan, Spanish, and English translation files
+
+#### Feature Details
+→ See [FEAT-00052-DETAILS.md](./FEAT-00052-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+### [FEAT-00051] Improve responsiveness of Player details Matches and Opponent Analysis tabs
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Make the Player details page usable on smartphone-width screens, in particular the Matches and Opponent Analysis tabs whose tables currently rely on wide, non-wrapping layouts.
+
+#### Acceptance Criteria
+- [x] On a smartphone-width viewport, the Matches tab and Opponent Analysis tab (both categorization and search views) are usable without relying on wide horizontal scrolling to read the primary information for a row
+
+#### Feature Details
+→ See [FEAT-00051-DETAILS.md](./FEAT-00051-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+### [FEAT-00050] Improve Player Opponent Analysis
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Give players deeper, more actionable insight into their head-to-head performance against specific opponents beyond the current categorization and search views.
+
+#### Description
+Besides the current win/loss counts, the Opponent Analysis view takes into account individual game results. Case analysis:
+- On a win, win 3-0 is better than win 3-2, and 3-2 > 3-1, so the view should reflect that.
+- On a loss, loss 0-3 is worse than loss 2-3, and 2-3 > 1-3, so the view should reflect that.
+
+#### Acceptance Criteria
+- [x] The Opponent Analysis view shows a more detailed breakdown of each opponent's match history, including individual game results and scores
+- [x] The view provides visual indicators (e.g., color coding, icons) to quickly convey the quality of wins and losses against each opponent, based on set-score margin (e.g. 3-0 stronger than 3-2)
+- [x] The view allows players to sort opponents by win percentage, matches played, and last-played date, in addition to the existing name/category grouping
+- [x] Each opponent row shows recent form (result trend over the last N matches and current win/loss streak) against that opponent
+- [x] Selecting an opponent opens a head-to-head detail view listing every match/game played against them, with dates, scores, and set-level results
+
+#### Feature Details
+→ See [FEAT-00050-DETAILS.md](./FEAT-00050-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+### [FEAT-00049] Fix Opponent Analysis tab in Player details
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Make the Opponent Analysis tab use each game's own result against that opponent (matching what the Matches tab shows) instead of the overall match result, so win/loss/category per opponent is never contradictory between the two tabs.
+
+#### Acceptance Criteria
+- [x] For a given opponent, the win/loss shown in the Opponent Analysis tab never contradicts the per-game result shown for that same opponent in the Matches tab
+- [x] Opponent win percentage matches wins/losses actually recorded against that opponent (per game they appeared in, not the overall match result)
+- [x] Opponents are categorized into favorable/hard/problem/uncategorized consistently with the documented category rules
+
+#### Feature Details
+→ See [FEAT-00049-DETAILS.md](./FEAT-00049-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00048] Sort ImportResources list and group by imported/pending
 - **Status:** done
@@ -911,6 +1007,46 @@ Provide a central place where administrators can search, filter, create, update,
 
 #### Feature Details
 → See [FEAT-00024-DETAILS.md](./FEAT-00024-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

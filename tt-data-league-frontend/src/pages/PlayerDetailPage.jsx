@@ -1,5 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { routePaths } from '../config/routes.js'
 import { usePlayerDetails } from '../hooks/usePlayers.js'
@@ -24,11 +24,19 @@ const OPPONENT_VIEWS = {
   CATEGORIZATION: 'categorization',
   SEARCH: 'search',
 }
+const OPPONENT_SORTS = {
+  DEFAULT: 'default',
+  WIN_PERCENTAGE: 'winPercentage',
+  MATCHES: 'matches',
+  LAST_PLAYED: 'lastPlayed',
+}
+const RECENT_FORM_SIZE = 5
 const PERCENTAGE_TICKS = [0, 25, 50, 75, 100]
 const MATCHES_MARKER_SIZE = 6
 const WINS_MARKER_SIZE = 6
 const unique = (values) => [...new Set(values.filter(Boolean))].sort()
 const MATCHES_PER_PAGE = 10
+const SPECTRUM_TIERS = ['strong-win', 'win', 'close-win', 'draw', 'close-loss', 'loss', 'strong-loss']
 
 function PlayerDetailPage() {
   const { playerId } = useParams()
@@ -172,7 +180,7 @@ function PlayerDetailContent({ data, params, setParams, t }) {
       <div id="player-tabpanel" role="tabpanel" aria-labelledby={`player-${view}-tab`}>
         {view === VIEWS.STATISTICS ? <HistorySection statistics={statistics} competition={competition} matches={matches} t={t} /> : null}
         {view === VIEWS.MATCHES ? <MatchHistoryPanel key={`${source}-${season}-${competition}`} matches={matches} t={t} /> : null}
-        {view === VIEWS.OPPONENTS ? <OpponentAnalysisPanel key={opponentView} matches={matches} opponentView={opponentView} update={update} t={t} /> : null}
+        {view === VIEWS.OPPONENTS ? <OpponentAnalysisPanel key={opponentView} matches={matches} opponentView={opponentView} params={params} update={update} t={t} /> : null}
       </div>
     </section>
   )
@@ -181,11 +189,16 @@ function PlayerDetailContent({ data, params, setParams, t }) {
 function HistorySection({ statistics, competition, matches, t }) {
   const values = [...(competition ? aggregateCompetition(matches, competition) : statistics)].sort(compareSeasons)
   const chartValues = [...values].sort(compareSeasonsAscending)
+  const career = matches.length > 0 ? aggregateCareerStatistics(matches) : null
   return <section className="club-detail-section" aria-labelledby="player-history-title">
     <h2 id="player-history-title">{t('detail.statisticsHistory')}</h2>
     {values.length === 0 ? <p className="club-empty card" role="status">{t('detail.statisticsEmpty')}</p> : (
       <>
-        <ConnectedScatterPlot values={chartValues} />
+        {career ? <CareerSummary career={career} t={t} /> : null}
+        <div className="history-charts-row">
+          <ConnectedScatterPlot values={chartValues} />
+          <MatchQualitySpectrumChart matches={matches} t={t} />
+        </div>
         <p className="history-legend" aria-label={t('detail.chartLegend')}>
           <span className="legend-matches">{t('common.playedMatches')}</span>
           <span className="legend-wins">{t('common.winPercentage')}</span>
@@ -193,13 +206,28 @@ function HistorySection({ statistics, competition, matches, t }) {
         <div className="table-wrap">
           <table className="history-table">
             <caption>{t('detail.historyValues')}</caption>
-            <thead><tr><th>{t('common.season')}</th><th>{t('common.playedMatches')}</th><th>{t('common.winPercentage')}</th></tr></thead>
-            <tbody>{values.map((item, index) => <tr key={`${item.source}-${item.season}-${index}`}><td>{item.season || '—'}</td><td>{item.matchesPlayed}</td><td>{item.winPercentage == null ? '—' : `${item.winPercentage.toFixed(1)}%`}</td></tr>)}</tbody>
+            <thead><tr><th>{t('common.season')}</th><th>{t('common.playedMatches')}</th><th>{t('common.winPercentage')}</th><th>{t('detail.averageScore')}</th></tr></thead>
+            <tbody>{values.map((item, index) => <tr key={`${item.source}-${item.season}-${index}`}><td>{item.season || '—'}</td><td>{item.matchesPlayed}</td><td>{item.winPercentage == null ? '—' : `${item.winPercentage.toFixed(1)}%`}</td><td>{item.averageScore == null ? '—' : item.averageScore.toFixed(1)}</td></tr>)}</tbody>
           </table>
         </div>
       </>
     )}
   </section>
+}
+
+function CareerSummary({ career, t }) {
+  return <div className="career-summary card" aria-labelledby="career-summary-title">
+    <h3 id="career-summary-title">{t('detail.careerSummary')}</h3>
+    <dl className="career-summary-stats">
+      <div><dt>{t('common.playedMatches')}</dt><dd>{career.matchesPlayed}</dd></div>
+      <div><dt>{t('common.winPercentage')}</dt><dd>{formatWinPercentage(career.winPercentage)}</dd></div>
+      <div><dt>{t('detail.currentStreakLabel')}</dt><dd>{streakLabel(career.currentStreak, t)}</dd></div>
+      <div><dt>{t('detail.longestWinStreak')}</dt><dd>{career.longestWinStreak}</dd></div>
+      <div><dt>{t('detail.singlesWinPercentage')}</dt><dd>{formatWinPercentage(career.singlesWinPercentage)}</dd></div>
+      <div><dt>{t('detail.doublesWinPercentage')}</dt><dd>{formatWinPercentage(career.doublesWinPercentage)}</dd></div>
+      <div><dt>{t('detail.averageSetMargin')}</dt><dd>{career.averageSetMargin == null ? '—' : career.averageSetMargin.toFixed(1)}</dd></div>
+    </dl>
+  </div>
 }
 
 function MatchHistoryPanel({ matches, t }) {
@@ -217,17 +245,17 @@ function MatchHistoryPanel({ matches, t }) {
             <caption>{t('common.matches')}</caption>
             <thead><tr><th>{t('common.date')}</th><th>{t('common.source')}</th><th>{t('common.season')}</th><th>{t('common.competition')}</th><th>{t('matchesPage.round')}</th><th>{t('matchesPage.group')}</th><th>{t('matchesPage.phase')}</th><th>{t('common.opponent')}</th><th>{t('common.result')}</th><th>{t('common.score')}</th><th>{t('common.opponentTeam')}</th></tr></thead>
             <tbody>{visibleMatches.map((item) => <tr key={item.id}>
-              <td>{item.dateTime ? new Date(item.dateTime).toLocaleDateString(i18n.language) : t('common.noData')}</td>
-              <td>{item.source}</td>
-              <td>{item.season}</td>
-              <td>{item.competition}</td>
-              <td>{item.round ?? t('common.unavailable')}</td>
-              <td>{item.groupNumber ?? t('common.unavailable')}</td>
-              <td>{item.phase ?? t('common.unavailable')}</td>
-              <td><div className="match-game-list match-opponent-list" role="list">{matchOpponentRows(item, t)}</div></td>
-              <td><div className="match-game-list match-result-list" role="list">{matchResultRows(item, t)}</div></td>
-              <td>{matchScoreResult(item, t)}</td>
-              <td>{opponentTeamName(item, t)}</td>
+              <td data-label={t('common.date')}>{item.dateTime ? new Date(item.dateTime).toLocaleDateString(i18n.language) : t('common.noData')}</td>
+              <td data-label={t('common.source')}>{item.source}</td>
+              <td data-label={t('common.season')}>{item.season}</td>
+              <td data-label={t('common.competition')}>{item.competition}</td>
+              <td data-label={t('matchesPage.round')}>{item.round ?? t('common.unavailable')}</td>
+              <td data-label={t('matchesPage.group')}>{item.groupNumber ?? t('common.unavailable')}</td>
+              <td data-label={t('matchesPage.phase')}>{item.phase ?? t('common.unavailable')}</td>
+              <td data-label={t('common.opponent')}><div className="match-game-list match-opponent-list" role="list">{matchOpponentRows(item, t)}</div></td>
+              <td data-label={t('common.result')}><div className="match-game-list match-result-list" role="list">{matchResultRows(item, t)}</div></td>
+              <td data-label={t('common.score')}>{matchScoreResult(item, t)}</td>
+              <td data-label={t('common.opponentTeam')}>{opponentTeamName(item, t)}</td>
             </tr>)}</tbody>
           </table>
         </div>
@@ -241,29 +269,54 @@ function MatchHistoryPanel({ matches, t }) {
   </section>
 }
 
-function OpponentAnalysisPanel({ matches, opponentView, update, t }) {
+function OpponentAnalysisPanel({ matches, opponentView, params, update, t }) {
   const [search, setSearch] = useState('')
+  const requestedSort = params.get('opponentSort')
+  const sort = Object.values(OPPONENT_SORTS).includes(requestedSort) ? requestedSort : OPPONENT_SORTS.DEFAULT
+  const sortComparator = opponentComparator(sort)
   const opponents = new Map()
   matches.forEach((match) => {
     const opponentKeys = new Set()
     const games = match.games ?? []
-    games.forEach((game) => game.opponents.forEach((opponent) => {
-      const key = opponentKey(opponent)
-      if (opponentKeys.has(key)) return
-      opponentKeys.add(key)
-      addOpponent(opponents, key, opponent, match.result)
-    }))
+    games.forEach((game) => {
+      const sets = gameSetsForPlayer(match, game)
+      game.opponents.forEach((opponent) => {
+        const key = opponentKey(opponent)
+        if (opponentKeys.has(key)) return
+        opponentKeys.add(key)
+        addOpponent(opponents, key, opponent, {
+          id: `${match.id}-${game.id}`,
+          dateTime: match.dateTime,
+          competition: match.competition,
+          result: game.result,
+          playerSets: sets.playerSets,
+          opponentSets: sets.opponentSets,
+        })
+      })
+    })
     if (match.games == null || match.games.length === 0) {
       const opponent = { name: opponentName(match), available: true }
-      addOpponent(opponents, `legacy-${opponent.name}`, opponent, match.result)
+      const legacyGames = matchGamesForPlayer(match)
+      addOpponent(opponents, `legacy-${opponent.name}`, opponent, {
+        id: match.id,
+        dateTime: match.dateTime,
+        competition: match.competition,
+        result: match.result,
+        playerSets: legacyGames.playerGames,
+        opponentSets: legacyGames.opponentGames,
+      })
     } else if (opponentKeys.size === 0) {
-      addOpponent(opponents, `unavailable-${match.id}`, { name: null, available: false }, match.result)
+      addOpponent(opponents, `unavailable-${match.id}`, { name: null, available: false }, {
+        id: match.id,
+        dateTime: match.dateTime,
+        competition: match.competition,
+        result: match.result,
+        playerSets: null,
+        opponentSets: null,
+      })
     }
   })
-  const rows = [...opponents.values()].map((opponent) => ({
-    ...opponent,
-    playerWinPercentage: winPercentage(opponent),
-  }))
+  const rows = [...opponents.values()].map((opponent) => buildOpponentRow(opponent))
   const overallWinPercentage = winPercentage(matches.reduce((totals, match) => ({
     wins: totals.wins + (match.result === 'win' ? 1 : 0),
     losses: totals.losses + (match.result === 'loss' ? 1 : 0),
@@ -274,7 +327,7 @@ function OpponentAnalysisPanel({ matches, opponentView, update, t }) {
   }))
   const searchRows = categorizedRows
     .filter((opponent) => opponent.name.toLocaleLowerCase('ca-ES').includes(search.toLocaleLowerCase('ca-ES')))
-    .sort(compareOpponentNames)
+    .sort(sortComparator ?? compareOpponentNames)
 
   return <section className="club-detail-section" aria-labelledby="player-opponents-title">
     <h2 id="player-opponents-title">{t('detail.opponentAnalysis')}</h2>
@@ -282,12 +335,21 @@ function OpponentAnalysisPanel({ matches, opponentView, update, t }) {
       <button id="opponent-categorization-tab" className={`club-tab${opponentView === OPPONENT_VIEWS.CATEGORIZATION ? ' is-active' : ''}`} type="button" role="tab" aria-selected={opponentView === OPPONENT_VIEWS.CATEGORIZATION} aria-controls="opponent-tabpanel" onClick={() => update('opponentView', OPPONENT_VIEWS.CATEGORIZATION)} onKeyDown={(event) => activateTab(event, OPPONENT_VIEWS.CATEGORIZATION, update, 'opponentView')}>{t('detail.opponentCategorizationTab')}</button>
       <button id="opponent-search-tab" className={`club-tab${opponentView === OPPONENT_VIEWS.SEARCH ? ' is-active' : ''}`} type="button" role="tab" aria-selected={opponentView === OPPONENT_VIEWS.SEARCH} aria-controls="opponent-tabpanel" onClick={() => update('opponentView', OPPONENT_VIEWS.SEARCH)} onKeyDown={(event) => activateTab(event, OPPONENT_VIEWS.SEARCH, update, 'opponentView')}>{t('detail.opponentSearchTab')}</button>
     </div>
+    <label className="opponent-sort">
+      <span>{t('detail.opponentSort')}</span>
+      <select value={sort} onChange={(event) => update('opponentSort', event.target.value)}>
+        <option value={OPPONENT_SORTS.DEFAULT}>{t('detail.opponentSortDefault')}</option>
+        <option value={OPPONENT_SORTS.WIN_PERCENTAGE}>{t('detail.opponentSortWinPercentage')}</option>
+        <option value={OPPONENT_SORTS.MATCHES}>{t('detail.opponentSortMatches')}</option>
+        <option value={OPPONENT_SORTS.LAST_PLAYED}>{t('detail.opponentSortLastPlayed')}</option>
+      </select>
+    </label>
     <div id="opponent-tabpanel" role="tabpanel" aria-labelledby={`opponent-${opponentView}-tab`}>
       {opponentView === OPPONENT_VIEWS.CATEGORIZATION ? (
         <>
-          <OpponentCategoryTable id="favorable" title={t('detail.categoryFavorable')} empty={t('detail.categoryFavorableEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'favorable').sort(compareCategorizedOpponents)} t={t} />
-          <OpponentCategoryTable id="hard" title={t('detail.categoryHard')} empty={t('detail.categoryHardEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'hard').sort(compareCategorizedOpponents)} t={t} />
-          <OpponentCategoryTable id="problem" title={t('detail.categoryProblem')} empty={t('detail.categoryProblemEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'problem').sort(compareCategorizedOpponents)} t={t} />
+          <OpponentCategoryTable id="favorable" title={t('detail.categoryFavorable')} empty={t('detail.categoryFavorableEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'favorable').sort(sortComparator ?? compareFavorableQuality)} t={t} />
+          <OpponentCategoryTable id="hard" title={t('detail.categoryHard')} empty={t('detail.categoryHardEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'hard').sort(sortComparator ?? compareDifficultQuality)} t={t} />
+          <OpponentCategoryTable id="problem" title={t('detail.categoryProblem')} empty={t('detail.categoryProblemEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'problem').sort(sortComparator ?? compareDifficultQuality)} t={t} />
         </>
       ) : (
         <>
@@ -315,22 +377,42 @@ function OpponentCategoryTable({ id, title, empty, rows, t }) {
 
 function OpponentTable({ rows, includeCategory = false, summaryText, t }) {
   const [expanded, setExpanded] = useState(false)
+  const [expandedOpponent, setExpandedOpponent] = useState(null)
   const maxVisible = 3
   const visibleRows = rows.slice(0, maxVisible)
   const hiddenRows = rows.slice(maxVisible)
   const descriptionId = `opponent-table-description-${rows.map((row) => row.key).join('-')}`
+  const columnCount = 6 + (includeCategory ? 1 : 0) + 3
   const table = (tableRows) => <table className="history-table" aria-describedby={descriptionId}>
       <caption>{t('detail.opponentResults')}</caption>
-      <thead><tr><th>{t('common.opponent')}</th><th>{t('common.playedMatches')}</th><th>{t('common.wins')}</th><th>{t('common.draws')}</th><th>{t('common.losses')}</th><th>{t('common.winPercentage')}</th>{includeCategory ? <th>{t('common.category')}</th> : null}</tr></thead>
-      <tbody>{tableRows.map((item) => <tr key={item.key}>
-        <td>{item.name}</td>
-        <td>{item.matches}</td>
-        <td>{item.wins}</td>
-        <td>{item.draws}</td>
-        <td>{item.losses}</td>
-        <td>{formatWinPercentage(item.playerWinPercentage)}</td>
-        {includeCategory ? <td>{categoryLabel(item.category, t)}</td> : null}
-      </tr>)}</tbody>
+      <thead><tr><th>{t('common.opponent')}</th><th>{t('common.playedMatches')}</th><th>{t('common.wins')}</th><th>{t('common.draws')}</th><th>{t('common.losses')}</th><th>{t('common.winPercentage')}</th>{includeCategory ? <th>{t('common.category')}</th> : null}<th>{t('detail.recentForm')}</th><th>{t('detail.streak')}</th><th><span className="visually-hidden">{t('detail.headToHeadColumn')}</span></th></tr></thead>
+      <tbody>{tableRows.map((item) => {
+        const isExpanded = expandedOpponent === item.key
+        return <Fragment key={item.key}>
+          <tr className={isExpanded ? 'opponent-row is-expanded' : 'opponent-row'}>
+            <td data-label={t('common.opponent')}>{item.name}</td>
+            <td data-label={t('common.playedMatches')}>{item.matches}</td>
+            <td data-label={t('common.wins')}>{item.wins}</td>
+            <td data-label={t('common.draws')}>{item.draws}</td>
+            <td data-label={t('common.losses')}>{item.losses}</td>
+            <td data-label={t('common.winPercentage')}>{formatWinPercentage(item.playerWinPercentage)}</td>
+            {includeCategory ? <td data-label={t('common.category')}>{categoryLabel(item.category, t)}</td> : null}
+            <td data-label={t('detail.recentForm')}><OpponentFormChips history={item.recentForm} t={t} /></td>
+            <td data-label={t('detail.streak')}>{streakLabel(item.streak, t)}</td>
+            <td>
+              <button type="button" className="opponent-expand-button" aria-expanded={isExpanded}
+                onClick={() => setExpandedOpponent((current) => current === item.key ? null : item.key)}>
+                {isExpanded ? t('detail.hideHeadToHead') : t('detail.showHeadToHead')}
+              </button>
+            </td>
+          </tr>
+          {isExpanded ? <tr className="opponent-history-row">
+            <td colSpan={columnCount}>
+              <OpponentHeadToHead opponentKey={item.key} name={item.name} history={item.sortedHistory} t={t} />
+            </td>
+          </tr> : null}
+        </Fragment>
+      })}</tbody>
     </table>
   return <div className="opponent-table">
     <p id={descriptionId} className="visually-hidden">{summaryText}</p>
@@ -340,6 +422,37 @@ function OpponentTable({ rows, includeCategory = false, summaryText, t }) {
         {t('detail.showMore', { count: hiddenRows.length })}
       </button>
     </div> : null}
+  </div>
+}
+
+function OpponentFormChips({ history, t }) {
+  if (history.length === 0) return <span className="opponent-form-empty">{t('common.unavailable')}</span>
+  return <span className="opponent-form" role="list" aria-label={t('detail.recentForm')}>
+    {[...history].reverse().map((entry) => {
+      const tier = qualityTier(entry.result, entry.margin)
+      const label = qualityLabel(tier, t)
+      return <span key={entry.id} role="listitem" className={`opponent-form-chip quality-${tier ?? 'unknown'}`} title={label} aria-label={label}>●</span>
+    })}
+  </span>
+}
+
+function OpponentHeadToHead({ opponentKey: key, name, history, t }) {
+  const titleId = `opponent-h2h-title-${sanitizeId(key)}`
+  return <div className="opponent-history-detail">
+    <h4 id={titleId}>{t('detail.headToHeadTitle', { name: name ?? t('common.unavailable') })}</h4>
+    {history.length === 0 ? <p className="club-empty card" role="status">{t('detail.headToHeadEmpty')}</p> : (
+      <div className="table-wrap">
+        <table className="history-table" aria-labelledby={titleId}>
+          <thead><tr><th>{t('common.date')}</th><th>{t('common.competition')}</th><th>{t('common.result')}</th><th>{t('common.score')}</th></tr></thead>
+          <tbody>{history.map((entry) => <tr key={entry.id}>
+            <td data-label={t('common.date')}>{entry.dateTime ? new Date(entry.dateTime).toLocaleDateString(i18n.language) : t('detail.unavailableDate')}</td>
+            <td data-label={t('common.competition')}>{entry.competition ?? t('common.unavailable')}</td>
+            <td data-label={t('common.result')} className={`match-result-${entry.result}`}>{resultLabel(entry.result, t)}</td>
+            <td data-label={t('common.score')}>{entry.playerSets == null || entry.opponentSets == null ? t('detail.unavailableScore') : `${entry.playerSets} — ${entry.opponentSets}`}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+    )}
   </div>
 }
 
@@ -391,7 +504,21 @@ function compareCategorizedOpponents(left, right) {
     || compareOpponentNames(left, right)
 }
 
-function addOpponent(opponents, key, opponent, result) {
+function compareFavorableQuality(left, right) {
+  if (left.averageMargin == null && right.averageMargin == null) return compareCategorizedOpponents(left, right)
+  if (left.averageMargin == null) return 1
+  if (right.averageMargin == null) return -1
+  return right.averageMargin - left.averageMargin || compareCategorizedOpponents(left, right)
+}
+
+function compareDifficultQuality(left, right) {
+  if (left.averageMargin == null && right.averageMargin == null) return compareCategorizedOpponents(left, right)
+  if (left.averageMargin == null) return 1
+  if (right.averageMargin == null) return -1
+  return left.averageMargin - right.averageMargin || compareCategorizedOpponents(left, right)
+}
+
+function addOpponent(opponents, key, opponent, entry) {
   const current = opponents.get(key) ?? {
     key,
     name: opponent.available ? opponent.name : null,
@@ -399,17 +526,197 @@ function addOpponent(opponents, key, opponent, result) {
     wins: 0,
     draws: 0,
     losses: 0,
+    history: [],
   }
   current.matches += 1
-  if (result === 'win') current.wins += 1
-  if (result === 'loss') current.losses += 1
-  if (result === 'draw') current.draws += 1
+  if (entry.result === 'win') current.wins += 1
+  if (entry.result === 'loss') current.losses += 1
+  if (entry.result === 'draw') current.draws += 1
+  const margin = entry.playerSets == null || entry.opponentSets == null ? null : entry.playerSets - entry.opponentSets
+  current.history.push({ ...entry, margin })
   opponents.set(key, current)
 }
 
 function opponentKey(opponent) {
   return opponent.playerId ?? opponent.federatedPlayerId ?? opponent.playerSeasonId
     ?? `unavailable-${opponent.source ?? 'unknown'}-${opponent.season ?? 'unknown'}`
+}
+
+function buildOpponentRow(opponent) {
+  const sortedHistory = [...opponent.history].sort(compareHistoryDesc)
+  return {
+    ...opponent,
+    playerWinPercentage: winPercentage(opponent),
+    sortedHistory,
+    recentForm: sortedHistory.slice(0, RECENT_FORM_SIZE),
+    streak: currentStreak(sortedHistory),
+    lastPlayed: sortedHistory[0]?.dateTime ?? null,
+    averageMargin: averageMargin(sortedHistory),
+  }
+}
+
+function averageMargin(history) {
+  const margins = history.map((entry) => entry.margin).filter((margin) => margin != null)
+  if (margins.length === 0) return null
+  return margins.reduce((total, margin) => total + margin, 0) / margins.length
+}
+
+function gameSetsForPlayer(match, game) {
+  const isHome = match.playerTeam === match.homeTeam
+  return {
+    playerSets: isHome ? game.homeSetsWon : game.awaySetsWon,
+    opponentSets: isHome ? game.awaySetsWon : game.homeSetsWon,
+  }
+}
+
+function matchGamesForPlayer(match) {
+  const isHome = match.playerTeam === match.homeTeam
+  return {
+    playerGames: isHome ? match.homeGamesWon : match.awayGamesWon,
+    opponentGames: isHome ? match.awayGamesWon : match.homeGamesWon,
+  }
+}
+
+function compareHistoryDesc(left, right) {
+  if (!left.dateTime && !right.dateTime) return String(right.id).localeCompare(String(left.id))
+  if (!left.dateTime) return 1
+  if (!right.dateTime) return -1
+  return new Date(right.dateTime) - new Date(left.dateTime) || String(right.id).localeCompare(String(left.id))
+}
+
+function currentStreak(sortedHistoryDesc) {
+  if (sortedHistoryDesc.length === 0) return null
+  const type = sortedHistoryDesc[0].result
+  let count = 0
+  for (const entry of sortedHistoryDesc) {
+    if (entry.result !== type) break
+    count += 1
+  }
+  return { type, count }
+}
+
+function streakLabel(streak, t) {
+  if (!streak || streak.count === 0) return t('detail.noStreak')
+  if (streak.type === 'win') return t('detail.streakWin', { count: streak.count })
+  if (streak.type === 'loss') return t('detail.streakLoss', { count: streak.count })
+  if (streak.type === 'draw') return t('detail.streakDraw', { count: streak.count })
+  return t('detail.noStreak')
+}
+
+function aggregateCareerStatistics(matches) {
+  const wins = matches.filter((match) => match.result === 'win').length
+  const losses = matches.filter((match) => match.result === 'loss').length
+  const draws = matches.filter((match) => match.result === 'draw').length
+  const games = matches.flatMap((match) => (match.games ?? []).map((game) => ({ match, game })))
+  const singlesGames = games.filter(({ game }) => game.type !== 'DOUBLES')
+  const doublesGames = games.filter(({ game }) => game.type === 'DOUBLES')
+  const margins = games
+    .map(({ match, game }) => gameSetsForPlayer(match, game))
+    .filter((sets) => sets.playerSets != null && sets.opponentSets != null)
+    .map((sets) => sets.playerSets - sets.opponentSets)
+  const sortedMatchesDesc = [...matches].sort(compareMatches)
+  return {
+    matchesPlayed: matches.length,
+    wins,
+    losses,
+    draws,
+    winPercentage: winPercentage({ wins, losses }),
+    singlesWinPercentage: winPercentage(gameResultTotals(singlesGames)),
+    doublesWinPercentage: winPercentage(gameResultTotals(doublesGames)),
+    averageSetMargin: margins.length === 0 ? null : margins.reduce((total, margin) => total + margin, 0) / margins.length,
+    currentStreak: currentStreak(sortedMatchesDesc),
+    longestWinStreak: longestStreak(sortedMatchesDesc, 'win'),
+  }
+}
+
+function gameResultTotals(entries) {
+  return entries.reduce((totals, { game }) => ({
+    wins: totals.wins + (game.result === 'win' ? 1 : 0),
+    losses: totals.losses + (game.result === 'loss' ? 1 : 0),
+  }), { wins: 0, losses: 0 })
+}
+
+function longestStreak(sortedMatchesDesc, type) {
+  let longest = 0
+  let current = 0
+  for (const match of sortedMatchesDesc) {
+    if (match.result === type) {
+      current += 1
+      longest = Math.max(longest, current)
+    } else {
+      current = 0
+    }
+  }
+  return longest
+}
+
+function matchIndividualScore(match) {
+  const games = match.games ?? []
+  const game = games.find((item) => item.type !== 'DOUBLES') ?? games[0]
+  if (game) {
+    const sets = gameSetsForPlayer(match, game)
+    if (sets.playerSets != null && sets.opponentSets != null) return sets
+  }
+  const { playerGames, opponentGames } = matchGamesForPlayer(match)
+  return { playerSets: playerGames, opponentSets: opponentGames }
+}
+
+function matchQualityTier(match) {
+  const { playerSets, opponentSets } = matchIndividualScore(match)
+  const margin = playerSets == null || opponentSets == null ? null : playerSets - opponentSets
+  return qualityTier(match.result, margin)
+}
+
+function tierScoreLabel(points, tier) {
+  const point = points.find((item) => item.tier === tier)
+  if (!point) return null
+  const { playerSets, opponentSets } = matchIndividualScore(point.match)
+  if (playerSets == null || opponentSets == null) return null
+  return `${playerSets}-${opponentSets}`
+}
+
+function qualityTier(result, margin) {
+  if (result === 'draw') return 'draw'
+  if (result !== 'win' && result !== 'loss') return null
+  if (margin == null) return result
+  const magnitude = Math.abs(margin)
+  if (result === 'win') return magnitude >= 3 ? 'strong-win' : magnitude === 2 ? 'win' : 'close-win'
+  return magnitude >= 3 ? 'strong-loss' : magnitude === 2 ? 'loss' : 'close-loss'
+}
+
+function qualityLabel(tier, t) {
+  switch (tier) {
+    case 'strong-win': return t('detail.qualityStrongWin')
+    case 'win': return t('detail.qualityWin')
+    case 'close-win': return t('detail.qualityCloseWin')
+    case 'draw': return t('detail.qualityDraw')
+    case 'close-loss': return t('detail.qualityCloseLoss')
+    case 'loss': return t('detail.qualityLoss')
+    case 'strong-loss': return t('detail.qualityStrongLoss')
+    default: return t('common.unavailable')
+  }
+}
+
+function opponentComparator(sort) {
+  if (sort === OPPONENT_SORTS.WIN_PERCENTAGE) {
+    return (left, right) => (right.playerWinPercentage ?? -1) - (left.playerWinPercentage ?? -1) || compareOpponentNames(left, right)
+  }
+  if (sort === OPPONENT_SORTS.MATCHES) {
+    return (left, right) => right.matches - left.matches || compareOpponentNames(left, right)
+  }
+  if (sort === OPPONENT_SORTS.LAST_PLAYED) {
+    return (left, right) => {
+      if (!left.lastPlayed && !right.lastPlayed) return compareOpponentNames(left, right)
+      if (!left.lastPlayed) return 1
+      if (!right.lastPlayed) return -1
+      return new Date(right.lastPlayed) - new Date(left.lastPlayed) || compareOpponentNames(left, right)
+    }
+  }
+  return null
+}
+
+function sanitizeId(value) {
+  return String(value).replace(/[^a-zA-Z0-9-_]/g, '-')
 }
 
 export function MatchOpponentDetails({ match }) {
@@ -552,6 +859,71 @@ function ConnectedScatterPlot({ values }) {
       <text className="chart-axis-label" x={width / 2} y={height - 2} textAnchor="middle">{t('common.seasons')}</text>
     </svg>
   </div>
+}
+
+function MatchQualitySpectrumChart({ matches, t }) {
+  const width = 640
+  const height = 220
+  const padding = { top: 16, right: 16, bottom: 48, left: 116 }
+  const plotWidth = width - padding.left - padding.right
+  const plotHeight = height - padding.top - padding.bottom
+  const sortedMatches = [...matches].sort(compareMatches).reverse()
+  const x = (index) => sortedMatches.length === 1
+    ? padding.left + plotWidth / 2
+    : padding.left + index * plotWidth / (sortedMatches.length - 1)
+  const y = (tier) => {
+    const index = SPECTRUM_TIERS.indexOf(tier)
+    return index === -1 ? null : padding.top + index * plotHeight / (SPECTRUM_TIERS.length - 1)
+  }
+  const points = sortedMatches
+    .map((match, index) => ({ match, index, tier: matchQualityTier(match) }))
+    .filter((item) => item.tier != null)
+  const dateTicks = timelineTicks(sortedMatches)
+  const axisY = height - padding.bottom
+
+  return <div className="history-chart history-spectrum-chart card chart-match-spectrum" role="img"
+    aria-label={t('detail.spectrumChartAria')}>
+    <svg viewBox={`0 0 ${width} ${height}`} role="presentation" focusable="false" preserveAspectRatio="xMidYMid meet">
+      {SPECTRUM_TIERS.map((tier) => {
+        const tickY = y(tier)
+        const scoreLabel = tierScoreLabel(points, tier)
+        return <g key={tier}>
+          <line className="chart-grid-line spectrum-grid-line" x1={padding.left} y1={tickY} x2={width - padding.right} y2={tickY} />
+          <text className="chart-axis-tick spectrum-axis-tick" x={padding.left - 16} y={tickY + 3} textAnchor="end">
+            {scoreLabel ?? qualityLabel(tier, t)}
+            <title>{qualityLabel(tier, t)}</title>
+          </text>
+        </g>
+      })}
+      {points.map((item) => (
+        <circle key={item.match.id} className={`spectrum-point quality-fill-${item.tier}`}
+          cx={x(item.index)} cy={y(item.tier)} r={MATCHES_MARKER_SIZE} />
+      ))}
+      <line className="chart-axis-line" x1={padding.left} y1={axisY} x2={width - padding.right} y2={axisY} />
+      {dateTicks.map((tick) => (
+        <g key={tick.index}>
+          <line className="chart-axis-tick-mark" x1={x(tick.index)} y1={axisY} x2={x(tick.index)} y2={axisY + 4} />
+          <text className="chart-axis-tick spectrum-date-tick" x={x(tick.index)} y={axisY + 16} textAnchor="middle">{tick.label}</text>
+        </g>
+      ))}
+      <text className="chart-axis-label" x={width / 2} y={height - 2} textAnchor="middle">{t('detail.matchOrder')}</text>
+    </svg>
+  </div>
+}
+
+function timelineTicks(sortedMatches) {
+  if (sortedMatches.length === 0) return []
+  const tickCount = Math.min(5, sortedMatches.length)
+  const indices = [...new Set(Array.from({ length: tickCount },
+    (_, step) => Math.round(step * (sortedMatches.length - 1) / Math.max(tickCount - 1, 1))))]
+  return indices.map((index) => ({
+    index,
+    label: matchDateLabel(sortedMatches[index]),
+  }))
+}
+
+function matchDateLabel(match) {
+  return match.dateTime ? new Date(match.dateTime).toLocaleDateString(i18n.language) : '—'
 }
 
 function trianglePoints(centerX, centerY, size) {
