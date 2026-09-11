@@ -53,7 +53,7 @@ mvn test
 Build the executable Spring Boot jar:
 
 ```powershell
-mvn -pl tt-data-league-api-runtime -am package -DskipTests
+mvn -pl tt-data-league-api-runtime -am clean package -DskipTests
 ```
 
 The packaged jar is created under:

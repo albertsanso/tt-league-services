@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParticipant;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,11 +79,27 @@ public class RfetmPlayerImportProcessor implements MatchContextProcessor {
                 .flatMap(game -> Stream.of(game.home(), game.away()))
                 .filter(Objects::nonNull)
                 .flatMap(participant -> participant.doublesPlayers().stream());
+        Stream<ActaLineupPlayer> singlesParticipants = acta.games().stream()
+                .filter(game -> !game.isDoubles())
+                .flatMap(game -> Stream.of(game.home(), game.away()))
+                .filter(Objects::nonNull)
+                .filter(participant -> !isBlank(participant.name()) && !isBlank(participant.license()))
+                .map(RfetmPlayerImportProcessor::toLineupPlayer);
 
-        return Stream.of(lineupPlayers, declaredDoublesPlayers, gameDoublesPlayers)
+        return Stream.of(lineupPlayers, declaredDoublesPlayers, gameDoublesPlayers, singlesParticipants)
                 .flatMap(stream -> stream)
                 .filter(Objects::nonNull)
                 .toList();
+    }
+
+    /**
+     * A singles game participant is not always the declared lineup player (an undeclared
+     * substitute); importing it too ensures the substitute has a {@link PlayerSeason} to resolve
+     * against, not just the player originally named for that letter.
+     */
+    private static ActaLineupPlayer toLineupPlayer(ActaParticipant participant) {
+        return new ActaLineupPlayer(participant.rfetmId(), participant.name(), participant.license(),
+                participant.ranking());
     }
 
     private static boolean isBlank(String value) {

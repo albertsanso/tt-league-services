@@ -217,6 +217,35 @@ class ImportProcessorsTest {
     }
 
     @Test
+    void importsAnUndeclaredSubstituteWithALicenceNeverSeenInTheLineup() {
+        // Game 5 ("C vs Y") is played by a substitute who never appears in the declared lineup or
+        // doubles, but whose game entry does carry a licencia - the shape that used to leave the
+        // game unattributed because no PlayerSeason was ever created for that licence.
+        Acta original = new ActaParser().parse(fixture("acta_singles.json"));
+        ActaLineupPlayer substitute = new ActaLineupPlayer(null, "NUEVO SUPLENTE, ANA", "99999", null);
+        List<ActaGame> gamesWithSubstitute = original.games().stream()
+                .map(game -> game.number() == 5 ? gameWithSubstituteHomePlayer(game, substitute) : game)
+                .toList();
+        Acta withSubstitute = new Acta(original.federation(), original.season(), original.competition(), original.group(),
+                original.round(), original.date(), original.time(), original.venue(), original.teams(), original.abcIsHome(),
+                original.officials(), original.lineups(), original.doubles(), gamesWithSubstitute, original.finalResult(),
+                original.protested());
+        MatchReportContext context = new MatchReportContext("2023-2024", "super-divisio", "1", "masculino",
+                RfetmClubKey.ofFederationId("193", null), RfetmClubKey.ofFederationId("23", null),
+                fixture("acta_singles.json"), withSubstitute);
+
+        run(context);
+
+        assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.RFETM, "99999", Season.of(2023))
+                .isPresent());
+        Game game = games.saved.stream()
+                .filter(g -> "C vs Y".equals(g.getCrossover()))
+                .findFirst()
+                .orElseThrow();
+        assertEquals("99999", game.getHomePlayer().getLicense());
+    }
+
+    @Test
     void reRunningTheSameReportStoresNothingTwice() {
         MatchReportContext context = singlesContext();
 
