@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import os
 import re
 import sys
@@ -403,6 +404,91 @@ def command_validate(args: argparse.Namespace) -> None:
     print(f"OK: {len(blocks)} features validated.")
 
 
+def archive_root(root: Path) -> Path:
+    return root / "docs" / "sdd" / "archive"
+
+
+def main_index_bounds(registry: str) -> tuple[int, int]:
+    header = re.search(r"^## Main index\s*$", registry, re.MULTILINE)
+    if not header:
+        raise OperationError("Missing ## Main index in FEATURES.md.")
+    next_section = re.search(r"^## ", registry[header.end() :], re.MULTILINE)
+    end = header.end() + next_section.start() if next_section else len(registry)
+    return header.end(), end
+
+
+def command_archive(args: argparse.Namespace) -> None:
+    root = Path(args.root)
+    registry_file = registry_path(root)
+    registry = read_utf8(registry_file)
+    grouped = blocks_by_section(registry)
+    done_blocks = grouped["Done"]
+    if not done_blocks:
+        raise OperationError("No done features to archive.")
+    identifiers = sorted(
+        (re.match(r"^### \[(FEAT-\d{5})\]", block).group(1) for block in done_blocks),
+        reverse=True,
+    )
+    missing_details = [i for i in identifiers if not details_path(root, i).exists()]
+    if missing_details:
+        raise OperationError(f"Missing details files for: {', '.join(missing_details)}")
+
+    date = args.date or datetime.date.today().isoformat()
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        raise OperationError("--date must be in YYYY-MM-DD format.")
+    archive_dir = archive_root(root) / date
+    if archive_dir.exists() and any(archive_dir.iterdir()):
+        raise OperationError(f"Archive directory already has files: {archive_dir}")
+
+    index_start, index_end = main_index_bounds(registry)
+    index_body = registry[index_start:index_end]
+    archived_index_lines = []
+    for identifier in identifiers:
+        line_match = re.search(rf"(?m)^- \[{identifier}:.*$\n?", index_body)
+        if not line_match:
+            raise OperationError(f"{identifier}: missing from ## Main index.")
+        archived_index_lines.append(line_match.group(0).rstrip("\n"))
+        index_body = index_body[: line_match.start()] + index_body[line_match.end() :]
+
+    ordered_blocks = sorted(
+        done_blocks,
+        key=lambda block: re.match(r"^### \[(FEAT-\d{5})\]", block).group(1),
+        reverse=True,
+    )
+    cleaned_blocks = [
+        re.sub(r"(?:\n+-{3,}\s*)+\Z", "", block.rstrip()) for block in ordered_blocks
+    ]
+    archive_content = (
+        "## Main index\n\n"
+        + "\n".join(archived_index_lines)
+        + "\n\n---\n\n## Done\n\n"
+        + "\n\n---\n\n".join(cleaned_blocks)
+        + "\n\n---\n"
+    )
+    archive_file = archive_dir / f"FEATURES-done.archive.{date}.md"
+
+    updated = registry[:index_start] + index_body + registry[index_end:]
+    grouped_updated = blocks_by_section(updated)
+    grouped_updated["Done"] = [
+        block
+        for block in grouped_updated["Done"]
+        if re.match(r"^### \[(FEAT-\d{5})\]", block).group(1) not in identifiers
+    ]
+    updated = write_registry_sections(updated, grouped_updated)
+
+    if args.dry_run:
+        print(f"Would archive {len(identifiers)} feature(s) to {archive_file}:")
+        for identifier in identifiers:
+            print(f"  {identifier}")
+        return
+
+    atomic_write(archive_file, archive_content)
+    for identifier in identifiers:
+        details_path(root, identifier).replace(archive_dir / f"{identifier}-DETAILS.md")
+    atomic_write(registry_file, updated)
+    print(f"Archived {len(identifiers)} feature(s) to {archive_file}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", default=str(repository_root()), help="Repository root.")
@@ -444,6 +530,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     validate = subparsers.add_parser("validate", help="Validate registry and details invariants.")
     validate.set_defaults(function=command_validate)
+
+    archive = subparsers.add_parser(
+        "archive", help="Move all Done features into docs/sdd/archive/<date>/."
+    )
+    archive.add_argument("--date", help="Archive folder date (YYYY-MM-DD); defaults to today.")
+    archive.add_argument(
+        "--dry-run", action="store_true", help="Print what would be archived without changing files."
+    )
+    archive.set_defaults(function=command_archive)
     return parser
 
 

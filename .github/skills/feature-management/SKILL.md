@@ -31,6 +31,7 @@ python .github/skills/feature-management/scripts/feature_manager.py plan --id FE
 python .github/skills/feature-management/scripts/feature_manager.py status --id FEAT-XXXXX --status in-progress
 python .github/skills/feature-management/scripts/feature_manager.py status --id FEAT-XXXXX --status blocked --note "..."
 python .github/skills/feature-management/scripts/feature_manager.py status --id FEAT-XXXXX --status done --confirm-done --check-acceptance
+python .github/skills/feature-management/scripts/feature_manager.py archive [--date YYYY-MM-DD] [--dry-run]
 ```
 
 The helper allocates the next unused ID, updates the complete registry block
@@ -201,6 +202,52 @@ Use these transitions and placement rules:
 Ordinary implementation agents should work only on `ready` features and should
 not alter `done`, `in-progress`, or `in-review` registry entries unless the
 user explicitly requests SDD maintenance or scope updates.
+
+## Archiving completed features
+
+Trigger phrase: **"archive current features"** (or an explicit request to archive
+`docs/sdd/FEATURES.md` / done features).
+
+Over time, `## Done` accumulates enough features that `FEATURES.md` becomes hard
+to scan. Archiving moves every currently `done` feature — its registry block,
+its `## Main index` entry, and its `FEAT-XXXXX-DETAILS.md` file — out of the
+live registry and into a dated snapshot, the same way
+`docs/sdd/archive/2026-09-01/` preserves FEAT-00001 through FEAT-00023.
+
+1. Run the helper from the repository root:
+
+   ```text
+   python .github/skills/feature-management/scripts/feature_manager.py archive
+   ```
+
+   Use `--date YYYY-MM-DD` to override the default of today's date, and
+   `--dry-run` to preview the list of feature IDs that would be archived
+   without changing any files.
+2. The command creates `docs/sdd/archive/<date>/`, containing:
+   - `FEATURES-done.archive.<date>.md` — a `## Main index` of the archived
+     features followed by their full `## Done` registry blocks, in
+     descending feature-ID order.
+   - Every archived feature's `FEAT-XXXXX-DETAILS.md`, moved (not copied)
+     from `docs/sdd/`.
+3. The command rewrites `docs/sdd/FEATURES.md` in place: the archived
+   features' entries are removed from `## Main index` and their blocks are
+   removed from `## Done` (an empty `## Done` falls back to its placeholder
+   text). Features in `In Progress`, `In Review`, and `Backlog` are never
+   touched — only `done` features are archived.
+4. The command refuses to run when there are no `done` features, when a
+   `done` feature is missing its details file, or when the destination
+   archive folder already has files in it — resolve the conflict manually
+   before retrying.
+5. After archiving, review the diff, then run `validate` to confirm the
+   registry is still internally consistent:
+
+   ```text
+   python .github/skills/feature-management/scripts/feature_manager.py validate
+   ```
+
+Do not hand-edit `FEATURES.md` to remove `done` features instead of using this
+command — the helper keeps the `## Main index`, `## Done` section, and the
+archived snapshot file consistent in one step.
 
 ## Final checklist
 
