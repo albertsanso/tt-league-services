@@ -3090,6 +3090,22 @@
   background: var(--surface-card-sub);
 }
 
+a.club-player-card {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+a.club-player-card:hover {
+  border-color: var(--accent-primary);
+  background: var(--surface-card-sub);
+}
+
 .club-competition-heading,
 .club-competition-summary,
 .club-player-card,

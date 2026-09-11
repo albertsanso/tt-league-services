@@ -311,9 +311,27 @@ function PlayersPanel({ players, t }) {
       ) : (
         <ul className="club-player-list" aria-label={t('detail.clubPlayers')}>
           {players.map((player) => (
-            <li key={player.playerSeasonId} className="club-player-card card">
-              <strong>{player.playerName ?? player.registrationName}</strong>
-              <span>{player.registrationName} · {t('common.season')}: {player.season} · {t('common.license')}: {player.license}</span>
+            <li key={player.playerSeasonId}>
+              {player.canonicalPlayerId ? (
+                <Link
+                  className="club-player-card card"
+                  to={routePaths.playerDetails(
+                    player.canonicalPlayerId,
+                    `source=${encodeURIComponent(player.source)}&season=${encodeURIComponent(player.season)}`,
+                  )}
+                >
+                  <span>
+                    <strong>{player.playerName ?? player.registrationName}</strong>
+                    <span>{player.registrationName} · {t('common.season')}: {player.season} · {t('common.license')}: {player.license}</span>
+                  </span>
+                  <span aria-hidden="true">→</span>
+                </Link>
+              ) : (
+                <div className="club-player-card card">
+                  <strong>{player.playerName ?? player.registrationName}</strong>
+                  <span>{player.registrationName} · {t('common.season')}: {player.season} · {t('common.license')}: {player.license}</span>
+                </div>
+              )}
             </li>
           ))}
         </ul>

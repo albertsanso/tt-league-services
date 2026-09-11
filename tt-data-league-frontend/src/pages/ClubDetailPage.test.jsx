@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ClubDetailPage from './ClubDetailPage.jsx'
+import { routePaths } from '../config/routes.js'
 import { useAuth } from '../context/useAuth.js'
 import { useClubDetails, useClubMatches } from '../hooks/useClubs.js'
 
@@ -25,17 +26,21 @@ const club = {
   players: [{
     playerSeasonId: 'player-season-id',
     playerId: 'player-id',
+    canonicalPlayerId: 'canonical-player-id',
     playerName: 'Maria Player',
     registrationName: 'Maria Player',
     license: '123',
+    source: 'RFETM',
     season: '2024-2025',
     competitions: ['Preferent'],
   }, {
     playerSeasonId: 'other-player-season-id',
     playerId: 'other-player-id',
+    canonicalPlayerId: null,
     playerName: 'Joan Player',
     registrationName: 'Joan Player',
     license: '456',
+    source: 'RFETM',
     season: '2024-2025',
     competitions: ['Copa'],
   }],
@@ -273,5 +278,19 @@ describe('ClubDetailPage', () => {
 
     expect(screen.getByText('Maria Player')).toBeInTheDocument()
     expect(screen.queryByText('Joan Player')).not.toBeInTheDocument()
+  })
+
+  it('links players with a canonicalPlayerId to their player details page', () => {
+    renderPage('/clubs/club-id?view=players&season=2024-2025')
+
+    const linkedPlayerName = screen.getByText('Maria Player')
+    const linkedCard = linkedPlayerName.closest('a')
+    expect(linkedCard).toHaveAttribute(
+      'href',
+      routePaths.playerDetails('canonical-player-id', 'source=RFETM&season=2024-2025'),
+    )
+
+    const unlinkedPlayerName = screen.getByText('Joan Player')
+    expect(unlinkedPlayerName.closest('a')).toBeNull()
   })
 })

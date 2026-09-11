@@ -200,6 +200,10 @@ def command_create(args: argparse.Namespace) -> None:
         path.stem.removesuffix("-DETAILS")
         for path in (root / "docs" / "sdd").glob("FEAT-*-DETAILS.md")
     )
+    used.update(
+        path.stem.removesuffix("-DETAILS")
+        for path in (root / "docs" / "sdd" / "archive").glob("**/FEAT-*-DETAILS.md")
+    )
     next_number = max((int(identifier[5:]) for identifier in used), default=0) + 1
     identifier = f"FEAT-{next_number:05d}"
     criteria = parse_acceptance(args.acceptance, args.acceptance_file)
