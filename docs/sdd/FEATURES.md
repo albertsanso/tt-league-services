@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00056: Matches search improvements](### [FEAT-00056] Matches search improvements)
+
 - [FEAT-00055: Access actas from Matches search](### [FEAT-00055] Access actas from Matches search)
 - [FEAT-00054: Club detail Summary and Stats tabs](### [FEAT-00054] Club detail Summary and Stats tabs)
 - [FEAT-00053: Link list of club players to Player details](### [FEAT-00053] Link list of club players to Player details)
@@ -36,7 +38,22 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-No features currently in the backlog.
+### [FEAT-00056] Matches search improvements
+- **Status:** idea
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Improve the Matches search experience for users (scope to be refined).
+
+#### Acceptance Criteria
+- [ ] Define concrete scope and acceptance criteria for this feature
+
+#### Feature Details
+→ See [FEAT-00056-DETAILS.md](./FEAT-00056-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 ## Done
 
 ### [FEAT-00055] Access actas from Matches search
@@ -106,4 +123,4 @@ Let a user viewing a club's players list click a player to open that player's de
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
-
+---
