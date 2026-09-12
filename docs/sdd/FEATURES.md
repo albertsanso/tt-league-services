@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00057: Match Summary landing page](### [FEAT-00057] Match Summary landing page)
+
 - [FEAT-00056: Matches search improvements](### [FEAT-00056] Matches search improvements)
 - [FEAT-00055: Access actas from Matches search](### [FEAT-00055] Access actas from Matches search)
 - [FEAT-00054: Club detail Summary and Stats tabs](### [FEAT-00054] Club detail Summary and Stats tabs)
@@ -39,6 +41,37 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00057] Match Summary landing page
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** FEAT-00055 (acta dialog), FEAT-00053 (player detail linking), FEAT-00054 (club summary/stats aggregation patterns)
+
+#### Goal
+Let a user viewing Matches search click a match result to open a Match summary landing page showing both teams, lineups, recent-form stats, alignment-stability analysis, and a link to the acta.
+
+#### Acceptance Criteria
+- [x] Clicking a match result row/card in Matches search navigates to a new Match summary landing page at /partits/:matchId
+- [x] The page shows both clubs/teams and their lineup players (letter, name, ranking), each lineup player linking to the Player detail page when canonicalPlayerId exists
+- [x] The page shows each team's recent-form stats (last N matches record and win rate, with a trend note vs the previous N matches)
+- [x] The page shows each lineup player's recent-form stats (last N matches record and win rate)
+- [x] The page shows an alignment-stability analysis per team: how many times this exact set of lineup players has been fielded together this season/source and its aggregate win rate, compared against the team's overall win rate, with a distinct state for a lineup fielded for the first time
+- [x] The page includes a View acta action that opens the existing MatchActaDialog for this match, matching the acta link behavior from Matches search (FEAT-00055)
+- [x] Implementation matches the layout and content documented in [`/docs/frontend/match-details-page.md`](../frontend/match-details-page.md); any deviation is noted in FEAT-00057-DETAILS.md before merging
+
+#### Feature Details
+→ See [FEAT-00057-DETAILS.md](./FEAT-00057-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00056] Matches search improvements
 - **Status:** done
@@ -136,5 +169,17 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---

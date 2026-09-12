@@ -33,7 +33,7 @@ describe('MatchesSearchPage', () => {
 
   afterEach(cleanup)
 
-  it('shows an acta action only for matches that have a played score, and no longer links to a detail page', async () => {
+  it('shows an acta action only for matches that have a played score', async () => {
     searchMatches.mockResolvedValue({
       matches: [
         { id: 'match-with-acta', homeTeam: 'Club A', awayTeam: 'Club B', homeGamesWon: 4, awayGamesWon: 1 },
@@ -48,8 +48,24 @@ describe('MatchesSearchPage', () => {
 
     const actaButtons = await screen.findAllByRole('button', { name: 'Veure acta' })
     expect(actaButtons).toHaveLength(1)
-    expect(screen.queryAllByRole('link')).toHaveLength(0)
   })
+
+  it('links each result row to the match summary page, preserving the current filters', async () => {
+    searchMatches.mockResolvedValue({
+      matches: [{ id: 'match-1', homeTeam: 'Club A', awayTeam: 'Club B', homeGamesWon: 4, awayGamesWon: 1 }],
+      page: 0,
+      hasNext: false,
+    })
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cercar' }))
+
+    const link = await screen.findByRole('link')
+    expect(link.getAttribute('href')).toContain('/partits/match-1')
+    expect(link.getAttribute('href')).toContain('source=RFETM')
+    expect(link.getAttribute('href')).toContain('season=2024-2025')
+  })
+
 
   it('reuses the shared search-result list/card styling used by Players and Clubs search', async () => {
     searchMatches.mockResolvedValue({

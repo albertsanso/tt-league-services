@@ -3928,3 +3928,135 @@ a.club-player-card:hover {
     max-width: none;
   }
 }
+
+.match-summary-page {
+  gap: 0.5rem;
+}
+
+.match-summary-competition {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.match-summary-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.match-summary-score {
+  font-family: 'DM Mono', monospace;
+  color: var(--accent-primary);
+}
+
+.match-summary-venue {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.match-summary-teams {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.25rem;
+}
+
+.match-summary-team {
+  display: grid;
+  gap: 1rem;
+  align-content: start;
+}
+
+.match-summary-form-card,
+.match-summary-lineup-card,
+.match-summary-alignment-card {
+  padding: 1.25rem;
+}
+
+.match-form-strip {
+  display: flex;
+  gap: 0.35rem;
+  padding: 0;
+  margin: 0.5rem 0;
+  list-style: none;
+}
+
+.match-form-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  background: var(--text-muted);
+}
+
+.match-form-chip.is-win {
+  background: var(--color-success);
+}
+
+.match-form-chip.is-loss {
+  background: var(--color-error);
+}
+
+.match-form-chip.is-draw {
+  background: var(--color-warning);
+}
+
+.match-form-record,
+.match-form-trend {
+  margin: 0.25rem 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.match-alignment-stat,
+.match-alignment-comparison,
+.match-alignment-note {
+  margin: 0.35rem 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.alignment-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 0.35rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--text-muted);
+}
+
+.alignment-badge.is-regular {
+  background: var(--color-success);
+}
+
+.alignment-badge.is-rare {
+  background: var(--color-warning);
+}
+
+.alignment-badge.is-new {
+  background: var(--secondary);
+}
+
+.match-summary-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 1279px) {
+  .match-summary-teams {
+    grid-template-columns: 1fr;
+  }
+}

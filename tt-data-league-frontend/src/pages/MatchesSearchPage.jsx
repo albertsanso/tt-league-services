@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getMatchOptions, searchMatches } from '../api/matches.js'
 import { useAuth } from '../context/useAuth.js'
+import { routePaths } from '../config/routes.js'
 import MatchActaDialog from '../components/matches/MatchActaDialog.jsx'
 
 const sources = ['RFETM', 'FCTT', 'BCNESA']
@@ -244,16 +245,24 @@ function MatchesSearchPage() {
               const hasActa = match.homeGamesWon != null && match.awayGamesWon != null
               return (
                 <li key={match.id} className="club-result card">
-                  <div className="club-result-link">
+                  <Link className="club-result-link" to={routePaths.matchSummary(match.id, params)}>
                     <span>
                       <strong>{match.homeTeam} – {match.awayTeam}</strong>
                       <span className="club-source">{[...(match.homePlayers ?? []), ...(match.awayPlayers ?? [])]
                         .map((player) => `${player.name} (${player.license ?? '—'})`).join(' · ')}</span>
                       <span className="club-source">{match.dateTime ? new Date(match.dateTime).toLocaleString() : t('common.unavailable')} · {match.competition}{match.phase ? ` · ${match.phase}` : ''} · {match.homeGamesWon ?? '—'}–{match.awayGamesWon ?? '—'}</span>
                     </span>
-                  </div>
+                  </Link>
                   {hasActa ? (
-                    <button type="button" className="acta-view-link" onClick={() => setActaMatchId(match.id)}>
+                    <button
+                      type="button"
+                      className="acta-view-link"
+                      onClick={(event) => {
+                        event.stopPropagation()
+                        event.preventDefault()
+                        setActaMatchId(match.id)
+                      }}
+                    >
                       {t('matchesPage.viewActa')}
                     </button>
                   ) : null}

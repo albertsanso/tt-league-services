@@ -2,6 +2,9 @@ import i18n from '../i18n/index.js'
 
 const CLUB_DETAIL_QUERY_KEYS = ['view', 'season', 'source', 'competition']
 const PLAYER_DETAIL_QUERY_KEYS = ['season', 'source', 'competition']
+const MATCH_SEARCH_QUERY_KEYS = [
+  'source', 'season', 'competition', 'fromDate', 'toDate', 'playerLocation', 'playerName', 'clubName', 'page',
+]
 
 function withSearch(path, search, keys = CLUB_DETAIL_QUERY_KEYS) {
   if (!search) return path
@@ -40,6 +43,11 @@ export const routePaths = {
     PLAYER_DETAIL_QUERY_KEYS,
   ),
   matches: (clubId) => clubId ? `/partits?clubId=${encodeURIComponent(clubId)}` : '/partits',
+  matchSummary: (matchId, returnSearch = '') => withSearch(
+    `/partits/${encodeURIComponent(matchId)}`,
+    returnSearch,
+    MATCH_SEARCH_QUERY_KEYS,
+  ),
   administration: '/administration',
   administrationUsers: '/administration/users',
   administrationSettings: '/administration/settings',
@@ -51,6 +59,7 @@ const translate = (key) => i18n.t(key)
 const generalBreadcrumb = () => ({ label: translate('routes.general'), path: routePaths.home })
 const clubsBreadcrumb = () => ({ label: translate('routes.clubSearch'), path: routePaths.clubs })
 const playersBreadcrumb = () => ({ label: translate('routes.playerSearch'), path: routePaths.players() })
+const matchesBreadcrumb = () => ({ label: translate('routes.matchSearch'), path: routePaths.matches() })
 
 function clubDetailBreadcrumb() {
   return [
@@ -74,6 +83,14 @@ function playerDetailBreadcrumb() {
     generalBreadcrumb(),
     playersBreadcrumb(),
     { label: translate('routes.playerDetail') },
+  ]
+}
+
+function matchSummaryBreadcrumb(params, search) {
+  return [
+    generalBreadcrumb(),
+    { ...matchesBreadcrumb(), path: withSearch(routePaths.matches(), search, MATCH_SEARCH_QUERY_KEYS) },
+    { label: translate('routes.matchSummary') },
   ]
 }
 
@@ -118,6 +135,15 @@ export const routesMeta = [
     breadcrumb: playerDetailBreadcrumb,
   },
   { path: '/partits', label: translate('routes.matchSearch'), labelKey: 'routes.matchSearch', section: translate('routes.general'), auth: true, permission: 'matches:read' },
+  {
+    path: '/partits/:matchId',
+    label: translate('routes.matchSummary'),
+    labelKey: 'routes.matchSummary',
+    section: translate('routes.general'),
+    auth: true,
+    permission: 'matches:read',
+    breadcrumb: matchSummaryBreadcrumb,
+  },
   { path: '/cerca', label: translate('routes.searchResults'), labelKey: 'routes.searchResults', section: translate('routes.general'), auth: true },
   { path: '/settings', label: translate('routes.settings'), labelKey: 'routes.settings', section: translate('routes.general'), auth: true },
   {
@@ -202,6 +228,9 @@ export function getRouteMeta(pathname) {
     if (route.path === '/jugadors/:playerId') {
       return /^\/jugadors\/[^/]+$/.test(pathname)
     }
+    if (route.path === '/partits/:matchId') {
+      return /^\/partits\/[^/]+$/.test(pathname)
+    }
   })
 
   if (dynamicRoute) {
@@ -235,6 +264,7 @@ function getRouteParameters(pathname, routePath) {
     '/clubs/:clubId/competition/:season/:competition':
       /^\/clubs\/([^/]+)\/competition\/([^/]+)\/([^/]+)$/,
     '/jugadors/:playerId': /^\/jugadors\/([^/]+)$/,
+    '/partits/:matchId': /^\/partits\/([^/]+)$/,
   }
   const match = patterns[routePath]?.exec(pathname)
 
@@ -253,6 +283,10 @@ function getRouteParameters(pathname, routePath) {
 
   if (routePath === '/jugadors/:playerId') {
     return { playerId: decodeRouteParameter(match[1]) }
+  }
+
+  if (routePath === '/partits/:matchId') {
+    return { matchId: decodeRouteParameter(match[1]) }
   }
 
   return { clubId: decodeRouteParameter(match[1]) }
