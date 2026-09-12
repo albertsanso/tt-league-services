@@ -31,10 +31,11 @@ public record MatchDetailDto(UUID id, String source, String externalId, String c
     }
 
     private static TeamDto team(MatchDetailReadModel.TeamReadModel value) {
-        return value == null ? null : new TeamDto(value.id(), value.name(), value.source(), value.season());
+        return value == null ? null
+                : new TeamDto(value.id(), value.name(), value.source(), value.season(), value.clubId());
     }
 
-    public record TeamDto(UUID id, String name, String source, String season) {
+    public record TeamDto(UUID id, String name, String source, String season, UUID clubId) {
     }
     public record FormResultDto(UUID matchId, ZonedDateTime dateTime, String opponent, String result, String score) {
         static FormResultDto from(MatchDetailReadModel.FormResultReadModel value) {
@@ -82,7 +83,8 @@ public record MatchDetailDto(UUID id, String source, String externalId, String c
                     PlayerDto.from(value.player()), value.ranking());
         }
         private static TeamDto team(MatchDetailReadModel.TeamReadModel value) {
-            return value == null ? null : new TeamDto(value.id(), value.name(), value.source(), value.season());
+            return value == null ? null
+                    : new TeamDto(value.id(), value.name(), value.source(), value.season(), value.clubId());
         }
     }
     public record SetDto(UUID id, int setNumber, int homePoints, int awayPoints) {

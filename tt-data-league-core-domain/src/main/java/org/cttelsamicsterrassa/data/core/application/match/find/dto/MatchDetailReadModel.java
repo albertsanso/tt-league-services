@@ -37,7 +37,7 @@ public record MatchDetailReadModel(
         AlignmentStabilityReadModel homeAlignmentStability,
         AlignmentStabilityReadModel awayAlignmentStability) {
 
-    public record TeamReadModel(UUID id, String name, String source, String season) {
+    public record TeamReadModel(UUID id, String name, String source, String season, UUID clubId) {
     }
 
     public record PlayerReadModel(

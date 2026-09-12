@@ -171,7 +171,7 @@ function PlayerDetailContent({ data, params, setParams, t }) {
       </div>
       <div id="player-tabpanel" role="tabpanel" aria-labelledby={`player-${view}-tab`}>
         {view === VIEWS.STATISTICS ? <HistorySection statistics={statistics} competition={competition} matches={matches} t={t} /> : null}
-        {view === VIEWS.MATCHES ? <MatchHistoryPanel key={`${source}-${season}-${competition}`} matches={matches} t={t} /> : null}
+        {view === VIEWS.MATCHES ? <MatchHistoryPanel key={`${source}-${season}-${competition}`} matches={matches} returnSearch={params} t={t} /> : null}
         {view === VIEWS.OPPONENTS ? <OpponentAnalysisPanel matches={matches} params={params} update={update} t={t} /> : null}
       </div>
     </section>
@@ -222,7 +222,7 @@ function CareerSummary({ career, t }) {
   </div>
 }
 
-function MatchHistoryPanel({ matches, t }) {
+function MatchHistoryPanel({ matches, returnSearch, t }) {
   const [page, setPage] = useState(0)
   const sortedMatches = [...matches].sort(compareMatches)
   const pageCount = Math.ceil(sortedMatches.length / MATCHES_PER_PAGE)
@@ -233,7 +233,7 @@ function MatchHistoryPanel({ matches, t }) {
     {matches.length === 0 ? <p className="club-empty card" role="status">{t('detail.competitionEmpty')}</p> : (
       <div className="match-history">
         <ul className="match-card-list" aria-labelledby="player-matches-title">
-          {visibleMatches.map((item) => <MatchCard key={item.id} match={item} t={t} />)}
+          {visibleMatches.map((item) => <MatchCard key={item.id} match={item} returnSearch={returnSearch} t={t} />)}
         </ul>
         {pageCount > 1 ? <nav className="pagination" aria-label={t('common.matches')}>
           <button type="button" onClick={() => setPage((current) => current - 1)} disabled={page === 0}>{t('common.previous')}</button>
@@ -245,7 +245,16 @@ function MatchHistoryPanel({ matches, t }) {
   </section>
 }
 
-function MatchCard({ match, t }) {
+function GameOpponents({ opponents, returnSearch }) {
+  return opponents.map((opponent, index) => <Fragment key={opponent.key}>
+    {index > 0 ? ', ' : ''}
+    {opponent.playerId
+      ? <Link to={routePaths.playerDetails(opponent.playerId, returnSearch)} onClick={(event) => event.stopPropagation()}>{opponent.name}</Link>
+      : opponent.name}
+  </Fragment>)
+}
+
+function MatchCard({ match, returnSearch, t }) {
   const games = matchGameRows(match, t)
   return <li>
     <details className="match-card card">
@@ -271,13 +280,16 @@ function MatchCard({ match, t }) {
         </span>
         <span className="match-card-side">
           <span className="match-card-date">{match.dateTime ? new Date(match.dateTime).toLocaleDateString(i18n.language) : t('common.noData')}</span>
+          <Link to={routePaths.matchSummary(match.id, returnSearch)} onClick={(event) => event.stopPropagation()}>
+            {t('detail.viewMatch')}
+          </Link>
           <span className="match-card-toggle">{t('matchesPage.games')} ({games.length})</span>
         </span>
       </summary>
       <div className="match-card-games" role="list" aria-label={t('matchesPage.games')}>
         {games.map((game) => <div className="match-card-game-row" role="listitem" key={game.id}>
           <span className="match-card-game-type">{game.typeLabel}</span>
-          <span className="match-card-game-opponents">{game.opponents}</span>
+          <span className="match-card-game-opponents"><GameOpponents opponents={game.opponents} returnSearch={returnSearch} /></span>
           <span className={`match-card-game-result match-result-${game.result}`}>
             <span className="match-card-game-outcome">{game.resultLabel}</span>
             <span className="match-card-game-score">{game.scoreLabel}</span>
@@ -308,6 +320,7 @@ function OpponentAnalysisPanel({ matches, params, update, t }) {
         opponentKeys.add(key)
         addOpponent(opponents, key, opponent, {
           id: `${match.id}-${game.id}`,
+          matchId: match.id,
           dateTime: match.dateTime,
           competition: match.competition,
           season: match.season,
@@ -324,6 +337,7 @@ function OpponentAnalysisPanel({ matches, params, update, t }) {
       const legacyGames = matchGamesForPlayer(match)
       addOpponent(opponents, `legacy-${opponent.name}`, opponent, {
         id: match.id,
+        matchId: match.id,
         dateTime: match.dateTime,
         competition: match.competition,
         season: match.season,
@@ -336,6 +350,7 @@ function OpponentAnalysisPanel({ matches, params, update, t }) {
     } else if (opponentKeys.size === 0) {
       addOpponent(opponents, `unavailable-${match.id}`, { name: null, available: false }, {
         id: match.id,
+        matchId: match.id,
         dateTime: match.dateTime,
         competition: match.competition,
         season: match.season,
@@ -392,7 +407,7 @@ function OpponentAnalysisPanel({ matches, params, update, t }) {
       </label>
     </div>
     {filteredRows.length === 0 ? <p className="club-empty card" role="status">{t('detail.opponentsEmpty')}</p> : (
-      <OpponentTable rows={filteredRows} summaryText={t('detail.opponentListSummary', { count: filteredRows.length })} t={t} />
+      <OpponentTable rows={filteredRows} summaryText={t('detail.opponentListSummary', { count: filteredRows.length })} returnSearch={params} t={t} />
     )}
   </section>
 }
@@ -405,7 +420,7 @@ function OpponentFilterChip({ active, label, count, tone, onClick, t }) {
   </button>
 }
 
-function OpponentTable({ rows, summaryText, t }) {
+function OpponentTable({ rows, summaryText, returnSearch, t }) {
   const [expanded, setExpanded] = useState(false)
   const [expandedOpponent, setExpandedOpponent] = useState(null)
   const maxVisible = 3
@@ -439,7 +454,7 @@ function OpponentTable({ rows, summaryText, t }) {
           </tr>
           {isExpanded ? <tr className="opponent-history-row">
             <td colSpan={columnCount}>
-              <OpponentHeadToHead item={item} t={t} />
+              <OpponentHeadToHead item={item} returnSearch={returnSearch} t={t} />
             </td>
           </tr> : null}
         </Fragment>
@@ -467,7 +482,7 @@ function OpponentFormChips({ history, t }) {
   </span>
 }
 
-function OpponentHeadToHead({ item, t }) {
+function OpponentHeadToHead({ item, returnSearch, t }) {
   const { key, name, sortedHistory: history } = item
   const titleId = `opponent-h2h-title-${sanitizeId(key)}`
   return <div className="opponent-history-detail">
@@ -476,7 +491,13 @@ function OpponentHeadToHead({ item, t }) {
     {history.length === 0 ? <p className="club-empty card" role="status">{t('detail.headToHeadEmpty')}</p> : (
       <div className="match-card-games opponent-h2h-list" role="list" aria-labelledby={titleId}>
         {history.map((entry) => <div className="match-card-game-row" role="listitem" key={entry.id}>
-          <span className="match-card-game-type">{entry.dateTime ? new Date(entry.dateTime).toLocaleDateString(i18n.language) : t('detail.unavailableDate')}</span>
+          <span className="match-card-game-type">
+            {entry.matchId
+              ? <Link to={routePaths.matchSummary(entry.matchId, returnSearch)}>
+                  {entry.dateTime ? new Date(entry.dateTime).toLocaleDateString(i18n.language) : t('detail.unavailableDate')}
+                </Link>
+              : (entry.dateTime ? new Date(entry.dateTime).toLocaleDateString(i18n.language) : t('detail.unavailableDate'))}
+          </span>
           <span className="match-card-game-opponents">{entry.competition ?? t('common.unavailable')}</span>
           <span className={`match-card-game-result match-result-${entry.result}`}>
             <span className="match-card-game-outcome">{resultLabel(entry.result, t)}</span>
@@ -936,9 +957,15 @@ function gameOpponentNames(game, t) {
   const opponents = new Map()
   game.opponents.forEach((opponent) => {
     const key = opponentKey(opponent)
-    if (!opponents.has(key)) opponents.set(key, opponent.available ? opponent.name : t('common.unavailable'))
+    if (!opponents.has(key)) {
+      opponents.set(key, {
+        key,
+        name: opponent.available ? opponent.name : t('common.unavailable'),
+        playerId: opponent.available ? opponent.playerId : null,
+      })
+    }
   })
-  return opponents.size > 0 ? [...opponents.values()].join(', ') : t('common.unavailable')
+  return opponents.size > 0 ? [...opponents.values()] : [{ key: 'unavailable', name: t('common.unavailable'), playerId: null }]
 }
 
 function gamesWithOpponentInfo(match) {

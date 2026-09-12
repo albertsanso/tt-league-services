@@ -315,6 +315,7 @@ export default {
   },
   detail: {
     admin: 'Administració',
+    viewMatch: 'Veure el partit',
     identityClub: 'Identitat del club',
     identityCanonical: 'Identitat canònica',
     editClub: 'Edita el club',

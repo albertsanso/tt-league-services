@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.core.application.match.find;
 import org.albertsanso.commons.query.DomainQueryHandler;
 import org.albertsanso.commons.query.DomainQueryResponse;
 import org.cttelsamicsterrassa.data.core.application.match.find.dto.MatchDetailReadModel;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
@@ -322,7 +323,8 @@ public class FindMatchDetailsQueryHandler
     private MatchDetailReadModel.TeamReadModel team(Team team) {
         return team == null ? null : new MatchDetailReadModel.TeamReadModel(team.getId(), team.getName(),
                 team.getSource() == null ? null : team.getSource().name(),
-                team.getSeason() == null ? null : team.getSeason().toString());
+                team.getSeason() == null ? null : team.getSeason().toString(),
+                team.getFederatedClub().map(FederatedClub::getId).orElse(null));
     }
 
     private MatchDetailReadModel.PlayerReadModel player(PlayerSeason player) {

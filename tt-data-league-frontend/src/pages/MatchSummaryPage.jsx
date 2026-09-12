@@ -18,6 +18,22 @@ function backHref(params) {
   return query ? `${routePaths.matches()}?${query}` : routePaths.matches()
 }
 
+function TeamName({ team, returnSearch, t }) {
+  if (!team) return t('common.unavailable')
+  if (!team.clubId) return team.name
+  return <Link to={routePaths.clubDetails(team.clubId, returnSearch)}>{team.name}</Link>
+}
+
+function CompetitionLabel({ match, returnSearch }) {
+  const clubId = match.homeTeam?.clubId
+  if (!clubId || !match.season || !match.competition) return match.competition
+  return (
+    <Link to={routePaths.clubCompetitionDetails(clubId, match.season, match.competition, returnSearch)}>
+      {match.competition}
+    </Link>
+  )
+}
+
 function resultClass(result) {
   return result === 'win' ? 'win' : result === 'loss' ? 'loss' : result === 'draw' ? 'draw' : 'unknown'
 }
@@ -79,15 +95,15 @@ function MatchSummaryPage() {
       </Link>
       <p className="section-label">{t('matchSummaryPage.matchLabel')}</p>
       <p className="match-summary-competition">
-        {match.competition}
+        <CompetitionLabel match={match} returnSearch={params} />
         {match.round != null ? ` · ${t('matchesPage.round')} ${match.round}` : ''}
         {match.dateTime ? ` · ${new Date(match.dateTime).toLocaleDateString()}` : ''}
       </p>
       <div className="match-summary-header">
         <h1 id="match-summary-title" className="page-title">
-          {match.homeTeam?.name ?? t('common.unavailable')}
+          <TeamName team={match.homeTeam} returnSearch={params} t={t} />
           {' '}<span className="match-summary-score">{match.homeGamesWon ?? '—'} – {match.awayGamesWon ?? '—'}</span>{' '}
-          {match.awayTeam?.name ?? t('common.unavailable')}
+          <TeamName team={match.awayTeam} returnSearch={params} t={t} />
         </h1>
         {viewActaButton}
       </div>
@@ -143,7 +159,7 @@ function TeamPanel({ team, form, lineups, alignment, playerFormBySeasonId, side,
   return (
     <article className={`match-summary-team match-summary-team-${side}`} aria-label={team?.name ?? t('common.unavailable')}>
       <section className="card match-summary-form-card">
-        <h3>{team?.name ?? t('common.unavailable')}</h3>
+        <h3><TeamName team={team} returnSearch={returnSearch} t={t} /></h3>
         {results.length === 0 ? (
           <p className="club-empty">{t('matchSummaryPage.formEmpty')}</p>
         ) : (

@@ -133,4 +133,38 @@ describe('MatchSummaryPage', () => {
     renderPage()
     expect(screen.getByRole('heading', { name: 'Partit no trobat' })).toBeInTheDocument()
   })
+
+  it('links team names and the competition when a club id is available', () => {
+    useMatchSummary.mockReturnValue({
+      data: {
+        ...baseMatch,
+        season: '2025',
+        homeTeam: { id: 'home-team', name: 'CT Sant Cugat A', clubId: 'club-home' },
+        awayTeam: { id: 'away-team', name: 'CT Rubí B', clubId: 'club-away' },
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+    renderPage()
+
+    const homeTeamLinks = screen.getAllByRole('link', { name: 'CT Sant Cugat A' })
+    expect(homeTeamLinks.length).toBeGreaterThan(0)
+    homeTeamLinks.forEach((link) => expect(link.getAttribute('href')).toContain('/clubs/club-home'))
+    const awayTeamLinks = screen.getAllByRole('link', { name: 'CT Rubí B' })
+    expect(awayTeamLinks.length).toBeGreaterThan(0)
+    awayTeamLinks.forEach((link) => expect(link.getAttribute('href')).toContain('/clubs/club-away'))
+
+    const competitionLink = screen.getByRole('link', { name: 'Primera Catalana' })
+    expect(competitionLink.getAttribute('href')).toContain('/clubs/club-home/competition/2025/Primera%20Catalana')
+  })
+
+  it('shows team names and the competition as plain text when no club id is available', () => {
+    renderPage()
+
+    expect(screen.queryByRole('link', { name: 'CT Sant Cugat A' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'CT Rubí B' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Primera Catalana' })).not.toBeInTheDocument()
+    expect(screen.getByText(/Primera Catalana/)).toBeInTheDocument()
+  })
 })

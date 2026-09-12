@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00062: Add links to Match detail](### [FEAT-00062] Add links to Match detail)
+
 - [FEAT-00061: Opponent insights metrics](### [FEAT-00061] Opponent insights metrics)
 - [FEAT-00060: Oponent analysis redesign](### [FEAT-00060] Oponent analysis redesign)
 - [FEAT-00059: Player details Matches tab redesign](### [FEAT-00059] Player details Matches tab redesign)
@@ -44,6 +46,38 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00062] Add links to Match detail
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+- From the match detail page, let users navigate to related entities (teams, competition) that are not yet clickable, matching the existing player-name links.
+- From Player details, Matches tab, let users navigate to the match detail page for a given match, matching the existing player-name links and back navigation.
+- From the Player details, Matches tab, on displayed Players, let users navigate to the Player detail page for a given player, matching the existing player-name links and back navigation.
+- From the Player details, Oponent analysis tab, on displayed Matches, let users navigate to the match detail page for a given match, matching the existing player-name links and back navigation.
+
+#### Acceptance Criteria
+- [x] Match detail page shows clickable links for both teams and the competition, navigating to the corresponding detail pages
+- [x] Player details, Matches tab, shows clickable links for each match, navigating to the corresponding match detail page
+- [x] Player details, Matches tab, shows clickable links for each player, navigating to the corresponding player detail page
+- [x] Player details, Oponent analysis tab, shows clickable links for each match, navigating to the corresponding match detail page
+- [x] Implementation matches the layout, linking patterns, and content documented in [`/docs/frontend/match-detail-linking.md`](../frontend/match-detail-linking.md); any deviation is noted in FEAT-00062-DETAILS.md before merging
+
+#### Feature Details
+→ See [FEAT-00062-DETAILS.md](./FEAT-00062-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00061] Opponent insights metrics
 - **Status:** done
@@ -278,6 +312,18 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

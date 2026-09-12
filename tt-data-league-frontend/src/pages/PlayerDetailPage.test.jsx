@@ -204,6 +204,87 @@ describe('PlayerDetailPage', () => {
     expect(card.querySelector('.match-card-badge')).toHaveClass('match-result-loss')
   })
 
+  it('links a match card to the match detail page and links an opponent with a canonical id', () => {
+    usePlayerDetails.mockReturnValue({
+      data: {
+        ...details,
+        matches: [{
+          ...details.matches[0],
+          games: [{
+            id: 'game-1',
+            gameNumber: 1,
+            type: 'INDIVIDUAL',
+            result: 'win',
+            homeSetsWon: 3,
+            awaySetsWon: 1,
+            opponents: [{
+              playerId: 'opponent-id',
+              federatedPlayerId: 'opponent-federated-id',
+              playerSeasonId: 'opponent-season-id',
+              name: 'Opponent Player',
+              source: 'FCTT',
+              season: '2024-2025',
+              available: true,
+            }],
+          }],
+        }],
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/players/player-id?view=matches&season=2024-2025')
+
+    const matchLink = screen.getByRole('link', { name: 'Veure el partit' })
+    expect(matchLink.getAttribute('href')).toContain('/partits/match-win')
+    expect(matchLink.getAttribute('href')).toContain('season=2024-2025')
+
+    const opponentLink = screen.getByRole('link', { name: 'Opponent Player' })
+    expect(opponentLink.getAttribute('href')).toContain('/jugadors/opponent-id')
+
+    const matchCard = document.querySelector('.match-card')
+    expect(matchCard.hasAttribute('open')).toBe(false)
+    fireEvent.click(matchLink)
+    expect(matchCard.hasAttribute('open')).toBe(false)
+  })
+
+  it('shows an unlinked opponent name when the opponent has no canonical id', () => {
+    usePlayerDetails.mockReturnValue({
+      data: {
+        ...details,
+        matches: [{
+          ...details.matches[0],
+          games: [{
+            id: 'game-1',
+            gameNumber: 1,
+            type: 'INDIVIDUAL',
+            result: 'win',
+            homeSetsWon: 3,
+            awaySetsWon: 1,
+            opponents: [{
+              playerId: null,
+              federatedPlayerId: null,
+              playerSeasonId: null,
+              name: 'Opponent Player',
+              source: 'FCTT',
+              season: '2024-2025',
+              available: true,
+            }],
+          }],
+        }],
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/players/player-id?view=matches')
+
+    expect(screen.getByText('Opponent Player')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Opponent Player' })).not.toBeInTheDocument()
+  })
+
   it('shows round, group, and phase as chips only when present, omitting them when missing', () => {
     usePlayerDetails.mockReturnValue({
       data: {
@@ -591,6 +672,19 @@ describe('PlayerDetailPage', () => {
     const row = [...table.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes('Opponent Repeat'))
     expect(row.querySelectorAll('td')[2]).toHaveTextContent('1')
     expect(row).toHaveTextContent('100.0%')
+  })
+
+  it('links a head-to-head history entry to its match detail page', () => {
+    usePlayerDetails.mockReturnValue({ data: details, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=opponents&season=2024-2025')
+
+    const row = [...document.querySelectorAll('tbody tr.opponent-row')]
+      .find((tr) => tr.textContent.includes('Club Beta'))
+    fireEvent.click(row)
+
+    const matchLink = screen.getByRole('link', { name: '1/1/2025' })
+    expect(matchLink.getAttribute('href')).toContain('/partits/match-win')
+    expect(matchLink.getAttribute('href')).toContain('season=2024-2025')
   })
 
   it('sorts the unified opponent list by percentage, matches, then deterministic name', () => {

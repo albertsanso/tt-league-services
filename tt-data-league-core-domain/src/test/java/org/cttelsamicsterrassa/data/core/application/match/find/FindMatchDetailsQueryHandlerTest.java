@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.core.application.match.find;
 
 import org.cttelsamicsterrassa.data.core.application.match.find.dto.MatchDetailReadModel;
+import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.DoublesPairRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.GameRepository;
@@ -131,6 +132,37 @@ class FindMatchDetailsQueryHandlerTest {
         assertEquals(100.0 / 3.0, homeForm.lastWinRate(), 0.001);
         assertNull(homeForm.previousWinRate());
         assertEquals(50.0, homeForm.overallWinRate());
+    }
+
+    @Test
+    void exposesTheHomeTeamsClubIdAndLeavesItNullWhenTheTeamHasNoFederatedClub() {
+        Season season = Season.of(2025);
+        FederatedClub homeClub = FederatedClub.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Home Club");
+        Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Home Club", season, homeClub);
+        Team awayTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Away Club", season, null);
+        Match current = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+                .season(season).round(1).dateTime(ZonedDateTime.parse("2025-11-15T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(3).winnerTeam(homeTeam)
+                .createExisting();
+
+        MatchRepository matchRepository = mock(MatchRepository.class);
+        LineupRepository lineupRepository = mock(LineupRepository.class);
+        GameRepository gameRepository = mock(GameRepository.class);
+        SetScoreRepository setScoreRepository = mock(SetScoreRepository.class);
+        DoublesPairRepository doublesPairRepository = mock(DoublesPairRepository.class);
+        PlayerSeasonRepository playerSeasonRepository = mock(PlayerSeasonRepository.class);
+        FederatedPlayerRepository federatedPlayerRepository = mock(FederatedPlayerRepository.class);
+
+        when(matchRepository.findMatchById(current.getId())).thenReturn(Optional.of(current));
+        when(matchRepository.findAllMatchesByTeamIdsAndSource(List.of(homeTeam.getId()), ImportSource.RFETM))
+                .thenReturn(List.of(current));
+
+        MatchDetailReadModel details = new FindMatchDetailsQueryHandler(matchRepository, lineupRepository,
+                gameRepository, setScoreRepository, doublesPairRepository, playerSeasonRepository,
+                federatedPlayerRepository).handle(new FindMatchDetailsQuery(current.getId())).getResponse();
+
+        assertEquals(homeClub.getId(), details.homeTeam().clubId());
+        assertNull(details.awayTeam().clubId());
     }
 
     @Test
