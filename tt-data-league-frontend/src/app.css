@@ -3765,3 +3765,160 @@ a.club-player-card:hover {
     font-size: 0.75rem;
   }
 }
+
+.acta-view-link {
+  display: inline-block;
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--accent-primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.club-result .acta-view-link {
+  margin: 0 1.15rem 0.85rem;
+}
+
+.acta-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+  background: rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+}
+
+.acta-dialog {
+  width: 100%;
+  max-width: 56rem;
+}
+
+.acta-card {
+  overflow: hidden;
+}
+
+.acta-jornada-bar {
+  background: var(--text-primary);
+  color: var(--text-on-dark);
+  text-align: center;
+  font-weight: 700;
+  padding: 0.6rem 1rem;
+  border-bottom: 3px solid var(--accent-primary);
+}
+
+.acta-score-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.acta-score-datetime {
+  display: flex;
+  flex-direction: column;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.acta-score-teams {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.acta-score-badge {
+  min-width: 2rem;
+  text-align: center;
+  padding: 0.2rem 0.5rem;
+  border-radius: 0.35rem;
+  background: var(--text-primary);
+  color: var(--text-on-dark);
+  font-weight: 700;
+}
+
+.acta-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.acta-table th,
+.acta-table td {
+  border: 1px solid var(--border-default);
+  padding: 0.4rem 0.5rem;
+  text-align: center;
+}
+
+.acta-position-cell {
+  font-weight: 700;
+}
+
+.acta-player-cell {
+  text-align: left;
+}
+
+.acta-player-meta {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+}
+
+.acta-parcial-home-win,
+.acta-parcial-away-win {
+  color: var(--color-warning);
+  font-weight: 700;
+}
+
+.acta-totals-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface-muted, transparent);
+  border-bottom: 1px solid var(--border-default);
+  text-align: center;
+  font-size: 0.8rem;
+}
+
+.acta-totals-row span {
+  display: block;
+  color: var(--text-secondary);
+}
+
+.acta-footer-line {
+  padding: 0 1rem;
+  margin: 0.5rem 0;
+  color: var(--text-secondary);
+}
+
+.acta-footer-line:last-of-type {
+  margin-bottom: 1rem;
+}
+
+@media print {
+  .sidebar,
+  .topbar,
+  .breadcrumb {
+    display: none !important;
+  }
+
+  .acta-dialog-overlay {
+    position: static;
+    background: none;
+    padding: 0;
+  }
+
+  .acta-dialog {
+    max-width: none;
+  }
+}

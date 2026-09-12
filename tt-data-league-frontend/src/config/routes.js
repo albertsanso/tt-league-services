@@ -40,9 +40,6 @@ export const routePaths = {
     PLAYER_DETAIL_QUERY_KEYS,
   ),
   matches: (clubId) => clubId ? `/partits?clubId=${encodeURIComponent(clubId)}` : '/partits',
-  matchDetails: (matchId, returnSearch = '') => withSearch(
-    `/partits/${encodeURIComponent(matchId)}`, returnSearch, ['source', 'season', 'competition'],
-  ),
   administration: '/administration',
   administrationUsers: '/administration/users',
   administrationSettings: '/administration/settings',
@@ -121,19 +118,6 @@ export const routesMeta = [
     breadcrumb: playerDetailBreadcrumb,
   },
   { path: '/partits', label: translate('routes.matchSearch'), labelKey: 'routes.matchSearch', section: translate('routes.general'), auth: true, permission: 'matches:read' },
-  {
-    path: '/partits/:matchId',
-    label: translate('routes.matchDetail'),
-    labelKey: 'routes.matchDetail',
-    section: translate('routes.general'),
-    auth: true,
-    permission: 'matches:read',
-    breadcrumb: (params, search) => [
-      generalBreadcrumb(),
-      { label: translate('routes.matchSearch'), path: routePaths.matches() },
-      { label: translate('routes.matchDetail'), path: routePaths.matchDetails(params.matchId, search) },
-    ],
-  },
   { path: '/cerca', label: translate('routes.searchResults'), labelKey: 'routes.searchResults', section: translate('routes.general'), auth: true },
   { path: '/settings', label: translate('routes.settings'), labelKey: 'routes.settings', section: translate('routes.general'), auth: true },
   {
@@ -218,9 +202,6 @@ export function getRouteMeta(pathname) {
     if (route.path === '/jugadors/:playerId') {
       return /^\/jugadors\/[^/]+$/.test(pathname)
     }
-    if (route.path === '/partits/:matchId') {
-      return /^\/partits\/[^/]+$/.test(pathname)
-    }
   })
 
   if (dynamicRoute) {
@@ -254,7 +235,6 @@ function getRouteParameters(pathname, routePath) {
     '/clubs/:clubId/competition/:season/:competition':
       /^\/clubs\/([^/]+)\/competition\/([^/]+)\/([^/]+)$/,
     '/jugadors/:playerId': /^\/jugadors\/([^/]+)$/,
-    '/partits/:matchId': /^\/partits\/([^/]+)$/,
   }
   const match = patterns[routePath]?.exec(pathname)
 
@@ -273,9 +253,6 @@ function getRouteParameters(pathname, routePath) {
 
   if (routePath === '/jugadors/:playerId') {
     return { playerId: decodeRouteParameter(match[1]) }
-  }
-  if (routePath === '/partits/:matchId') {
-    return { matchId: decodeRouteParameter(match[1]) }
   }
 
   return { clubId: decodeRouteParameter(match[1]) }

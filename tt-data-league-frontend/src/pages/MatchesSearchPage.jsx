@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { getMatchOptions, searchMatches } from '../api/matches.js'
 import { useAuth } from '../context/useAuth.js'
+import MatchActaDialog from '../components/matches/MatchActaDialog.jsx'
 
 const sources = ['RFETM', 'FCTT', 'BCNESA']
 
@@ -15,6 +16,7 @@ function MatchesSearchPage() {
   const [loadingOptions, setLoadingOptions] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [actaMatchId, setActaMatchId] = useState(null)
   const requestRef = useRef(null)
   const filters = useMemo(() => ({
     source: params.get('source') ?? '',
@@ -200,20 +202,33 @@ function MatchesSearchPage() {
       {activeResults?.matches.length ? (
         <article className="card">
           <h2>{t('matchesPage.results')}</h2>
-          <ul>
-            {activeResults.matches.map((match) => (
-              <li key={match.id}>
-                <Link to={`/partits/${encodeURIComponent(match.id)}`}>
-                  <strong>{match.homeTeam} – {match.awayTeam}</strong>
-                  <span>{[...(match.homePlayers ?? []), ...(match.awayPlayers ?? [])]
-                    .map((player) => `${player.name} (${player.license ?? '—'})`).join(' · ')}</span>
-                  <span>{match.dateTime ? new Date(match.dateTime).toLocaleString() : t('common.unavailable')} · {match.competition}{match.phase ? ` · ${match.phase}` : ''} · {match.homeGamesWon ?? '—'}–{match.awayGamesWon ?? '—'}</span>
-                </Link>
-              </li>
-            ))}
+          <ul className="club-result-list" aria-label={t('matchesPage.results')}>
+            {activeResults.matches.map((match) => {
+              const hasActa = match.homeGamesWon != null && match.awayGamesWon != null
+              return (
+                <li key={match.id} className="club-result card">
+                  <div className="club-result-link">
+                    <span>
+                      <strong>{match.homeTeam} – {match.awayTeam}</strong>
+                      <span className="club-source">{[...(match.homePlayers ?? []), ...(match.awayPlayers ?? [])]
+                        .map((player) => `${player.name} (${player.license ?? '—'})`).join(' · ')}</span>
+                      <span className="club-source">{match.dateTime ? new Date(match.dateTime).toLocaleString() : t('common.unavailable')} · {match.competition}{match.phase ? ` · ${match.phase}` : ''} · {match.homeGamesWon ?? '—'}–{match.awayGamesWon ?? '—'}</span>
+                    </span>
+                  </div>
+                  {hasActa ? (
+                    <button type="button" className="acta-view-link" onClick={() => setActaMatchId(match.id)}>
+                      {t('matchesPage.viewActa')}
+                    </button>
+                  ) : null}
+                </li>
+              )
+            })}
           </ul>
           {activeResults.hasNext ? <button type="button" disabled={loading} onClick={loadMore}>{t('matchesPage.loadMore')}</button> : null}
         </article>
+      ) : null}
+      {actaMatchId ? (
+        <MatchActaDialog matchId={actaMatchId} onClose={() => setActaMatchId(null)} />
       ) : null}
     </section>
   )

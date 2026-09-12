@@ -23,8 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00055: Access actas from Matches search](### [FEAT-00055] Access actas from Matches search)
 - [FEAT-00054: Club detail Summary and Stats tabs](### [FEAT-00054] Club detail Summary and Stats tabs)
-
 - [FEAT-00053: Link list of club players to Player details](### [FEAT-00053] Link list of club players to Player details)
 
 
@@ -38,6 +38,35 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00055] Access actas from Matches search
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Let users open the original acta (match report) document for a match directly from the Matches search results.
+
+#### Description
+- Align styling and layout of the Matches search results with other search results (Players, Clubs) to include a link or action to view the source acta document for each match.
+- Each match row/detail in the Matches search results should show a link or action to view its source acta document.
+- Selecting the acta action should open or download the acta file associated with that match.
+- Matches with no associated acta available should show the action as disabled or hidden, without erroring.
+- Frontend rendering of the acta must follow the wiremock spec in [acta-simplified-rfetm.md](../frontend/actas/acta-simplified-rfetm.md).
+
+#### Acceptance Criteria
+- [x] Matches search results show a link or action to view the source acta document for each match
+- [x] Align frontend styling and layout of the Matches search results with other search results (Players, Clubs) to include the acta link/action
+- [x] Each match row/detail in Matches search shows a link or action to view its source acta document
+- [x] Selecting the acta action opens or downloads the acta file associated with that match
+- [x] Matches with no associated acta available show the action as disabled or hidden, without erroring
+- [x] The frontend acta view matches the structure/fields defined in [acta-simplified-rfetm.md](../frontend/actas/acta-simplified-rfetm.md)
+
+#### Feature Details
+→ See [FEAT-00055-DETAILS.md](./FEAT-00055-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00054] Club detail Summary and Stats tabs
 - **Status:** done
@@ -60,18 +89,6 @@ Give club detail page visitors a landing overview and a dedicated stats breakdow
 
 ---
 
----
-
----
-
----
-
----
-
----
-
----
-
 ### [FEAT-00053] Link list of club players to Player details
 - **Status:** done
 - **Priority:** medium
@@ -89,24 +106,4 @@ Let a user viewing a club's players list click a player to open that player's de
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
----
 
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
