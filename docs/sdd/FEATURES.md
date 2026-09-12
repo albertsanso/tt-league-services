@@ -23,8 +23,9 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00061: Opponent insights metrics](### [FEAT-00061] Opponent insights metrics)
+- [FEAT-00060: Oponent analysis redesign](### [FEAT-00060] Oponent analysis redesign)
 - [FEAT-00059: Player details Matches tab redesign](### [FEAT-00059] Player details Matches tab redesign)
-
 - [FEAT-00058: Global search](### [FEAT-00058] Global search)
 - [FEAT-00057: Match Summary landing page](### [FEAT-00057] Match Summary landing page)
 - [FEAT-00056: Matches search improvements](### [FEAT-00056] Matches search improvements)
@@ -43,6 +44,60 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00061] Opponent insights metrics
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Expand the Player Details Opponent Analysis unified list with an Opponent insights panel exposing closeness, singles/doubles split, home/away split, longest streaks, rivalry frequency, competition breakdown, and result-quality trend, per the proposal in docs/frontend/oponent-analysis-metrics-expansion.md, computed client-side with no backend changes.
+
+#### Acceptance Criteria
+- [x] Implementation follows the metrics catalog and layout described in docs/frontend/oponent-analysis-metrics-expansion.md
+- [x] Expanding an opponent's head-to-head reveals an "Opponent insights" panel of metric tiles (closeness, singles/doubles split, home/away split, longest streaks, rivalry frequency/recency, trend), each shown only when meaningful, above the unchanged per-match table
+- [x] Competition breakdown appears only for opponents faced across more than one competition
+- [x] The opponent sort dropdown gains a "Closeness" option, sorting by absolute average set margin ascending
+- [x] All metrics are computed client-side from data already available to `PlayerDetailPage.jsx`; no new API fields or schema changes are introduced
+
+#### Feature Details
+→ See [FEAT-00061-DETAILS.md](./FEAT-00061-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+### [FEAT-00060] Oponent analysis redesign
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Redesign the Player Details Opponent Analysis tab UI/UX by replacing the nested Categorization/Search sub-tabs with a unified, filterable opponent list per the proposal 
+in docs/frontend/oponent-analysis-redesign.md, without changing underlying data or business logic.
+
+#### Acceptance Criteria
+- [x] Implementation follows the layout and interaction plan described in docs/frontend/oponent-analysis-redesign.md
+- [x] The Opponent Analysis tab shows a single filterable list of opponents with category filter chips (All / Favourable / Difficult / Problematic, each showing a live count) and a search box for opponent name
+- [x] Each opponent row shows the opponent name, a category badge, number of matches played, win/draw/loss record, and win rate percentage
+- [x] Clicking an opponent row's head-to-head toggle expands an inline per-match breakdown with match date, competition, result, and score
+
+#### Feature Details
+→ See [FEAT-00060-DETAILS.md](./FEAT-00060-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00059] Player details Matches tab redesign
 - **Status:** done
@@ -223,6 +278,28 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

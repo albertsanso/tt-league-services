@@ -5,6 +5,7 @@ import { routePaths } from '../config/routes.js'
 import { usePlayerDetails } from '../hooks/usePlayers.js'
 import { useTranslation } from 'react-i18next'
 import i18n from '../i18n/index.js'
+import { computeTrendNote } from '../utils/matchSummary.js'
 
 const ALL = 'all'
 const VIEWS = {
@@ -20,15 +21,18 @@ function compareSeasons(left, right) {
 function compareSeasonsAscending(left, right) {
   return String(left.season ?? '').localeCompare(String(right.season ?? ''), 'ca', { numeric: true })
 }
-const OPPONENT_VIEWS = {
-  CATEGORIZATION: 'categorization',
-  SEARCH: 'search',
+const OPPONENT_FILTERS = {
+  ALL: 'all',
+  FAVORABLE: 'favorable',
+  HARD: 'hard',
+  PROBLEM: 'problem',
 }
 const OPPONENT_SORTS = {
   DEFAULT: 'default',
   WIN_PERCENTAGE: 'winPercentage',
   MATCHES: 'matches',
   LAST_PLAYED: 'lastPlayed',
+  CLOSENESS: 'closeness',
 }
 const RECENT_FORM_SIZE = 5
 const PERCENTAGE_TICKS = [0, 25, 50, 75, 100]
@@ -78,10 +82,6 @@ function PlayerDetailPage() {
 function PlayerDetailContent({ data, params, setParams, t }) {
   const requestedView = params.get('view')
   const view = Object.values(VIEWS).includes(requestedView) ? requestedView : VIEWS.STATISTICS
-  const requestedOpponentView = params.get('opponentView')
-  const opponentView = Object.values(OPPONENT_VIEWS).includes(requestedOpponentView)
-    ? requestedOpponentView
-    : OPPONENT_VIEWS.CATEGORIZATION
   const sources = unique([
     ...data.federatedPlayers.map((item) => item.source),
     ...data.registrations.map((item) => item.source),
@@ -112,24 +112,16 @@ function PlayerDetailContent({ data, params, setParams, t }) {
   const statistics = data.statistics
 
   useEffect(() => {
-    const shouldNormalizeView = requestedView !== view
-    const hasInvalidOpponentView = requestedOpponentView != null
-      && !Object.values(OPPONENT_VIEWS).includes(requestedOpponentView)
-    const shouldNormalizeOpponentView = view === VIEWS.OPPONENTS && requestedOpponentView !== opponentView
-    if (shouldNormalizeView || shouldNormalizeOpponentView || hasInvalidOpponentView) {
+    if (requestedView !== view) {
       const next = new URLSearchParams(params)
       next.set('view', view)
-      if (view === VIEWS.OPPONENTS || hasInvalidOpponentView) next.set('opponentView', opponentView)
       setParams(next, { replace: true })
     }
-  }, [opponentView, params, requestedOpponentView, requestedView, setParams, view])
+  }, [params, requestedView, setParams, view])
 
   function update(key, value) {
     const next = new URLSearchParams(params)
     next.set(key, value || ALL)
-    if (key === 'view' && value === VIEWS.OPPONENTS && !Object.values(OPPONENT_VIEWS).includes(next.get('opponentView'))) {
-      next.set('opponentView', OPPONENT_VIEWS.CATEGORIZATION)
-    }
     if (key === 'source') {
       next.set('season', ALL)
       next.delete('competition')
@@ -180,7 +172,7 @@ function PlayerDetailContent({ data, params, setParams, t }) {
       <div id="player-tabpanel" role="tabpanel" aria-labelledby={`player-${view}-tab`}>
         {view === VIEWS.STATISTICS ? <HistorySection statistics={statistics} competition={competition} matches={matches} t={t} /> : null}
         {view === VIEWS.MATCHES ? <MatchHistoryPanel key={`${source}-${season}-${competition}`} matches={matches} t={t} /> : null}
-        {view === VIEWS.OPPONENTS ? <OpponentAnalysisPanel key={opponentView} matches={matches} opponentView={opponentView} params={params} update={update} t={t} /> : null}
+        {view === VIEWS.OPPONENTS ? <OpponentAnalysisPanel matches={matches} params={params} update={update} t={t} /> : null}
       </div>
     </section>
   )
@@ -296,8 +288,10 @@ function MatchCard({ match, t }) {
   </li>
 }
 
-function OpponentAnalysisPanel({ matches, opponentView, params, update, t }) {
+function OpponentAnalysisPanel({ matches, params, update, t }) {
   const [search, setSearch] = useState('')
+  const requestedFilter = params.get('opponentFilter')
+  const filter = Object.values(OPPONENT_FILTERS).includes(requestedFilter) ? requestedFilter : OPPONENT_FILTERS.ALL
   const requestedSort = params.get('opponentSort')
   const sort = Object.values(OPPONENT_SORTS).includes(requestedSort) ? requestedSort : OPPONENT_SORTS.DEFAULT
   const sortComparator = opponentComparator(sort)
@@ -305,6 +299,7 @@ function OpponentAnalysisPanel({ matches, opponentView, params, update, t }) {
   matches.forEach((match) => {
     const opponentKeys = new Set()
     const games = match.games ?? []
+    const isHome = match.playerTeam === match.homeTeam
     games.forEach((game) => {
       const sets = gameSetsForPlayer(match, game)
       game.opponents.forEach((opponent) => {
@@ -315,9 +310,12 @@ function OpponentAnalysisPanel({ matches, opponentView, params, update, t }) {
           id: `${match.id}-${game.id}`,
           dateTime: match.dateTime,
           competition: match.competition,
+          season: match.season,
           result: game.result,
           playerSets: sets.playerSets,
           opponentSets: sets.opponentSets,
+          gameType: game.type,
+          isHome,
         })
       })
     })
@@ -328,18 +326,24 @@ function OpponentAnalysisPanel({ matches, opponentView, params, update, t }) {
         id: match.id,
         dateTime: match.dateTime,
         competition: match.competition,
+        season: match.season,
         result: match.result,
         playerSets: legacyGames.playerGames,
         opponentSets: legacyGames.opponentGames,
+        gameType: null,
+        isHome,
       })
     } else if (opponentKeys.size === 0) {
       addOpponent(opponents, `unavailable-${match.id}`, { name: null, available: false }, {
         id: match.id,
         dateTime: match.dateTime,
         competition: match.competition,
+        season: match.season,
         result: match.result,
         playerSets: null,
         opponentSets: null,
+        gameType: null,
+        isHome,
       })
     }
   })
@@ -352,90 +356,90 @@ function OpponentAnalysisPanel({ matches, opponentView, params, update, t }) {
     ...opponent,
     category: opponentCategory(opponent, overallWinPercentage),
   }))
-  const searchRows = categorizedRows
+  const filterCounts = {
+    [OPPONENT_FILTERS.ALL]: categorizedRows.length,
+    [OPPONENT_FILTERS.FAVORABLE]: categorizedRows.filter((opponent) => opponent.category === 'favorable').length,
+    [OPPONENT_FILTERS.HARD]: categorizedRows.filter((opponent) => opponent.category === 'hard').length,
+    [OPPONENT_FILTERS.PROBLEM]: categorizedRows.filter((opponent) => opponent.category === 'problem').length,
+  }
+  const filteredRows = categorizedRows
+    .filter((opponent) => filter === OPPONENT_FILTERS.ALL || opponent.category === filter)
     .filter((opponent) => opponent.name.toLocaleLowerCase('ca-ES').includes(search.toLocaleLowerCase('ca-ES')))
-    .sort(sortComparator ?? compareOpponentNames)
+    .sort(sortComparator ?? compareCategorizedOpponents)
 
   return <section className="club-detail-section" aria-labelledby="player-opponents-title">
     <h2 id="player-opponents-title">{t('detail.opponentAnalysis')}</h2>
-    <div className="club-tabs opponent-tabs" role="tablist" aria-label={t('detail.opponentViews')}>
-      <button id="opponent-categorization-tab" className={`club-tab${opponentView === OPPONENT_VIEWS.CATEGORIZATION ? ' is-active' : ''}`} type="button" role="tab" aria-selected={opponentView === OPPONENT_VIEWS.CATEGORIZATION} aria-controls="opponent-tabpanel" onClick={() => update('opponentView', OPPONENT_VIEWS.CATEGORIZATION)} onKeyDown={(event) => activateTab(event, OPPONENT_VIEWS.CATEGORIZATION, update, 'opponentView')}>{t('detail.opponentCategorizationTab')}</button>
-      <button id="opponent-search-tab" className={`club-tab${opponentView === OPPONENT_VIEWS.SEARCH ? ' is-active' : ''}`} type="button" role="tab" aria-selected={opponentView === OPPONENT_VIEWS.SEARCH} aria-controls="opponent-tabpanel" onClick={() => update('opponentView', OPPONENT_VIEWS.SEARCH)} onKeyDown={(event) => activateTab(event, OPPONENT_VIEWS.SEARCH, update, 'opponentView')}>{t('detail.opponentSearchTab')}</button>
+    <div className="opponent-filter-chips" role="group" aria-label={t('detail.opponentFilterGroupLabel')}>
+      <OpponentFilterChip active={filter === OPPONENT_FILTERS.ALL} label={t('detail.opponentFilterAll')} count={filterCounts[OPPONENT_FILTERS.ALL]} onClick={() => update('opponentFilter', OPPONENT_FILTERS.ALL)} t={t} />
+      <OpponentFilterChip active={filter === OPPONENT_FILTERS.FAVORABLE} label={t('detail.categoryFavorableLabel')} count={filterCounts[OPPONENT_FILTERS.FAVORABLE]} tone="favorable" onClick={() => update('opponentFilter', OPPONENT_FILTERS.FAVORABLE)} t={t} />
+      <OpponentFilterChip active={filter === OPPONENT_FILTERS.HARD} label={t('detail.categoryHardLabel')} count={filterCounts[OPPONENT_FILTERS.HARD]} tone="hard" onClick={() => update('opponentFilter', OPPONENT_FILTERS.HARD)} t={t} />
+      <OpponentFilterChip active={filter === OPPONENT_FILTERS.PROBLEM} label={t('detail.categoryProblemLabel')} count={filterCounts[OPPONENT_FILTERS.PROBLEM]} tone="problem" onClick={() => update('opponentFilter', OPPONENT_FILTERS.PROBLEM)} t={t} />
     </div>
-    <label className="opponent-sort">
-      <span>{t('detail.opponentSort')}</span>
-      <select value={sort} onChange={(event) => update('opponentSort', event.target.value)}>
-        <option value={OPPONENT_SORTS.DEFAULT}>{t('detail.opponentSortDefault')}</option>
-        <option value={OPPONENT_SORTS.WIN_PERCENTAGE}>{t('detail.opponentSortWinPercentage')}</option>
-        <option value={OPPONENT_SORTS.MATCHES}>{t('detail.opponentSortMatches')}</option>
-        <option value={OPPONENT_SORTS.LAST_PLAYED}>{t('detail.opponentSortLastPlayed')}</option>
-      </select>
-    </label>
-    <div id="opponent-tabpanel" role="tabpanel" aria-labelledby={`opponent-${opponentView}-tab`}>
-      {opponentView === OPPONENT_VIEWS.CATEGORIZATION ? (
-        <>
-          <OpponentCategoryTable id="favorable" title={t('detail.categoryFavorable')} empty={t('detail.categoryFavorableEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'favorable').sort(sortComparator ?? compareFavorableQuality)} t={t} />
-          <OpponentCategoryTable id="hard" title={t('detail.categoryHard')} empty={t('detail.categoryHardEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'hard').sort(sortComparator ?? compareDifficultQuality)} t={t} />
-          <OpponentCategoryTable id="problem" title={t('detail.categoryProblem')} empty={t('detail.categoryProblemEmpty')} rows={categorizedRows.filter((opponent) => opponent.category === 'problem').sort(sortComparator ?? compareDifficultQuality)} t={t} />
-        </>
-      ) : (
-        <>
-          <label className="opponent-search">
-            <span>{t('detail.opponentSearch')}</span>
-            <input className="opponent-search-input" type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
-          </label>
-          {searchRows.length === 0 ? <p className="club-empty card" role="status">{t('detail.opponentsEmpty')}</p> : (
-            <OpponentTable rows={searchRows} includeCategory summaryText={t('detail.searchSummary', { count: searchRows.length })} t={t} />
-          )}
-        </>
-      )}
+    <div className="opponent-toolbar">
+      <label className="opponent-search">
+        <span>{t('detail.opponentSearch')}</span>
+        <input className="opponent-search-input" type="search" value={search} onChange={(event) => setSearch(event.target.value)} />
+      </label>
+      <label className="opponent-sort">
+        <span>{t('detail.opponentSort')}</span>
+        <select value={sort} onChange={(event) => update('opponentSort', event.target.value)}>
+          <option value={OPPONENT_SORTS.DEFAULT}>{t('detail.opponentSortDefault')}</option>
+          <option value={OPPONENT_SORTS.WIN_PERCENTAGE}>{t('detail.opponentSortWinPercentage')}</option>
+          <option value={OPPONENT_SORTS.MATCHES}>{t('detail.opponentSortMatches')}</option>
+          <option value={OPPONENT_SORTS.LAST_PLAYED}>{t('detail.opponentSortLastPlayed')}</option>
+          <option value={OPPONENT_SORTS.CLOSENESS}>{t('detail.opponentSortCloseness')}</option>
+        </select>
+      </label>
     </div>
-  </section>
-}
-
-function OpponentCategoryTable({ id, title, empty, rows, t }) {
-  return <section className="opponent-category" aria-labelledby={`opponent-category-${id}-title`}>
-    <h3 id={`opponent-category-${id}-title`}>{title}</h3>
-    {rows.length === 0 ? <p className="club-empty card" role="status">{empty}</p> : (
-      <OpponentTable rows={rows} summaryText={t('detail.categorySummary', { count: rows.length })} t={t} />
+    {filteredRows.length === 0 ? <p className="club-empty card" role="status">{t('detail.opponentsEmpty')}</p> : (
+      <OpponentTable rows={filteredRows} summaryText={t('detail.opponentListSummary', { count: filteredRows.length })} t={t} />
     )}
   </section>
 }
 
-function OpponentTable({ rows, includeCategory = false, summaryText, t }) {
+function OpponentFilterChip({ active, label, count, tone, onClick, t }) {
+  return <button type="button" className={`opponent-filter-chip${tone ? ` opponent-filter-chip--${tone}` : ''}${active ? ' is-active' : ''}`}
+    aria-pressed={active} aria-label={t('detail.opponentFilterAriaLabel', { label, count })} onClick={onClick}>
+    <span className="opponent-filter-chip-label">{label}</span>
+    <span className="opponent-filter-chip-count">{count}</span>
+  </button>
+}
+
+function OpponentTable({ rows, summaryText, t }) {
   const [expanded, setExpanded] = useState(false)
   const [expandedOpponent, setExpandedOpponent] = useState(null)
   const maxVisible = 3
   const visibleRows = rows.slice(0, maxVisible)
   const hiddenRows = rows.slice(maxVisible)
   const descriptionId = `opponent-table-description-${rows.map((row) => row.key).join('-')}`
-  const columnCount = 6 + (includeCategory ? 1 : 0) + 3
+  const columnCount = 9
+  const toggleExpanded = (key) => setExpandedOpponent((current) => current === key ? null : key)
   const table = (tableRows) => <table className="history-table" aria-describedby={descriptionId}>
       <caption>{t('detail.opponentResults')}</caption>
-      <thead><tr><th>{t('common.opponent')}</th><th>{t('common.playedMatches')}</th><th>{t('common.wins')}</th><th>{t('common.draws')}</th><th>{t('common.losses')}</th><th>{t('common.winPercentage')}</th>{includeCategory ? <th>{t('common.category')}</th> : null}<th>{t('detail.recentForm')}</th><th>{t('detail.streak')}</th><th><span className="visually-hidden">{t('detail.headToHeadColumn')}</span></th></tr></thead>
+      <thead><tr><th>{t('common.opponent')}</th><th>{t('common.category')}</th><th>{t('common.playedMatches')}</th><th>{t('common.wins')}</th><th>{t('common.draws')}</th><th>{t('common.losses')}</th><th>{t('common.winPercentage')}</th><th>{t('detail.recentForm')}</th><th>{t('detail.streak')}</th></tr></thead>
       <tbody>{tableRows.map((item) => {
         const isExpanded = expandedOpponent === item.key
         return <Fragment key={item.key}>
-          <tr className={isExpanded ? 'opponent-row is-expanded' : 'opponent-row'}>
+          <tr className={isExpanded ? 'opponent-row is-expanded' : 'opponent-row'} tabIndex={0} aria-expanded={isExpanded}
+            onClick={() => toggleExpanded(item.key)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter' && event.key !== ' ') return
+              event.preventDefault()
+              toggleExpanded(item.key)
+            }}>
             <td data-label={t('common.opponent')}>{item.name}</td>
+            <td data-label={t('common.category')}><OpponentCategoryBadge category={item.category} t={t} /></td>
             <td data-label={t('common.playedMatches')}>{item.matches}</td>
             <td data-label={t('common.wins')}>{item.wins}</td>
             <td data-label={t('common.draws')}>{item.draws}</td>
             <td data-label={t('common.losses')}>{item.losses}</td>
             <td data-label={t('common.winPercentage')}>{formatWinPercentage(item.playerWinPercentage)}</td>
-            {includeCategory ? <td data-label={t('common.category')}>{categoryLabel(item.category, t)}</td> : null}
             <td data-label={t('detail.recentForm')}><OpponentFormChips history={item.recentForm} t={t} /></td>
             <td data-label={t('detail.streak')}>{streakLabel(item.streak, t)}</td>
-            <td>
-              <button type="button" className="opponent-expand-button" aria-expanded={isExpanded}
-                onClick={() => setExpandedOpponent((current) => current === item.key ? null : item.key)}>
-                {isExpanded ? t('detail.hideHeadToHead') : t('detail.showHeadToHead')}
-              </button>
-            </td>
           </tr>
           {isExpanded ? <tr className="opponent-history-row">
             <td colSpan={columnCount}>
-              <OpponentHeadToHead opponentKey={item.key} name={item.name} history={item.sortedHistory} t={t} />
+              <OpponentHeadToHead item={item} t={t} />
             </td>
           </tr> : null}
         </Fragment>
@@ -463,24 +467,109 @@ function OpponentFormChips({ history, t }) {
   </span>
 }
 
-function OpponentHeadToHead({ opponentKey: key, name, history, t }) {
+function OpponentHeadToHead({ item, t }) {
+  const { key, name, sortedHistory: history } = item
   const titleId = `opponent-h2h-title-${sanitizeId(key)}`
   return <div className="opponent-history-detail">
     <h4 id={titleId}>{t('detail.headToHeadTitle', { name: name ?? t('common.unavailable') })}</h4>
+    <OpponentInsightsPanel item={item} t={t} />
     {history.length === 0 ? <p className="club-empty card" role="status">{t('detail.headToHeadEmpty')}</p> : (
-      <div className="table-wrap">
-        <table className="history-table" aria-labelledby={titleId}>
-          <thead><tr><th>{t('common.date')}</th><th>{t('common.competition')}</th><th>{t('common.result')}</th><th>{t('common.score')}</th></tr></thead>
-          <tbody>{history.map((entry) => <tr key={entry.id}>
-            <td data-label={t('common.date')}>{entry.dateTime ? new Date(entry.dateTime).toLocaleDateString(i18n.language) : t('detail.unavailableDate')}</td>
-            <td data-label={t('common.competition')}>{entry.competition ?? t('common.unavailable')}</td>
-            <td data-label={t('common.result')} className={`match-result-${entry.result}`}>{resultLabel(entry.result, t)}</td>
-            <td data-label={t('common.score')}>{entry.playerSets == null || entry.opponentSets == null ? t('detail.unavailableScore') : `${entry.playerSets} — ${entry.opponentSets}`}</td>
-          </tr>)}</tbody>
-        </table>
+      <div className="match-card-games opponent-h2h-list" role="list" aria-labelledby={titleId}>
+        {history.map((entry) => <div className="match-card-game-row" role="listitem" key={entry.id}>
+          <span className="match-card-game-type">{entry.dateTime ? new Date(entry.dateTime).toLocaleDateString(i18n.language) : t('detail.unavailableDate')}</span>
+          <span className="match-card-game-opponents">{entry.competition ?? t('common.unavailable')}</span>
+          <span className={`match-card-game-result match-result-${entry.result}`}>
+            <span className="match-card-game-outcome">{resultLabel(entry.result, t)}</span>
+            <span className="match-card-game-score">{entry.playerSets == null || entry.opponentSets == null ? t('detail.unavailableScore') : `${entry.playerSets} — ${entry.opponentSets}`}</span>
+          </span>
+        </div>)}
       </div>
     )}
   </div>
+}
+
+function OpponentInsightsPanel({ item, t }) {
+  const tiles = [
+    item.closeness ? <InsightTile key="closeness" label={t('detail.insightCloseness')} hint={t('detail.insightClosenessHint')}>
+      <span className={`opponent-insight-closeness opponent-insight-closeness--${item.closeness}`}>{closenessLabel(item.closeness, t)}</span>
+      <span className="opponent-insight-tile-sub">{t('detail.insightAverageMargin', { value: Math.abs(item.averageMargin).toFixed(1) })}</span>
+    </InsightTile> : null,
+    item.singlesRecord ? <InsightTile key="singles" label={t('detail.insightSingles')} hint={t('detail.insightSinglesHint')}>
+      <span>{recordText(item.singlesRecord, t)}</span>
+    </InsightTile> : null,
+    item.doublesRecord ? <InsightTile key="doubles" label={t('detail.insightDoubles')} hint={t('detail.insightDoublesHint')}>
+      <span>{recordText(item.doublesRecord, t)}</span>
+    </InsightTile> : null,
+    item.homeRecord || item.awayRecord ? <InsightTile key="homeAway" label={t('detail.insightHomeAway')} hint={t('detail.insightHomeAwayHint')}>
+      <span>{homeAwayText(item, t)}</span>
+    </InsightTile> : null,
+    item.longestWinStreak > 0 || item.longestLossStreak > 0 ? <InsightTile key="streaks" label={t('detail.insightStreaks')} hint={t('detail.insightStreaksHint')}>
+      <span>{streaksText(item, t)}</span>
+    </InsightTile> : null,
+    item.lastPlayed ? <InsightTile key="lastMet" label={t('detail.insightLastMet')} hint={t('detail.insightLastMetHint')}>
+      <span>{relativeTimeLabel(item.lastPlayed)}</span>
+      {item.matchesPerSeason ? <span className="opponent-insight-tile-sub">{t('detail.insightFrequencyPerSeason', { count: item.matchesPerSeason.average.toFixed(1) })}</span> : null}
+    </InsightTile> : null,
+    item.trend ? <InsightTile key="trend" label={t('detail.insightTrend')} hint={t('detail.insightTrendHint')} wide>
+      <span className={`opponent-insight-trend opponent-insight-trend--${item.trend.tone}`}>{trendText(item.trend, t)}</span>
+    </InsightTile> : null,
+    item.competitionBreakdown ? <InsightTile key="competitions" label={t('detail.insightCompetitionBreakdown')} hint={t('detail.insightCompetitionBreakdownHint')} wide>
+      {item.competitionBreakdown.map((row) => <span key={row.competition}>{row.competition}: {recordText(row, t)}</span>)}
+    </InsightTile> : null,
+  ].filter(Boolean)
+  if (tiles.length === 0) return null
+  return <div className="opponent-insights-panel">
+    <h5 className="opponent-insights-title">{t('detail.insightsTitle')}</h5>
+    <div className="opponent-insight-tiles">{tiles}</div>
+  </div>
+}
+
+function InsightTile({ label, hint, wide, children }) {
+  return <div className={`opponent-insight-tile${wide ? ' opponent-insight-tile--wide' : ''}`}>
+    <span className="opponent-insight-tile-label" title={hint}>{label}</span>
+    <span className="opponent-insight-tile-value">{children}</span>
+  </div>
+}
+
+function closenessLabel(closeness, t) {
+  if (closeness === 'decisive') return t('detail.insightClosenessDecisive')
+  if (closeness === 'competitive') return t('detail.insightClosenessCompetitive')
+  if (closeness === 'nail-biter') return t('detail.insightClosenessNailBiter')
+  return null
+}
+
+function recordText(record, t) {
+  return `${record.wins}${t('detail.insightWinShort')}–${record.losses}${t('detail.insightLossShort')} (${record.matches})`
+}
+
+function roundedPercentage(value) {
+  return value == null ? '—' : Math.round(value)
+}
+
+function homeAwayText(item, t) {
+  const parts = []
+  if (item.homeRecord) parts.push(`${t('detail.insightHomeShort')} ${roundedPercentage(winPercentage(item.homeRecord))}%`)
+  if (item.awayRecord) parts.push(`${t('detail.insightAwayShort')} ${roundedPercentage(winPercentage(item.awayRecord))}%`)
+  return parts.join(' · ')
+}
+
+function streaksText(item, t) {
+  return `${t('detail.insightWinShort')}${item.longestWinStreak} ${t('detail.insightStreakBest')} · ${t('detail.insightLossShort')}${item.longestLossStreak} ${t('detail.insightStreakWorst')}`
+}
+
+function relativeTimeLabel(dateString) {
+  const diffDays = Math.round((Date.now() - new Date(dateString).getTime()) / 86400000)
+  const formatter = new Intl.RelativeTimeFormat(i18n.language, { numeric: 'auto' })
+  if (Math.abs(diffDays) < 30) return formatter.format(-diffDays, 'day')
+  const diffMonths = Math.round(diffDays / 30)
+  if (Math.abs(diffMonths) < 12) return formatter.format(-diffMonths, 'month')
+  return formatter.format(-Math.round(diffDays / 365), 'year')
+}
+
+function trendText(trend, t) {
+  const key = trend.tone === 'improved' ? 'insightTrendImproved' : trend.tone === 'declining' ? 'insightTrendDeclining' : 'insightTrendStable'
+  const arrow = trend.tone === 'improved' ? '↗' : trend.tone === 'declining' ? '↘' : '→'
+  return `${arrow} ${t(`detail.${key}`, { previous: Math.round(trend.previousWinRate), current: Math.round(trend.currentWinRate) })}`
 }
 
 function compareMatches(left, right) {
@@ -518,6 +607,11 @@ function categoryLabel(category, t) {
         : t('detail.categoryUnknown')
 }
 
+function OpponentCategoryBadge({ category, t }) {
+  const tone = category === 'favorable' || category === 'hard' || category === 'problem' ? category : 'unknown'
+  return <span className={`opponent-category-badge opponent-category-badge--${tone}`}>{categoryLabel(category, t)}</span>
+}
+
 function compareOpponentNames(left, right) {
   return left.name.localeCompare(right.name, 'ca', { sensitivity: 'base' })
     || left.name.localeCompare(right.name, 'ca')
@@ -529,20 +623,6 @@ function compareCategorizedOpponents(left, right) {
   return (right.playerWinPercentage ?? 0) - (left.playerWinPercentage ?? 0)
     || right.matches - left.matches
     || compareOpponentNames(left, right)
-}
-
-function compareFavorableQuality(left, right) {
-  if (left.averageMargin == null && right.averageMargin == null) return compareCategorizedOpponents(left, right)
-  if (left.averageMargin == null) return 1
-  if (right.averageMargin == null) return -1
-  return right.averageMargin - left.averageMargin || compareCategorizedOpponents(left, right)
-}
-
-function compareDifficultQuality(left, right) {
-  if (left.averageMargin == null && right.averageMargin == null) return compareCategorizedOpponents(left, right)
-  if (left.averageMargin == null) return 1
-  if (right.averageMargin == null) return -1
-  return left.averageMargin - right.averageMargin || compareCategorizedOpponents(left, right)
 }
 
 function addOpponent(opponents, key, opponent, entry) {
@@ -571,6 +651,7 @@ function opponentKey(opponent) {
 
 function buildOpponentRow(opponent) {
   const sortedHistory = [...opponent.history].sort(compareHistoryDesc)
+  const margin = averageMargin(sortedHistory)
   return {
     ...opponent,
     playerWinPercentage: winPercentage(opponent),
@@ -578,7 +659,17 @@ function buildOpponentRow(opponent) {
     recentForm: sortedHistory.slice(0, RECENT_FORM_SIZE),
     streak: currentStreak(sortedHistory),
     lastPlayed: sortedHistory[0]?.dateTime ?? null,
-    averageMargin: averageMargin(sortedHistory),
+    averageMargin: margin,
+    closeness: closenessBucket(margin),
+    singlesRecord: splitRecord(sortedHistory, (entry) => entry.gameType != null && entry.gameType !== 'DOUBLES'),
+    doublesRecord: splitRecord(sortedHistory, (entry) => entry.gameType === 'DOUBLES'),
+    homeRecord: splitRecord(sortedHistory, (entry) => entry.isHome === true),
+    awayRecord: splitRecord(sortedHistory, (entry) => entry.isHome === false),
+    longestWinStreak: longestStreak(sortedHistory, 'win'),
+    longestLossStreak: longestStreak(sortedHistory, 'loss'),
+    matchesPerSeason: computeMatchesPerSeason(sortedHistory),
+    competitionBreakdown: computeCompetitionBreakdown(sortedHistory),
+    trend: opponentTrend(sortedHistory),
   }
 }
 
@@ -586,6 +677,59 @@ function averageMargin(history) {
   const margins = history.map((entry) => entry.margin).filter((margin) => margin != null)
   if (margins.length === 0) return null
   return margins.reduce((total, margin) => total + margin, 0) / margins.length
+}
+
+function closenessBucket(margin) {
+  if (margin == null) return null
+  const magnitude = Math.abs(margin)
+  if (magnitude >= 2) return 'decisive'
+  if (magnitude >= 1) return 'competitive'
+  return 'nail-biter'
+}
+
+function splitRecord(history, predicate) {
+  const entries = history.filter(predicate)
+  if (entries.length === 0) return null
+  return {
+    matches: entries.length,
+    wins: entries.filter((entry) => entry.result === 'win').length,
+    losses: entries.filter((entry) => entry.result === 'loss').length,
+  }
+}
+
+function computeMatchesPerSeason(history) {
+  const seasons = new Set(history.map((entry) => entry.season).filter(Boolean))
+  if (seasons.size === 0) return null
+  return { matches: history.length, seasons: seasons.size, average: history.length / seasons.size }
+}
+
+function computeCompetitionBreakdown(history) {
+  const competitions = [...new Set(history.map((entry) => entry.competition).filter(Boolean))]
+  if (competitions.length <= 1) return null
+  return competitions.map((competition) => {
+    const entries = history.filter((entry) => entry.competition === competition)
+    return {
+      competition,
+      matches: entries.length,
+      wins: entries.filter((entry) => entry.result === 'win').length,
+      losses: entries.filter((entry) => entry.result === 'loss').length,
+    }
+  })
+}
+
+function opponentTrend(sortedHistoryDesc) {
+  const windowSize = Math.min(RECENT_FORM_SIZE, Math.floor(sortedHistoryDesc.length / 2))
+  if (windowSize < 2) return null
+  const recentWindow = sortedHistoryDesc.slice(0, windowSize)
+  const previousWindow = sortedHistoryDesc.slice(windowSize, windowSize * 2)
+  return computeTrendNote(winPercentage(recordTotals(recentWindow)), winPercentage(recordTotals(previousWindow)))
+}
+
+function recordTotals(entries) {
+  return {
+    wins: entries.filter((entry) => entry.result === 'win').length,
+    losses: entries.filter((entry) => entry.result === 'loss').length,
+  }
 }
 
 function gameSetsForPlayer(match, game) {
@@ -737,6 +881,14 @@ function opponentComparator(sort) {
       if (!left.lastPlayed) return 1
       if (!right.lastPlayed) return -1
       return new Date(right.lastPlayed) - new Date(left.lastPlayed) || compareOpponentNames(left, right)
+    }
+  }
+  if (sort === OPPONENT_SORTS.CLOSENESS) {
+    return (left, right) => {
+      if (left.averageMargin == null && right.averageMargin == null) return compareOpponentNames(left, right)
+      if (left.averageMargin == null) return 1
+      if (right.averageMargin == null) return -1
+      return Math.abs(left.averageMargin) - Math.abs(right.averageMargin) || compareOpponentNames(left, right)
     }
   }
   return null

@@ -356,19 +356,18 @@ describe('PlayerDetailPage', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('?view=opponents&source=FCTT&season=2024-2025&competition=Preferent&chart=bar')
   })
 
-  it('defaults the opponent sub-tab and persists it in the URL', async () => {
+  it('defaults the opponent filter to All', () => {
     renderPage('/players/player-id?view=opponents')
 
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('?view=opponents&opponentView=categorization'))
-    expect(screen.getByRole('tab', { name: "Categorització d'oponents" })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: /Tots, \d+ oponents/ })).toHaveClass('is-active')
   })
 
-  it('switches opponent sub-tabs without resetting filters', () => {
-    renderPage('/players/player-id?view=opponents&opponentView=categorization&source=FCTT&season=2024-2025&competition=Preferent&chart=bar')
+  it('switches the opponent category filter without resetting player filters', () => {
+    renderPage('/players/player-id?view=opponents&source=FCTT&season=2024-2025&competition=Preferent&chart=bar')
 
-    fireEvent.click(screen.getByRole('tab', { name: "Cerca d'oponents" }))
+    fireEvent.click(screen.getByRole('button', { name: /Problemàtic, \d+ oponents/ }))
 
-    expect(screen.getByTestId('location')).toHaveTextContent('?view=opponents&opponentView=search&source=FCTT&season=2024-2025&competition=Preferent&chart=bar')
+    expect(screen.getByTestId('location')).toHaveTextContent('?view=opponents&source=FCTT&season=2024-2025&competition=Preferent&chart=bar&opponentFilter=problem')
   })
 
   it('passes the active selectors to the server-backed details request', async () => {
@@ -430,25 +429,38 @@ describe('PlayerDetailPage', () => {
     ))
   })
 
-  it('normalizes an invalid opponent sub-tab', async () => {
-    renderPage('/players/player-id?view=opponents&opponentView=invalid')
+  it('ignores an invalid opponent filter value in the URL and falls back to All', () => {
+    renderPage('/players/player-id?view=opponents&opponentFilter=invalid')
 
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('opponentView=categorization'))
-    expect(screen.getByRole('tab', { name: "Categorització d'oponents" })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('button', { name: /Tots, \d+ oponents/ })).toHaveClass('is-active')
   })
 
-  it('categorizes opponents and excludes draw-only records from categories', () => {
+  it('categorizes opponents with a badge on every row and counts draw-only records as uncategorized', () => {
     usePlayerDetails.mockReturnValue({ data: categoryDetails, loading: false, error: null, retry: vi.fn() })
-    renderPage('/players/player-id?view=opponents&opponentView=categorization')
+    renderPage('/players/player-id?view=opponents')
 
-    const tables = screen.getAllByRole('table')
-    expect(tables[0]).toHaveTextContent('Club Beta')
-    expect(tables[0]).toHaveTextContent('66.7%')
-    expect(tables[1]).toHaveTextContent('Club Gamma')
-    expect(tables[2]).toHaveTextContent('Club Delta')
-    expect(tables[0]).not.toHaveTextContent('Club Alfa')
-    expect(tables[1]).not.toHaveTextContent('Club Alfa')
-    expect(tables[2]).not.toHaveTextContent('Club Alfa')
+    fireEvent.click(screen.getByRole('button', { name: 'Mostra 1 oponents més' }))
+    const table = screen.getByRole('table')
+    expect(table).toHaveTextContent('Club Beta')
+    expect(table).toHaveTextContent('66.7%')
+    expect(table).toHaveTextContent('Club Gamma')
+    expect(table).toHaveTextContent('Club Delta')
+    expect(table).toHaveTextContent('Club Alfa')
+
+    const badgeFor = (name) => [...table.querySelectorAll('tbody tr.opponent-row')]
+      .find((row) => row.textContent.includes(name))
+      .querySelector('.opponent-category-badge')
+    expect(badgeFor('Club Beta')).toHaveTextContent('Favorable')
+    expect(badgeFor('Club Gamma')).toHaveTextContent('Difícil')
+    expect(badgeFor('Club Delta')).toHaveTextContent('Problemàtic')
+    expect(badgeFor('Club Alfa')).toHaveTextContent('Sense categoria')
+
+    fireEvent.click(screen.getByRole('button', { name: /Favorable, \d+ oponents/ }))
+    const favorableTable = screen.getByRole('table')
+    expect(favorableTable).toHaveTextContent('Club Beta')
+    expect(favorableTable).not.toHaveTextContent('Club Alfa')
+    expect(favorableTable).not.toHaveTextContent('Club Gamma')
+    expect(favorableTable).not.toHaveTextContent('Club Delta')
   })
 
   it('derives opponent analysis results from each game result, not the overall match result', () => {
@@ -512,10 +524,15 @@ describe('PlayerDetailPage', () => {
       error: null,
       retry: vi.fn(),
     })
-    renderPage('/players/player-id?view=opponents&opponentView=categorization')
+    renderPage('/players/player-id?view=opponents')
 
-    expect(screen.getByText('No hi ha oponents favorables per als filtres seleccionats.')).toBeInTheDocument()
-    expect(screen.getByText('No hi ha oponents difícils per als filtres seleccionats.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Favorable, \d+ oponents/ }))
+    expect(screen.getByText('Cap oponent coincideix amb els filtres.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Difícil, \d+ oponents/ }))
+    expect(screen.getByText('Cap oponent coincideix amb els filtres.')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Problemàtic, \d+ oponents/ }))
     const problemTable = screen.getByRole('table')
     expect(problemTable).toHaveTextContent('Opponent Contradiction')
     expect(problemTable).toHaveTextContent('0.0%')
@@ -567,50 +584,49 @@ describe('PlayerDetailPage', () => {
       retry: vi.fn(),
     })
 
-    renderPage('/players/player-id?view=opponents&opponentView=categorization')
+    renderPage('/players/player-id?view=opponents')
 
-    const favorableTable = screen.getAllByRole('table')[0]
-    expect(favorableTable).toHaveTextContent('Opponent Repeat')
-    const row = [...favorableTable.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes('Opponent Repeat'))
-    expect(row.querySelectorAll('td')[1]).toHaveTextContent('1')
+    const table = screen.getByRole('table')
+    expect(table).toHaveTextContent('Opponent Repeat')
+    const row = [...table.querySelectorAll('tbody tr')].find((tr) => tr.textContent.includes('Opponent Repeat'))
+    expect(row.querySelectorAll('td')[2]).toHaveTextContent('1')
     expect(row).toHaveTextContent('100.0%')
   })
 
-  it('sorts every categorized table by percentage, matches, then deterministic name', () => {
+  it('sorts the unified opponent list by percentage, matches, then deterministic name', () => {
     usePlayerDetails.mockReturnValue({ data: sortingDetails, loading: false, error: null, retry: vi.fn() })
-    renderPage('/players/player-id?view=opponents&opponentView=categorization')
+    renderPage('/players/player-id?view=opponents')
 
-    const tables = screen.getAllByRole('table')
-    const names = (table) => [...table.querySelectorAll('tbody tr td:first-child')].map((cell) => cell.textContent)
+    fireEvent.click(screen.getByRole('button', { name: 'Mostra 5 oponents més' }))
 
-    fireEvent.click(screen.getByRole('button', { name: 'Mostra 1 oponents més' }))
-
-    expect(names(tables[0])).toEqual(['Club Beta', 'Club Gamma', 'Club Alfa', 'Club Omega'])
-    expect(names(tables[1])).toEqual(['Club Epsilon', 'Club Delta'])
-    expect(names(tables[2])).toEqual(['Club Zeta', 'Club Eta'])
+    const names = [...screen.getByRole('table').querySelectorAll('tbody tr td:first-child')].map((cell) => cell.textContent)
+    expect(names).toEqual(['Club Beta', 'Club Gamma', 'Club Alfa', 'Club Omega', 'Club Epsilon', 'Club Delta', 'Club Zeta', 'Club Eta'])
   })
 
-  it('shows a specific empty state for every empty category', () => {
+  it('shows filter chip counts per category and a shared empty state for an empty filter', () => {
     usePlayerDetails.mockReturnValue({ data: drawOnlyDetails, loading: false, error: null, retry: vi.fn() })
     renderPage('/players/player-id?view=opponents')
 
-    expect(screen.getByText('No hi ha oponents favorables per als filtres seleccionats.')).toBeInTheDocument()
-    expect(screen.getByText('No hi ha oponents difícils per als filtres seleccionats.')).toBeInTheDocument()
-    expect(screen.getByText('No hi ha oponents problemàtics per als filtres seleccionats.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Favorable, 0 oponents/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Difícil, 0 oponents/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Problemàtic, 0 oponents/ })).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Favorable, 0 oponents/ }))
+    expect(screen.getByText('Cap oponent coincideix amb els filtres.')).toBeInTheDocument()
   })
 
-  it('shows only three category rows and exposes the remaining rows on demand', () => {
+  it('shows only three rows and exposes the remaining rows on demand', () => {
     usePlayerDetails.mockReturnValue({ data: manyOpponentsDetails, loading: false, error: null, retry: vi.fn() })
     renderPage('/players/player-id?view=opponents')
 
-    const favorableTable = screen.getAllByRole('table')[0]
-    expect(favorableTable.querySelectorAll('tbody tr')).toHaveLength(3)
-    const moreButton = screen.getByRole('button', { name: 'Mostra 1 oponents més' })
+    const table = screen.getByRole('table')
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(3)
+    const moreButton = screen.getByRole('button', { name: 'Mostra 4 oponents més' })
     expect(moreButton).toBeInTheDocument()
 
     fireEvent.click(moreButton)
-    expect(favorableTable.querySelectorAll('tbody tr')).toHaveLength(4)
-    expect(screen.queryByRole('button', { name: 'Mostra 1 oponents més' })).not.toBeInTheDocument()
+    expect(table.querySelectorAll('tbody tr')).toHaveLength(7)
+    expect(screen.queryByRole('button', { name: /Mostra .* oponents més/ })).not.toBeInTheDocument()
   })
 
   it('sorts statistics by descending season', () => {
@@ -860,31 +876,31 @@ describe('PlayerDetailPage', () => {
     expect(screen.queryByText('Competicions')).not.toBeInTheDocument()
   })
 
-  it('describes opponent tables for non-visual table readers', () => {
+  it('describes the opponent table for non-visual table readers', () => {
     usePlayerDetails.mockReturnValue({ data: categoryDetails, loading: false, error: null, retry: vi.fn() })
     renderPage('/players/player-id?view=opponents')
 
-    const table = screen.getAllByRole('table')[0]
+    fireEvent.click(screen.getByRole('button', { name: /Favorable, \d+ oponents/ }))
+    const table = screen.getByRole('table')
     const description = document.getElementById(table.getAttribute('aria-describedby'))
-    expect(description).toHaveTextContent('1 oponents en aquesta categoria.')
+    expect(description).toHaveTextContent('1 oponents.')
   })
 
-  it('filters opponents by an accented substring and clears search state on return', () => {
+  it('filters opponents by an accented substring and keeps it when switching category filters', () => {
     usePlayerDetails.mockReturnValue({ data: accentedDetails, loading: false, error: null, retry: vi.fn() })
-    renderPage('/players/player-id?view=opponents&opponentView=search')
+    renderPage('/players/player-id?view=opponents')
 
     const search = screen.getByRole('searchbox', { name: 'Cerca un oponent' })
     fireEvent.change(search, { target: { value: 'òrr' } })
     expect(screen.getByRole('table')).toHaveTextContent('Club Òrrius')
 
-    fireEvent.click(screen.getByRole('tab', { name: "Categorització d'oponents" }))
-    fireEvent.click(screen.getByRole('tab', { name: "Cerca d'oponents" }))
-    expect(screen.getByRole('searchbox', { name: 'Cerca un oponent' })).toHaveValue('')
+    fireEvent.click(screen.getByRole('button', { name: /Tots, \d+ oponents/ }))
+    expect(screen.getByRole('searchbox', { name: 'Cerca un oponent' })).toHaveValue('òrr')
   })
 
   it('uses a contrasted opponent search input', () => {
     usePlayerDetails.mockReturnValue({ data: accentedDetails, loading: false, error: null, retry: vi.fn() })
-    renderPage('/players/player-id?view=opponents&opponentView=search')
+    renderPage('/players/player-id?view=opponents')
 
     expect(screen.getByRole('searchbox', { name: 'Cerca un oponent' }))
       .toHaveClass('opponent-search-input')
@@ -960,7 +976,7 @@ describe('PlayerDetailPage', () => {
       ],
     }
     usePlayerDetails.mockReturnValue({ data: qualityDetails, loading: false, error: null, retry: vi.fn() })
-    renderPage('/players/player-id?view=opponents&opponentView=search')
+    renderPage('/players/player-id?view=opponents')
 
     const chips = screen.getByRole('table').querySelectorAll('.opponent-form-chip')
     expect([...chips].map((chip) => chip.getAttribute('title'))).toEqual([
@@ -980,14 +996,14 @@ describe('PlayerDetailPage', () => {
       ],
     }
     usePlayerDetails.mockReturnValue({ data: streakDetails, loading: false, error: null, retry: vi.fn() })
-    renderPage('/players/player-id?view=opponents&opponentView=search')
+    renderPage('/players/player-id?view=opponents')
 
     expect(screen.getByRole('table')).toHaveTextContent('Ratxa de 3 victòries')
   })
 
   it('sorts opponents by win percentage when the sort control changes', () => {
     usePlayerDetails.mockReturnValue({ data: sortingDetails, loading: false, error: null, retry: vi.fn() })
-    renderPage('/players/player-id?view=opponents&opponentView=search')
+    renderPage('/players/player-id?view=opponents')
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Ordena per' }), { target: { value: 'winPercentage' } })
 
@@ -1006,21 +1022,23 @@ describe('PlayerDetailPage', () => {
       ],
     }
     usePlayerDetails.mockReturnValue({ data: headToHeadDetails, loading: false, error: null, retry: vi.fn() })
-    renderPage('/players/player-id?view=opponents&opponentView=search')
+    renderPage('/players/player-id?view=opponents')
 
     expect(screen.queryByText('Historial cara a cara amb Club Beta')).not.toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Mostra l’historial cara a cara' }))
+    const opponentRow = document.querySelector('.opponent-table .table-wrap > table tbody tr.opponent-row')
+    fireEvent.click(opponentRow)
 
     const heading = screen.getByText('Historial cara a cara amb Club Beta')
     expect(heading).toBeInTheDocument()
-    const detailTable = heading.closest('.opponent-history-detail').querySelector('table')
-    const rows = [...detailTable.tBodies[0].rows]
+    expect(opponentRow).toHaveAttribute('aria-expanded', 'true')
+    const rows = heading.closest('.opponent-history-detail').querySelectorAll('.match-card-game-row')
     expect(rows).toHaveLength(2)
     expect(rows[0]).toHaveTextContent('1 — 3')
     expect(rows[1]).toHaveTextContent('3 — 1')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Amaga l’historial cara a cara' }))
+    fireEvent.click(opponentRow)
     expect(screen.queryByText('Historial cara a cara amb Club Beta')).not.toBeInTheDocument()
+    expect(opponentRow).toHaveAttribute('aria-expanded', 'false')
   })
 
   it('renders each match as a self-contained card with no table markup, so nothing needs a mobile column collapse', () => {
@@ -1035,44 +1053,175 @@ describe('PlayerDetailPage', () => {
     expect(card.querySelector('.match-card-date')).toBeInTheDocument()
   })
 
-  it('orders favorable opponents by win quality, dominant wins first', () => {
-    const favorableQualityDetails = {
-      ...details,
-      matches: [
-        gameMatch('close-1', '2025-01-01T12:00:00Z', 'win', 3, 2, 'Club Close', 'close-player'),
-        gameMatch('dominant-1', '2025-01-02T12:00:00Z', 'win', 3, 0, 'Club Dominant', 'dominant-player'),
-      ],
-    }
-    usePlayerDetails.mockReturnValue({ data: favorableQualityDetails, loading: false, error: null, retry: vi.fn() })
-    renderPage('/players/player-id?view=opponents&opponentView=categorization')
-
-    const favorableTable = screen.getAllByRole('table')[0]
-    const names = [...favorableTable.querySelectorAll('tbody tr.opponent-row td:first-child')].map((cell) => cell.textContent)
-    expect(names).toEqual(['Club Dominant', 'Club Close'])
-  })
-
-  it('orders difficult opponents by loss severity, worst losses first', () => {
-    const difficultQualityDetails = {
-      ...details,
-      matches: [
-        gameMatch('narrow-1', '2025-01-01T12:00:00Z', 'loss', 2, 3, 'Club Narrow', 'narrow-player'),
-        gameMatch('heavy-1', '2025-01-02T12:00:00Z', 'loss', 0, 3, 'Club Heavy', 'heavy-player'),
-      ],
-    }
-    usePlayerDetails.mockReturnValue({ data: difficultQualityDetails, loading: false, error: null, retry: vi.fn() })
-    renderPage('/players/player-id?view=opponents&opponentView=categorization')
-
-    const hardTable = screen.getAllByRole('table')[0]
-    const names = [...hardTable.querySelectorAll('tbody tr.opponent-row td:first-child')].map((cell) => cell.textContent)
-    expect(names).toEqual(['Club Heavy', 'Club Narrow'])
-  })
-
   it('labels every opponent row cell for the stacked mobile layout', () => {
     usePlayerDetails.mockReturnValue({ data: accentedDetails, loading: false, error: null, retry: vi.fn() })
-    renderPage('/players/player-id?view=opponents&opponentView=search')
+    renderPage('/players/player-id?view=opponents')
 
     const row = screen.getByRole('table').querySelector('tbody tr')
     const labels = [...row.querySelectorAll('td')].map((cell) => cell.getAttribute('data-label'))
-    expect(labels).toEqual(['Oponent', 'Partits jugats', 'Victòries', 'Empats', 'Derrotes', 'Victòries (%)', 'Categoria', 'Forma recent', 'Ratxa', null])
+    expect(labels).toEqual(['Oponent', 'Categoria', 'Partits jugats', 'Victòries', 'Empats', 'Derrotes', 'Victòries (%)', 'Forma recent', 'Ratxa'])
+  })
+
+  function expandOpponentRow(name) {
+    const table = document.querySelector('.opponent-table .table-wrap > table')
+    const row = [...table.querySelectorAll(':scope > tbody > tr.opponent-row')].find((tr) => tr.textContent.includes(name))
+    fireEvent.click(row)
+    return row.nextElementSibling
+  }
+
+  it('buckets opponent closeness by the average set margin', () => {
+    const closenessDetails = {
+      ...details,
+      matches: [
+        gameMatch('decisive-1', '2025-01-01T12:00:00Z', 'win', 3, 0, 'Club Decisive', 'decisive-opponent'),
+        gameMatch('competitive-1', '2025-01-01T12:00:00Z', 'win', 3, 2, 'Club Competitive', 'competitive-opponent'),
+        gameMatch('nail-1', '2025-01-01T12:00:00Z', 'win', 3, 2, 'Club NailBiter', 'nail-opponent'),
+        gameMatch('nail-2', '2025-01-08T12:00:00Z', 'loss', 2, 3, 'Club NailBiter', 'nail-opponent'),
+      ],
+    }
+    usePlayerDetails.mockReturnValue({ data: closenessDetails, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=opponents')
+
+    expect(expandOpponentRow('Club Decisive').querySelector('.opponent-insight-closeness')).toHaveTextContent('Decisiu')
+    expect(expandOpponentRow('Club Competitive').querySelector('.opponent-insight-closeness')).toHaveTextContent('Competitiu')
+    expect(expandOpponentRow('Club NailBiter').querySelector('.opponent-insight-closeness')).toHaveTextContent('Molt ajustat')
+  })
+
+  it('shows the singles or doubles insight tile only when that split has matches', () => {
+    const splitDetails = {
+      ...details,
+      matches: [
+        {
+          id: 'singles-match', source: 'FCTT', season: '2024-2025', competition: 'Preferent',
+          dateTime: '2025-01-01T12:00:00Z', homeTeam: 'Club Terrassa', awayTeam: 'Club Singles', playerTeam: 'Club Terrassa', result: 'win',
+          games: [{
+            id: 'singles-game', gameNumber: 1, type: 'INDIVIDUAL', result: 'win', homeSetsWon: 3, awaySetsWon: 1,
+            opponents: [{ playerId: 'singles-opponent', name: 'Club Singles', available: true, source: 'FCTT', season: '2024-2025' }],
+          }],
+        },
+        {
+          id: 'doubles-match', source: 'FCTT', season: '2024-2025', competition: 'Preferent',
+          dateTime: '2025-01-01T12:00:00Z', homeTeam: 'Club Terrassa', awayTeam: 'Club Doubles', playerTeam: 'Club Terrassa', result: 'win',
+          games: [{
+            id: 'doubles-game', gameNumber: 1, type: 'DOUBLES', result: 'win', homeSetsWon: 3, awaySetsWon: 1,
+            opponents: [{ playerId: 'doubles-opponent', name: 'Club Doubles', available: true, source: 'FCTT', season: '2024-2025' }],
+          }],
+        },
+      ],
+    }
+    usePlayerDetails.mockReturnValue({ data: splitDetails, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=opponents')
+
+    const singlesPanel = expandOpponentRow('Club Singles')
+    expect(singlesPanel.textContent).toContain('Individual')
+    expect(singlesPanel.textContent).not.toContain('Dobles')
+
+    const doublesPanel = expandOpponentRow('Club Doubles')
+    expect(doublesPanel.textContent).toContain('Dobles')
+    expect(doublesPanel.textContent).not.toContain('Individual')
+  })
+
+  it('shows the home or away insight tile only for the side actually played', () => {
+    const homeAwayDetails = {
+      ...details,
+      matches: [
+        { id: 'home-match', source: 'FCTT', season: '2024-2025', competition: 'Preferent', dateTime: '2025-01-01T12:00:00Z', homeTeam: 'Club Terrassa', awayTeam: 'Club HomeOnly', playerTeam: 'Club Terrassa', result: 'win' },
+        { id: 'away-match', source: 'FCTT', season: '2024-2025', competition: 'Preferent', dateTime: '2025-01-01T12:00:00Z', homeTeam: 'Club AwayOnly', awayTeam: 'Club Terrassa', playerTeam: 'Club Terrassa', result: 'win' },
+      ],
+    }
+    usePlayerDetails.mockReturnValue({ data: homeAwayDetails, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=opponents')
+
+    const homePanel = expandOpponentRow('Club HomeOnly')
+    expect(homePanel.textContent).toContain('L 100%')
+    expect(homePanel.textContent).not.toContain('V 100%')
+
+    const awayPanel = expandOpponentRow('Club AwayOnly')
+    expect(awayPanel.textContent).toContain('V 100%')
+    expect(awayPanel.textContent).not.toContain('L 100%')
+  })
+
+  it('shows the longest streak alongside a shorter current streak against an opponent', () => {
+    const streakDivergenceDetails = {
+      ...details,
+      matches: [
+        gameMatch('streak-1', '2025-01-01T12:00:00Z', 'win', 3, 0),
+        gameMatch('streak-2', '2025-01-08T12:00:00Z', 'win', 3, 0),
+        gameMatch('streak-3', '2025-01-15T12:00:00Z', 'win', 3, 0),
+        gameMatch('streak-4', '2025-01-22T12:00:00Z', 'loss', 0, 3),
+        gameMatch('streak-5', '2025-01-29T12:00:00Z', 'win', 3, 0),
+      ],
+    }
+    usePlayerDetails.mockReturnValue({ data: streakDivergenceDetails, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=opponents')
+
+    expect(screen.getByRole('table')).toHaveTextContent('Ratxa de 1 victòries')
+    const panel = expandOpponentRow('Club Beta')
+    expect(panel.textContent).toContain('V3 millor · D1 pitjor')
+  })
+
+  it('shows a competition breakdown tile only for opponents faced across more than one competition', () => {
+    const competitionDetails = {
+      ...details,
+      matches: [
+        { id: 'multi-1', source: 'FCTT', season: '2024-2025', competition: 'Preferent', dateTime: '2025-01-01T12:00:00Z', homeTeam: 'Club Terrassa', awayTeam: 'Club Multi', playerTeam: 'Club Terrassa', result: 'win' },
+        { id: 'multi-2', source: 'FCTT', season: '2024-2025', competition: 'Divisió', dateTime: '2025-02-01T12:00:00Z', homeTeam: 'Club Terrassa', awayTeam: 'Club Multi', playerTeam: 'Club Terrassa', result: 'loss' },
+        { id: 'single-1', source: 'FCTT', season: '2024-2025', competition: 'Preferent', dateTime: '2025-01-01T12:00:00Z', homeTeam: 'Club Terrassa', awayTeam: 'Club Single', playerTeam: 'Club Terrassa', result: 'win' },
+      ],
+    }
+    usePlayerDetails.mockReturnValue({ data: competitionDetails, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=opponents')
+
+    const multiPanel = expandOpponentRow('Club Multi')
+    expect(multiPanel.textContent).toContain('Per competició')
+    expect(multiPanel.textContent).toContain('Divisió')
+
+    const singlePanel = expandOpponentRow('Club Single')
+    expect(singlePanel.textContent).not.toContain('Per competició')
+  })
+
+  it('shows an opponent trend only when both the recent and previous windows have at least two matches', () => {
+    function trendMatches(count) {
+      const windowSize = Math.min(5, Math.floor(count / 2))
+      return [...Array(count)].map((_, index) => gameMatch(
+        `trend-${index}`,
+        new Date(Date.UTC(2025, 0, index + 1)).toISOString(),
+        index < count - windowSize ? 'loss' : 'win',
+        index < count - windowSize ? 1 : 3,
+        index < count - windowSize ? 3 : 0,
+        'Club Trend',
+        'trend-opponent',
+      ))
+    }
+
+    usePlayerDetails.mockReturnValue({ data: { ...details, matches: trendMatches(3) }, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=opponents')
+    expect(expandOpponentRow('Club Trend').textContent).not.toContain('Tendència')
+    cleanup()
+
+    usePlayerDetails.mockReturnValue({ data: { ...details, matches: trendMatches(4) }, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=opponents')
+    expect(expandOpponentRow('Club Trend').textContent).toContain('Tendència')
+  })
+
+  it('sorts opponents by closeness when the sort control changes', () => {
+    const closenessSortDetails = {
+      ...details,
+      matches: [
+        gameMatch('sort-a', '2025-01-01T12:00:00Z', 'win', 4, 1, 'Club A', 'a-opp'),
+        gameMatch('sort-b', '2025-01-01T12:00:00Z', 'win', 3, 2, 'Club B', 'b-opp'),
+        gameMatch('sort-c', '2025-01-01T12:00:00Z', 'win', 3, 1, 'Club C', 'c-opp'),
+        { id: 'sort-d', source: 'FCTT', season: '2024-2025', competition: 'Preferent', dateTime: '2025-01-01T12:00:00Z', homeTeam: 'Club Terrassa', awayTeam: 'Club D', playerTeam: 'Club Terrassa', result: 'win' },
+      ],
+    }
+    usePlayerDetails.mockReturnValue({ data: closenessSortDetails, loading: false, error: null, retry: vi.fn() })
+    renderPage('/players/player-id?view=opponents')
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Ordena per' }), { target: { value: 'closeness' } })
+    expect(screen.getByTestId('location')).toHaveTextContent('opponentSort=closeness')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mostra 1 oponents més' }))
+    const names = [...screen.getByRole('table').querySelectorAll('tbody tr td:first-child')].map((cell) => cell.textContent)
+    expect(names).toEqual(['Club B', 'Club C', 'Club A', 'Club D'])
   })
 })
