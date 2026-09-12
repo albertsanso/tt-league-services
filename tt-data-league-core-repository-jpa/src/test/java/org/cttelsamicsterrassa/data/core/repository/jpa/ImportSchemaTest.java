@@ -363,45 +363,143 @@ class ImportSchemaTest {
     }
 
     @Test
-    void searchMatchesFiltersByPhaseWhenProvided() {
+    void searchMatchesWithoutACompetitionFilterReturnsMatchesAcrossCompetitions() {
         Team home = storedTeam("1", "CLUB A");
         Team away = storedTeam("2", "CLUB B");
-        Match firstPhase = Match.builder()
+        Match preferent = Match.builder()
                 .id(UUID.randomUUID())
                 .source(ImportSource.BCNESA)
                 .competition("Preferent")
                 .season(SEASON)
                 .groupNumber(1)
                 .round(1)
-                .phase("1a Fase")
                 .homeTeam(home)
                 .awayTeam(away)
                 .createNew();
-        Match secondPhase = Match.builder()
+        Match primera = Match.builder()
+                .id(UUID.randomUUID())
+                .source(ImportSource.BCNESA)
+                .competition("Primera")
+                .season(SEASON)
+                .groupNumber(1)
+                .round(1)
+                .homeTeam(away)
+                .awayTeam(home)
+                .createNew();
+        matchRepository.saveMatch(preferent);
+        matchRepository.saveMatch(primera);
+
+        MatchSearchCriteria withoutCompetition = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, null,
+                null, null, null, null, null, null, 0, 10);
+        assertEquals(2, matchRepository.searchMatches(withoutCompetition).size());
+        assertEquals(2, matchRepository.countMatches(withoutCompetition));
+
+        MatchSearchCriteria withCompetition = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
+                null, null, null, null, null, null, 0, 10);
+        List<Match> results = matchRepository.searchMatches(withCompetition);
+        assertEquals(1, results.size());
+        assertEquals(preferent.getId(), results.getFirst().getId());
+    }
+
+    @Test
+    void searchMatchesFiltersByClubNameCaseInsensitivelyAndByAnyFragment() {
+        Team terrassa = storedTeam("1", "CN Terrassa A");
+        Team manresa = storedTeam("2", "UE Manresa B");
+        Team alien = storedTeam("3", "CLUB ALIEN");
+        Match match = Match.builder()
                 .id(UUID.randomUUID())
                 .source(ImportSource.BCNESA)
                 .competition("Preferent")
                 .season(SEASON)
                 .groupNumber(1)
                 .round(1)
-                .phase("2a Fase")
-                .homeTeam(away)
-                .awayTeam(home)
+                .homeTeam(terrassa)
+                .awayTeam(manresa)
                 .createNew();
-        matchRepository.saveMatch(firstPhase);
-        matchRepository.saveMatch(secondPhase);
+        Match otherMatch = Match.builder()
+                .id(UUID.randomUUID())
+                .source(ImportSource.BCNESA)
+                .competition("Preferent")
+                .season(SEASON)
+                .groupNumber(1)
+                .round(2)
+                .homeTeam(alien)
+                .awayTeam(manresa)
+                .createNew();
+        matchRepository.saveMatch(match);
+        matchRepository.saveMatch(otherMatch);
 
         MatchSearchCriteria unfiltered = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
                 null, null, null, null, null, null, 0, 10);
         assertEquals(2, matchRepository.searchMatches(unfiltered).size());
         assertEquals(2, matchRepository.countMatches(unfiltered));
 
-        MatchSearchCriteria filtered = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
-                null, null, null, null, null, "1a Fase", 0, 10);
-        List<Match> results = matchRepository.searchMatches(filtered);
+        MatchSearchCriteria singleFragment = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
+                null, null, null, null, null, "terrassa", 0, 10);
+        assertEquals(1, matchRepository.searchMatches(singleFragment).size());
+
+        // Multi-word search matches ANY fragment, not the whole phrase: "terrassa" only matches the
+        // first match's home team, "alien" only matches the second match's home team, so both come back.
+        MatchSearchCriteria anyFragment = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
+                null, null, null, null, null, "terrassa alien", 0, 10);
+        List<Match> results = matchRepository.searchMatches(anyFragment);
+        assertEquals(2, results.size());
+        assertEquals(2, matchRepository.countMatches(anyFragment));
+
+        MatchSearchCriteria noMatch = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
+                null, null, null, null, null, "nonexistent", 0, 10);
+        assertEquals(0, matchRepository.searchMatches(noMatch).size());
+        assertEquals(0, matchRepository.countMatches(noMatch));
+    }
+
+    @Test
+    void searchMatchesFiltersByPlayerNameCaseInsensitivelyAndByAnyFragment() {
+        Team home = storedTeam("1", "CLUB A");
+        Team away = storedTeam("2", "CLUB B");
+        Match saved = Match.builder()
+                .id(UUID.randomUUID())
+                .source(ImportSource.BCNESA)
+                .competition("Preferent")
+                .season(SEASON)
+                .groupNumber(1)
+                .round(1)
+                .homeTeam(home)
+                .awayTeam(away)
+                .createNew();
+        matchRepository.saveMatch(saved);
+
+        FederatedPlayer federatedPlayer = FederatedPlayer.createNew(ImportSource.BCNESA, "CAMPOS, OSCAR");
+        playerRepository.saveFederatedPlayer(federatedPlayer);
+        PlayerSeason playerSeason = PlayerSeason.createNew(
+                ImportSource.BCNESA, "CAMPOS, OSCAR", "license-1", federatedPlayer, SEASON);
+        playerSeasonRepository.savePlayerSeason(playerSeason);
+        lineupRepository.saveLineups(List.of(Lineup.builder()
+                .id(UUID.randomUUID())
+                .source(ImportSource.BCNESA)
+                .match(saved)
+                .team(home)
+                .letter("A")
+                .position(1)
+                .player(playerSeason)
+                .createNew()));
+
+        MatchSearchCriteria byFullName = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
+                null, null, null, null, "oscar campos", null, 0, 10);
+        assertEquals(1, matchRepository.searchMatches(byFullName).size());
+
+        // Fragment order doesn't matter, and an extra fragment that matches nothing is ignored,
+        // because matching is ANY fragment, not the whole phrase.
+        MatchSearchCriteria byReorderedFragments = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
+                null, null, null, null, "campos oscar nonexistent", null, 0, 10);
+        List<Match> results = matchRepository.searchMatches(byReorderedFragments);
         assertEquals(1, results.size());
-        assertEquals(firstPhase.getId(), results.getFirst().getId());
-        assertEquals(1, matchRepository.countMatches(filtered));
+        assertEquals(saved.getId(), results.getFirst().getId());
+        assertEquals(1, matchRepository.countMatches(byReorderedFragments));
+
+        MatchSearchCriteria noMatch = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
+                null, null, null, null, "nonexistent alsomissing", null, 0, 10);
+        assertEquals(0, matchRepository.searchMatches(noMatch).size());
+        assertEquals(0, matchRepository.countMatches(noMatch));
     }
 
     private FederatedClub storedClub(String externalId, String name) {

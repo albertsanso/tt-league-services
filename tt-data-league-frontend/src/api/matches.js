@@ -22,12 +22,12 @@ export function searchMatches(filters, token, signal, onUnauthorized) {
   const params = new URLSearchParams({
     source: required(filters.source, 'source'),
     season: required(filters.season, 'season'),
-    competition: required(filters.competition, 'competition'),
     page: String(filters.page ?? 0),
     pageSize: '10',
   })
-  const optional = [['fromDate', filters.fromDate], ['toDate', filters.toDate], ['playerId', filters.playerId],
-    ['playerLocation', filters.playerLocation], ['playerName', filters.playerName], ['phase', filters.phase]]
+  const optional = [['competition', filters.competition], ['fromDate', filters.fromDate], ['toDate', filters.toDate],
+    ['playerId', filters.playerId], ['playerLocation', filters.playerLocation], ['playerName', filters.playerName],
+    ['clubName', filters.clubName]]
   optional.forEach(([key, value]) => {
     if (value) params.set(key, value)
   })

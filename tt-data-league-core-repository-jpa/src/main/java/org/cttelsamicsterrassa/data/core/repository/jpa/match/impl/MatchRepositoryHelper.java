@@ -18,14 +18,24 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
 
     @Query("""
             select m from MatchJPA m
-            where m.source = :source and m.season = :season and m.competition = :competition
+            where m.source = :source and m.season = :season
+              and (:competition is null or m.competition = :competition)
               and (:fromDate is null or m.matchDate >= :fromDate)
               and (:toDate is null or m.matchDate <= :toDate)
-              and (:phase is null or m.phase = :phase)
-              and (:playerName = '' or exists (
+              and (:clubNameF0 = '' or
+                   lower(m.homeTeam.name) like lower(concat('%', :clubNameF0, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF0, '%'))
+                or (:clubNameF1 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF1, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF1, '%'))))
+                or (:clubNameF2 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF2, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF2, '%'))))
+                or (:clubNameF3 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF3, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF3, '%'))))
+                or (:clubNameF4 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF4, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF4, '%')))))
+              and (:playerNameF0 = '' or exists (
                   select l.id from LineupJPA l join l.player p
                   where l.match = m and p.source = :source
-                    and lower(p.name) like lower(concat('%', :playerName, '%'))
+                    and (lower(p.name) like lower(concat('%', :playerNameF0, '%'))
+                         or (:playerNameF1 <> '' and lower(p.name) like lower(concat('%', :playerNameF1, '%')))
+                         or (:playerNameF2 <> '' and lower(p.name) like lower(concat('%', :playerNameF2, '%')))
+                         or (:playerNameF3 <> '' and lower(p.name) like lower(concat('%', :playerNameF3, '%')))
+                         or (:playerNameF4 <> '' and lower(p.name) like lower(concat('%', :playerNameF4, '%'))))
                     and (:playerLocation = 'EITHER'
                          or (:playerLocation = 'HOME' and l.team = m.homeTeam)
                          or (:playerLocation = 'AWAY' and l.team = m.awayTeam))))
@@ -47,19 +57,33 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                           @Param("toDate") java.time.LocalDate toDate,
                           @Param("playerId") UUID playerId,
                           @Param("playerLocation") String playerLocation,
-                          @Param("playerName") String playerName,
-                          @Param("phase") String phase, Pageable pageable);
+                          @Param("playerNameF0") String playerNameF0, @Param("playerNameF1") String playerNameF1,
+                          @Param("playerNameF2") String playerNameF2, @Param("playerNameF3") String playerNameF3,
+                          @Param("playerNameF4") String playerNameF4,
+                          @Param("clubNameF0") String clubNameF0, @Param("clubNameF1") String clubNameF1,
+                          @Param("clubNameF2") String clubNameF2, @Param("clubNameF3") String clubNameF3,
+                          @Param("clubNameF4") String clubNameF4, Pageable pageable);
 
     @Query("""
             select count(m) from MatchJPA m
-            where m.source = :source and m.season = :season and m.competition = :competition
+            where m.source = :source and m.season = :season
+              and (:competition is null or m.competition = :competition)
               and (:fromDate is null or m.matchDate >= :fromDate)
               and (:toDate is null or m.matchDate <= :toDate)
-              and (:phase is null or m.phase = :phase)
-              and (:playerName = '' or exists (
+              and (:clubNameF0 = '' or
+                   lower(m.homeTeam.name) like lower(concat('%', :clubNameF0, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF0, '%'))
+                or (:clubNameF1 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF1, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF1, '%'))))
+                or (:clubNameF2 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF2, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF2, '%'))))
+                or (:clubNameF3 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF3, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF3, '%'))))
+                or (:clubNameF4 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF4, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF4, '%')))))
+              and (:playerNameF0 = '' or exists (
                   select l.id from LineupJPA l join l.player p
                   where l.match = m and p.source = :source
-                    and lower(p.name) like lower(concat('%', :playerName, '%'))
+                    and (lower(p.name) like lower(concat('%', :playerNameF0, '%'))
+                         or (:playerNameF1 <> '' and lower(p.name) like lower(concat('%', :playerNameF1, '%')))
+                         or (:playerNameF2 <> '' and lower(p.name) like lower(concat('%', :playerNameF2, '%')))
+                         or (:playerNameF3 <> '' and lower(p.name) like lower(concat('%', :playerNameF3, '%')))
+                         or (:playerNameF4 <> '' and lower(p.name) like lower(concat('%', :playerNameF4, '%'))))
                     and (:playerLocation = 'EITHER'
                          or (:playerLocation = 'HOME' and l.team = m.homeTeam)
                          or (:playerLocation = 'AWAY' and l.team = m.awayTeam))))
@@ -76,8 +100,12 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                      @Param("toDate") java.time.LocalDate toDate,
                      @Param("playerId") UUID playerId,
                      @Param("playerLocation") String playerLocation,
-                     @Param("playerName") String playerName,
-                     @Param("phase") String phase);
+                     @Param("playerNameF0") String playerNameF0, @Param("playerNameF1") String playerNameF1,
+                     @Param("playerNameF2") String playerNameF2, @Param("playerNameF3") String playerNameF3,
+                     @Param("playerNameF4") String playerNameF4,
+                     @Param("clubNameF0") String clubNameF0, @Param("clubNameF1") String clubNameF1,
+                     @Param("clubNameF2") String clubNameF2, @Param("clubNameF3") String clubNameF3,
+                     @Param("clubNameF4") String clubNameF4);
 
     @Query("select m from MatchJPA m where m.source = :source order by m.matchDate desc, m.id asc")
     List<MatchJPA> findAllBySource(@Param("source") Source source);

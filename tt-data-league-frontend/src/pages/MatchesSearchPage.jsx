@@ -26,7 +26,7 @@ function MatchesSearchPage() {
     toDate: params.get('toDate') ?? '',
     playerLocation: params.get('playerLocation') ?? '',
     playerName: params.get('playerName') ?? '',
-    phase: params.get('phase') ?? '',
+    clubName: params.get('clubName') ?? '',
   }), [params])
   const filterKey = useMemo(() => JSON.stringify(filters), [filters])
 
@@ -40,7 +40,7 @@ function MatchesSearchPage() {
     filters.toDate,
     filters.playerLocation,
     filters.playerName,
-    filters.phase,
+    filters.clubName,
   ])
 
   useEffect(() => {
@@ -84,7 +84,7 @@ function MatchesSearchPage() {
     setParams(next)
   }
 
-  const canSearch = filters.source && filters.season && filters.competition
+  const canSearch = filters.source && filters.season
   const search = () => {
     if (!canSearch) return
     requestRef.current?.abort()
@@ -102,19 +102,16 @@ function MatchesSearchPage() {
       })
   }
 
-  const loadMore = () => {
+  const goToPage = (page) => {
     const activeResults = results?.filterKey === filterKey ? results : null
-    if (!activeResults?.hasNext) return
+    if (!activeResults || page < 0 || page === activeResults.page) return
     const controller = new AbortController()
     requestRef.current?.abort()
     requestRef.current = controller
     setLoading(true)
-    searchMatches({ ...filters, page: activeResults.page + 1 }, token, controller.signal, clearSession)
-      .then((next) => setResults((current) => ({
-        ...next,
-        filterKey,
-        matches: [...(current?.filterKey === filterKey ? current.matches : []), ...next.matches],
-      })))
+    setError(null)
+    searchMatches({ ...filters, page }, token, controller.signal, clearSession)
+      .then((value) => setResults({ ...value, filterKey }))
       .catch((requestError) => {
         if (requestError.name !== 'AbortError') setError(requestError)
       })
@@ -124,6 +121,45 @@ function MatchesSearchPage() {
   }
 
   const activeResults = results?.filterKey === filterKey ? results : null
+  const totalPages = activeResults ? Math.max(1, Math.ceil(activeResults.total / activeResults.pageSize)) : 0
+
+  const pagination = totalPages > 1 && activeResults ? (
+    <nav className="pagination" aria-label={t('matchesPage.paginationAriaLabel')}>
+      <button
+        type="button"
+        onClick={() => goToPage(0)}
+        disabled={loading || activeResults.page === 0}
+        aria-label={t('common.first')}
+      >
+        {t('common.first')}
+      </button>
+      <button
+        type="button"
+        onClick={() => goToPage(activeResults.page - 1)}
+        disabled={loading || activeResults.page === 0}
+        aria-label={t('common.previous')}
+      >
+        {t('common.previous')}
+      </button>
+      <span>{t('common.pageOf', { page: activeResults.page + 1, count: totalPages })}</span>
+      <button
+        type="button"
+        onClick={() => goToPage(activeResults.page + 1)}
+        disabled={loading || !activeResults.hasNext}
+        aria-label={t('common.next')}
+      >
+        {t('common.next')}
+      </button>
+      <button
+        type="button"
+        onClick={() => goToPage(totalPages - 1)}
+        disabled={loading || !activeResults.hasNext}
+        aria-label={t('common.last')}
+      >
+        {t('common.last')}
+      </button>
+    </nav>
+  ) : null
 
   return (
     <section className="page-block">
@@ -190,8 +226,8 @@ function MatchesSearchPage() {
           <label className="match-filter-field match-player-name">{t('matchesPage.playerName')}
             <input value={filters.playerName} onChange={(event) => update('playerName', event.target.value)} />
           </label>
-          <label className="match-filter-field">{t('matchesPage.phase')}
-            <input value={filters.phase} onChange={(event) => update('phase', event.target.value)} />
+          <label className="match-filter-field match-club-name">{t('matchesPage.clubName')}
+            <input value={filters.clubName} onChange={(event) => update('clubName', event.target.value)} />
           </label>
         </div>
         <button type="button" disabled={!canSearch || loading} onClick={search}>{loading ? t('matchesPage.loading') : t('common.search')}</button>
@@ -200,8 +236,9 @@ function MatchesSearchPage() {
       {loading && !activeResults ? <p role="status">{t('matchesPage.loading')}</p> : null}
       {activeResults && activeResults.matches.length === 0 ? <p role="status">{t('matchesPage.empty')}</p> : null}
       {activeResults?.matches.length ? (
-        <article className="card">
+        <article className="card match-results-card">
           <h2>{t('matchesPage.results')}</h2>
+          {pagination}
           <ul className="club-result-list" aria-label={t('matchesPage.results')}>
             {activeResults.matches.map((match) => {
               const hasActa = match.homeGamesWon != null && match.awayGamesWon != null
@@ -224,7 +261,7 @@ function MatchesSearchPage() {
               )
             })}
           </ul>
-          {activeResults.hasNext ? <button type="button" disabled={loading} onClick={loadMore}>{t('matchesPage.loadMore')}</button> : null}
+          {pagination}
         </article>
       ) : null}
       {actaMatchId ? (

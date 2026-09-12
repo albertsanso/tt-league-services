@@ -60,13 +60,13 @@ public class MatchController {
     })
     public ResponseEntity<?> search(
             @RequestParam(name = "source") String source, @RequestParam(name = "season") String season,
-            @RequestParam(name = "competition") String competition,
+            @RequestParam(name = "competition", required = false) String competition,
             @RequestParam(name = "fromDate", required = false) LocalDate fromDate,
             @RequestParam(name = "toDate", required = false) LocalDate toDate,
             @RequestParam(name = "playerId", required = false) UUID playerId,
             @RequestParam(name = "playerLocation", required = false) String playerLocation,
             @RequestParam(name = "playerName", required = false) String playerName,
-            @RequestParam(name = "phase", required = false) String phase,
+            @RequestParam(name = "clubName", required = false) String clubName,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize) {
         MatchSearchCriteria criteria;
@@ -74,7 +74,7 @@ public class MatchController {
             criteria = new MatchSearchCriteria(parseSource(source), Season.fromFormatted(season.trim()),
                     competition, fromDate, toDate, playerId,
                     playerLocation == null ? null : PlayerLocation.valueOf(playerLocation.trim().toUpperCase(Locale.ROOT)),
-                    playerName, phase, page, pageSize);
+                    playerName, clubName, page, pageSize);
         } catch (RuntimeException exception) {
             return ResponseEntity.badRequest().body(new ErrorMessage("Invalid match filters"));
         }

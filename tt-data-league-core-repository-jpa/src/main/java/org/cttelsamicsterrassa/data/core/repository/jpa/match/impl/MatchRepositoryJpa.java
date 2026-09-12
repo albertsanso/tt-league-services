@@ -106,24 +106,53 @@ public class MatchRepositoryJpa implements MatchRepository {
 
     @Override
     public List<Match> searchMatches(MatchSearchCriteria criteria) {
+        String[] playerNameFragments = nameFragments(criteria.playerName());
+        String[] clubNameFragments = nameFragments(criteria.clubName());
         return matchRepositoryHelper.search(Source.valueOf(criteria.source().name()),
                         criteria.season().toString(), criteria.competition(), criteria.fromDate(), criteria.toDate(),
                         criteria.playerId(),
                         criteria.playerLocation() == null ? PlayerLocation.EITHER.name() : criteria.playerLocation().name(),
-                        criteria.playerName() == null ? "" : criteria.playerName(),
-                        criteria.phase(),
+                        playerNameFragments[0], playerNameFragments[1], playerNameFragments[2],
+                        playerNameFragments[3], playerNameFragments[4],
+                        clubNameFragments[0], clubNameFragments[1], clubNameFragments[2],
+                        clubNameFragments[3], clubNameFragments[4],
                         PageRequest.of(criteria.page(), criteria.pageSize()))
                 .stream().map(matchJPAToMatchMapper).toList();
     }
 
     @Override
     public long countMatches(MatchSearchCriteria criteria) {
+        String[] playerNameFragments = nameFragments(criteria.playerName());
+        String[] clubNameFragments = nameFragments(criteria.clubName());
         return matchRepositoryHelper.countSearch(Source.valueOf(criteria.source().name()),
                 criteria.season().toString(), criteria.competition(), criteria.fromDate(), criteria.toDate(),
                 criteria.playerId(),
                 criteria.playerLocation() == null ? PlayerLocation.EITHER.name() : criteria.playerLocation().name(),
-                criteria.playerName() == null ? "" : criteria.playerName(),
-                criteria.phase());
+                playerNameFragments[0], playerNameFragments[1], playerNameFragments[2],
+                playerNameFragments[3], playerNameFragments[4],
+                clubNameFragments[0], clubNameFragments[1], clubNameFragments[2],
+                clubNameFragments[3], clubNameFragments[4]);
+    }
+
+    /**
+     * Splits a free-text search term into up to {@value #MAX_NAME_FRAGMENTS} whitespace-separated
+     * fragments so the search can match a name containing ANY of the fragments (e.g. "oscar campos"
+     * matches a name containing "oscar" or "campos"). Unused slots are empty strings, which the
+     * matching query treats as "no fragment" rather than "match everything".
+     */
+    private static final int MAX_NAME_FRAGMENTS = 5;
+
+    private static String[] nameFragments(String value) {
+        String[] fragments = new String[MAX_NAME_FRAGMENTS];
+        java.util.Arrays.fill(fragments, "");
+        if (value == null || value.isBlank()) {
+            return fragments;
+        }
+        String[] parts = value.trim().split("\\s+");
+        for (int i = 0; i < parts.length && i < MAX_NAME_FRAGMENTS; i++) {
+            fragments[i] = parts[i];
+        }
+        return fragments;
     }
 
     @Override

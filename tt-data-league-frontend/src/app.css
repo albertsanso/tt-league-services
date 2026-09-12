@@ -1672,6 +1672,15 @@
   font-size: 1.25rem;
 }
 
+.match-results-card {
+  padding: 1.25rem;
+}
+
+.match-results-card h2 {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+}
+
 .match-filter-grid {
   display: grid;
   grid-template-columns: minmax(8rem, 1fr) minmax(8rem, 1fr) minmax(10rem, 1.2fr) minmax(17rem, 2fr);
@@ -1734,9 +1743,9 @@
   font-size: 0.85rem;
 }
 
-.match-player-name {
-  grid-column: 1 / -1;
-  max-width: 34rem;
+.match-player-name,
+.match-club-name {
+  grid-column: span 2;
 }
 
 .match-filter-card > button {
@@ -2002,10 +2011,6 @@
   .user-row-status {
     grid-column: span 1;
   }
-
-  .match-player-name {
-    max-width: none;
-  }
 }
 
 @media (max-width: 520px) {
@@ -2015,7 +2020,8 @@
 
   .match-date-range,
   .match-player-location,
-  .match-player-name {
+  .match-player-name,
+  .match-club-name {
     grid-column: auto;
   }
 
@@ -2694,7 +2700,7 @@
   align-items: center;
   justify-content: center;
   gap: 1rem;
-  margin-top: 1rem;
+  margin: 1rem 0;
   font-size: 0.8rem;
 }
 

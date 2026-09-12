@@ -15,13 +15,13 @@ public record MatchSearchCriteria(
         UUID playerId,
         PlayerLocation playerLocation,
         String playerName,
-        String phase,
+        String clubName,
         int page,
         int pageSize) {
 
     public MatchSearchCriteria {
-        if (source == null || season == null || competition == null || competition.isBlank()) {
-            throw new IllegalArgumentException("source, season and competition are mandatory");
+        if (source == null || season == null) {
+            throw new IllegalArgumentException("source and season are mandatory");
         }
         if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
             throw new IllegalArgumentException("fromDate must not be after toDate");
@@ -29,9 +29,9 @@ public record MatchSearchCriteria(
         if (page < 0 || pageSize < 1 || pageSize > 100) {
             throw new IllegalArgumentException("page must be non-negative and pageSize must be between 1 and 100");
         }
-        competition = competition.trim();
+        competition = competition == null || competition.isBlank() ? null : competition.trim();
         playerName = playerName == null || playerName.isBlank() ? null : playerName.trim();
-        phase = phase == null || phase.isBlank() ? null : phase.trim();
+        clubName = clubName == null || clubName.isBlank() ? null : clubName.trim();
     }
 
     public MatchSearchCriteria(

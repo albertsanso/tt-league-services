@@ -24,7 +24,6 @@ This file is the single source of truth for planned, in-progress, and completed 
 ## Main index
 
 - [FEAT-00056: Matches search improvements](### [FEAT-00056] Matches search improvements)
-
 - [FEAT-00055: Access actas from Matches search](### [FEAT-00055] Access actas from Matches search)
 - [FEAT-00054: Club detail Summary and Stats tabs](### [FEAT-00054] Club detail Summary and Stats tabs)
 - [FEAT-00053: Link list of club players to Player details](### [FEAT-00053] Link list of club players to Player details)
@@ -38,8 +37,11 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
+No features currently in the backlog.
+## Done
+
 ### [FEAT-00056] Matches search improvements
-- **Status:** idea
+- **Status:** done
 - **Priority:** medium
 - **Effort:** medium
 - **Depends on:** —
@@ -47,14 +49,26 @@ No features currently in review.
 #### Goal
 Improve the Matches search experience for users (scope to be refined).
 
+#### Description
+1. In the matches search filters, add a Club name filter as a free text search field, allowing users to filter matches by club name (home or away).
+2. Remove Phase filter from the matches search filters, as it is not relevant to the majority of users and adds unnecessary complexity.
+3. The text searches like Player name and Club name should support partial using fragments matches and be case-insensitive, improving usability.
+4. The search button is only enabled once the minimum required filters are set: Source/Federation and Season. Competition and every other filter are optional.
+5. Add pagination to Matches search results, allowing navigation between next page, previous page, and first/last page.
+
 #### Acceptance Criteria
-- [ ] Define concrete scope and acceptance criteria for this feature
+- [x] Matches search filters include a Club name filter as a free text search field, allowing users to filter matches by club name (home or away)
+- [x] Phase filter is removed from the matches search filters
+- [x] Text searches like Player name and Club name match ANY whitespace-separated fragment of the search term (not the whole phrase) and are case-insensitive
+- [x] The search button is enabled once Source and Season are set; Competition and all other filters are optional
+- [x] Matches search results show pagination controls to navigate to the first page, previous page, next page, and last page, duplicated both above and below the results list; controls are hidden when everything fits on one page and disabled at the start/end of the range
+- [x] Implementation matches the layout, filter order, and content documented in [`/docs/frontend/match-search-filters-mockup-spec.md`](../frontend/match-search-filters-mockup-spec.md); any deviation is noted in FEAT-00056-DETAILS.md before merging
+- [x] Existing matches search tests are updated/extended to cover the new filter and pagination behavior
 
 #### Feature Details
 → See [FEAT-00056-DETAILS.md](./FEAT-00056-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-## Done
 
 ### [FEAT-00055] Access actas from Matches search
 - **Status:** done
