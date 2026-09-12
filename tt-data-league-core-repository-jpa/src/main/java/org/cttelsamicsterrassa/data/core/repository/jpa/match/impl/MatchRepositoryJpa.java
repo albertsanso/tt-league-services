@@ -151,9 +151,10 @@ public class MatchRepositoryJpa implements MatchRepository {
 
     /**
      * Splits a free-text search term into up to {@value #MAX_NAME_FRAGMENTS} whitespace-separated
-     * fragments so the search can match a name containing ANY of the fragments (e.g. "oscar campos"
-     * matches a name containing "oscar" or "campos"). Unused slots are empty strings, which the
-     * matching query treats as "no fragment" rather than "match everything".
+     * fragments so the search can match only when ALL fragments are found (e.g. "oscar campos"
+     * matches a match containing "oscar" and "campos", each possibly in a different field: home/away
+     * club name or a lineup player's name). Unused slots are empty strings, which the matching query
+     * treats as "no fragment" (vacuously satisfied) rather than "match everything".
      */
     private static final int MAX_NAME_FRAGMENTS = 5;
 
