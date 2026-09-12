@@ -134,6 +134,21 @@ public class MatchRepositoryJpa implements MatchRepository {
                 clubNameFragments[3], clubNameFragments[4]);
     }
 
+    @Override
+    public List<Match> findAllMatchesByFragmentsInName(List<String> fragments, int limit) {
+        String[] nameFragments = new String[MAX_NAME_FRAGMENTS];
+        java.util.Arrays.fill(nameFragments, "");
+        if (fragments != null) {
+            for (int i = 0; i < fragments.size() && i < MAX_NAME_FRAGMENTS; i++) {
+                nameFragments[i] = fragments.get(i);
+            }
+        }
+        return matchRepositoryHelper.searchByFragmentsInName(
+                        nameFragments[0], nameFragments[1], nameFragments[2], nameFragments[3], nameFragments[4],
+                        PageRequest.of(0, limit))
+                .stream().map(matchJPAToMatchMapper).toList();
+    }
+
     /**
      * Splits a free-text search term into up to {@value #MAX_NAME_FRAGMENTS} whitespace-separated
      * fragments so the search can match a name containing ANY of the fragments (e.g. "oscar campos"

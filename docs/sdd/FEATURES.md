@@ -23,8 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00058: Global search](### [FEAT-00058] Global search)
 - [FEAT-00057: Match Summary landing page](### [FEAT-00057] Match Summary landing page)
-
 - [FEAT-00056: Matches search improvements](### [FEAT-00056] Matches search improvements)
 - [FEAT-00055: Access actas from Matches search](### [FEAT-00055] Access actas from Matches search)
 - [FEAT-00054: Club detail Summary and Stats tabs](### [FEAT-00054] Club detail Summary and Stats tabs)
@@ -41,6 +41,29 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00058] Global search
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Let a user search across players, clubs, and matches from one global search entry point instead of navigating to each dedicated search page separately.
+
+In the Landing page, in Global Search component, when typing in the global search text box, the suggestion dropdown should show results grouped by entity type (Players, Clubs, Matches).
+Selecting a result should navigate to the corresponding detail/search page for that entity, consistent with existing linking patterns.
+
+#### Acceptance Criteria
+- [x] A global search entry point (e.g. header search bar) is accessible from the main app navigation
+- [x] Entering a query returns matching results grouped by entity type (Players, Clubs, Matches)
+- [x] Selecting a result navigates to the corresponding detail/search page for that entity, consistent with existing linking patterns
+- [x] Implementation matches the layout, grouping, and content documented in [`/docs/frontend/global-search-mockup-spec.md`](../frontend/global-search-mockup-spec.md); any deviation is noted in FEAT-00058-DETAILS.md before merging
+
+#### Feature Details
+→ See [FEAT-00058-DETAILS.md](./FEAT-00058-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00057] Match Summary landing page
 - **Status:** done
@@ -169,6 +192,18 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

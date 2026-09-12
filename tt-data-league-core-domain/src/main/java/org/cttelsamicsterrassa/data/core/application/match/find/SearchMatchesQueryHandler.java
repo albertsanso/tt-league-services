@@ -51,7 +51,7 @@ public class SearchMatchesQueryHandler extends DomainQueryHandler<SearchMatchesQ
         }
     }
 
-    private static MatchSearchReadModel toReadModel(Match match, List<Lineup> lineups) {
+    static MatchSearchReadModel toReadModel(Match match, List<Lineup> lineups) {
         var homePlayers = lineups.stream().filter(value -> value.getTeam() != null
                         && match.getHomeTeam() != null && match.getHomeTeam().getId().equals(value.getTeam().getId()))
                 .map(SearchMatchesQueryHandler::player).toList();
@@ -67,7 +67,7 @@ public class SearchMatchesQueryHandler extends DomainQueryHandler<SearchMatchesQ
                 match.getHomeSetsWon(), match.getAwaySetsWon(), match.isProtested(), homePlayers, awayPlayers);
     }
 
-    private static MatchSearchReadModel.PlayerReadModel player(Lineup lineup) {
+    static MatchSearchReadModel.PlayerReadModel player(Lineup lineup) {
         var player = lineup.getPlayer();
         return new MatchSearchReadModel.PlayerReadModel(player.getId(), player.getName(), player.getLicenseId());
     }

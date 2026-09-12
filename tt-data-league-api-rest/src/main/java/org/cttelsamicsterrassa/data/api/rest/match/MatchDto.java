@@ -12,7 +12,7 @@ public record MatchDto(UUID id, String source, String competition, String season
                        Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon,
                        Integer awaySetsWon, boolean protested,
                        List<PlayerDto> homePlayers, List<PlayerDto> awayPlayers) {
-    static MatchDto from(MatchSearchReadModel value) {
+    public static MatchDto from(MatchSearchReadModel value) {
         return new MatchDto(value.id(), name(value.source()), value.competition(),
                 value.season() == null ? null : value.season().toString(), value.round(), value.phase(),
                 value.dateTime(),

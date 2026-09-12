@@ -49,6 +49,15 @@ public interface MatchRepository {
     default List<Match> searchMatches(MatchSearchCriteria criteria) {
         return List.of();
     }
+
+    /**
+     * Source/season-agnostic free-text lookup by player or club name, capped to {@code limit} results
+     * ordered by most recent first. Used by global search, where the query is name-only and does not
+     * carry the mandatory source/season scoping that {@link #searchMatches} requires.
+     */
+    default List<Match> findAllMatchesByFragmentsInName(List<String> fragments, int limit) {
+        return List.of();
+    }
     default long countMatches(MatchSearchCriteria criteria) {
         return 0;
     }

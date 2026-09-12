@@ -107,6 +107,33 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                      @Param("clubNameF2") String clubNameF2, @Param("clubNameF3") String clubNameF3,
                      @Param("clubNameF4") String clubNameF4);
 
+    @Query("""
+            select m from MatchJPA m
+            where (:clubNameF0 = '' or
+                   lower(m.homeTeam.name) like lower(concat('%', :clubNameF0, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF0, '%'))
+                or (:clubNameF1 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF1, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF1, '%'))))
+                or (:clubNameF2 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF2, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF2, '%'))))
+                or (:clubNameF3 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF3, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF3, '%'))))
+                or (:clubNameF4 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF4, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF4, '%')))))
+              or exists (
+                  select l.id from LineupJPA l join l.player p
+                  where l.match = m
+                    and (lower(p.name) like lower(concat('%', :clubNameF0, '%'))
+                         or (:clubNameF1 <> '' and lower(p.name) like lower(concat('%', :clubNameF1, '%')))
+                         or (:clubNameF2 <> '' and lower(p.name) like lower(concat('%', :clubNameF2, '%')))
+                         or (:clubNameF3 <> '' and lower(p.name) like lower(concat('%', :clubNameF3, '%')))
+                         or (:clubNameF4 <> '' and lower(p.name) like lower(concat('%', :clubNameF4, '%'))))
+              )
+            order by case when m.matchDate is null then 1 else 0 end asc,
+                     m.matchDate desc,
+                     case when m.matchTime is null then 1 else 0 end asc,
+                     m.matchTime desc,
+                     m.id asc
+            """)
+    List<MatchJPA> searchByFragmentsInName(@Param("clubNameF0") String clubNameF0, @Param("clubNameF1") String clubNameF1,
+                          @Param("clubNameF2") String clubNameF2, @Param("clubNameF3") String clubNameF3,
+                          @Param("clubNameF4") String clubNameF4, Pageable pageable);
+
     @Query("select m from MatchJPA m where m.source = :source order by m.matchDate desc, m.id asc")
     List<MatchJPA> findAllBySource(@Param("source") Source source);
 
