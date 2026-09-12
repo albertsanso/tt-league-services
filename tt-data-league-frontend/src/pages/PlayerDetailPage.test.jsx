@@ -149,7 +149,7 @@ describe('PlayerDetailPage', () => {
     renderPage('/players/player-id?view=matches')
 
     expect(screen.getByRole('tabpanel', { name: 'Partits' })
-      .querySelectorAll('.match-opponent-list .match-game-row, .match-result-list .match-game-row')).toHaveLength(0)
+      .querySelectorAll('.match-card-game-row')).toHaveLength(0)
     expect(screen.getAllByText('—')).not.toHaveLength(0)
 
     cleanup()
@@ -190,23 +190,21 @@ describe('PlayerDetailPage', () => {
 
     renderPage('/players/player-id?view=matches')
 
-    const row = screen.getByRole('table').querySelector('tbody tr')
-    expect(row).toHaveTextContent('Opponent Player')
-    expect(row.querySelector('td:last-child')).toHaveTextContent('Club Beta')
-    expect(row.querySelectorAll('.match-opponent-list .match-game-row')).toHaveLength(1)
-    expect(row.querySelectorAll('.match-result-list .match-game-row')).toHaveLength(1)
-    const resultRow = row.querySelector('.match-result-list .match-game-row')
-    expect(resultRow).toHaveTextContent('3-1')
-    expect(resultRow).toHaveTextContent('Victòria')
-    expect(resultRow).toHaveClass('match-result-win')
-    const matchScore = row.querySelector('td:nth-last-child(2) .match-game-row')
+    const card = document.querySelector('.match-card')
+    expect(card).toHaveTextContent('Opponent Player')
+    expect(card.querySelector('.match-card-opponent')).toHaveTextContent('Club Beta')
+    expect(card.querySelectorAll('.match-card-game-row')).toHaveLength(1)
+    const gameResult = card.querySelector('.match-card-game-row .match-card-game-result')
+    expect(gameResult).toHaveTextContent('3-1')
+    expect(gameResult).toHaveTextContent('Victòria')
+    expect(gameResult).toHaveClass('match-result-win')
+    const matchScore = card.querySelector('.match-card-score')
     expect(matchScore).toHaveTextContent('4 — 2')
     expect(matchScore).not.toHaveTextContent('Derrota')
-    expect(matchScore).toHaveClass('match-result-loss')
-    expect(row.querySelector('td:last-child')).toHaveTextContent('Club Beta')
+    expect(card.querySelector('.match-card-badge')).toHaveClass('match-result-loss')
   })
 
-  it('shows round, group number, and phase for each match, falling back to unavailable when missing', () => {
+  it('shows round, group, and phase as chips only when present, omitting them when missing', () => {
     usePlayerDetails.mockReturnValue({
       data: {
         ...details,
@@ -222,12 +220,15 @@ describe('PlayerDetailPage', () => {
 
     renderPage('/players/player-id?view=matches')
 
-    const rows = screen.getByRole('table').querySelectorAll('tbody tr')
-    expect(rows[0]).toHaveTextContent('4')
-    expect(rows[0]).toHaveTextContent('No disponible')
-    expect(rows[1]).toHaveTextContent('3')
-    expect(rows[1]).toHaveTextContent('2')
-    expect(rows[1]).toHaveTextContent('Regular Season')
+    const cards = document.querySelectorAll('.match-card')
+    // cards[0] is the most recent match (matches[1]: round 4, no group/phase).
+    expect(cards[0]).toHaveTextContent('Jornada 4')
+    expect(cards[0].querySelectorAll('.match-card-chips .chip')).toHaveLength(2)
+    // cards[1] is the older match (matches[0]: round 3, group 2, phase Regular Season).
+    expect(cards[1]).toHaveTextContent('Jornada 3')
+    expect(cards[1].querySelectorAll('.match-card-chips .chip')).toHaveLength(4)
+    expect(cards[1]).toHaveTextContent('2')
+    expect(cards[1]).toHaveTextContent('Regular Season')
   })
 
   it('styles a losing game result red beside its set score', () => {
@@ -260,10 +261,10 @@ describe('PlayerDetailPage', () => {
 
     renderPage('/players/player-id?view=matches')
 
-    const resultRow = screen.getByRole('table').querySelector('.match-result-list .match-game-row')
-    expect(resultRow).toHaveTextContent('1-3')
-    expect(resultRow).toHaveTextContent('Derrota')
-    expect(resultRow).toHaveClass('match-result-loss')
+    const gameResult = document.querySelector('.match-card-game-row .match-card-game-result')
+    expect(gameResult).toHaveTextContent('1-3')
+    expect(gameResult).toHaveTextContent('Derrota')
+    expect(gameResult).toHaveClass('match-result-loss')
   })
 
   it('deduplicates doubles opponents and omits unavailable game rows', () => {
@@ -304,15 +305,14 @@ describe('PlayerDetailPage', () => {
 
     renderPage('/players/player-id?view=matches')
 
-    const row = screen.getByRole('table').querySelector('tbody tr')
-    expect(row).toHaveTextContent('Opponent A, Opponent B')
-    expect(row.querySelectorAll('.match-opponent-list .match-game-row')).toHaveLength(1)
-    expect(row.querySelectorAll('.match-result-list .match-game-row')).toHaveLength(1)
-    const resultRow = row.querySelectorAll('.match-result-list .match-game-row')[0]
-    expect(resultRow).toHaveTextContent('3-2')
-    expect(resultRow).toHaveTextContent('Victòria')
-    expect(resultRow).toHaveClass('match-result-win')
-    expect(row.querySelector('td:last-child')).toHaveTextContent('Club Beta')
+    const card = document.querySelector('.match-card')
+    expect(card).toHaveTextContent('Opponent A, Opponent B')
+    expect(card.querySelectorAll('.match-card-game-row')).toHaveLength(1)
+    const gameResult = card.querySelector('.match-card-game-row .match-card-game-result')
+    expect(gameResult).toHaveTextContent('3-2')
+    expect(gameResult).toHaveTextContent('Victòria')
+    expect(gameResult).toHaveClass('match-result-win')
+    expect(card.querySelector('.match-card-opponent')).toHaveTextContent('Club Beta')
   })
 
   it('shows unavailable values when game opponents have no identity', () => {
@@ -339,10 +339,9 @@ describe('PlayerDetailPage', () => {
 
     renderPage('/players/player-id?view=matches')
 
-    const row = screen.getByRole('table').querySelector('tbody tr')
-    expect(row.querySelectorAll('.match-opponent-list .match-game-row')).toHaveLength(0)
-    expect(row.querySelectorAll('.match-result-list .match-game-row')).toHaveLength(0)
-    expect(row.querySelector('td:last-child')).toHaveTextContent('Club Beta')
+    const card = document.querySelector('.match-card')
+    expect(card.querySelectorAll('.match-card-game-row')).toHaveLength(0)
+    expect(card.querySelector('.match-card-opponent')).toHaveTextContent('Club Beta')
   })
 
   it('changes tab with the keyboard without resetting query filters', () => {
@@ -482,8 +481,8 @@ describe('PlayerDetailPage', () => {
     })
 
     renderPage('/players/player-id?view=matches')
-    const resultRow = screen.getByRole('table').querySelector('.match-result-list .match-game-row')
-    expect(resultRow).toHaveClass('match-result-loss')
+    const gameResult = document.querySelector('.match-card-game-row .match-card-game-result')
+    expect(gameResult).toHaveClass('match-result-loss')
     cleanup()
 
     usePlayerDetails.mockReturnValue({
@@ -843,13 +842,13 @@ describe('PlayerDetailPage', () => {
     usePlayerDetails.mockReturnValue({ data: { ...details, matches }, loading: false, error: null, retry: vi.fn() })
     renderPage('/players/player-id?view=matches')
 
-    expect(screen.getByRole('table').querySelectorAll('tbody tr')).toHaveLength(10)
-    expect(screen.getByRole('table').querySelector('tbody tr')).toHaveTextContent('Opponent 10')
+    expect(document.querySelectorAll('.match-card')).toHaveLength(10)
+    expect(document.querySelector('.match-card')).toHaveTextContent('Opponent 10')
     expect(screen.getByText('Pàgina 1 de 2')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Següent' }))
-    expect(screen.getByRole('table').querySelectorAll('tbody tr')).toHaveLength(1)
-    expect(screen.getByRole('table').querySelector('tbody tr')).toHaveTextContent('Opponent 0')
+    expect(document.querySelectorAll('.match-card')).toHaveLength(1)
+    expect(document.querySelector('.match-card')).toHaveTextContent('Opponent 0')
   })
 
   it('removes the legacy detail sections from the player detail view', () => {
@@ -1024,12 +1023,16 @@ describe('PlayerDetailPage', () => {
     expect(screen.queryByText('Historial cara a cara amb Club Beta')).not.toBeInTheDocument()
   })
 
-  it('labels every match row cell for the stacked mobile layout', () => {
+  it('renders each match as a self-contained card with no table markup, so nothing needs a mobile column collapse', () => {
     renderPage('/players/player-id?view=matches')
 
-    const row = screen.getByRole('table').querySelector('tbody tr')
-    const labels = [...row.querySelectorAll('td')].map((cell) => cell.getAttribute('data-label'))
-    expect(labels).toEqual(['Data', 'Font', 'Temporada', 'Competició', 'Jornada', 'Grup', 'Fase', 'Oponent', 'Resultat', 'Marcador', 'Equip oponent'])
+    expect(document.querySelector('.match-history table')).not.toBeInTheDocument()
+    const card = document.querySelector('.match-card')
+    expect(card.tagName).toBe('DETAILS')
+    expect(card.querySelector('.match-card-badge')).toBeInTheDocument()
+    expect(card.querySelector('.match-card-opponent')).toBeInTheDocument()
+    expect(card.querySelector('.match-card-score')).toBeInTheDocument()
+    expect(card.querySelector('.match-card-date')).toBeInTheDocument()
   })
 
   it('orders favorable opponents by win quality, dominant wins first', () => {

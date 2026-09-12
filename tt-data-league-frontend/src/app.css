@@ -2688,27 +2688,6 @@
   vertical-align: top;
 }
 
-.match-game-list {
-  display: grid;
-  gap: 0.25rem;
-  min-width: 10rem;
-}
-
-.match-game-row {
-  display: block;
-  min-height: 1.65rem;
-  padding: 0.25rem 0.4rem;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-card-sub);
-}
-
-.match-game-result-row {
-  display: flex;
-  gap: 0.65rem;
-  align-items: center;
-  white-space: nowrap;
-}
-
 .match-result-win {
   color: var(--color-success);
 }
@@ -2717,8 +2696,175 @@
   color: var(--color-error);
 }
 
+.match-result-draw {
+  color: var(--color-warning);
+}
+
 .table-wrap {
   overflow-x: auto;
+}
+
+.match-card-list {
+  display: grid;
+  gap: 0.65rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.match-card {
+  padding: 0;
+}
+
+.match-card-summary {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.match-card-summary::-webkit-details-marker {
+  display: none;
+}
+
+.match-card-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  font-size: 0.85rem;
+  background: var(--surface-card-sub);
+}
+
+.match-card-badge.match-result-win {
+  background: var(--color-success-bg);
+}
+
+.match-card-badge.match-result-loss {
+  background: var(--color-error-bg);
+}
+
+.match-card-badge.match-result-draw {
+  background: var(--color-warning-bg);
+}
+
+.match-card-heading {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.match-card-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.match-card-opponent {
+  font-weight: 700;
+}
+
+.match-card-score {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.match-card-competition {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.match-card-chips {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.chip {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--surface-card-sub);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+}
+
+.match-card-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.4rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.match-card-date {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.match-card-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--accent-primary);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.match-card-toggle::after {
+  content: '▾';
+  transition: transform 150ms ease;
+}
+
+.match-card[open] .match-card-toggle::after {
+  transform: rotate(180deg);
+}
+
+.match-card-games {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0 1rem 0.85rem;
+}
+
+.match-card-game-row {
+  display: grid;
+  grid-template-columns: 5rem 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.4rem;
+  background: var(--surface-card-sub);
+  font-size: 0.85rem;
+}
+
+.match-card-game-type {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.match-card-game-result {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.match-card-game-score {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
 }
 
 .opponent-tabs {
@@ -2957,13 +3103,11 @@
 }
 
 @media (max-width: 640px) {
-  .match-history .history-table,
   .opponent-table .history-table,
   .opponent-history-detail .history-table {
     border: 0;
   }
 
-  .match-history .history-table thead,
   .opponent-table .history-table thead,
   .opponent-history-detail .history-table thead {
     position: absolute;
@@ -2977,14 +3121,12 @@
     border: 0;
   }
 
-  .match-history .history-table tbody,
   .opponent-table .history-table tbody,
   .opponent-history-detail .history-table tbody {
     display: grid;
     gap: 0.75rem;
   }
 
-  .match-history .history-table tbody tr,
   .opponent-table .history-table tr.opponent-row,
   .opponent-history-detail .history-table tbody tr {
     display: grid;
@@ -3005,7 +3147,6 @@
     border: 0;
   }
 
-  .match-history .history-table td,
   .opponent-table .history-table tr.opponent-row td,
   .opponent-history-detail .history-table td {
     display: flex;
@@ -3017,7 +3158,6 @@
     text-align: right;
   }
 
-  .match-history .history-table td[data-label]::before,
   .opponent-table .history-table tr.opponent-row td[data-label]::before,
   .opponent-history-detail .history-table td[data-label]::before {
     content: attr(data-label);
@@ -3041,8 +3181,20 @@
     border-radius: 0 0 0.5rem 0.5rem;
   }
 
-  .match-game-list {
-    min-width: 0;
+  .match-card-summary {
+    grid-template-columns: auto 1fr;
+  }
+
+  .match-card-side {
+    grid-column: 1 / -1;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .match-card-game-row {
+    grid-template-columns: 1fr;
+    gap: 0.25rem;
   }
 }
 

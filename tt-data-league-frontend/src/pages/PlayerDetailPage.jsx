@@ -240,25 +240,9 @@ function MatchHistoryPanel({ matches, t }) {
     <h2 id="player-matches-title">{t('common.matches')}</h2>
     {matches.length === 0 ? <p className="club-empty card" role="status">{t('detail.competitionEmpty')}</p> : (
       <div className="match-history">
-        <div className="table-wrap">
-          <table className="history-table">
-            <caption>{t('common.matches')}</caption>
-            <thead><tr><th>{t('common.date')}</th><th>{t('common.source')}</th><th>{t('common.season')}</th><th>{t('common.competition')}</th><th>{t('matchesPage.round')}</th><th>{t('matchesPage.group')}</th><th>{t('matchesPage.phase')}</th><th>{t('common.opponent')}</th><th>{t('common.result')}</th><th>{t('common.score')}</th><th>{t('common.opponentTeam')}</th></tr></thead>
-            <tbody>{visibleMatches.map((item) => <tr key={item.id}>
-              <td data-label={t('common.date')}>{item.dateTime ? new Date(item.dateTime).toLocaleDateString(i18n.language) : t('common.noData')}</td>
-              <td data-label={t('common.source')}>{item.source}</td>
-              <td data-label={t('common.season')}>{item.season}</td>
-              <td data-label={t('common.competition')}>{item.competition}</td>
-              <td data-label={t('matchesPage.round')}>{item.round ?? t('common.unavailable')}</td>
-              <td data-label={t('matchesPage.group')}>{item.groupNumber ?? t('common.unavailable')}</td>
-              <td data-label={t('matchesPage.phase')}>{item.phase ?? t('common.unavailable')}</td>
-              <td data-label={t('common.opponent')}><div className="match-game-list match-opponent-list" role="list">{matchOpponentRows(item, t)}</div></td>
-              <td data-label={t('common.result')}><div className="match-game-list match-result-list" role="list">{matchResultRows(item, t)}</div></td>
-              <td data-label={t('common.score')}>{matchScoreResult(item, t)}</td>
-              <td data-label={t('common.opponentTeam')}>{opponentTeamName(item, t)}</td>
-            </tr>)}</tbody>
-          </table>
-        </div>
+        <ul className="match-card-list" aria-labelledby="player-matches-title">
+          {visibleMatches.map((item) => <MatchCard key={item.id} match={item} t={t} />)}
+        </ul>
         {pageCount > 1 ? <nav className="pagination" aria-label={t('common.matches')}>
           <button type="button" onClick={() => setPage((current) => current - 1)} disabled={page === 0}>{t('common.previous')}</button>
           <span aria-live="polite">{t('common.pageOf', { page: page + 1, count: pageCount })}</span>
@@ -267,6 +251,49 @@ function MatchHistoryPanel({ matches, t }) {
       </div>
     )}
   </section>
+}
+
+function MatchCard({ match, t }) {
+  const games = matchGameRows(match, t)
+  return <li>
+    <details className="match-card card">
+      <summary className="match-card-summary">
+        <span className={`match-card-badge match-result-${match.result}`} title={resultLabel(match.result, t)}>
+          {resultBadgeLabel(match.result, t)}
+        </span>
+        <span className="match-card-heading">
+          <span className="match-card-title-row">
+            <span className="match-card-opponent">{opponentTeamName(match, t)}</span>
+            <span className="match-card-score">{scoreLabel(match, t)}</span>
+          </span>
+          <span className="match-card-competition">
+            {match.competition}
+            {match.round != null ? ` · ${t('matchesPage.round')} ${match.round}` : ''}
+          </span>
+          <span className="match-card-chips">
+            {match.season ? <span className="chip" title={t('common.season')}>{match.season}</span> : null}
+            {match.source ? <span className="chip" title={t('common.source')}>{match.source}</span> : null}
+            {match.groupNumber != null ? <span className="chip" title={t('matchesPage.group')}>{match.groupNumber}</span> : null}
+            {match.phase ? <span className="chip" title={t('matchesPage.phase')}>{match.phase}</span> : null}
+          </span>
+        </span>
+        <span className="match-card-side">
+          <span className="match-card-date">{match.dateTime ? new Date(match.dateTime).toLocaleDateString(i18n.language) : t('common.noData')}</span>
+          <span className="match-card-toggle">{t('matchesPage.games')} ({games.length})</span>
+        </span>
+      </summary>
+      <div className="match-card-games" role="list" aria-label={t('matchesPage.games')}>
+        {games.map((game) => <div className="match-card-game-row" role="listitem" key={game.id}>
+          <span className="match-card-game-type">{game.typeLabel}</span>
+          <span className="match-card-game-opponents">{game.opponents}</span>
+          <span className={`match-card-game-result match-result-${game.result}`}>
+            <span className="match-card-game-outcome">{game.resultLabel}</span>
+            <span className="match-card-game-score">{game.scoreLabel}</span>
+          </span>
+        </div>)}
+      </div>
+    </details>
+  </li>
 }
 
 function OpponentAnalysisPanel({ matches, opponentView, params, update, t }) {
@@ -742,50 +769,32 @@ function opponentName(match) {
   return match.playerTeam === match.homeTeam ? match.awayTeam : match.homeTeam
 }
 
-function matchOpponentRows(match, t) {
-  const games = gamesWithOpponentInfo(match)
-  return games.map((game) => {
-    const opponents = new Map()
-    game.opponents.forEach((opponent) => {
-      const key = opponentKey(opponent)
-      if (!opponents.has(key)) opponents.set(key, opponent.available ? opponent.name : t('common.unavailable'))
-    })
-    return matchGameRow(opponents.size > 0 ? [...opponents.values()].join(', ') : t('common.unavailable'), game.id)
-  })
+function matchGameRows(match, t) {
+  return gamesWithOpponentInfo(match).map((game) => ({
+    id: game.id,
+    result: game.result,
+    typeLabel: game.type === 'DOUBLES' ? t('detail.doubles') : t('detail.singles'),
+    opponents: gameOpponentNames(game, t),
+    resultLabel: resultLabel(game.result, t),
+    scoreLabel: game.homeSetsWon == null || game.awaySetsWon == null ? t('detail.unavailableScore') : `${game.homeSetsWon}-${game.awaySetsWon}`,
+  }))
 }
 
-function matchResultRows(match, t) {
-  const games = gamesWithOpponentInfo(match)
-  return games.map((game) => matchGameResultRow(game, t))
+function gameOpponentNames(game, t) {
+  const opponents = new Map()
+  game.opponents.forEach((opponent) => {
+    const key = opponentKey(opponent)
+    if (!opponents.has(key)) opponents.set(key, opponent.available ? opponent.name : t('common.unavailable'))
+  })
+  return opponents.size > 0 ? [...opponents.values()].join(', ') : t('common.unavailable')
 }
 
 function gamesWithOpponentInfo(match) {
   return (match.games ?? []).filter((game) => game.opponents.some((opponent) => opponent.available && opponent.name))
 }
 
-function gameResultLabel(game, t) {
-  return game.homeSetsWon == null || game.awaySetsWon == null
-    ? resultLabel(game.result, t)
-    : `${game.homeSetsWon}-${game.awaySetsWon}`
-}
-
-function matchGameResultRow(game, t) {
-  return <span className={`match-game-row match-game-result-row match-result-${game.result}`} role="listitem" key={game.id}>
-    <span>{gameResultLabel(game, t)}</span>
-    <span>{resultLabel(game.result, t)}</span>
-  </span>
-}
-
-function matchScoreResult(match, t) {
-  return <span className={`match-game-row match-result-${match.result}`}>{scoreLabel(match, t)}</span>
-}
-
 function opponentTeamName(match, t) {
   return opponentName(match) || t('common.unavailable')
-}
-
-function matchGameRow(content, key) {
-  return <span className="match-game-row" role="listitem" key={key}>{content}</span>
 }
 
 function resultLabel(result, t) {
@@ -795,6 +804,16 @@ function resultLabel(result, t) {
       ? t('detail.loss')
       : result === 'draw'
         ? t('detail.draw')
+        : t('common.unavailable')
+}
+
+function resultBadgeLabel(result, t) {
+  return result === 'win'
+    ? t('detail.resultBadgeWin')
+    : result === 'loss'
+      ? t('detail.resultBadgeLoss')
+      : result === 'draw'
+        ? t('detail.resultBadgeDraw')
         : t('common.unavailable')
 }
 

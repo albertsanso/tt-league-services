@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00059: Player details Matches tab redesign](### [FEAT-00059] Player details Matches tab redesign)
+
 - [FEAT-00058: Global search](### [FEAT-00058] Global search)
 - [FEAT-00057: Match Summary landing page](### [FEAT-00057] Match Summary landing page)
 - [FEAT-00056: Matches search improvements](### [FEAT-00056] Matches search improvements)
@@ -41,6 +43,35 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00059] Player details Matches tab redesign
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Improve the UX/readability of the Matches tab on the Player detail page by replacing the current 11-column table with a card-based layout that surfaces result, opponent, score, and date, and moves per-game breakdown into an expandable disclosure.
+
+#### Acceptance Criteria
+- [x] The Matches tab renders one card per match instead of a table row, showing a colored W/D/L result badge, opponent team name, score, and date as primary content
+- [x] Season, source, group, and phase are shown as secondary context chips on the card instead of separate table columns
+- [x] The per-game (singles/doubles) breakdown is moved into an expandable disclosure per card instead of nested lists inside table cells, preserving all currently shown per-game opponent/result data
+- [x] Existing pagination (10 matches per page) and existing filters (season, source, competition) above the tabs are unchanged in behavior
+- [x] Implementation matches the layout and content documented in /docs/frontend/player-details-matches-tab.md; any deviation is noted in the feature details file before merging
+
+#### Feature Details
+→ See [FEAT-00059-DETAILS.md](./FEAT-00059-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00058] Global search
 - **Status:** done
@@ -192,6 +223,18 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 
