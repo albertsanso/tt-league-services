@@ -280,6 +280,45 @@ describe('ClubDetailPage', () => {
     expect(screen.queryByText('Joan Player')).not.toBeInTheDocument()
   })
 
+  it('orders tabs Summary, Stats, Players, Matches and defaults to Summary', () => {
+    renderPage('/clubs/club-id')
+
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      expect.stringContaining('Resum'),
+      expect.stringContaining('Estadístiques'),
+      expect.stringContaining('Jugadors'),
+      expect.stringContaining('Partits'),
+    ])
+    expect(screen.getByRole('tab', { name: /Resum/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('heading', { name: 'Resum' })).toBeInTheDocument()
+  })
+
+  it('deep-links directly to the Stats tab via the view query param and shows competition records', () => {
+    renderPage('/clubs/club-id?view=stats&season=2024-2025')
+
+    expect(screen.getByRole('tab', { name: /Estadístiques/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('heading', { name: 'Balanç per competició' })).toBeInTheDocument()
+    expect(screen.getByText('60%')).toBeInTheDocument()
+  })
+
+  it('switches to the Matches tab from the Summary "See all" link, preserving filters', () => {
+    renderPage('/clubs/club-id?season=2024-2025&competition=Preferent')
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Veure-ho tot/ })[0])
+
+    expect(screen.getByRole('tab', { name: /Partits/ })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByLabelText('Competició')).toHaveValue('Preferent')
+  })
+
+  it('switches to the Players tab from the Summary "See all" link', () => {
+    renderPage('/clubs/club-id?season=2024-2025')
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Veure-ho tot/ })[1])
+
+    expect(screen.getByRole('tab', { name: /Jugadors/ })).toHaveAttribute('aria-selected', 'true')
+  })
+
   it('links players with a canonicalPlayerId to their player details page', () => {
     renderPage('/clubs/club-id?view=players&season=2024-2025')
 

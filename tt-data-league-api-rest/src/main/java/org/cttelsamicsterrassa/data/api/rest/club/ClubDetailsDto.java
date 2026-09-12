@@ -140,7 +140,24 @@ public record ClubDetailsDto(
             String season,
             List<String> competitions,
             UUID canonicalPlayerId,
-            String canonicalPlayerName) {
+            String canonicalPlayerName,
+            int matchCount,
+            ResultTotalsDto resultTotals) {
+        public PlayerDetailsDto(
+                UUID playerSeasonId,
+                UUID playerId,
+                String playerName,
+                String registrationName,
+                String license,
+                String source,
+                String season,
+                List<String> competitions,
+                UUID canonicalPlayerId,
+                String canonicalPlayerName) {
+            this(playerSeasonId, playerId, playerName, registrationName, license, source, season,
+                competitions, canonicalPlayerId, canonicalPlayerName, 0, new ResultTotalsDto(0, 0, 0));
+        }
+
         public PlayerDetailsDto(
                 UUID playerSeasonId,
                 UUID playerId,
@@ -176,7 +193,9 @@ public record ClubDetailsDto(
                     player.season() == null ? null : player.season().toString(),
                     player.competitions(),
                     player.canonicalPlayerId(),
-                    player.canonicalPlayerName());
+                    player.canonicalPlayerName(),
+                    player.matchCount(),
+                    new ResultTotalsDto(player.wins(), player.draws(), player.losses()));
         }
     }
 }

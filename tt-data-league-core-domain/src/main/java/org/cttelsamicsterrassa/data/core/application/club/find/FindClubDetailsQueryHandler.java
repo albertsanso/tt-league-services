@@ -13,6 +13,8 @@ import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
+import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
+import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
@@ -40,6 +42,7 @@ public class FindClubDetailsQueryHandler
     private final TeamRepository teamRepository;
     private final MatchRepository matchRepository;
     private final PlayerSeasonRepository playerSeasonRepository;
+    private final LineupRepository lineupRepository;
 
     @Inject
     public FindClubDetailsQueryHandler(
@@ -47,12 +50,14 @@ public class FindClubDetailsQueryHandler
             FederatedClubRepository federatedClubRepository,
             TeamRepository teamRepository,
             MatchRepository matchRepository,
-            PlayerSeasonRepository playerSeasonRepository) {
+            PlayerSeasonRepository playerSeasonRepository,
+            LineupRepository lineupRepository) {
         this.clubRepository = clubRepository;
         this.federatedClubRepository = federatedClubRepository;
         this.teamRepository = teamRepository;
         this.matchRepository = matchRepository;
         this.playerSeasonRepository = playerSeasonRepository;
+        this.lineupRepository = lineupRepository;
     }
 
     @Override
@@ -122,7 +127,7 @@ public class FindClubDetailsQueryHandler
                             .addAll(competitions));
         }
 
-        List<FederatedClubPlayerReadModel> playerModels = playerSeasons.stream()
+        List<PlayerSeason> distinctPlayerSeasons = playerSeasons.stream()
                 .collect(java.util.stream.Collectors.toMap(
                         PlayerSeason::getId,
                         playerSeason -> playerSeason,
@@ -133,9 +138,14 @@ public class FindClubDetailsQueryHandler
                                 Comparator.nullsLast(Comparator.comparing(Season::toString)))
                         .thenComparing(PlayerSeason::getName, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
                         .thenComparing(PlayerSeason::getId))
+                .toList();
+
+        Map<UUID, Totals> playerResults = summarizePlayerResults(distinctPlayerSeasons, matches);
+        List<FederatedClubPlayerReadModel> playerModels = distinctPlayerSeasons.stream()
                 .map(playerSeason -> toPlayerReadModel(
                         playerSeason,
-                        playerCompetitions.getOrDefault(playerSeason.getId(), List.of())))
+                        playerCompetitions.getOrDefault(playerSeason.getId(), List.of()),
+                        playerResults.getOrDefault(playerSeason.getId(), new Totals())))
                 .toList();
 
         List<ClubCompetitionReadModel> competitionModels = summarizeCompetitions(matches, teams);
@@ -145,7 +155,8 @@ public class FindClubDetailsQueryHandler
 
     private FederatedClubPlayerReadModel toPlayerReadModel(
             PlayerSeason playerSeason,
-            List<String> competitions) {
+            List<String> competitions,
+            Totals results) {
         return new FederatedClubPlayerReadModel(
                 playerSeason.getId(),
                 playerSeason.getFederatedPlayer().map(player -> player.getId()).orElse(null),
@@ -160,7 +171,48 @@ public class FindClubDetailsQueryHandler
                         .orElse(null),
                 playerSeason.getFederatedPlayer()
                         .flatMap(player -> player.getPlayer().map(canonical -> canonical.getName()))
-                        .orElse(null));
+                        .orElse(null),
+                results.matchCount,
+                results.wins,
+                results.draws,
+                results.losses);
+    }
+
+    private Map<UUID, Totals> summarizePlayerResults(List<PlayerSeason> playerSeasons, List<Match> matches) {
+        List<UUID> playerSeasonIds = playerSeasons.stream().map(PlayerSeason::getId).toList();
+        if (playerSeasonIds.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, Match> matchesById = matches.stream()
+                .collect(java.util.stream.Collectors.toMap(Match::getId, match -> match, (first, ignored) -> first));
+
+        Map<String, Lineup> dedupedLineups = new LinkedHashMap<>();
+        for (Lineup lineup : lineupRepository.findAllLineupsByPlayerSeasonIds(playerSeasonIds)) {
+            if (lineup.getPlayer() == null || lineup.getMatch() == null
+                    || !matchesById.containsKey(lineup.getMatch().getId())) {
+                continue;
+            }
+            String key = lineup.getPlayer().getId() + ":" + lineup.getMatch().getId();
+            dedupedLineups.putIfAbsent(key, lineup);
+        }
+
+        Map<UUID, Totals> totalsByPlayerSeasonId = new LinkedHashMap<>();
+        for (Lineup lineup : dedupedLineups.values()) {
+            Match match = matchesById.get(lineup.getMatch().getId());
+            Totals current = totalsByPlayerSeasonId.computeIfAbsent(
+                    lineup.getPlayer().getId(), ignored -> new Totals());
+            current.matchCount++;
+            UUID winnerId = teamId(match.getWinnerTeam());
+            UUID playerTeamId = teamId(lineup.getTeam());
+            if (winnerId == null) {
+                current.draws++;
+            } else if (winnerId.equals(playerTeamId)) {
+                current.wins++;
+            } else {
+                current.losses++;
+            }
+        }
+        return totalsByPlayerSeasonId;
     }
 
     private List<ClubCompetitionReadModel> summarizeCompetitions(List<Match> matches, List<Team> teams) {

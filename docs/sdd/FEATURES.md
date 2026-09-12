@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00054: Club detail Summary and Stats tabs](### [FEAT-00054] Club detail Summary and Stats tabs)
+
 - [FEAT-00053: Link list of club players to Player details](### [FEAT-00053] Link list of club players to Player details)
 
 
@@ -36,6 +38,39 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00054] Club detail Summary and Stats tabs
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Give club detail page visitors a landing overview and a dedicated stats breakdown, instead of arriving directly on the raw Players list.
+
+#### Acceptance Criteria
+- [x] Club detail page defaults to a new Summary tab instead of Players. 
+- [x] Summary tab shows player/match/win-rate/competition stat tiles, a recent-matches card, and a top-players card, each linking into the corresponding tab. 
+- [x] A new Stats tab shows win/draw/loss breakdown per competition for a selected season plus a win-rate-by-season trend; existing Players and Matches tabs and their filters are unchanged.
+- [x] Implementation matches the layout, tab order, and content documented in [`/docs/frontend/club_details_landing.md`](../frontend/club_details_landing.md); any deviation is noted in FEAT-00054-DETAILS.md before merging
+- [x] Summary tab adds a "Top performer player" ranking by actual win rate (backed by a per-player win/draw/loss aggregation added to the club detail API), distinct from the existing "Most-capped players" card which ranks by number of competitions played.
+
+#### Feature Details
+→ See [FEAT-00054-DETAILS.md](./FEAT-00054-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00053] Link list of club players to Player details
 - **Status:** done
@@ -53,6 +88,22 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

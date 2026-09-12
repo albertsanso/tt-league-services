@@ -201,6 +201,9 @@ function normalizePlayer(value) {
     source: value.source == null ? '—' : requireText(value.source, 'la font del jugador'),
     season: requireText(String(value.season ?? ''), 'una temporada de jugador'),
     competitions: competitions.map((competition) => competition.trim()),
+    matchCount: Number(value.matchCount ?? 0),
+    resultTotals: normalizeResultTotals(value.resultTotals
+      ?? { wins: value.wins ?? 0, draws: value.draws ?? 0, losses: value.losses ?? 0 }),
   }
 }
 

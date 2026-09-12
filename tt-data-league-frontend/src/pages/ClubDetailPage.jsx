@@ -1,13 +1,17 @@
-import { ChevronDown, ChevronRight, Edit3, Swords, Users } from 'lucide-react'
+import { BarChart3, ChevronDown, ChevronRight, Edit3, LayoutDashboard, Swords, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams, useParams } from 'react-router-dom'
 import { routePaths } from '../config/routes.js'
 import { useAuth } from '../context/useAuth.js'
 import { useClubDetails, useClubMatches } from '../hooks/useClubs.js'
 import { groupMatchesHierarchy } from '../utils/clubMatches.js'
+import ClubSummaryPanel from './ClubSummaryPanel.jsx'
+import ClubStatsPanel from './ClubStatsPanel.jsx'
 import { useTranslation } from 'react-i18next'
 
 const VIEWS = {
+  SUMMARY: 'summary',
+  STATS: 'stats',
   PLAYERS: 'players',
   MATCHES: 'matches',
 }
@@ -30,7 +34,7 @@ function ClubDetailPage() {
   const { data: club, loading, error, retry } = useClubDetails(clubId)
   const { t } = useTranslation()
   const requestedView = searchParams.get('view')
-  const view = requestedView === VIEWS.PLAYERS ? VIEWS.PLAYERS : VIEWS.MATCHES
+  const view = Object.values(VIEWS).includes(requestedView) ? requestedView : VIEWS.SUMMARY
   const successMessage = searchParams.get('message') || location.state?.successMessage
 
   if (loading) {
@@ -132,6 +136,7 @@ function ClubDetailContent({
   const filteredCompetitions = sourceCompetitions.filter((item) => (
     (!season || item.season === season) && (!competition || item.name === competition)
   ))
+  const trendCompetitions = sourceCompetitions.filter((item) => !competition || item.name === competition)
   const players = sourcePlayers.filter((player) => (
     (!season || player.season === season)
       && (!competition || player.competitions.includes(competition))
@@ -171,6 +176,13 @@ function ClubDetailContent({
     setSearchParams,
     sourceFilter,
   ])
+
+  const viewLabels = {
+    [VIEWS.SUMMARY]: t('detail.summaryTab'),
+    [VIEWS.STATS]: t('detail.statsTab'),
+    [VIEWS.PLAYERS]: t('common.players'),
+    [VIEWS.MATCHES]: t('common.matches'),
+  }
 
   function updateFilters(nextValues) {
     const next = new URLSearchParams(searchParams)
@@ -215,6 +227,26 @@ function ClubDetailContent({
 
       <div className="club-controls">
         <div className="club-tabs" role="tablist" aria-label={t('detail.clubViews')}>
+          <button
+            className={`club-tab${view === VIEWS.SUMMARY ? ' is-active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={view === VIEWS.SUMMARY}
+            aria-controls="club-tabpanel"
+            onClick={() => updateFilters({ view: VIEWS.SUMMARY })}
+          >
+            <LayoutDashboard size={16} aria-hidden="true" /> {t('detail.summaryTab')}
+          </button>
+          <button
+            className={`club-tab${view === VIEWS.STATS ? ' is-active' : ''}`}
+            type="button"
+            role="tab"
+            aria-selected={view === VIEWS.STATS}
+            aria-controls="club-tabpanel"
+            onClick={() => updateFilters({ view: VIEWS.STATS })}
+          >
+            <BarChart3 size={16} aria-hidden="true" /> {t('detail.statsTab')}
+          </button>
           <button
             className={`club-tab${view === VIEWS.PLAYERS ? ' is-active' : ''}`}
             type="button"
@@ -283,20 +315,38 @@ function ClubDetailContent({
         </div>
       </div>
 
-      <div id="club-tabpanel" role="tabpanel" aria-label={view === VIEWS.PLAYERS ? t('common.players') : t('common.matches')}>
-        {view === VIEWS.PLAYERS
-          ? <PlayersPanel players={players} t={t} />
-          : (
-            <MatchesPanel
-              club={club}
-              competitions={filteredCompetitions}
-              returnSearch={searchParams.toString()}
-              sourceFilter={sourceFilter}
-              season={season}
-              competition={competition}
-              t={t}
-            />
-          )}
+      <div id="club-tabpanel" role="tabpanel" aria-label={viewLabels[view]}>
+        {view === VIEWS.SUMMARY ? (
+          <ClubSummaryPanel
+            club={club}
+            competitions={filteredCompetitions}
+            players={players}
+            season={season}
+            onSeeMatches={() => updateFilters({ view: VIEWS.MATCHES })}
+            onSeePlayers={() => updateFilters({ view: VIEWS.PLAYERS })}
+            t={t}
+          />
+        ) : view === VIEWS.STATS ? (
+          <ClubStatsPanel
+            competitions={filteredCompetitions}
+            seasons={club.seasons ?? []}
+            trendCompetitions={trendCompetitions}
+            season={season}
+            t={t}
+          />
+        ) : view === VIEWS.PLAYERS ? (
+          <PlayersPanel players={players} t={t} />
+        ) : (
+          <MatchesPanel
+            club={club}
+            competitions={filteredCompetitions}
+            returnSearch={searchParams.toString()}
+            sourceFilter={sourceFilter}
+            season={season}
+            competition={competition}
+            t={t}
+          />
+        )}
       </div>
     </section>
   )
