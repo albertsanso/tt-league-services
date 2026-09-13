@@ -1,8 +1,17 @@
 import { describe, expect, it } from 'vitest'
 import {
+  aggregateRosterByCanonicalPlayer,
+  computeHomeAwaySplit,
   computeOverallRecord,
   computeWinRateBySeason,
+  countPendingMatches,
+  getCurrentStreak,
+  getFormGuide,
+  getLatestSeasonPlayer,
+  getMostActivePlayers,
+  getNotableMatches,
   getRecentMatches,
+  getRosterByCompetition,
   getTopPerformers,
   getTopPlayers,
   scopePlayerResultsToCompetition,
@@ -215,5 +224,235 @@ describe('scopePlayerResultsToCompetition', () => {
     }]
 
     expect(scopePlayerResultsToCompetition(players, 'Copa')).toEqual(players)
+  })
+})
+
+function rosterPlayer(overrides) {
+  return {
+    canonicalPlayerId: 'p1',
+    playerName: 'Anna',
+    registrationName: 'Anna',
+    source: 'RFETM',
+    season: '2024-2025',
+    competitions: ['Preferent'],
+    matchCount: 0,
+    resultTotals: { wins: 0, draws: 0, losses: 0 },
+    ...overrides,
+  }
+}
+
+describe('aggregateRosterByCanonicalPlayer', () => {
+  it('sums match counts and results across a canonical player\'s season records', () => {
+    const players = [
+      rosterPlayer({ season: '2023-2024', matchCount: 10, resultTotals: { wins: 6, draws: 0, losses: 4 } }),
+      rosterPlayer({ season: '2024-2025', matchCount: 8, resultTotals: { wins: 5, draws: 1, losses: 2 } }),
+    ]
+
+    const [anna] = aggregateRosterByCanonicalPlayer(players)
+
+    expect(anna.matchCount).toBe(18)
+    expect(anna.resultTotals).toEqual({ wins: 11, draws: 1, losses: 6 })
+    expect(anna.seasons).toEqual(['2023-2024', '2024-2025'])
+  })
+
+  it('unions competitions across season records without duplicates', () => {
+    const players = [
+      rosterPlayer({ season: '2023-2024', competitions: ['Preferent', 'Copa'] }),
+      rosterPlayer({ season: '2024-2025', competitions: ['Preferent'] }),
+    ]
+
+    const [anna] = aggregateRosterByCanonicalPlayer(players)
+
+    expect(anna.competitions.sort()).toEqual(['Copa', 'Preferent'])
+  })
+
+  it('drops season records without a canonicalPlayerId', () => {
+    const players = [rosterPlayer({ canonicalPlayerId: null })]
+
+    expect(aggregateRosterByCanonicalPlayer(players)).toEqual([])
+  })
+})
+
+describe('getRosterByCompetition', () => {
+  it('counts each canonical player once per competition they are part of', () => {
+    const aggregates = [
+      { ...rosterPlayer({}), competitions: ['Preferent', 'Copa'] },
+      { ...rosterPlayer({ canonicalPlayerId: 'p2' }), competitions: ['Preferent'] },
+    ]
+
+    expect(getRosterByCompetition(aggregates)).toEqual([
+      { competition: 'Preferent', playerCount: 2 },
+      { competition: 'Copa', playerCount: 1 },
+    ])
+  })
+
+  it('breaks a count tie alphabetically by competition name', () => {
+    const aggregates = [
+      { ...rosterPlayer({}), competitions: ['Segona'] },
+      { ...rosterPlayer({ canonicalPlayerId: 'p2' }), competitions: ['Primera'] },
+    ]
+
+    expect(getRosterByCompetition(aggregates).map((item) => item.competition)).toEqual(['Primera', 'Segona'])
+  })
+})
+
+describe('getMostActivePlayers', () => {
+  it('ranks by career match count, then seasons on record, then name', () => {
+    const aggregates = [
+      rosterPlayer({ canonicalPlayerId: 'p1', playerName: 'Anna', matchCount: 5, seasons: ['2024-2025'] }),
+      rosterPlayer({ canonicalPlayerId: 'p2', playerName: 'Marc', matchCount: 20, seasons: ['2024-2025'] }),
+    ]
+
+    expect(getMostActivePlayers(aggregates).map((item) => item.playerName)).toEqual(['Marc', 'Anna'])
+  })
+
+  it('respects the limit', () => {
+    const aggregates = [
+      rosterPlayer({ canonicalPlayerId: 'p1', matchCount: 1, seasons: ['2024-2025'] }),
+      rosterPlayer({ canonicalPlayerId: 'p2', matchCount: 2, seasons: ['2024-2025'] }),
+    ]
+
+    expect(getMostActivePlayers(aggregates, 1)).toHaveLength(1)
+  })
+})
+
+describe('getLatestSeasonPlayer', () => {
+  it('picks the player whose most recent season is the latest', () => {
+    const aggregates = [
+      rosterPlayer({ canonicalPlayerId: 'p1', playerName: 'Anna', seasons: ['2022-2023', '2023-2024'] }),
+      rosterPlayer({ canonicalPlayerId: 'p2', playerName: 'Marc', seasons: ['2024-2025'] }),
+    ]
+
+    expect(getLatestSeasonPlayer(aggregates).playerName).toBe('Marc')
+  })
+
+  it('returns null for an empty roster', () => {
+    expect(getLatestSeasonPlayer([])).toBeNull()
+  })
+})
+
+function match(overrides) {
+  return {
+    id: 'm1',
+    homeTeam: 'Sènior',
+    awayTeam: 'Rival TT',
+    homeGamesWon: 3,
+    awayGamesWon: 1,
+    result: 'win',
+    round: 1,
+    dateTime: '2024-03-01T00:00:00Z',
+    source: 'RFETM',
+    season: '2024-2025',
+    ...overrides,
+  }
+}
+
+describe('countPendingMatches', () => {
+  it('counts matches without a recorded score', () => {
+    const matches = [match({ id: 'm1' }), match({ id: 'm2', homeGamesWon: null, awayGamesWon: null })]
+
+    expect(countPendingMatches(matches)).toBe(1)
+  })
+})
+
+describe('computeHomeAwaySplit', () => {
+  const teams = [{ name: 'Sènior', source: 'RFETM', season: '2024-2025' }]
+
+  it('classifies a match as home when the club team is the home team', () => {
+    const matches = [match({ homeTeam: 'Sènior', awayTeam: 'Rival TT', result: 'win' })]
+
+    const split = computeHomeAwaySplit(matches, teams)
+
+    expect(split.home).toEqual({ wins: 1, draws: 0, losses: 0, winRate: 100 })
+    expect(split.away).toEqual({ wins: 0, draws: 0, losses: 0, winRate: 0 })
+  })
+
+  it('classifies a match as away when the club team is the away team', () => {
+    const matches = [match({ homeTeam: 'Rival TT', awayTeam: 'Sènior', result: 'loss' })]
+
+    const split = computeHomeAwaySplit(matches, teams)
+
+    expect(split.away).toEqual({ wins: 0, draws: 0, losses: 1, winRate: 0 })
+    expect(split.home).toEqual({ wins: 0, draws: 0, losses: 0, winRate: 0 })
+  })
+
+  it('ignores matches where the club team cannot be resolved', () => {
+    const matches = [match({ homeTeam: 'Unknown A', awayTeam: 'Unknown B' })]
+
+    expect(computeHomeAwaySplit(matches, teams)).toEqual({
+      home: { wins: 0, draws: 0, losses: 0, winRate: 0 },
+      away: { wins: 0, draws: 0, losses: 0, winRate: 0 },
+    })
+  })
+})
+
+describe('getFormGuide', () => {
+  it('returns the most recent matches in chronological order (oldest to newest)', () => {
+    const matches = [
+      match({ id: 'm1', dateTime: '2024-03-01T00:00:00Z' }),
+      match({ id: 'm2', dateTime: '2024-03-08T00:00:00Z' }),
+      match({ id: 'm3', dateTime: '2024-03-15T00:00:00Z' }),
+    ]
+
+    expect(getFormGuide(matches, 2).map((item) => item.id)).toEqual(['m2', 'm3'])
+  })
+})
+
+describe('getCurrentStreak', () => {
+  it('counts the consecutive most-recent matches sharing the same result', () => {
+    const matches = [
+      match({ id: 'm1', dateTime: '2024-03-01T00:00:00Z', result: 'loss' }),
+      match({ id: 'm2', dateTime: '2024-03-08T00:00:00Z', result: 'win' }),
+      match({ id: 'm3', dateTime: '2024-03-15T00:00:00Z', result: 'win' }),
+    ]
+
+    expect(getCurrentStreak(matches)).toEqual({ result: 'win', count: 2 })
+  })
+
+  it('returns a streak of 1 when the two most recent matches differ', () => {
+    const matches = [
+      match({ id: 'm1', dateTime: '2024-03-01T00:00:00Z', result: 'win' }),
+      match({ id: 'm2', dateTime: '2024-03-08T00:00:00Z', result: 'loss' }),
+    ]
+
+    expect(getCurrentStreak(matches)).toEqual({ result: 'loss', count: 1 })
+  })
+
+  it('returns null when there are no matches', () => {
+    expect(getCurrentStreak([])).toBeNull()
+  })
+})
+
+describe('getNotableMatches', () => {
+  it('picks the biggest win, biggest defeat, and closest result', () => {
+    const matches = [
+      match({ id: 'blowout-win', result: 'win', homeGamesWon: 5, awayGamesWon: 0 }),
+      match({ id: 'blowout-loss', result: 'loss', homeGamesWon: 0, awayGamesWon: 5 }),
+      match({ id: 'nail-biter', result: 'win', homeGamesWon: 3, awayGamesWon: 2 }),
+    ]
+
+    const notable = getNotableMatches(matches)
+
+    expect(notable.biggestWin.id).toBe('blowout-win')
+    expect(notable.biggestLoss.id).toBe('blowout-loss')
+    expect(notable.closest.id).toBe('nail-biter')
+  })
+
+  it('ignores pending matches without a recorded score', () => {
+    const matches = [match({ id: 'pending', homeGamesWon: null, awayGamesWon: null })]
+
+    expect(getNotableMatches(matches)).toEqual({ closest: null, biggestWin: null, biggestLoss: null })
+  })
+
+  it('never picks the same match for two different slots', () => {
+    const matches = [
+      match({ id: 'only-win', result: 'win', homeGamesWon: 3, awayGamesWon: 1 }),
+    ]
+
+    const notable = getNotableMatches(matches)
+
+    expect(notable.biggestWin.id).toBe('only-win')
+    expect(notable.biggestLoss).toBeNull()
+    expect(notable.closest).toBeNull()
   })
 })

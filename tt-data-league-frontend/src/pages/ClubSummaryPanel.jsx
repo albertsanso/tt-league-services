@@ -14,7 +14,7 @@ function initials(name) {
     .join('')
 }
 
-function StatTile({ label, value, subLabel }) {
+export function StatTile({ label, value, subLabel }) {
   return (
     <article className="stat-tile card">
       <p className="stat-tile-label">{label}</p>
@@ -46,7 +46,7 @@ function RecordBar({ record, t }) {
   )
 }
 
-function MatchRow({ match, returnSearch, t }) {
+export function MatchRow({ match, returnSearch, t }) {
   const resultLabel = match.result === 'win' ? t('detail.win') : match.result === 'loss' ? t('detail.loss') : t('detail.draw')
   const score = match.homeGamesWon == null || match.awayGamesWon == null
     ? t('detail.pendingResult')

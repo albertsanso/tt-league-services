@@ -1,13 +1,26 @@
-import { BarChart3, ChevronDown, ChevronRight, Edit3, LayoutDashboard, Swords, Users } from 'lucide-react'
+import { BarChart3, ChevronDown, ChevronRight, Edit3, LayoutDashboard, Search, Swords, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams, useParams } from 'react-router-dom'
 import { routePaths } from '../config/routes.js'
 import { useAuth } from '../context/useAuth.js'
 import { useClubDetails, useClubMatches } from '../hooks/useClubs.js'
 import { groupMatchesHierarchy } from '../utils/clubMatches.js'
-import { scopePlayerResultsToCompetition } from '../utils/clubSummary.js'
+import {
+  aggregateRosterByCanonicalPlayer,
+  computeHomeAwaySplit,
+  computeOverallRecord,
+  countPendingMatches,
+  getCurrentStreak,
+  getFormGuide,
+  getLatestSeasonPlayer,
+  getMostActivePlayers,
+  getNotableMatches,
+  getRosterByCompetition,
+  scopePlayerResultsToCompetition,
+} from '../utils/clubSummary.js'
+import { matchesQuery } from '../utils/textSearch.js'
 import ProgressBar from '../components/ui/ProgressBar.jsx'
-import ClubSummaryPanel from './ClubSummaryPanel.jsx'
+import ClubSummaryPanel, { MatchRow, StatTile } from './ClubSummaryPanel.jsx'
 import ClubStatsPanel from './ClubStatsPanel.jsx'
 import { useTranslation } from 'react-i18next'
 
@@ -144,6 +157,9 @@ function ClubDetailContent({
     (!season || item.season === season) && (!competition || item.name === competition)
   ))
   const trendCompetitions = sourceCompetitions.filter((item) => !competition || item.name === competition)
+  const rosterPlayers = sourcePlayers.filter((player) => (
+    !competition || player.competitions.includes(competition)
+  ))
   const players = scopePlayerResultsToCompetition(
     sourcePlayers.filter((player) => (
       (!season || player.season === season)
@@ -346,7 +362,7 @@ function ClubDetailContent({
             t={t}
           />
         ) : view === VIEWS.PLAYERS ? (
-          <PlayersPanel players={players} t={t} />
+          <PlayersPanel players={rosterPlayers} t={t} />
         ) : (
           <MatchesPanel
             club={club}
@@ -363,39 +379,188 @@ function ClubDetailContent({
   )
 }
 
+function MostActiveRow({ player, t }) {
+  return (
+    <li>
+      <Link
+        className="mini-list-item card"
+        to={routePaths.playerDetails(
+          player.canonicalPlayerId,
+          `source=${encodeURIComponent(player.source)}&season=${ALL_SEASONS}`,
+        )}
+      >
+        <span className="mini-list-body">
+          <strong>{player.playerName}</strong>
+          <span className="mini-list-meta">
+            {t('detail.playersMostActiveSub', { seasons: player.seasons.length })}
+          </span>
+        </span>
+        <span className="mini-list-stat">
+          {t('detail.summaryPlayerMatchCount', { count: player.matchCount })}
+        </span>
+      </Link>
+    </li>
+  )
+}
+
+const COMPETITION_ROWS_LIMIT = 5
+
+function PlayersByCompetitionCard({ byCompetition, totalByCompetition, t }) {
+  const [expanded, setExpanded] = useState(false)
+  const visibleCompetitions = expanded ? byCompetition : byCompetition.slice(0, COMPETITION_ROWS_LIMIT)
+  const hiddenCount = byCompetition.length - visibleCompetitions.length
+
+  return (
+    <div className="card-block card">
+      <div className="card-block-header">
+        <h3>{t('detail.playersByCompetitionTitle')}</h3>
+      </div>
+      {byCompetition.length === 0 ? null : (
+        <>
+          <ul className="comp-row-list">
+            {visibleCompetitions.map((item) => (
+              <li key={item.competition} className="comp-row">
+                <span className="comp-row-name"><strong>{item.competition}</strong></span>
+                <span className="comp-row-counts">{item.playerCount}</span>
+                <span className="record-bar comp-row-bar" role="presentation">
+                  <span
+                    className="record-bar-segment is-fill"
+                    style={{ flexBasis: `${(item.playerCount / totalByCompetition) * 100}%` }}
+                  />
+                </span>
+                <span className="comp-row-rate">
+                  {Math.round((item.playerCount / totalByCompetition) * 100)}%
+                </span>
+              </li>
+            ))}
+          </ul>
+          {hiddenCount > 0 ? (
+            <button type="button" className="link-button" onClick={() => setExpanded(true)}>
+              {t('detail.seeAll')} →
+            </button>
+          ) : null}
+        </>
+      )}
+    </div>
+  )
+}
+
+function PlayersSummaryStrip({ rosterAggregates, byCompetition, mostActive, latestSeasonPlayer, t }) {
+  const totalByCompetition = byCompetition.reduce((sum, item) => sum + item.playerCount, 0) || 1
+  const sourceCount = new Set(rosterAggregates.map((player) => player.source)).size
+
+  return (
+    <div className="players-summary-strip">
+      <div className="stat-grid">
+        <StatTile
+          label={t('common.players')}
+          value={rosterAggregates.length}
+          subLabel={t('detail.playersSourcesCount', { count: sourceCount })}
+        />
+        <StatTile
+          label={t('common.competitions')}
+          value={byCompetition.length}
+          subLabel={byCompetition[0]
+            ? `${byCompetition[0].competition} · ${t('detail.playersMostRepresented', { count: byCompetition[0].playerCount })}`
+            : '—'}
+        />
+        <StatTile
+          label={t('detail.playersMostActiveTitle')}
+          value={mostActive[0]?.playerName ?? '—'}
+          subLabel={t('detail.summaryPlayerMatchCount', { count: mostActive[0]?.matchCount ?? 0 })}
+        />
+        <StatTile
+          label={t('detail.playersLatestSeason')}
+          value={latestSeasonPlayer?.seasons[latestSeasonPlayer.seasons.length - 1] ?? '—'}
+          subLabel={latestSeasonPlayer?.playerName ?? ''}
+        />
+      </div>
+
+      <div className="summary-grid">
+        <PlayersByCompetitionCard byCompetition={byCompetition} totalByCompetition={totalByCompetition} t={t} />
+
+        <div className="card-block card">
+          <div className="card-block-header">
+            <h3>{t('detail.playersMostActiveTitle')}</h3>
+          </div>
+          {mostActive.length === 0 ? (
+            <p className="club-empty card">{t('detail.registeredPlayersEmpty')}</p>
+          ) : (
+            <ul className="mini-list">
+              {mostActive.map((player) => (
+                <MostActiveRow key={player.canonicalPlayerId} player={player} t={t} />
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function PlayersPanel({ players, t }) {
+  const [nameQuery, setNameQuery] = useState('')
+  const rosterAggregates = useMemo(() => aggregateRosterByCanonicalPlayer(players), [players])
+  const byCompetition = useMemo(() => getRosterByCompetition(rosterAggregates), [rosterAggregates])
+  const mostActive = useMemo(() => getMostActivePlayers(rosterAggregates, 4), [rosterAggregates])
+  const latestSeasonPlayer = useMemo(() => getLatestSeasonPlayer(rosterAggregates), [rosterAggregates])
+  const filteredPlayers = useMemo(
+    () => rosterAggregates.filter((player) => matchesQuery(player.playerName, nameQuery)),
+    [rosterAggregates, nameQuery],
+  )
+
   return (
     <section className="club-detail-section" aria-labelledby="club-players-title">
       <h2 id="club-players-title">{t('common.players')}</h2>
-      {players.length === 0 ? (
+      {rosterAggregates.length === 0 ? (
         <p className="club-empty card">{t('detail.registeredPlayersEmpty')}</p>
       ) : (
-        <ul className="club-player-list" aria-label={t('detail.clubPlayers')}>
-          {players.map((player) => (
-            <li key={player.playerSeasonId}>
-              {player.canonicalPlayerId ? (
-                <Link
-                  className="club-player-card card"
-                  to={routePaths.playerDetails(
-                    player.canonicalPlayerId,
-                    `source=${encodeURIComponent(player.source)}&season=${encodeURIComponent(player.season)}`,
-                  )}
-                >
-                  <span>
-                    <strong>{player.playerName ?? player.registrationName}</strong>
-                    <span>{player.registrationName} · {t('common.season')}: {player.season} · {t('common.license')}: {player.license}</span>
-                  </span>
-                  <span aria-hidden="true">→</span>
-                </Link>
-              ) : (
-                <div className="club-player-card card">
-                  <strong>{player.playerName ?? player.registrationName}</strong>
-                  <span>{player.registrationName} · {t('common.season')}: {player.season} · {t('common.license')}: {player.license}</span>
-                </div>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          <PlayersSummaryStrip
+            rosterAggregates={rosterAggregates}
+            byCompetition={byCompetition}
+            mostActive={mostActive}
+            latestSeasonPlayer={latestSeasonPlayer}
+            t={t}
+          />
+          <label className="sr-only" htmlFor="club-players-search">{t('detail.playersSearchLabel')}</label>
+          <div className="club-search-input-wrap">
+            <Search size={17} aria-hidden="true" />
+            <input
+              id="club-players-search"
+              className="club-search-input"
+              type="search"
+              value={nameQuery}
+              onChange={(event) => setNameQuery(event.target.value)}
+              placeholder={t('detail.playersSearchPlaceholder')}
+              autoComplete="off"
+              aria-describedby="club-players-search-summary"
+            />
+          </div>
+          <p id="club-players-search-summary" className="search-summary" aria-live="polite">
+            {t('detail.playersShownCount', { shown: filteredPlayers.length, total: rosterAggregates.length })}
+          </p>
+          {filteredPlayers.length === 0 ? (
+            <p className="club-empty card">{t('detail.playersSearchEmpty', { query: nameQuery })}</p>
+          ) : (
+            <ul className="club-player-list" aria-label={t('detail.clubPlayers')}>
+              {filteredPlayers.map((player) => (
+                <li key={player.canonicalPlayerId}>
+                  <Link
+                    className="club-player-card card"
+                    to={routePaths.playerDetails(
+                      player.canonicalPlayerId,
+                      `source=${encodeURIComponent(player.source)}&season=${ALL_SEASONS}`,
+                    )}
+                  >
+                    <strong>{player.playerName}</strong>
+                    <span aria-hidden="true">→</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
       )}
     </section>
   )
@@ -456,14 +621,120 @@ function MatchesPanel({ club, competitions, returnSearch, sourceFilter, season, 
 
   const hierarchy = groupMatchesHierarchy(matchGroups, { teams: club.teams, omitLevels })
   const ctx = { club, returnSearch, season, competition, omitLevels, expanded, toggle, t }
+  const taggedMatches = matchGroups.flatMap((group) => group.matches.map((match) => ({
+    ...match,
+    competition: group.competition,
+    season: group.season,
+    source: group.source,
+  })))
 
   return (
     <section className="club-detail-section" aria-labelledby="club-matches-title">
       <h2 id="club-matches-title">{t('common.matches')}</h2>
+      {taggedMatches.length > 0 ? (
+        <MatchesSummaryStrip
+          matches={taggedMatches}
+          competitions={competitions}
+          teams={club.teams}
+          returnSearch={returnSearch}
+          t={t}
+        />
+      ) : null}
       <ul className="club-match-hierarchy" aria-label={t('common.matches')}>
         {renderSourceLevel(hierarchy, ctx)}
       </ul>
     </section>
+  )
+}
+
+function MatchesSummaryStrip({ matches, competitions, teams, returnSearch, t }) {
+  const record = useMemo(() => computeOverallRecord(competitions), [competitions])
+  const homeAway = useMemo(() => computeHomeAwaySplit(matches, teams), [matches, teams])
+  const pending = useMemo(() => countPendingMatches(matches), [matches])
+  const formGuide = useMemo(() => getFormGuide(matches), [matches])
+  const streak = useMemo(() => getCurrentStreak(matches), [matches])
+  const notable = useMemo(() => getNotableMatches(matches), [matches])
+  const resultLabel = (result) => (
+    result === 'win' ? t('detail.win') : result === 'loss' ? t('detail.loss') : t('detail.draw')
+  )
+
+  return (
+    <div className="matches-summary-strip">
+      <div className="stat-grid">
+        <StatTile
+          label={t('common.playedMatches')}
+          value={record.matchCount}
+          subLabel={`${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
+        />
+        <StatTile
+          label={t('common.winPercentage')}
+          value={`${record.winRate}%`}
+          subLabel={`${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
+        />
+        <StatTile
+          label={t('detail.matchesHomeAwayTile')}
+          value={`${homeAway.home.winRate}% / ${homeAway.away.winRate}%`}
+          subLabel={t('common.winPercentage')}
+        />
+        <StatTile
+          label={t('detail.matchesPending')}
+          value={pending}
+          subLabel={t('detail.pendingResult')}
+        />
+      </div>
+
+      <p className="matches-form-guide">
+        {t('detail.matchesFormGuide')}:{' '}
+        {formGuide.map((match) => (
+          <span
+            key={match.id}
+            className={`match-row-result is-${match.result} form-guide-chip`}
+            title={resultLabel(match.result)}
+          >
+            {resultLabel(match.result)[0]}
+          </span>
+        ))}
+        {streak ? (
+          <span className="matches-current-streak">
+            {' '}({t('detail.matchesCurrentStreak', { result: resultLabel(streak.result), count: streak.count })})
+          </span>
+        ) : null}
+      </p>
+
+      {notable.closest || notable.biggestWin || notable.biggestLoss ? (
+        <div className="card-block card">
+          <div className="card-block-header">
+            <h3>{t('detail.matchesNotableTitle')}</h3>
+          </div>
+          <ul className="match-row-list">
+            {notable.closest ? (
+              <MatchRow
+                key="closest"
+                match={{ ...notable.closest, competition: `${t('detail.matchesClosest')} · ${notable.closest.competition}` }}
+                returnSearch={returnSearch}
+                t={t}
+              />
+            ) : null}
+            {notable.biggestWin ? (
+              <MatchRow
+                key="biggestWin"
+                match={{ ...notable.biggestWin, competition: `${t('detail.matchesBiggestWin')} · ${notable.biggestWin.competition}` }}
+                returnSearch={returnSearch}
+                t={t}
+              />
+            ) : null}
+            {notable.biggestLoss ? (
+              <MatchRow
+                key="biggestLoss"
+                match={{ ...notable.biggestLoss, competition: `${t('detail.matchesBiggestLoss')} · ${notable.biggestLoss.competition}` }}
+                returnSearch={returnSearch}
+                t={t}
+              />
+            ) : null}
+          </ul>
+        </div>
+      ) : null}
+    </div>
   )
 }
 

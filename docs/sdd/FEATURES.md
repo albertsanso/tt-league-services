@@ -23,8 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00063: Add player summary and search in Club details, Players tab](### [FEAT-00063] Add player summary and search in Club details, Players tab)
 - [FEAT-00062: Add links to Match detail](### [FEAT-00062] Add links to Match detail)
-
 - [FEAT-00061: Opponent insights metrics](### [FEAT-00061] Opponent insights metrics)
 - [FEAT-00060: Oponent analysis redesign](### [FEAT-00060] Oponent analysis redesign)
 - [FEAT-00059: Player details Matches tab redesign](### [FEAT-00059] Player details Matches tab redesign)
@@ -46,6 +46,46 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00063] Add player summary and search in Club details, Players tab
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Let users see a quick players summary and filter the Players tab list by name in Club details, so they can find a specific player in clubs with many registered players without scrolling the whole list.
+
+#### Acceptance Criteria
+- [x] Players tab shows a summary count (e.g. shown vs total players) above the list
+- [x] Players tab has a text search input that filters the visible player list by player/registration name as the user types
+- [x] Search matches are case-insensitive and accent-insensitive, consistent with existing search behavior elsewhere in the app
+- [x] Existing Source/Competition filters and player links (canonicalPlayerId) continue to work unchanged and combine with the name search
+- [x] Empty-state message is shown when the search yields no matches, distinct from the existing no-players-at-all empty state
+- [x] Players tab only lists players with a `canonicalPlayerId` (unconsolidated players are hidden); the summary count and no-players empty state reflect only canonical players
+- [x] Players tab list is not scoped by the Season filter: each canonical player appears exactly once regardless of how many season records they have, and each row shows only the player's name (no per-season/license subtext)
+- [x] Players tab shows a "Players summary" strip above the search box with roster-composition stats (player/competition/federation counts, players-by-competition breakdown, career "most active" players) — see [players.md](../frontend/club-details/players.md)
+- [x] Matches tab shows a "Matches summary" strip above the source/season/competition hierarchy (match count, win rate, home vs. away split, pending-result count, last-5 form guide with current streak, notable closest/biggest-win/biggest-defeat matches) — see [matches.md](../frontend/club-details/matches.md)
+- [x] Both new summary strips read from data already fetched by their tab, scope to the tab's existing filters, and introduce no new filter state or changes to existing empty states
+
+#### Feature Details
+→ See [FEAT-00063-DETAILS.md](./FEAT-00063-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps (includes the state-of-the-art research behind this expansion).
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00062] Add links to Match detail
 - **Status:** done
@@ -312,6 +352,24 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

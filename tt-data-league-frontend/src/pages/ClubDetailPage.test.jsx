@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ClubDetailPage from './ClubDetailPage.jsx'
@@ -43,6 +43,36 @@ const club = {
     source: 'RFETM',
     season: '2024-2025',
     competitions: ['Copa'],
+  }, {
+    playerSeasonId: 'nuria-player-season-id',
+    playerId: 'nuria-player-id',
+    canonicalPlayerId: 'nuria-canonical-player-id',
+    playerName: 'Núria Pérez',
+    registrationName: 'Núria Pérez',
+    license: '789',
+    source: 'RFETM',
+    season: '2024-2025',
+    competitions: ['Preferent'],
+  }, {
+    playerSeasonId: 'laia-player-season-id',
+    playerId: 'laia-player-id',
+    canonicalPlayerId: 'laia-canonical-player-id',
+    playerName: 'Laia Player',
+    registrationName: 'Laia Player',
+    license: '321',
+    source: 'RFETM',
+    season: '2024-2025',
+    competitions: ['Copa'],
+  }, {
+    playerSeasonId: 'maria-previous-season-id',
+    playerId: 'player-id',
+    canonicalPlayerId: 'canonical-player-id',
+    playerName: 'Maria Player',
+    registrationName: 'Maria Player',
+    license: '123',
+    source: 'RFETM',
+    season: '2023-2024',
+    competitions: ['Preferent'],
   }],
   competitions: [
     {
@@ -92,6 +122,18 @@ function expandNode(name) {
   fireEvent.click(screen.getByRole('button', { name: new RegExp(`^${name} `) }))
 }
 
+// The Matches summary strip's "Notable matches" card and the Players summary
+// strip's "Most active" mini-list can legitimately repeat names/matches that
+// also appear in the hierarchy/roster list below — scope queries to the
+// specific list so those assertions aren't ambiguous.
+function matchHierarchyList() {
+  return screen.getByRole('list', { name: 'Partits' })
+}
+
+function rosterList() {
+  return screen.getByRole('list', { name: 'Jugadors del club' })
+}
+
 describe('ClubDetailPage', () => {
   afterEach(() => {
     cleanup()
@@ -114,7 +156,7 @@ describe('ClubDetailPage', () => {
     const sourceToggle = screen.getByRole('button', { name: /^RFETM/ })
     expect(sourceToggle).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByRole('button', { name: /^2024-2025/ })).not.toBeInTheDocument()
-    expect(screen.queryByText('Sènior — Rival TT')).not.toBeInTheDocument()
+    expect(within(matchHierarchyList()).queryByText('Sènior — Rival TT')).not.toBeInTheDocument()
   })
 
   it('reveals season, competition, team, then matches as each level is expanded', () => {
@@ -133,16 +175,16 @@ describe('ClubDetailPage', () => {
     expandNode('Preferent')
     const teamToggle = screen.getByRole('button', { name: /^Sènior/ })
     expect(teamToggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByText('Sènior — Rival TT')).not.toBeInTheDocument()
+    expect(within(matchHierarchyList()).queryByText('Sènior — Rival TT')).not.toBeInTheDocument()
 
     expandNode('Sènior')
-    expect(screen.getByText('Sènior — Rival TT')).toBeInTheDocument()
+    expect(within(matchHierarchyList()).getByText('Sènior — Rival TT')).toBeInTheDocument()
     expect(screen.getByText('Jornada 1')).toBeInTheDocument()
-    expect(screen.getByText('3 — 1')).toBeInTheDocument()
+    expect(screen.getAllByText('3 — 1').length).toBeGreaterThan(0)
 
     fireEvent.click(teamToggle)
     expect(teamToggle).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.queryByText('Sènior — Rival TT')).not.toBeInTheDocument()
+    expect(within(matchHierarchyList()).queryByText('Sènior — Rival TT')).not.toBeInTheDocument()
   })
 
   it('sorts seasons within a source descending (most recent first)', () => {
@@ -168,7 +210,7 @@ describe('ClubDetailPage', () => {
     expect(teamToggle).toHaveAttribute('aria-expanded', 'false')
 
     fireEvent.click(teamToggle)
-    expect(screen.getByText('Sènior — Rival TT')).toBeInTheDocument()
+    expect(within(matchHierarchyList()).getByText('Sènior — Rival TT')).toBeInTheDocument()
   })
 
   it('restores the Season and Competition groupings once their filters go back to "all"', () => {
@@ -223,7 +265,7 @@ describe('ClubDetailPage', () => {
     fireEvent.click(screen.getAllByRole('tab', { name: /Jugadors/ })[0])
 
     expect(screen.getByRole('tabpanel', { name: 'Jugadors' })).toHaveTextContent('Maria Player')
-    expect(screen.getAllByText(/Temporada: 2024-2025/)).toHaveLength(2)
+    expect(screen.getByText('3 de 3 jugadors')).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /Jugadors/ })).toHaveAttribute('aria-selected', 'true')
   })
 
@@ -271,13 +313,134 @@ describe('ClubDetailPage', () => {
   it('filters players by the selected competition', () => {
     renderPage('/clubs/club-id?view=players&season=2024-2025')
 
-    expect(screen.getByText('Maria Player')).toBeInTheDocument()
-    expect(screen.getByText('Joan Player')).toBeInTheDocument()
+    expect(within(rosterList()).getByText('Maria Player')).toBeInTheDocument()
+    expect(within(rosterList()).getByText('Laia Player')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Competició'), { target: { value: 'Preferent' } })
 
-    expect(screen.getByText('Maria Player')).toBeInTheDocument()
+    expect(within(rosterList()).getByText('Maria Player')).toBeInTheDocument()
+    expect(within(rosterList()).queryByText('Laia Player')).not.toBeInTheDocument()
+  })
+
+  it('shows every canonical player once regardless of the selected season, deduplicating repeated season records', () => {
+    renderPage('/clubs/club-id?view=players&season=2023-2024')
+
+    expect(screen.getByText('3 de 3 jugadors')).toBeInTheDocument()
+    expect(within(rosterList()).getAllByText('Maria Player')).toHaveLength(1)
+    expect(within(rosterList()).getByText('Núria Pérez')).toBeInTheDocument()
+    expect(within(rosterList()).getByText('Laia Player')).toBeInTheDocument()
+  })
+
+  it('only shows players with a canonicalPlayerId, hiding unconsolidated ones', () => {
+    renderPage('/clubs/club-id?view=players&season=2024-2025')
+
+    const linkedPlayerName = within(rosterList()).getByText('Maria Player')
+    expect(linkedPlayerName.closest('a')).toHaveAttribute(
+      'href',
+      routePaths.playerDetails('canonical-player-id', 'source=RFETM&season=all'),
+    )
     expect(screen.queryByText('Joan Player')).not.toBeInTheDocument()
+  })
+
+  it('shows a shown/total summary that narrows as the player search input is typed', () => {
+    renderPage('/clubs/club-id?view=players&season=2024-2025')
+
+    expect(screen.getByText('3 de 3 jugadors')).toBeInTheDocument()
+
+    fireEvent.change(screen.getByLabelText('Cerca jugadors per nom'), { target: { value: 'nuria' } })
+
+    expect(screen.getByText('1 de 3 jugadors')).toBeInTheDocument()
+    expect(within(rosterList()).getByText('Núria Pérez')).toBeInTheDocument()
+    expect(within(rosterList()).queryByText('Maria Player')).not.toBeInTheDocument()
+    expect(within(rosterList()).queryByText('Laia Player')).not.toBeInTheDocument()
+  })
+
+  it('matches player names regardless of accents in the search input', () => {
+    renderPage('/clubs/club-id?view=players&season=2024-2025')
+
+    fireEvent.change(screen.getByLabelText('Cerca jugadors per nom'), { target: { value: 'perez' } })
+
+    expect(within(rosterList()).getByText('Núria Pérez')).toBeInTheDocument()
+  })
+
+  it('shows a distinct empty state when the player search has no matches', () => {
+    renderPage('/clubs/club-id?view=players&season=2024-2025')
+
+    fireEvent.change(screen.getByLabelText('Cerca jugadors per nom'), { target: { value: 'zzz' } })
+
+    expect(screen.getByText('Cap jugador coincideix amb «zzz».')).toBeInTheDocument()
+    expect(screen.queryByText('No hi ha jugadors registrats per als filtres seleccionats.')).not.toBeInTheDocument()
+  })
+
+  it('restores the full player list and summary when the search input is cleared', () => {
+    renderPage('/clubs/club-id?view=players&season=2024-2025')
+
+    const searchInput = screen.getByLabelText('Cerca jugadors per nom')
+    fireEvent.change(searchInput, { target: { value: 'nuria' } })
+    fireEvent.change(searchInput, { target: { value: '' } })
+
+    expect(screen.getByText('3 de 3 jugadors')).toBeInTheDocument()
+    expect(within(rosterList()).getByText('Maria Player')).toBeInTheDocument()
+    expect(within(rosterList()).getByText('Laia Player')).toBeInTheDocument()
+    expect(within(rosterList()).getByText('Núria Pérez')).toBeInTheDocument()
+  })
+
+  it('still shows the no-players-at-all empty state when the club has no players', () => {
+    useClubDetails.mockReturnValue({
+      data: { ...club, players: [] },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/clubs/club-id?view=players&season=2024-2025')
+
+    expect(screen.getByText('No hi ha jugadors registrats per als filtres seleccionats.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Cerca jugadors per nom')).not.toBeInTheDocument()
+  })
+
+  it('shows the no-players empty state when the club only has unconsolidated players', () => {
+    useClubDetails.mockReturnValue({
+      data: { ...club, players: club.players.filter((player) => !player.canonicalPlayerId) },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/clubs/club-id?view=players&season=2024-2025')
+
+    expect(screen.getByText('No hi ha jugadors registrats per als filtres seleccionats.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Cerca jugadors per nom')).not.toBeInTheDocument()
+  })
+
+  it('limits the players-by-competition list to 5 rows with a "See all" button to reveal the rest', () => {
+    const manyCompetitionPlayers = ['A', 'B', 'C', 'D', 'E', 'F'].map((letter) => ({
+      playerSeasonId: `player-${letter}`,
+      playerId: `player-${letter}`,
+      canonicalPlayerId: `canonical-${letter}`,
+      playerName: `Player ${letter}`,
+      registrationName: `Player ${letter}`,
+      license: letter,
+      source: 'RFETM',
+      season: '2024-2025',
+      competitions: [`Competition ${letter}`],
+    }))
+    useClubDetails.mockReturnValue({
+      data: { ...club, players: manyCompetitionPlayers },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/clubs/club-id?view=players&season=2024-2025')
+
+    const byCompetitionCard = screen.getByRole('heading', { name: 'Jugadors per competició' }).closest('.card-block')
+    expect(within(byCompetitionCard).getAllByRole('listitem')).toHaveLength(5)
+
+    fireEvent.click(within(byCompetitionCard).getByRole('button', { name: /Veure-ho tot/ }))
+
+    expect(within(byCompetitionCard).getAllByRole('listitem')).toHaveLength(6)
+    expect(within(byCompetitionCard).queryByRole('button', { name: /Veure-ho tot/ })).not.toBeInTheDocument()
   })
 
   it('orders tabs Summary, Stats, Players, Matches and defaults to Summary', () => {
@@ -319,27 +482,13 @@ describe('ClubDetailPage', () => {
     expect(screen.getByRole('tab', { name: /Jugadors/ })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('links players with a canonicalPlayerId to their player details page', () => {
-    renderPage('/clubs/club-id?view=players&season=2024-2025')
-
-    const linkedPlayerName = screen.getByText('Maria Player')
-    const linkedCard = linkedPlayerName.closest('a')
-    expect(linkedCard).toHaveAttribute(
-      'href',
-      routePaths.playerDetails('canonical-player-id', 'source=RFETM&season=2024-2025'),
-    )
-
-    const unlinkedPlayerName = screen.getByText('Joan Player')
-    expect(unlinkedPlayerName.closest('a')).toBeNull()
-  })
-
   it('links matches to their match details page', () => {
     renderPage('/clubs/club-id?view=matches&season=2024-2025&competition=Preferent')
 
     expandNode('RFETM')
     expandNode('Sènior')
 
-    const matchCard = screen.getByText('Sènior — Rival TT').closest('a')
+    const matchCard = within(matchHierarchyList()).getByText('Sènior — Rival TT').closest('a')
     expect(matchCard).toHaveAttribute(
       'href',
       routePaths.matchSummary('Preferent-2024-2025-match', 'view=matches&season=2024-2025&competition=Preferent'),

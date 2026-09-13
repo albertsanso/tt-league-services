@@ -12,7 +12,7 @@ function groupBy(items, keyFn) {
   return map
 }
 
-function resolveClubTeam(match, teams, source, season) {
+export function resolveClubTeam(match, teams, source, season) {
   const candidates = teams.filter((team) => team.source === source && team.season === season)
   const homeMatch = candidates.find((team) => team.name === match.homeTeam)
   const awayMatch = candidates.find((team) => team.name === match.awayTeam)
