@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00064: Add summary in Matches tab in player details](### [FEAT-00064] Add summary in Matches tab in player details)
+
 - [FEAT-00063: Add player summary and search in Club details, Players tab](### [FEAT-00063] Add player summary and search in Club details, Players tab)
 - [FEAT-00062: Add links to Match detail](### [FEAT-00062] Add links to Match detail)
 - [FEAT-00061: Opponent insights metrics](### [FEAT-00061] Opponent insights metrics)
@@ -41,7 +43,35 @@ This file is the single source of truth for planned, in-progress, and completed 
 No features currently in progress.
 ## In Review
 
-No features currently in review.
+### [FEAT-00064] Add summary in Matches tab in player details
+- **Status:** in-review
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** FEAT-00063 (Club details Matches summary strip — styling/content reference)
+
+#### Goal
+Let users see at-a-glance match stats (record, home/away split, form guide, notable matches) at the top of Player details, Matches tab, matching the summary strip already shipped for Club details, Matches tab (FEAT-00063).
+
+#### Acceptance Criteria
+- [x] Player details, Matches tab shows a "Matches summary" strip above the existing match list/pagination, following the same styling and content pattern as the Matches summary strip on Club details, Matches tab (FEAT-00063): stat tiles, a form guide with current streak, and a notable-matches card
+- [x] The strip shows stat tiles for: total matches (in the current Source/Season/Competition filters), win rate (with W/D/L breakdown), home vs. away win-rate split, and count of pending (not-yet-scored) matches
+- [x] The strip shows a last-5 form guide (chronological W/L/D chips) with the player's current streak
+- [x] The strip shows a "Notable matches" mini-list (closest result, biggest win, biggest defeat), each linking to the match detail page, omitting any slot with no qualifying match and never repeating the same match under two labels
+- [x] The strip is additive: it reads only from data the Matches tab already fetches (`data.matches`), scopes to the tab's existing Source/Season/Competition filters, and does not change the existing match list, pagination, or empty state
+- [x] Implementation reuses the club-details Matches summary building blocks (`clubSummary.js` helpers, `StatTile`, and the record-bar/mini-list/match-row styling) where the data shapes allow, rather than duplicating logic, adapting for the player-level match record (which already carries `playerTeam` alongside `homeTeam`/`awayTeam`, so no team-resolution step is needed for the home/away split)
+
+#### Feature Details
+→ See [FEAT-00064-DETAILS.md](./FEAT-00064-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 ## Backlog
 
 No features currently in the backlog.
@@ -352,6 +382,16 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

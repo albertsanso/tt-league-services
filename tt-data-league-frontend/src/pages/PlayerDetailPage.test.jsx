@@ -157,6 +157,60 @@ describe('PlayerDetailPage', () => {
     await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('view=statistics'))
   })
 
+  it('shows a Matches summary strip with record, home/away split, pending count, form guide and streak', () => {
+    renderPage('/players/player-id?view=matches')
+
+    const panel = screen.getByRole('tabpanel', { name: 'Partits' })
+    const strip = panel.querySelector('.matches-summary-strip')
+    const tileValues = [...strip.querySelectorAll('.stat-tile-value')].map((node) => node.textContent)
+
+    expect(tileValues).toEqual(['4', '50%', '50% / 50%', '1'])
+    expect(strip.querySelector('.matches-form-guide')).toHaveTextContent('EVVD')
+    expect(strip.querySelector('.matches-current-streak')).toHaveTextContent('ratxa actual: 1 Derrota')
+  })
+
+  it('shows the Notable matches card with distinct closest/biggest-win/biggest-loss picks', () => {
+    renderPage('/players/player-id?view=matches')
+
+    const notableCard = screen.getByRole('heading', { name: 'Partits destacats' }).closest('.card-block')
+    const rows = [...notableCard.querySelectorAll('.match-row')]
+
+    expect(rows).toHaveLength(3)
+    expect(rows[0]).toHaveTextContent('Resultat més ajustat')
+    expect(rows[0]).toHaveTextContent('Club Gamma — Club Terrassa')
+    expect(rows[1]).toHaveTextContent('Victòria més àmplia')
+    expect(rows[1]).toHaveTextContent('Club Terrassa — Club Beta')
+    expect(rows[2]).toHaveTextContent('Derrota més àmplia')
+    expect(rows[2]).toHaveTextContent('Club Beta — Club Terrassa')
+  })
+
+  it('omits the biggest-loss row from Notable matches when there are no losses, and hides the card entirely with no decided matches', () => {
+    usePlayerDetails.mockReturnValue({
+      data: { ...details, matches: [details.matches[0]] },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/players/player-id?view=matches')
+
+    const notableCard = screen.getByRole('heading', { name: 'Partits destacats' }).closest('.card-block')
+    expect(notableCard).not.toHaveTextContent('Derrota més àmplia')
+    expect(notableCard.querySelectorAll('.match-row')).toHaveLength(1)
+
+    cleanup()
+    usePlayerDetails.mockReturnValue({
+      data: { ...details, matches: [details.matches[2]] },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/players/player-id?view=matches')
+
+    expect(screen.queryByRole('heading', { name: 'Partits destacats' })).not.toBeInTheDocument()
+  })
+
   it('shows source-scoped player opponents and player-level results in match rows', () => {
     usePlayerDetails.mockReturnValue({
       data: {

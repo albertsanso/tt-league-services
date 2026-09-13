@@ -18,6 +18,40 @@ export function formatRecord(results) {
   }
 }
 
+export function computeRecord(matches) {
+  const { wins, draws, losses } = formatRecord(matches)
+  const decided = wins + draws + losses
+  const winRate = decided === 0 ? 0 : Math.round((wins / decided) * 100)
+  return { wins, draws, losses, matchCount: matches.length, winRate }
+}
+
+function resolvePlayerSide(match) {
+  if (match.playerTeam === match.homeTeam) return 'home'
+  if (match.playerTeam === match.awayTeam) return 'away'
+  return null
+}
+
+export function computeHomeAwaySplit(matches) {
+  const totals = { home: { wins: 0, draws: 0, losses: 0 }, away: { wins: 0, draws: 0, losses: 0 } }
+  matches.forEach((match) => {
+    const side = resolvePlayerSide(match)
+    if (!side) return
+    if (match.result === 'win') totals[side].wins += 1
+    else if (match.result === 'draw') totals[side].draws += 1
+    else if (match.result === 'loss') totals[side].losses += 1
+  })
+
+  const winRateOf = ({ wins, draws, losses }) => {
+    const decided = wins + draws + losses
+    return decided === 0 ? 0 : Math.round((wins / decided) * 100)
+  }
+
+  return {
+    home: { ...totals.home, winRate: winRateOf(totals.home) },
+    away: { ...totals.away, winRate: winRateOf(totals.away) },
+  }
+}
+
 export function computeTrendNote(currentWinRate, previousWinRate) {
   if (currentWinRate == null || previousWinRate == null) return null
   if (currentWinRate > previousWinRate) return { tone: 'improved', currentWinRate, previousWinRate }

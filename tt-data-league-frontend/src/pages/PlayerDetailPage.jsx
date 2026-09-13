@@ -1,11 +1,13 @@
 import { ArrowLeft } from 'lucide-react'
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { routePaths } from '../config/routes.js'
 import { usePlayerDetails } from '../hooks/usePlayers.js'
 import { useTranslation } from 'react-i18next'
 import i18n from '../i18n/index.js'
-import { computeTrendNote } from '../utils/matchSummary.js'
+import { countPendingMatches, getCurrentStreak, getFormGuide, getNotableMatches } from '../utils/clubSummary.js'
+import { computeHomeAwaySplit, computeRecord, computeTrendNote } from '../utils/matchSummary.js'
+import { MatchRow, StatTile } from './ClubSummaryPanel.jsx'
 
 const ALL = 'all'
 const VIEWS = {
@@ -222,6 +224,94 @@ function CareerSummary({ career, t }) {
   </div>
 }
 
+function MatchesSummaryStrip({ matches, returnSearch, t }) {
+  const record = useMemo(() => computeRecord(matches), [matches])
+  const homeAway = useMemo(() => computeHomeAwaySplit(matches), [matches])
+  const pending = useMemo(() => countPendingMatches(matches), [matches])
+  const formGuide = useMemo(() => getFormGuide(matches), [matches])
+  const streak = useMemo(() => getCurrentStreak(matches), [matches])
+  const notable = useMemo(() => getNotableMatches(matches), [matches])
+
+  return (
+    <div className="matches-summary-strip">
+      <div className="stat-grid">
+        <StatTile
+          label={t('common.playedMatches')}
+          value={record.matchCount}
+          subLabel={`${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
+        />
+        <StatTile
+          label={t('common.winPercentage')}
+          value={`${record.winRate}%`}
+          subLabel={`${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
+        />
+        <StatTile
+          label={t('detail.matchesHomeAwayTile')}
+          value={`${homeAway.home.winRate}% / ${homeAway.away.winRate}%`}
+          subLabel={t('common.winPercentage')}
+        />
+        <StatTile
+          label={t('detail.matchesPending')}
+          value={pending}
+          subLabel={t('detail.pendingResult')}
+        />
+      </div>
+
+      <p className="matches-form-guide">
+        {t('detail.matchesFormGuide')}:{' '}
+        {formGuide.map((match) => (
+          <span
+            key={match.id}
+            className={`match-row-result is-${match.result} form-guide-chip`}
+            title={resultLabel(match.result, t)}
+          >
+            {resultLabel(match.result, t)[0]}
+          </span>
+        ))}
+        {streak ? (
+          <span className="matches-current-streak">
+            {' '}({t('detail.matchesCurrentStreak', { result: resultLabel(streak.result, t), count: streak.count })})
+          </span>
+        ) : null}
+      </p>
+
+      {notable.closest || notable.biggestWin || notable.biggestLoss ? (
+        <div className="card-block card">
+          <div className="card-block-header">
+            <h3>{t('detail.matchesNotableTitle')}</h3>
+          </div>
+          <ul className="match-row-list">
+            {notable.closest ? (
+              <MatchRow
+                key="closest"
+                match={{ ...notable.closest, competition: `${t('detail.matchesClosest')} · ${notable.closest.competition}` }}
+                returnSearch={returnSearch}
+                t={t}
+              />
+            ) : null}
+            {notable.biggestWin ? (
+              <MatchRow
+                key="biggestWin"
+                match={{ ...notable.biggestWin, competition: `${t('detail.matchesBiggestWin')} · ${notable.biggestWin.competition}` }}
+                returnSearch={returnSearch}
+                t={t}
+              />
+            ) : null}
+            {notable.biggestLoss ? (
+              <MatchRow
+                key="biggestLoss"
+                match={{ ...notable.biggestLoss, competition: `${t('detail.matchesBiggestLoss')} · ${notable.biggestLoss.competition}` }}
+                returnSearch={returnSearch}
+                t={t}
+              />
+            ) : null}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 function MatchHistoryPanel({ matches, returnSearch, t }) {
   const [page, setPage] = useState(0)
   const sortedMatches = [...matches].sort(compareMatches)
@@ -232,6 +322,7 @@ function MatchHistoryPanel({ matches, returnSearch, t }) {
     <h2 id="player-matches-title">{t('common.matches')}</h2>
     {matches.length === 0 ? <p className="club-empty card" role="status">{t('detail.competitionEmpty')}</p> : (
       <div className="match-history">
+        <MatchesSummaryStrip matches={matches} returnSearch={returnSearch} t={t} />
         <ul className="match-card-list" aria-labelledby="player-matches-title">
           {visibleMatches.map((item) => <MatchCard key={item.id} match={item} returnSearch={returnSearch} t={t} />)}
         </ul>
