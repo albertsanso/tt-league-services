@@ -23,8 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00065: Add MCP server layer](### [FEAT-00065] Add MCP server layer)
 - [FEAT-00064: Add summary in Matches tab in player details](### [FEAT-00064] Add summary in Matches tab in player details)
-
 - [FEAT-00063: Add player summary and search in Club details, Players tab](### [FEAT-00063] Add player summary and search in Club details, Players tab)
 - [FEAT-00062: Add links to Match detail](### [FEAT-00062] Add links to Match detail)
 - [FEAT-00061: Opponent insights metrics](### [FEAT-00061] Opponent insights metrics)
@@ -37,14 +37,52 @@ This file is the single source of truth for planned, in-progress, and completed 
 - [FEAT-00054: Club detail Summary and Stats tabs](### [FEAT-00054] Club detail Summary and Stats tabs)
 - [FEAT-00053: Link list of club players to Player details](### [FEAT-00053] Link list of club players to Player details)
 
-
 ## In Progress
 
 No features currently in progress.
 ## In Review
 
+No features currently in review.
+## Backlog
+
+No features currently in the backlog.
+## Done
+
+### [FEAT-00065] Add MCP server layer
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Expose league data (players, clubs, matches, stats) through an MCP server so MCP clients like Claude can query it as tools/resources.
+
+Added as a new maven module `tt-data-league-api-mcp` (naming aligned with the
+existing `tt-data-league-api-rest`/`tt-data-league-api-runtime` modules),
+embedded in the existing `tt-data-league-api-runtime` Spring Boot app rather
+than run standalone. It exposes read-only MCP tools for players, clubs,
+matches, and stats data, backed by the existing `QueryBus` application
+queries. The MCP endpoint itself is unauthenticated; access is instead
+controlled by whether the server is enabled at all
+(`spring.ai.mcp.server.enabled`), which defaults on under the `dev` profile
+and off under the `prod` profile.
+
+#### Acceptance Criteria
+- [x] MCP server is implemented as a new maven module `tt-data-league-api-mcp`, embedded in the existing `tt-data-league-api-runtime` Spring Boot app
+- [x] MCP server exposes read-only tools for players, clubs, matches, and stats data, following the MCP protocol (via Spring AI's MCP server starter)
+- [x] MCP server endpoint (`/mcp/**`) does not require authentication
+- [x] `tt-data-league-api-runtime`'s `application.yml` exposes a property to enable/disable the MCP server (`spring.ai.mcp.server.enabled`)
+- [x] The MCP server is enabled by default under the `dev` Spring profile (`application-dev.yml`) and disabled under the `prod` Spring profile (`application-prod.yml`)
+- [x] MCP server is documented with usage instructions for connecting an MCP client, in `tt-data-league-api-mcp/README.md`
+- [x] MCP server tools are covered by unit tests, and the server's startup, tool registration, unauthenticated access, and profile-gated enable/disable behavior were verified against a running instance
+
+#### Feature Details
+→ See [FEAT-00065-DETAILS.md](./FEAT-00065-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
 ### [FEAT-00064] Add summary in Matches tab in player details
-- **Status:** in-review
+- **Status:** done
 - **Priority:** medium
 - **Effort:** medium
 - **Depends on:** FEAT-00063 (Club details Matches summary strip — styling/content reference)
@@ -64,18 +102,6 @@ Let users see at-a-glance match stats (record, home/away split, form guide, nota
 → See [FEAT-00064-DETAILS.md](./FEAT-00064-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-
----
-
----
-
----
-
----
-## Backlog
-
-No features currently in the backlog.
-## Done
 
 ### [FEAT-00063] Add player summary and search in Club details, Players tab
 - **Status:** done
@@ -382,6 +408,20 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

@@ -42,6 +42,8 @@ public class SecurityConfig {
                         ).permitAll()
                         // Actuator
                         .requestMatchers("/actuator/**", "/error").permitAll()
+                        // MCP server: unauthenticated, gated instead by spring.ai.mcp.server.enabled per profile
+                        .requestMatchers("/mcp/**").permitAll()
                         .requestMatchers("/api/v1/user/me").authenticated()
                         .requestMatchers("/api/v1/user/**").authenticated()
                         .requestMatchers(HttpMethod.GET, "/api/v1/club/**")

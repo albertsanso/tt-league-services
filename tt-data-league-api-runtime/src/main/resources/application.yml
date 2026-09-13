@@ -2,6 +2,16 @@ spring:
   application:
     name: tt-data-league-api-runtime
 
+  ai:
+    mcp:
+      server:
+        enabled: ${MCP_SERVER_ENABLED:false}
+        name: tt-data-league-mcp-server
+        version: 0.0.1
+        type: SYNC
+        sse-endpoint: /mcp/sse
+        sse-message-endpoint: /mcp/message
+
   servlet:
     multipart:
       max-file-size: ${IMPORT_UPLOAD_MAX_FILE_SIZE:100MB}

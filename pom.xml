@@ -18,6 +18,7 @@
         <module>tt-data-league-import-runtime</module>
         <module>tt-data-league-import</module>
         <module>tt-data-league-api-rest</module>
+        <module>tt-data-league-api-mcp</module>
         <module>tt-data-league-api-runtime</module>
         <module>tt-data-league-api-graphql</module>
         <module>tt-data-league-frontend</module>
@@ -72,6 +73,20 @@
                 <groupId>org.cttelsamicsterrassa</groupId>
                 <artifactId>tt-data-league-api-rest</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>org.cttelsamicsterrassa</groupId>
+                <artifactId>tt-data-league-api-mcp</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+
+            <!-- Spring AI: MCP server starter -->
+            <dependency>
+                <groupId>org.springframework.ai</groupId>
+                <artifactId>spring-ai-bom</artifactId>
+                <version>1.0.0</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
 
             <dependency>

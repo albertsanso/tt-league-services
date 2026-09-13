@@ -25,6 +25,11 @@
 
         <dependency>
             <groupId>org.cttelsamicsterrassa</groupId>
+            <artifactId>tt-data-league-api-mcp</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>org.cttelsamicsterrassa</groupId>
             <artifactId>tt-data-league-core-domain</artifactId>
         </dependency>
 
