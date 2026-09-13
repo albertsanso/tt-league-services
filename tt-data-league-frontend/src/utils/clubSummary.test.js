@@ -5,6 +5,7 @@ import {
   getRecentMatches,
   getTopPerformers,
   getTopPlayers,
+  scopePlayerResultsToCompetition,
 } from './clubSummary.js'
 
 function competition(season, name, { wins = 0, draws = 0, losses = 0, matchCount } = {}) {
@@ -167,5 +168,52 @@ describe('getTopPerformers', () => {
 
   it('returns an empty array when no player meets the floor', () => {
     expect(getTopPerformers([performer('Anna', { wins: 1, draws: 0, losses: 0 })])).toEqual([])
+  })
+})
+
+describe('scopePlayerResultsToCompetition', () => {
+  function playerWithCompetitionResults(name, competitionResults) {
+    return {
+      playerName: name,
+      registrationName: name,
+      matchCount: 999,
+      resultTotals: { wins: 999, draws: 999, losses: 999 },
+      competitionResults,
+    }
+  }
+
+  it('uses only the selected competition\'s totals when a competition filter is active', () => {
+    const players = [playerWithCompetitionResults('Anna', [
+      { competition: 'Preferent', matchCount: 5, resultTotals: { wins: 4, draws: 0, losses: 1 } },
+      { competition: 'Copa', matchCount: 2, resultTotals: { wins: 0, draws: 0, losses: 2 } },
+    ])]
+
+    const [anna] = scopePlayerResultsToCompetition(players, 'Copa')
+
+    expect(anna.matchCount).toBe(2)
+    expect(anna.resultTotals).toEqual({ wins: 0, draws: 0, losses: 2 })
+  })
+
+  it('sums every competition when no competition filter is active', () => {
+    const players = [playerWithCompetitionResults('Anna', [
+      { competition: 'Preferent', matchCount: 5, resultTotals: { wins: 4, draws: 0, losses: 1 } },
+      { competition: 'Copa', matchCount: 2, resultTotals: { wins: 0, draws: 0, losses: 2 } },
+    ])]
+
+    const [anna] = scopePlayerResultsToCompetition(players, '')
+
+    expect(anna.matchCount).toBe(7)
+    expect(anna.resultTotals).toEqual({ wins: 4, draws: 0, losses: 3 })
+  })
+
+  it('leaves players without a competition breakdown untouched', () => {
+    const players = [{
+      playerName: 'Marc',
+      registrationName: 'Marc',
+      matchCount: 3,
+      resultTotals: { wins: 2, draws: 0, losses: 1 },
+    }]
+
+    expect(scopePlayerResultsToCompetition(players, 'Copa')).toEqual(players)
   })
 })

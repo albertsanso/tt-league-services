@@ -480,10 +480,10 @@ export default {
     statsWinRateTrendTitle: 'Percentatge de victòries per temporada',
     statsTrendEmpty: 'Encara no hi ha prou dades de temporades per mostrar una tendència.',
     statsTrendAria: 'Tendència del percentatge de victòries per temporada: percentatge de partits guanyats a cada temporada amb dades disponibles, del 0% al 100%.',
-    summaryTopPerformer: 'Millor rendiment',
+    summaryTopPerformer: 'Millor rendiment (Jocs en brut)',
     summaryPlayerWinRate: '{{winRate}}% · {{wins}}V-{{draws}}E-{{losses}}D',
     summaryTopPerformerEmpty: 'Cap jugador té encara prou partits per aparèixer en aquest rànquing.',
-    summaryPlayerMatchCount: '{{count}} partits',
+    summaryPlayerMatchCount: '{{count}} Jocs individuals',
   },
   auth: {
     username: 'Usuari',

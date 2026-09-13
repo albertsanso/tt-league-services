@@ -1,8 +1,14 @@
 import { cleanup, render, screen, fireEvent } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import ClubSummaryPanel from './ClubSummaryPanel.jsx'
+import { routePaths } from '../config/routes.js'
 import { useClubMatches } from '../hooks/useClubs.js'
 import i18n from '../i18n/index.js'
+
+function renderPanel(element) {
+  return render(<MemoryRouter>{element}</MemoryRouter>)
+}
 
 vi.mock('../hooks/useClubs.js', () => ({
   useClubMatches: vi.fn(),
@@ -68,7 +74,7 @@ describe('ClubSummaryPanel', () => {
   })
 
   it('renders stat tiles from the provided competitions and players', () => {
-    render(
+    renderPanel(
       <ClubSummaryPanel
         club={club}
         competitions={competitions}
@@ -87,7 +93,7 @@ describe('ClubSummaryPanel', () => {
   })
 
   it('shows the recent match and ranks players by competitions played', () => {
-    render(
+    renderPanel(
       <ClubSummaryPanel
         club={club}
         competitions={competitions}
@@ -107,7 +113,7 @@ describe('ClubSummaryPanel', () => {
   it('calls the tab-switch callbacks from the "See all" links', () => {
     const onSeeMatches = vi.fn()
     const onSeePlayers = vi.fn()
-    render(
+    renderPanel(
       <ClubSummaryPanel
         club={club}
         competitions={competitions}
@@ -128,7 +134,7 @@ describe('ClubSummaryPanel', () => {
   })
 
   it('ranks the Top performer card by win rate, excluding players below the match floor', () => {
-    render(
+    renderPanel(
       <ClubSummaryPanel
         club={club}
         competitions={competitions}
@@ -145,7 +151,7 @@ describe('ClubSummaryPanel', () => {
   })
 
   it('shows the Top performer empty state when no player meets the match floor', () => {
-    render(
+    renderPanel(
       <ClubSummaryPanel
         club={club}
         competitions={competitions}
@@ -160,9 +166,29 @@ describe('ClubSummaryPanel', () => {
     expect(screen.getByText('Cap jugador té encara prou partits per aparèixer en aquest rànquing.')).toBeInTheDocument()
   })
 
+  it('links the recent match and top players/performers to their details pages', () => {
+    renderPanel(
+      <ClubSummaryPanel
+        club={club}
+        competitions={competitions}
+        players={players}
+        season="2024-2025"
+        returnSearch="season=2024-2025"
+        onSeeMatches={vi.fn()}
+        onSeePlayers={vi.fn()}
+        t={t}
+      />,
+    )
+
+    expect(screen.getByText('Club A — Club B').closest('a')).toHaveAttribute(
+      'href',
+      routePaths.matchSummary('m1', 'season=2024-2025'),
+    )
+  })
+
   it('shows empty states when there are no matches or players', () => {
     useClubMatches.mockReturnValue({ data: [], loading: false, error: null })
-    render(
+    renderPanel(
       <ClubSummaryPanel
         club={club}
         competitions={[]}

@@ -5,6 +5,8 @@ import { routePaths } from '../config/routes.js'
 import { useAuth } from '../context/useAuth.js'
 import { useClubDetails, useClubMatches } from '../hooks/useClubs.js'
 import { groupMatchesHierarchy } from '../utils/clubMatches.js'
+import { scopePlayerResultsToCompetition } from '../utils/clubSummary.js'
+import ProgressBar from '../components/ui/ProgressBar.jsx'
 import ClubSummaryPanel from './ClubSummaryPanel.jsx'
 import ClubStatsPanel from './ClubStatsPanel.jsx'
 import { useTranslation } from 'react-i18next'
@@ -38,7 +40,12 @@ function ClubDetailPage() {
   const successMessage = searchParams.get('message') || location.state?.successMessage
 
   if (loading) {
-    return <p className="club-state card" role="status" aria-live="polite">{t('detail.loadingClub')}</p>
+    return (
+      <div className="club-state card" role="status" aria-live="polite">
+        <p>{t('detail.loadingClub')}</p>
+        <ProgressBar value={null} label={t('detail.loadingClub')} />
+      </div>
+    )
   }
 
   if (error?.status === 404 || error?.status === 400) {
@@ -137,10 +144,13 @@ function ClubDetailContent({
     (!season || item.season === season) && (!competition || item.name === competition)
   ))
   const trendCompetitions = sourceCompetitions.filter((item) => !competition || item.name === competition)
-  const players = sourcePlayers.filter((player) => (
-    (!season || player.season === season)
-      && (!competition || player.competitions.includes(competition))
-  ))
+  const players = scopePlayerResultsToCompetition(
+    sourcePlayers.filter((player) => (
+      (!season || player.season === season)
+        && (!competition || player.competitions.includes(competition))
+    )),
+    competition,
+  )
 
   useEffect(() => {
     const normalizedParams = new URLSearchParams(searchParams)
@@ -322,6 +332,7 @@ function ClubDetailContent({
             competitions={filteredCompetitions}
             players={players}
             season={season}
+            returnSearch={searchParams.toString()}
             onSeeMatches={() => updateFilters({ view: VIEWS.MATCHES })}
             onSeePlayers={() => updateFilters({ view: VIEWS.PLAYERS })}
             t={t}
@@ -420,7 +431,12 @@ function MatchesPanel({ club, competitions, returnSearch, sourceFilter, season, 
   }
 
   if (loading) {
-    return <p className="club-state card" role="status" aria-live="polite">{t('detail.loadingClub')}</p>
+    return (
+      <div className="club-state card" role="status" aria-live="polite">
+        <p>{t('detail.loadingClub')}</p>
+        <ProgressBar value={null} label={t('detail.loadingClub')} />
+      </div>
+    )
   }
 
   if (error || !matchGroups) {
@@ -587,26 +603,31 @@ function CompetitionBody({ club, season, competitionName, teams, returnSearch, k
                 {expanded.has(teamPath) ? (
                   <ul className="club-match-list" aria-label={t('detail.competitionMatchesLabel')}>
                     {teamNode.matches.map((match) => (
-                      <li key={match.id} className="club-match-card card">
-                        <div>
-                          <strong>{match.homeTeam} — {match.awayTeam}</strong>
-                          <span>
-                            {t('detail.round', { round: match.round })}
-                            {match.venue ? ` · ${match.venue}` : ''}
-                          </span>
-                        </div>
-                        <div className={`club-match-result is-${match.result}`}>
-                          <strong>
-                            {match.homeGamesWon == null || match.awayGamesWon == null
-                              ? t('detail.pendingResult')
-                              : `${match.homeGamesWon} — ${match.awayGamesWon}`}
-                          </strong>
-                          <span>
-                            {match.result === 'win'
-                              ? t('detail.win')
-                              : match.result === 'loss' ? t('detail.loss') : t('detail.draw')}
-                          </span>
-                        </div>
+                      <li key={match.id}>
+                        <Link
+                          className="club-match-card card"
+                          to={routePaths.matchSummary(match.id, returnSearch)}
+                        >
+                          <div>
+                            <strong>{match.homeTeam} — {match.awayTeam}</strong>
+                            <span>
+                              {t('detail.round', { round: match.round })}
+                              {match.venue ? ` · ${match.venue}` : ''}
+                            </span>
+                          </div>
+                          <div className={`club-match-result is-${match.result}`}>
+                            <strong>
+                              {match.homeGamesWon == null || match.awayGamesWon == null
+                                ? t('detail.pendingResult')
+                                : `${match.homeGamesWon} — ${match.awayGamesWon}`}
+                            </strong>
+                            <span>
+                              {match.result === 'win'
+                                ? t('detail.win')
+                                : match.result === 'loss' ? t('detail.loss') : t('detail.draw')}
+                            </span>
+                          </div>
+                        </Link>
                       </li>
                     ))}
                   </ul>

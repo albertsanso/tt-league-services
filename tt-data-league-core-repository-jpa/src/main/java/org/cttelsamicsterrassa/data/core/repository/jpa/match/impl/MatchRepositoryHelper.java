@@ -22,20 +22,19 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
               and (:competition is null or m.competition = :competition)
               and (:fromDate is null or m.matchDate >= :fromDate)
               and (:toDate is null or m.matchDate <= :toDate)
-              and (:clubNameF0 = '' or
-                   lower(m.homeTeam.name) like lower(concat('%', :clubNameF0, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF0, '%'))
-                or (:clubNameF1 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF1, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF1, '%'))))
-                or (:clubNameF2 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF2, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF2, '%'))))
-                or (:clubNameF3 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF3, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF3, '%'))))
-                or (:clubNameF4 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF4, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF4, '%')))))
+              and (:clubNameF0 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF0, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF0, '%')))
+              and (:clubNameF1 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF1, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF1, '%')))
+              and (:clubNameF2 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF2, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF2, '%')))
+              and (:clubNameF3 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF3, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF3, '%')))
+              and (:clubNameF4 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF4, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF4, '%')))
               and (:playerNameF0 = '' or exists (
                   select l.id from LineupJPA l join l.player p
                   where l.match = m and p.source = :source
-                    and (lower(p.name) like lower(concat('%', :playerNameF0, '%'))
-                         or (:playerNameF1 <> '' and lower(p.name) like lower(concat('%', :playerNameF1, '%')))
-                         or (:playerNameF2 <> '' and lower(p.name) like lower(concat('%', :playerNameF2, '%')))
-                         or (:playerNameF3 <> '' and lower(p.name) like lower(concat('%', :playerNameF3, '%')))
-                         or (:playerNameF4 <> '' and lower(p.name) like lower(concat('%', :playerNameF4, '%'))))
+                    and lower(p.name) like lower(concat('%', :playerNameF0, '%'))
+                    and (:playerNameF1 = '' or lower(p.name) like lower(concat('%', :playerNameF1, '%')))
+                    and (:playerNameF2 = '' or lower(p.name) like lower(concat('%', :playerNameF2, '%')))
+                    and (:playerNameF3 = '' or lower(p.name) like lower(concat('%', :playerNameF3, '%')))
+                    and (:playerNameF4 = '' or lower(p.name) like lower(concat('%', :playerNameF4, '%')))
                     and (:playerLocation = 'EITHER'
                          or (:playerLocation = 'HOME' and l.team = m.homeTeam)
                          or (:playerLocation = 'AWAY' and l.team = m.awayTeam))))
@@ -70,20 +69,19 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
               and (:competition is null or m.competition = :competition)
               and (:fromDate is null or m.matchDate >= :fromDate)
               and (:toDate is null or m.matchDate <= :toDate)
-              and (:clubNameF0 = '' or
-                   lower(m.homeTeam.name) like lower(concat('%', :clubNameF0, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF0, '%'))
-                or (:clubNameF1 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF1, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF1, '%'))))
-                or (:clubNameF2 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF2, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF2, '%'))))
-                or (:clubNameF3 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF3, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF3, '%'))))
-                or (:clubNameF4 <> '' and (lower(m.homeTeam.name) like lower(concat('%', :clubNameF4, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF4, '%')))))
+              and (:clubNameF0 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF0, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF0, '%')))
+              and (:clubNameF1 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF1, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF1, '%')))
+              and (:clubNameF2 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF2, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF2, '%')))
+              and (:clubNameF3 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF3, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF3, '%')))
+              and (:clubNameF4 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF4, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF4, '%')))
               and (:playerNameF0 = '' or exists (
                   select l.id from LineupJPA l join l.player p
                   where l.match = m and p.source = :source
-                    and (lower(p.name) like lower(concat('%', :playerNameF0, '%'))
-                         or (:playerNameF1 <> '' and lower(p.name) like lower(concat('%', :playerNameF1, '%')))
-                         or (:playerNameF2 <> '' and lower(p.name) like lower(concat('%', :playerNameF2, '%')))
-                         or (:playerNameF3 <> '' and lower(p.name) like lower(concat('%', :playerNameF3, '%')))
-                         or (:playerNameF4 <> '' and lower(p.name) like lower(concat('%', :playerNameF4, '%'))))
+                    and lower(p.name) like lower(concat('%', :playerNameF0, '%'))
+                    and (:playerNameF1 = '' or lower(p.name) like lower(concat('%', :playerNameF1, '%')))
+                    and (:playerNameF2 = '' or lower(p.name) like lower(concat('%', :playerNameF2, '%')))
+                    and (:playerNameF3 = '' or lower(p.name) like lower(concat('%', :playerNameF3, '%')))
+                    and (:playerNameF4 = '' or lower(p.name) like lower(concat('%', :playerNameF4, '%')))
                     and (:playerLocation = 'EITHER'
                          or (:playerLocation = 'HOME' and l.team = m.homeTeam)
                          or (:playerLocation = 'AWAY' and l.team = m.awayTeam))))

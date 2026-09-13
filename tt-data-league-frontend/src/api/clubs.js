@@ -175,6 +175,19 @@ function normalizeCompetition(value) {
   return competition
 }
 
+function normalizePlayerCompetitionResult(value) {
+  if (!value || typeof value !== 'object') {
+    throw new ApiError('La resposta conté un resultat de competició de jugador no vàlid.', 502, value)
+  }
+
+  return {
+    competition: requireText(value.competition, 'un nom de competició'),
+    matchCount: Number(value.matchCount ?? 0),
+    resultTotals: normalizeResultTotals(value.resultTotals
+      ?? { wins: value.wins ?? 0, draws: value.draws ?? 0, losses: value.losses ?? 0 }),
+  }
+}
+
 function normalizePlayer(value) {
   if (!value || typeof value !== 'object') {
     throw new ApiError('La resposta conté un jugador no vàlid.', 502, value)
@@ -184,6 +197,11 @@ function normalizePlayer(value) {
   if (!Array.isArray(competitions)
     || competitions.some((competition) => typeof competition !== 'string' || !competition.trim())) {
     throw new ApiError('La resposta conté competicions de jugador no vàlides.', 502, value)
+  }
+
+  const competitionResults = value.competitionResults == null ? [] : value.competitionResults
+  if (!Array.isArray(competitionResults)) {
+    throw new ApiError('La resposta conté resultats de competició de jugador no vàlids.', 502, value)
   }
 
   return {
@@ -204,6 +222,7 @@ function normalizePlayer(value) {
     matchCount: Number(value.matchCount ?? 0),
     resultTotals: normalizeResultTotals(value.resultTotals
       ?? { wins: value.wins ?? 0, draws: value.draws ?? 0, losses: value.losses ?? 0 }),
+    competitionResults: competitionResults.map(normalizePlayerCompetitionResult),
   }
 }
 

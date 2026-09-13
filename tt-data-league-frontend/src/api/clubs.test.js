@@ -39,6 +39,13 @@ describe('club API boundary', () => {
         source: 'RFETM',
         season: '2025',
         competitions: ['Preferent'],
+        matchCount: 8,
+        resultTotals: { wins: 5, draws: 1, losses: 2 },
+        competitionResults: [{
+          competition: 'Preferent',
+          matchCount: 8,
+          resultTotals: { wins: 5, draws: 1, losses: 2 },
+        }],
       }],
     })
 
@@ -52,6 +59,11 @@ describe('club API boundary', () => {
     expect(details.players[0].competitions).toEqual(['Preferent'])
     expect(details.players[0].canonicalPlayerId).toBe('canonical-player-id')
     expect(details.players[0].canonicalPlayerName).toBe('Maria Canonical Player')
+    expect(details.players[0].competitionResults).toEqual([{
+      competition: 'Preferent',
+      matchCount: 8,
+      resultTotals: { wins: 5, draws: 1, losses: 2 },
+    }])
   })
 
   it('encodes the search, sends the session token, and normalizes results', async () => {

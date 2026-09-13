@@ -3565,6 +3565,19 @@
   padding: 0.65rem 0.85rem;
 }
 
+a.match-row,
+a.mini-list-item {
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+a.match-row:hover,
+a.mini-list-item:hover {
+  border-color: var(--accent-primary);
+  background: var(--surface-card-sub);
+}
+
 .match-row-result {
   display: inline-flex;
   align-items: center;
@@ -3741,6 +3754,17 @@ a.club-player-card {
 }
 
 a.club-player-card:hover {
+  border-color: var(--accent-primary);
+  background: var(--surface-card-sub);
+}
+
+a.club-match-card {
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+a.club-match-card:hover {
   border-color: var(--accent-primary);
   background: var(--surface-card-sub);
 }

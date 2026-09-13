@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { useClubMatches } from '../hooks/useClubs.js'
 import { computeOverallRecord, getRecentMatches, getTopPerformers, getTopPlayers } from '../utils/clubSummary.js'
 import i18n from '../i18n/index.js'
+import { routePaths } from '../config/routes.js'
 
 function initials(name) {
   return name
@@ -44,7 +46,7 @@ function RecordBar({ record, t }) {
   )
 }
 
-function MatchRow({ match, t }) {
+function MatchRow({ match, returnSearch, t }) {
   const resultLabel = match.result === 'win' ? t('detail.win') : match.result === 'loss' ? t('detail.loss') : t('detail.draw')
   const score = match.homeGamesWon == null || match.awayGamesWon == null
     ? t('detail.pendingResult')
@@ -52,26 +54,27 @@ function MatchRow({ match, t }) {
   const date = match.dateTime ? new Date(match.dateTime).toLocaleDateString(i18n.language) : null
 
   return (
-    <li className="match-row card">
-      <span className={`match-row-result is-${match.result}`} title={resultLabel}>
-        {resultLabel[0]}
-      </span>
-      <span className="match-row-body">
-        <strong>{match.homeTeam} — {match.awayTeam}</strong>
-        <span className="match-row-meta">
-          {[match.competition, t('detail.round', { round: match.round }), date].filter(Boolean).join(' · ')}
+    <li>
+      <Link className="match-row card" to={routePaths.matchSummary(match.id, returnSearch)}>
+        <span className={`match-row-result is-${match.result}`} title={resultLabel}>
+          {resultLabel[0]}
         </span>
-      </span>
-      <span className="match-row-score">{score}</span>
+        <span className="match-row-body">
+          <strong>{match.homeTeam} — {match.awayTeam}</strong>
+          <span className="match-row-meta">
+            {[match.competition, t('detail.round', { round: match.round }), date].filter(Boolean).join(' · ')}
+          </span>
+        </span>
+        <span className="match-row-score">{score}</span>
+      </Link>
     </li>
   )
 }
 
 function PlayerRow({ player, t }) {
   const name = player.playerName ?? player.registrationName
-
-  return (
-    <li className="mini-list-item card">
+  const body = (
+    <>
       <span className="player-avatar" aria-hidden="true">{initials(name)}</span>
       <span className="mini-list-body">
         <strong>{name}</strong>
@@ -80,15 +83,32 @@ function PlayerRow({ player, t }) {
       <span className="mini-list-stat">
         {t('detail.summaryPlayerCompetitionsCount', { count: player.competitions.length })}
       </span>
+    </>
+  )
+
+  return (
+    <li>
+      {player.canonicalPlayerId ? (
+        <Link
+          className="mini-list-item card"
+          to={routePaths.playerDetails(
+            player.canonicalPlayerId,
+            `source=${encodeURIComponent(player.source)}&season=${encodeURIComponent(player.season)}`,
+          )}
+        >
+          {body}
+        </Link>
+      ) : (
+        <div className="mini-list-item card">{body}</div>
+      )}
     </li>
   )
 }
 
 function PerformerRow({ player, t }) {
   const name = player.playerName ?? player.registrationName
-
-  return (
-    <li className="mini-list-item card">
+  const body = (
+    <>
       <span className="player-avatar" aria-hidden="true">{initials(name)}</span>
       <span className="mini-list-body">
         <strong>{name}</strong>
@@ -102,11 +122,29 @@ function PerformerRow({ player, t }) {
           losses: player.resultTotals.losses,
         })}
       </span>
+    </>
+  )
+
+  return (
+    <li>
+      {player.canonicalPlayerId ? (
+        <Link
+          className="mini-list-item card"
+          to={routePaths.playerDetails(
+            player.canonicalPlayerId,
+            `source=${encodeURIComponent(player.source)}&season=${encodeURIComponent(player.season)}`,
+          )}
+        >
+          {body}
+        </Link>
+      ) : (
+        <div className="mini-list-item card">{body}</div>
+      )}
     </li>
   )
 }
 
-function ClubSummaryPanel({ club, competitions, players, season, onSeeMatches, onSeePlayers, t }) {
+function ClubSummaryPanel({ club, competitions, players, season, returnSearch, onSeeMatches, onSeePlayers, t }) {
   const competitionsWithSource = useMemo(
     () => competitions.map((item) => ({ ...item, source: item.source ?? club.source })),
     [competitions, club.source],
@@ -165,7 +203,9 @@ function ClubSummaryPanel({ club, competitions, players, season, onSeeMatches, o
             <p className="club-empty card">{t('detail.clubMatchesEmpty')}</p>
           ) : (
             <ul className="match-row-list">
-              {recentMatches.map((match) => <MatchRow key={match.id} match={match} t={t} />)}
+              {recentMatches.map((match) => (
+                <MatchRow key={match.id} match={match} returnSearch={returnSearch} t={t} />
+              ))}
             </ul>
           )}
         </div>

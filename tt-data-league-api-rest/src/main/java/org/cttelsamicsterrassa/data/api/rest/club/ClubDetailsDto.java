@@ -6,6 +6,7 @@ import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClub
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubTeamReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubCompetitionReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.PlayerCompetitionResultReadModel;
 
 import java.util.List;
 import java.util.UUID;
@@ -130,6 +131,15 @@ public record ClubDetailsDto(
     public record ResultTotalsDto(int wins, int draws, int losses) {
     }
 
+    public record CompetitionResultDto(String competition, int matchCount, ResultTotalsDto resultTotals) {
+        private static CompetitionResultDto fromObject(PlayerCompetitionResultReadModel result) {
+            return new CompetitionResultDto(
+                    result.competition(),
+                    result.matchCount(),
+                    new ResultTotalsDto(result.wins(), result.draws(), result.losses()));
+        }
+    }
+
     public record PlayerDetailsDto(
             UUID playerSeasonId,
             UUID playerId,
@@ -142,7 +152,8 @@ public record ClubDetailsDto(
             UUID canonicalPlayerId,
             String canonicalPlayerName,
             int matchCount,
-            ResultTotalsDto resultTotals) {
+            ResultTotalsDto resultTotals,
+            List<CompetitionResultDto> competitionResults) {
         public PlayerDetailsDto(
                 UUID playerSeasonId,
                 UUID playerId,
@@ -155,7 +166,7 @@ public record ClubDetailsDto(
                 UUID canonicalPlayerId,
                 String canonicalPlayerName) {
             this(playerSeasonId, playerId, playerName, registrationName, license, source, season,
-                competitions, canonicalPlayerId, canonicalPlayerName, 0, new ResultTotalsDto(0, 0, 0));
+                competitions, canonicalPlayerId, canonicalPlayerName, 0, new ResultTotalsDto(0, 0, 0), List.of());
         }
 
         public PlayerDetailsDto(
@@ -195,7 +206,8 @@ public record ClubDetailsDto(
                     player.canonicalPlayerId(),
                     player.canonicalPlayerName(),
                     player.matchCount(),
-                    new ResultTotalsDto(player.wins(), player.draws(), player.losses()));
+                    new ResultTotalsDto(player.wins(), player.draws(), player.losses()),
+                    player.competitionResults().stream().map(CompetitionResultDto::fromObject).toList());
         }
     }
 }

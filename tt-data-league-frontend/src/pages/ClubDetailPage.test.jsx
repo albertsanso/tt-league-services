@@ -332,4 +332,17 @@ describe('ClubDetailPage', () => {
     const unlinkedPlayerName = screen.getByText('Joan Player')
     expect(unlinkedPlayerName.closest('a')).toBeNull()
   })
+
+  it('links matches to their match details page', () => {
+    renderPage('/clubs/club-id?view=matches&season=2024-2025&competition=Preferent')
+
+    expandNode('RFETM')
+    expandNode('Sènior')
+
+    const matchCard = screen.getByText('Sènior — Rival TT').closest('a')
+    expect(matchCard).toHaveAttribute(
+      'href',
+      routePaths.matchSummary('Preferent-2024-2025-match', 'view=matches&season=2024-2025&competition=Preferent'),
+    )
+  })
 })

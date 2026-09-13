@@ -41,6 +41,29 @@ export function getRecentMatches(matches, limit = 4) {
     .slice(0, limit)
 }
 
+function sumCompetitionResults(results) {
+  return results.reduce((totals, item) => ({
+    wins: totals.wins + Number(item.resultTotals?.wins ?? 0),
+    draws: totals.draws + Number(item.resultTotals?.draws ?? 0),
+    losses: totals.losses + Number(item.resultTotals?.losses ?? 0),
+    matchCount: totals.matchCount + Number(item.matchCount ?? 0),
+  }), { wins: 0, draws: 0, losses: 0, matchCount: 0 })
+}
+
+export function scopePlayerResultsToCompetition(players, competition) {
+  return players.map((player) => {
+    const competitionResults = player.competitionResults ?? []
+    if (competitionResults.length === 0) {
+      return player
+    }
+    const relevant = competition
+      ? competitionResults.filter((item) => item.competition === competition)
+      : competitionResults
+    const { matchCount, ...resultTotals } = sumCompetitionResults(relevant)
+    return { ...player, matchCount, resultTotals }
+  })
+}
+
 export function getTopPlayers(players, limit = 4) {
   return [...players]
     .sort((left, right) => {
