@@ -98,6 +98,14 @@ function MatchActaDialog({ matchId, onClose }) {
         ref={dialogRef}
         onMouseDown={(event) => event.stopPropagation()}
       >
+        <button
+          type="button"
+          className="icon-button acta-dialog-close"
+          aria-label={t('common.close')}
+          onClick={onClose}
+        >
+          &times;
+        </button>
         {state.loading ? <p role="status">{t('matchesPage.loading')}</p> : null}
         {state.error ? (
           <p role="alert">{state.error.status === 401 ? t('matchesPage.unauthorized') : t('matchesPage.error')}</p>

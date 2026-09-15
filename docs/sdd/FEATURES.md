@@ -23,6 +23,9 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00069: BCNESA home/away orientation in extraction and import](### [FEAT-00069] BCNESA home/away orientation in extraction and import)
+- [FEAT-00068: Mismatch in Match details: Team title and summary not matching with Players alignemt below](### [FEAT-00068] Mismatch in Match details: Team title and summary not matching with Players alignemt below)
+- [FEAT-00067: Close button in acta modal](### [FEAT-00067] Close button in acta modal)
 - [FEAT-00066: Limit tied results or draws display](### [FEAT-00066] Limit tied results or draws display)
 - [FEAT-00065: Add MCP server layer](### [FEAT-00065] Add MCP server layer)
 - [FEAT-00064: Add summary in Matches tab in player details](### [FEAT-00064] Add summary in Matches tab in player details)
@@ -48,6 +51,87 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00069] BCNESA home/away orientation in extraction and import
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Store BCNESA matches with the real home and away teams, each side's own lineup, games, doubles and scores, and a games-won score instead of set totals, from PDF extraction through import.
+
+#### Acceptance Criteria
+- [x] The BCNESA extractor sets equipos.local/visitante to the real home/away teams from the acta header, not from the ABC/XYZ alignment line
+- [x] When the A/B/C team is the away team, alineaciones, dobles and partidos are written by real side and abc_es_local is false
+- [x] resultado_final.marcador_partidos holds games won (home/away) and marcador_juegos holds set totals (home/away); ganador is the team with more games
+- [x] The BCNESA importer stores matches whose X/Y/Z side is home with lineups, games and doubles on the correct teams, covered by tests
+- [x] Regenerated BCNESA JSON has no file whose lineup letters disagree with abc_es_local, and orientation is determined for every page with games
+
+#### Feature Details
+→ See [FEAT-00069-DETAILS.md](./FEAT-00069-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+### [FEAT-00068] Mismatch in Match details: Team title and summary not matching with Players alignemt below
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Fix the Match details page (Match Summary) so the team summary panel match the players alignment below it, so the players belong to the correct team on that column, and the team order and identity shown in the match title/score header match the team order and identity of the panels rendered below it.
+
+#### Description
+For instance the screenshot `assets/img/match-details-mismatch-team-and-players.png` shows a match where the team title and summary on the left is "Club A" but the players listed below it are actually from "Club B", and vice versa for the right side. This is confusing for users and needs to be corrected.
+The team A and Players belonging to team A are in red boxes and must be in the same column, and the team B and Players belonging to team B are in blue boxes and must be in the same column. The team order and identity shown in the match title/score header must match the team order and identity of the panels rendered below it.
+
+#### Acceptance Criteria
+- [x] The team title and summary on the left column of the Match details page matches the players alignment below it, so the players belong to the correct team on that column.
+- [x] The team title and summary on the right column of the Match details page matches the players alignment below it, so the players belong to the correct team on that column.
+- [x] The team order and identity shown in the match title/score header matches the team order and identity of the panels rendered below it.
+- [x] Implementation matches the layout and content documented in [`/docs/frontend/match-details-team-player-alignment.md`](../frontend/match-details-team-player-alignment.md); any deviation is noted in FEAT-00068-DETAILS.md before merging
+
+#### Feature Details
+→ See [FEAT-00068-DETAILS.md](./FEAT-00068-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+### [FEAT-00067] Close button in acta modal
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Add a visible close (X) button to the match acta modal so users can dismiss it without relying on Escape or clicking the overlay.
+
+#### Acceptance Criteria
+- [x] A close button is visible in the acta modal header
+- [x] Clicking the close button dismisses the modal, same as pressing Escape or clicking the overlay
+
+#### Feature Details
+→ See [FEAT-00067-DETAILS.md](./FEAT-00067-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00066] Limit tied results or draws display
 - **Status:** done
@@ -432,6 +516,38 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

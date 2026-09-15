@@ -100,6 +100,43 @@ class FcttImportProcessorsTest {
         assertEquals("AWAY", doubles.getWinnerSide());
     }
 
+    @Test
+    void attachesLineupsGamesAndDoublesToTheRealSidesWhenTheAbcColumnWasTheAwayTeam() {
+        // Real FCTT extract: A/B/C (CPP IGUALADA, away) written under "local"; the last running
+        // score (3-4) mirrors the final score (4-3 for CTT ELS AMICS TERRASSA, home).
+        run(context("acta_fctt_abc_away.json", "G2"));
+
+        Match match = matches.saved.getFirst();
+        assertEquals("CTT ELS AMICS TERRASSA", match.getHomeTeam().getName());
+        assertEquals(4, match.getHomeGamesWon());
+        assertEquals(3, match.getAwayGamesWon());
+        assertEquals("CTT ELS AMICS TERRASSA", match.getWinnerTeam().getName());
+
+        assertEquals(6, lineups.saved.size());
+        lineups.saved.forEach(lineup -> assertEquals(
+                "ABC".contains(lineup.getLetter()) ? "CPP IGUALADA" : "CTT ELS AMICS TERRASSA",
+                lineup.getTeam().getName(), () -> "lineup " + lineup.getLetter()));
+
+        List<Game> orderedGames = games.saved.stream()
+                .sorted(java.util.Comparator.comparingInt(Game::getGameNumber)).toList();
+        Game first = orderedGames.getFirst();
+        assertEquals("PAGÈS MARIN, ANNA", first.getHomePlayer().getName());
+        assertEquals("LUCO PEREZ, BERNAT", first.getAwayPlayer().getName());
+        assertEquals("AWAY", first.getWinnerSide());
+        assertEquals(1, first.getHomeSetsWon());
+        assertEquals(3, first.getAwaySetsWon());
+        assertEquals(List.of("AWAY", "HOME", "AWAY", "HOME", "AWAY", "HOME", "HOME"),
+                orderedGames.stream().map(Game::getWinnerSide).toList());
+        Game last = orderedGames.getLast();
+        assertEquals(4, last.getCumulativeHomeSetsWon());
+        assertEquals(3, last.getCumulativeAwaySetsWon());
+
+        assertEquals(4, doublesPairs.saved.size());
+        doublesPairs.saved.forEach(pair -> assertEquals(
+                List.of("5405", "8311").contains(pair.getPlayer().getLicenseId()) ? "AWAY" : "HOME",
+                pair.getSide(), () -> "doubles " + pair.getPlayer().getLicenseId()));
+    }
+
     private void run(FcttMatchReportContext context) {
         processors.forEach(processor -> processor.process(context));
     }

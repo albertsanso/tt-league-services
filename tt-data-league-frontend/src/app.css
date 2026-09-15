@@ -4216,12 +4216,27 @@ a.club-match-card:hover {
 }
 
 .acta-dialog {
+  position: relative;
   width: 100%;
   max-width: 56rem;
 }
 
 .acta-card {
   overflow: hidden;
+}
+
+.acta-dialog-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1;
+  font-size: 1.25rem;
+  line-height: 1;
+  color: var(--text-on-dark);
+}
+
+.acta-dialog-close:hover {
+  color: var(--text-primary);
 }
 
 .acta-jornada-bar {

@@ -150,6 +150,16 @@ describe('MatchActaDialog', () => {
     expect(onClose).toHaveBeenCalledTimes(2)
   })
 
+  it('calls onClose when the close button is clicked', async () => {
+    getMatchDetails.mockResolvedValue(fullMatch)
+    const onClose = vi.fn()
+    render(<MatchActaDialog matchId="match-1" onClose={onClose} />)
+    await screen.findByRole('dialog')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tanca' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
   it('does not close when clicking inside the dialog panel', async () => {
     getMatchDetails.mockResolvedValue(fullMatch)
     const onClose = vi.fn()

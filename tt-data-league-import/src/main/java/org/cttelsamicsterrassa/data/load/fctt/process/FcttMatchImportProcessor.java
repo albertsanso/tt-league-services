@@ -78,7 +78,11 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
     }
 
     @Override
-    public void process(FcttMatchReportContext context) {
+    public void process(FcttMatchReportContext reportContext) {
+        FcttMatchReportContext context = new FcttMatchReportContext(reportContext.season(),
+                reportContext.leagueCompetition(), reportContext.group(), reportContext.round(),
+                reportContext.matchReportFile(), FcttActaOrientation.toHomeAway(reportContext.acta()),
+                reportContext.runContext());
         if (context.acta().teams() == null || context.acta().teams().home() == null
                 || context.acta().teams().away() == null) {
             LOGGER.warn("FCTT report {} has incomplete teams; match not stored", context.matchReportFile());

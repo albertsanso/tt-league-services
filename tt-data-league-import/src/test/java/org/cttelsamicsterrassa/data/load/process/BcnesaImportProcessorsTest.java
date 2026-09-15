@@ -219,6 +219,35 @@ class BcnesaImportProcessorsTest {
         assertTrue(matches.saved.isEmpty());
     }
 
+    @Test
+    void storesLineupsGamesAndScoreOnTheRealSidesWhenTheXyzTeamIsHome() {
+        // Real RTBTT page: header lists CTT DELS HORTS 2000 (home) first, while its players sit in
+        // the XYZ column; the extractor writes it by real side with abc_es_local false.
+        Acta xyzHome = new ActaParser().parse(fixture("acta_bcnesa_xyz_home.json"));
+        run(new BcnesaMatchReportContext("2020-2021", "Preferent", "G1", "1a Fase", 10, 0,
+                xyzHome.teams().home().name(), xyzHome.teams().away().name(),
+                fixture("acta_bcnesa_xyz_home.json"), xyzHome, xyzHome.games()));
+
+        Match match = matches.saved.getFirst();
+        assertEquals("CTT DELS HORTS 2000", homeName(match));
+        assertEquals("CTT RIPOLLET", match.getAwayTeam().getName());
+        assertEquals(4, match.getHomeGamesWon());
+        assertEquals(2, match.getAwayGamesWon());
+        assertEquals(match.getHomeTeam(), match.getWinnerTeam());
+
+        assertEquals(6, lineups.saved.size());
+        lineups.saved.forEach(lineup -> assertEquals(
+                "XYZ".contains(lineup.getLetter()) ? "CTT DELS HORTS 2000" : "CTT RIPOLLET",
+                lineup.getTeam().getName(), () -> "lineup " + lineup.getLetter()));
+
+        Game first = games.saved.stream().filter(g -> g.getGameNumber() == 1).findFirst().orElseThrow();
+        assertEquals("4016", first.getHomePlayer().getLicenseId());
+        assertEquals("8089", first.getAwayPlayer().getLicenseId());
+        assertEquals("HOME", first.getWinnerSide());
+        assertEquals(3, first.getHomeSetsWon());
+        assertEquals(0, first.getAwaySetsWon());
+    }
+
     private void run(BcnesaMatchReportContext context) {
         processors.forEach(processor -> processor.process(context));
     }
