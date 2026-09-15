@@ -13,6 +13,7 @@ import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.TieEligibleCompetitions;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -116,6 +117,7 @@ public class FindFederatedClubCompetitionDetailsQueryHandler
                 query.getCompetition().trim(),
                 query.getSeason(),
                 matches.stream()
+                        .filter(FindFederatedClubCompetitionDetailsQueryHandler::isVisibleMatch)
                         .sorted(Comparator.comparing(Match::getRound).thenComparing(Match::getId))
                         .map(match -> toReadModel(match, teamIds))
                         .toList(),
@@ -148,11 +150,20 @@ public class FindFederatedClubCompetitionDetailsQueryHandler
                 query.getCompetition().trim(),
                 query.getSeason(),
                 matches.stream()
+                        .filter(FindFederatedClubCompetitionDetailsQueryHandler::isVisibleMatch)
                         .sorted(Comparator.comparing(Match::getRound).thenComparing(Match::getId))
                         .map(match -> toReadModel(match, teamIds))
                         .toList(),
                 club.getClub().map(canonical -> canonical.getId()).orElse(null),
                 club.getClub().map(canonical -> canonical.getName()).orElse(null)));
+    }
+
+    /**
+     * Whether {@code match} may appear in a match-record list at all (FEAT-00066): a tie outside
+     * {@link TieEligibleCompetitions} is excluded entirely rather than shown without a "draw" label.
+     */
+    private static boolean isVisibleMatch(Match match) {
+        return match.getWinnerTeam() != null || TieEligibleCompetitions.isTieEligible(match.getCompetition());
     }
 
     private FederatedClubMatchReadModel toReadModel(Match match, List<UUID> clubTeamIds) {

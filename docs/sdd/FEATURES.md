@@ -23,6 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00066: Limit tied results or draws display](### [FEAT-00066] Limit tied results or draws display)
 - [FEAT-00065: Add MCP server layer](### [FEAT-00065] Add MCP server layer)
 - [FEAT-00064: Add summary in Matches tab in player details](### [FEAT-00064] Add summary in Matches tab in player details)
 - [FEAT-00063: Add player summary and search in Club details, Players tab](### [FEAT-00063] Add player summary and search in Club details, Players tab)
@@ -47,6 +48,29 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00066] Limit tied results or draws display
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+- Display tied results only at the team level, and not at the player level.
+- Display tied results or draws only for the Superdivision Masc and Fem categories, and not for any other categories (e.g., season 25/26).
+- Remove any tied results or draws from the Player stats.
+- Remove any tied results or draws from the Team stats and match records for all other categories that are not Superdivision Masc and Fem
+
+#### Acceptance Criteria
+- [x] Tied results or draws are displayed only at the team level, and not at the player level.
+- [x] Tied results or draws are displayed only for the Superdivision Masc and Fem categories, and not for any other categories (e.g., season 25/26).
+- [x] Tied results or draws are removed from the Player stats.
+- [x] Tied results or draws are removed from the Team stats and match records for all other categories that are not Superdivision Masc and Fem.
+
+#### Feature Details
+→ See [FEAT-00066-DETAILS.md](./FEAT-00066-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00065] Add MCP server layer
 - **Status:** done
@@ -408,6 +432,18 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

@@ -42,7 +42,7 @@ const MATCHES_MARKER_SIZE = 6
 const WINS_MARKER_SIZE = 6
 const unique = (values) => [...new Set(values.filter(Boolean))].sort()
 const MATCHES_PER_PAGE = 10
-const SPECTRUM_TIERS = ['strong-win', 'win', 'close-win', 'draw', 'close-loss', 'loss', 'strong-loss']
+const SPECTRUM_TIERS = ['strong-win', 'win', 'close-win', 'close-loss', 'loss', 'strong-loss']
 
 function PlayerDetailPage() {
   const { playerId } = useParams()
@@ -238,12 +238,12 @@ function MatchesSummaryStrip({ matches, returnSearch, t }) {
         <StatTile
           label={t('common.playedMatches')}
           value={record.matchCount}
-          subLabel={`${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
+          subLabel={`${record.wins}${t('detail.winsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
         />
         <StatTile
           label={t('common.winPercentage')}
           value={`${record.winRate}%`}
-          subLabel={`${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
+          subLabel={`${record.wins}${t('detail.winsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
         />
         <StatTile
           label={t('detail.matchesHomeAwayTile')}
@@ -518,11 +518,11 @@ function OpponentTable({ rows, summaryText, returnSearch, t }) {
   const visibleRows = rows.slice(0, maxVisible)
   const hiddenRows = rows.slice(maxVisible)
   const descriptionId = `opponent-table-description-${rows.map((row) => row.key).join('-')}`
-  const columnCount = 9
+  const columnCount = 8
   const toggleExpanded = (key) => setExpandedOpponent((current) => current === key ? null : key)
   const table = (tableRows) => <table className="history-table" aria-describedby={descriptionId}>
       <caption>{t('detail.opponentResults')}</caption>
-      <thead><tr><th>{t('common.opponent')}</th><th>{t('common.category')}</th><th>{t('common.playedMatches')}</th><th>{t('common.wins')}</th><th>{t('common.draws')}</th><th>{t('common.losses')}</th><th>{t('common.winPercentage')}</th><th>{t('detail.recentForm')}</th><th>{t('detail.streak')}</th></tr></thead>
+      <thead><tr><th>{t('common.opponent')}</th><th>{t('common.category')}</th><th>{t('common.playedMatches')}</th><th>{t('common.wins')}</th><th>{t('common.losses')}</th><th>{t('common.winPercentage')}</th><th>{t('detail.recentForm')}</th><th>{t('detail.streak')}</th></tr></thead>
       <tbody>{tableRows.map((item) => {
         const isExpanded = expandedOpponent === item.key
         return <Fragment key={item.key}>
@@ -537,7 +537,6 @@ function OpponentTable({ rows, summaryText, returnSearch, t }) {
             <td data-label={t('common.category')}><OpponentCategoryBadge category={item.category} t={t} /></td>
             <td data-label={t('common.playedMatches')}>{item.matches}</td>
             <td data-label={t('common.wins')}>{item.wins}</td>
-            <td data-label={t('common.draws')}>{item.draws}</td>
             <td data-label={t('common.losses')}>{item.losses}</td>
             <td data-label={t('common.winPercentage')}>{formatWinPercentage(item.playerWinPercentage)}</td>
             <td data-label={t('detail.recentForm')}><OpponentFormChips history={item.recentForm} t={t} /></td>
@@ -743,14 +742,12 @@ function addOpponent(opponents, key, opponent, entry) {
     name: opponent.available ? opponent.name : null,
     matches: 0,
     wins: 0,
-    draws: 0,
     losses: 0,
     history: [],
   }
   current.matches += 1
   if (entry.result === 'win') current.wins += 1
   if (entry.result === 'loss') current.losses += 1
-  if (entry.result === 'draw') current.draws += 1
   const margin = entry.playerSets == null || entry.opponentSets == null ? null : entry.playerSets - entry.opponentSets
   current.history.push({ ...entry, margin })
   opponents.set(key, current)
@@ -882,14 +879,12 @@ function streakLabel(streak, t) {
   if (!streak || streak.count === 0) return t('detail.noStreak')
   if (streak.type === 'win') return t('detail.streakWin', { count: streak.count })
   if (streak.type === 'loss') return t('detail.streakLoss', { count: streak.count })
-  if (streak.type === 'draw') return t('detail.streakDraw', { count: streak.count })
   return t('detail.noStreak')
 }
 
 function aggregateCareerStatistics(matches) {
   const wins = matches.filter((match) => match.result === 'win').length
   const losses = matches.filter((match) => match.result === 'loss').length
-  const draws = matches.filter((match) => match.result === 'draw').length
   const games = matches.flatMap((match) => (match.games ?? []).map((game) => ({ match, game })))
   const singlesGames = games.filter(({ game }) => game.type !== 'DOUBLES')
   const doublesGames = games.filter(({ game }) => game.type === 'DOUBLES')
@@ -902,7 +897,6 @@ function aggregateCareerStatistics(matches) {
     matchesPlayed: matches.length,
     wins,
     losses,
-    draws,
     winPercentage: winPercentage({ wins, losses }),
     singlesWinPercentage: winPercentage(gameResultTotals(singlesGames)),
     doublesWinPercentage: winPercentage(gameResultTotals(doublesGames)),
@@ -959,7 +953,6 @@ function tierScoreLabel(points, tier) {
 }
 
 function qualityTier(result, margin) {
-  if (result === 'draw') return 'draw'
   if (result !== 'win' && result !== 'loss') return null
   if (margin == null) return result
   const magnitude = Math.abs(margin)
@@ -972,7 +965,6 @@ function qualityLabel(tier, t) {
     case 'strong-win': return t('detail.qualityStrongWin')
     case 'win': return t('detail.qualityWin')
     case 'close-win': return t('detail.qualityCloseWin')
-    case 'draw': return t('detail.qualityDraw')
     case 'close-loss': return t('detail.qualityCloseLoss')
     case 'loss': return t('detail.qualityLoss')
     case 'strong-loss': return t('detail.qualityStrongLoss')
@@ -1072,9 +1064,7 @@ function resultLabel(result, t) {
     ? t('detail.win')
     : result === 'loss'
       ? t('detail.loss')
-      : result === 'draw'
-        ? t('detail.draw')
-        : t('common.unavailable')
+      : t('common.unavailable')
 }
 
 function resultBadgeLabel(result, t) {
@@ -1082,9 +1072,7 @@ function resultBadgeLabel(result, t) {
     ? t('detail.resultBadgeWin')
     : result === 'loss'
       ? t('detail.resultBadgeLoss')
-      : result === 'draw'
-        ? t('detail.resultBadgeDraw')
-        : t('common.unavailable')
+      : t('common.unavailable')
 }
 
 function scoreLabel(match, t) {

@@ -20,6 +20,7 @@ import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.MatchOutcome;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -29,8 +30,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Named
@@ -86,8 +89,10 @@ public class FindMatchDetailsQueryHandler
         Map<UUID, List<DoublesPair>> pairsByGame = doubles.findDoublesPairsByGameIds(gameIds).stream()
                 .collect(Collectors.groupingBy(pair -> pair.getGame().getId()));
 
-        List<Match> homeTeamMatches = teamMatchesExcludingCurrent(match.getHomeTeam(), match);
-        List<Match> awayTeamMatches = teamMatchesExcludingCurrent(match.getAwayTeam(), match);
+        List<Match> homeTeamMatches = visibleTeamMatches(
+                teamMatchesExcludingCurrent(match.getHomeTeam(), match), match.getHomeTeam());
+        List<Match> awayTeamMatches = visibleTeamMatches(
+                teamMatchesExcludingCurrent(match.getAwayTeam(), match), match.getAwayTeam());
         List<UUID> pastMatchIds = new ArrayList<>();
         homeTeamMatches.forEach(value -> pastMatchIds.add(value.getId()));
         awayTeamMatches.forEach(value -> pastMatchIds.add(value.getId()));
@@ -140,28 +145,42 @@ public class FindMatchDetailsQueryHandler
                 .toList();
     }
 
+    /**
+     * {@code teamMatches} filtered to those with a team-level outcome for {@code team} (FEAT-00066):
+     * a tied match outside {@link org.cttelsamicsterrassa.data.core.domain.shared.model.TieEligibleCompetitions}
+     * has none and must not appear in team form, alignment stability, or any other match record.
+     */
+    private List<Match> visibleTeamMatches(List<Match> teamMatches, Team team) {
+        if (team == null) {
+            return teamMatches;
+        }
+        return teamMatches.stream()
+                .filter(value -> MatchOutcome.teamOutcome(value, team.getId()).isPresent())
+                .toList();
+    }
+
     private MatchDetailReadModel.TeamFormReadModel teamForm(Team team, Match current,
-                                                            List<Match> sortedDescExcludingCurrent) {
+                                                            List<Match> sortedDescExcludingCurrentVisible) {
         if (team == null) {
             return new MatchDetailReadModel.TeamFormReadModel(List.of(), null, null, null);
         }
-        List<Match> lastWindow = sortedDescExcludingCurrent.stream().limit(RECENT_FORM_WINDOW).toList();
-        List<Match> previousWindow = sortedDescExcludingCurrent.stream()
+        List<Match> lastWindow = sortedDescExcludingCurrentVisible.stream().limit(RECENT_FORM_WINDOW).toList();
+        List<Match> previousWindow = sortedDescExcludingCurrentVisible.stream()
                 .skip(RECENT_FORM_WINDOW).limit(RECENT_FORM_WINDOW).toList();
         List<MatchDetailReadModel.FormResultReadModel> lastResults = lastWindow.stream()
                 .sorted(Comparator.comparing(Match::getDateTime, Comparator.nullsLast(Comparator.naturalOrder())))
-                .map(value -> formResult(value, team.getId())).toList();
-        return new MatchDetailReadModel.TeamFormReadModel(lastResults, winRate(lastWindow, team.getId()),
-                winRate(previousWindow, team.getId()),
-                winRate(withCurrent(sortedDescExcludingCurrent, current), team.getId()));
+                .map(value -> teamFormResult(value, team.getId())).toList();
+        return new MatchDetailReadModel.TeamFormReadModel(lastResults, teamWinRate(lastWindow, team.getId()),
+                teamWinRate(previousWindow, team.getId()),
+                teamWinRate(withVisibleCurrent(sortedDescExcludingCurrentVisible, current, team.getId()), team.getId()));
     }
 
     private MatchDetailReadModel.AlignmentStabilityReadModel alignmentStability(
-            Team team, Match current, List<Match> teamMatchesExcludingCurrent, Set<String> currentKey,
+            Team team, Match current, List<Match> teamMatchesExcludingCurrentVisible, Set<String> currentKey,
             Map<UUID, List<Lineup>> lineupsByMatchId) {
-        List<Match> all = withCurrent(teamMatchesExcludingCurrent, current);
         UUID teamId = team == null ? null : team.getId();
-        Double overallWinRate = winRate(all, teamId);
+        List<Match> all = withVisibleCurrent(teamMatchesExcludingCurrentVisible, current, teamId);
+        Double overallWinRate = teamWinRate(all, teamId);
         if (team == null || currentKey.isEmpty()) {
             return new MatchDetailReadModel.AlignmentStabilityReadModel(1, 0, 0, 0, null, overallWinRate);
         }
@@ -177,12 +196,12 @@ public class FindMatchDetailsQueryHandler
                 continue;
             }
             timesFielded++;
-            String result = resultFor(value, teamId);
-            if ("win".equals(result)) {
+            MatchOutcome outcome = MatchOutcome.teamOutcome(value, teamId).orElse(null);
+            if (outcome == MatchOutcome.WIN) {
                 wins++;
-            } else if ("loss".equals(result)) {
+            } else if (outcome == MatchOutcome.LOSS) {
                 losses++;
-            } else if ("draw".equals(result)) {
+            } else if (outcome == MatchOutcome.DRAW) {
                 draws++;
             }
         }
@@ -206,21 +225,26 @@ public class FindMatchDetailsQueryHandler
                         (first, ignored) -> first, LinkedHashMap::new));
         List<Match> playerMatches = lineupByMatchId.values().stream().map(Lineup::getMatch)
                 .filter(value -> !value.getId().equals(current.getId()))
+                // Draws never apply at player level (FEAT-00066): a tied match has no
+                // playerOutcome and must not consume a slot in the recent-form window.
+                .filter(value -> MatchOutcome.playerOutcome(value, teamIdFor(lineupByMatchId.get(value.getId())))
+                        .isPresent())
                 .sorted(Comparator.comparing(Match::getDateTime,
                         Comparator.nullsLast(Comparator.naturalOrder())).reversed())
                 .limit(RECENT_FORM_WINDOW)
                 .toList();
         List<MatchDetailReadModel.FormResultReadModel> lastResults = playerMatches.stream()
                 .sorted(Comparator.comparing(Match::getDateTime, Comparator.nullsLast(Comparator.naturalOrder())))
-                .map(value -> formResult(value, teamIdFor(lineupByMatchId.get(value.getId()))))
+                .map(value -> playerFormResult(value, teamIdFor(lineupByMatchId.get(value.getId()))))
                 .toList();
         int wins = 0;
         int losses = 0;
         for (Match value : playerMatches) {
-            String result = resultFor(value, teamIdFor(lineupByMatchId.get(value.getId())));
-            if ("win".equals(result)) {
+            MatchOutcome outcome = MatchOutcome.playerOutcome(
+                    value, teamIdFor(lineupByMatchId.get(value.getId()))).orElse(null);
+            if (outcome == MatchOutcome.WIN) {
                 wins++;
-            } else if ("loss".equals(result)) {
+            } else if (outcome == MatchOutcome.LOSS) {
                 losses++;
             }
         }
@@ -277,38 +301,46 @@ public class FindMatchDetailsQueryHandler
         return player.getLicenseId() == null ? null : "license:" + player.getLicenseId();
     }
 
-    private List<Match> withCurrent(List<Match> matchesExcludingCurrent, Match current) {
+    /**
+     * {@code matchesExcludingCurrent} plus {@code current}, when {@code current} itself has a
+     * team-level outcome for {@code teamId} (FEAT-00066) - an ineligible tie is excluded here too,
+     * consistent with {@link #visibleTeamMatches}.
+     */
+    private List<Match> withVisibleCurrent(List<Match> matchesExcludingCurrent, Match current, UUID teamId) {
         List<Match> all = new ArrayList<>(matchesExcludingCurrent);
-        all.add(current);
+        if (MatchOutcome.teamOutcome(current, teamId).isPresent()) {
+            all.add(current);
+        }
         return all;
     }
 
-    private String resultFor(Match match, UUID teamId) {
-        if (teamId == null) {
-            return null;
-        }
-        return match.getWinnerTeam() == null ? "draw"
-                : teamId.equals(match.getWinnerTeam().getId()) ? "win" : "loss";
+    private Double teamWinRate(List<Match> matchesForTeam, UUID teamId) {
+        return winRate(matchesForTeam, value -> MatchOutcome.teamOutcome(value, teamId));
     }
 
-    private Double winRate(List<Match> matchesForTeam, UUID teamId) {
-        if (teamId == null) {
-            return null;
-        }
+    private Double winRate(List<Match> matchesForTeam, Function<Match, Optional<MatchOutcome>> outcomeFn) {
         int wins = 0;
         int losses = 0;
         for (Match value : matchesForTeam) {
-            String result = resultFor(value, teamId);
-            if ("win".equals(result)) {
+            MatchOutcome outcome = outcomeFn.apply(value).orElse(null);
+            if (outcome == MatchOutcome.WIN) {
                 wins++;
-            } else if ("loss".equals(result)) {
+            } else if (outcome == MatchOutcome.LOSS) {
                 losses++;
             }
         }
         return (wins + losses) == 0 ? null : wins * 100.0 / (wins + losses);
     }
 
-    private MatchDetailReadModel.FormResultReadModel formResult(Match match, UUID teamId) {
+    private MatchDetailReadModel.FormResultReadModel teamFormResult(Match match, UUID teamId) {
+        return formResult(match, teamId, MatchOutcome.teamOutcome(match, teamId));
+    }
+
+    private MatchDetailReadModel.FormResultReadModel playerFormResult(Match match, UUID teamId) {
+        return formResult(match, teamId, MatchOutcome.playerOutcome(match, teamId));
+    }
+
+    private MatchDetailReadModel.FormResultReadModel formResult(Match match, UUID teamId, Optional<MatchOutcome> outcome) {
         boolean isHome = teamId != null && match.getHomeTeam() != null && teamId.equals(match.getHomeTeam().getId());
         String opponent = isHome
                 ? (match.getAwayTeam() == null ? null : match.getAwayTeam().getName())
@@ -317,7 +349,7 @@ public class FindMatchDetailsQueryHandler
         Integer opponentScore = isHome ? match.getAwayGamesWon() : match.getHomeGamesWon();
         String score = teamScore == null || opponentScore == null ? null : teamScore + "-" + opponentScore;
         return new MatchDetailReadModel.FormResultReadModel(match.getId(), match.getDateTime(), opponent,
-                resultFor(match, teamId), score);
+                outcome.map(value -> value.name().toLowerCase()).orElse(null), score);
     }
 
     private MatchDetailReadModel.TeamReadModel team(Team team) {

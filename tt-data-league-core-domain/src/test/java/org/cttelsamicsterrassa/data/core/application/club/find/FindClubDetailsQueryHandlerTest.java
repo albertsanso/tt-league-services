@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.core.application.club.find;
 
+import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubCompetitionReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubDetailsReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClubPlayerReadModel;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
@@ -256,5 +257,60 @@ class FindClubDetailsQueryHandlerTest {
         assertEquals(1, marcModel.matchCount());
         assertEquals(1, marcModel.wins());
         assertEquals(0, marcModel.losses());
+    }
+
+    @Test
+    void countsATieAsADrawOnlyInATieEligibleCompetitionAndExcludesItEntirelyElsewhere() {
+        // FEAT-00066: a tied match counts as a draw for Superdivisió, but a tie outside the
+        // tie-eligible competitions must not appear in matchCount, wins, draws or losses at all.
+        UUID clubId = UUID.randomUUID();
+        Club club = Club.createExisting(clubId, "Club Terrassa");
+        Season season = Season.of(2025);
+        FederatedClub federatedClub = FederatedClub.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Terrassa", club);
+        Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Terrassa 1", season, federatedClub);
+        Team rivalA = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Rival A", season, null);
+        Team rivalB = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Rival B", season, null);
+
+        Match eligibleTie = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM)
+                .competition("super-divisio-masculino")
+                .season(season).homeTeam(homeTeam).awayTeam(rivalA).homeGamesWon(3).awayGamesWon(3)
+                .createExisting();
+        Match ineligibleTie = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM)
+                .competition("preferent")
+                .season(season).homeTeam(homeTeam).awayTeam(rivalB).homeGamesWon(3).awayGamesWon(3)
+                .createExisting();
+
+        ClubRepository clubRepository = mock(ClubRepository.class);
+        FederatedClubRepository federatedClubRepository = mock(FederatedClubRepository.class);
+        TeamRepository teamRepository = mock(TeamRepository.class);
+        MatchRepository matchRepository = mock(MatchRepository.class);
+        PlayerSeasonRepository playerSeasonRepository = mock(PlayerSeasonRepository.class);
+        GameRepository gameRepository = mock(GameRepository.class);
+        DoublesPairRepository doublesPairRepository = mock(DoublesPairRepository.class);
+
+        when(clubRepository.findClubById(clubId)).thenReturn(Optional.of(club));
+        when(federatedClubRepository.findAllFederatedClubsByClubId(clubId)).thenReturn(List.of(federatedClub));
+        when(teamRepository.findAllTeamsByFederatedClubId(federatedClub.getId())).thenReturn(List.of(homeTeam));
+        when(playerSeasonRepository.findAllPlayerSeasonsByTeamIdsAndSource(any(), eq(ImportSource.RFETM)))
+                .thenReturn(List.of());
+        when(matchRepository.findAllMatchesByTeamIdsAndSource(any(), eq(ImportSource.RFETM)))
+                .thenReturn(List.of(eligibleTie, ineligibleTie));
+        when(playerSeasonRepository.findAllPlayerSeasonCompetitionsByTeamIdsAndSource(any(), eq(ImportSource.RFETM)))
+                .thenReturn(Map.of());
+        when(gameRepository.findGamesByMatchIds(anyList())).thenReturn(List.of());
+        when(doublesPairRepository.findDoublesPairsByGameIds(anyList())).thenReturn(List.of());
+
+        ClubDetailsReadModel details = new FindClubDetailsQueryHandler(
+                clubRepository, federatedClubRepository, teamRepository, matchRepository,
+                playerSeasonRepository, gameRepository, doublesPairRepository)
+                .handle(new FindClubDetailsQuery(clubId)).getResponse();
+
+        assertEquals(1, details.competitions().size());
+        ClubCompetitionReadModel superdivisio = details.competitions().getFirst();
+        assertEquals("super-divisio-masculino", superdivisio.name());
+        assertEquals(1, superdivisio.matchCount());
+        assertEquals(0, superdivisio.wins());
+        assertEquals(1, superdivisio.draws());
+        assertEquals(0, superdivisio.losses());
     }
 }

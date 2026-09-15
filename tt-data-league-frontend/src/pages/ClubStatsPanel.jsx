@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { computeOverallRecord, computeWinRateBySeason } from '../utils/clubSummary.js'
+import { isTieEligibleCompetition } from '../utils/matchSummary.js'
 
 function sortedSeasons(values) {
   return [...new Set(values)].sort((left, right) => right.localeCompare(left))
@@ -9,6 +10,10 @@ function CompetitionRow({ competition, t }) {
   const record = useMemo(() => computeOverallRecord([competition]), [competition])
   const total = record.wins + record.draws + record.losses
   const pct = (value) => (total === 0 ? 0 : (value / total) * 100)
+  // FEAT-00066: a competition outside the tie-eligible allowlist never has
+  // real draws (the backend already excludes any tie from its totals), so
+  // showing a permanent "0 draws" here would still leak the concept.
+  const tieEligible = isTieEligibleCompetition(competition.name)
 
   return (
     <li className="comp-row card">
@@ -17,7 +22,9 @@ function CompetitionRow({ competition, t }) {
         {competition.source ? <span className="comp-row-source">{competition.source}</span> : null}
       </span>
       <span className="comp-row-counts">
-        {record.wins}{t('detail.winsAbbrev')} · {record.draws}{t('detail.drawsAbbrev')} · {record.losses}{t('detail.lossesAbbrev')}
+        {tieEligible
+          ? <>{record.wins}{t('detail.winsAbbrev')} · {record.draws}{t('detail.drawsAbbrev')} · {record.losses}{t('detail.lossesAbbrev')}</>
+          : <>{record.wins}{t('detail.winsAbbrev')} · {record.losses}{t('detail.lossesAbbrev')}</>}
       </span>
       <span
         className="record-bar comp-row-bar"
@@ -25,7 +32,7 @@ function CompetitionRow({ competition, t }) {
         aria-label={t('detail.summaryRecordAria', record)}
       >
         <span className="record-bar-segment is-win" style={{ flexBasis: `${pct(record.wins)}%` }} />
-        <span className="record-bar-segment is-draw" style={{ flexBasis: `${pct(record.draws)}%` }} />
+        {tieEligible ? <span className="record-bar-segment is-draw" style={{ flexBasis: `${pct(record.draws)}%` }} /> : null}
         <span className="record-bar-segment is-loss" style={{ flexBasis: `${pct(record.losses)}%` }} />
       </span>
       <span className="comp-row-rate">{record.winRate}%</span>

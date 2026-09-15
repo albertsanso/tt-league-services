@@ -18,7 +18,7 @@ const details = {
   matches: [
     { id: 'match-win', source: 'FCTT', season: '2024-2025', competition: 'Preferent', dateTime: '2025-01-01T12:00:00Z', homeTeam: 'Club Terrassa', awayTeam: 'Club Beta', playerTeam: 'Club Terrassa', homeGamesWon: 4, awayGamesWon: 2, result: 'win' },
     { id: 'match-loss', source: 'FCTT', season: '2024-2025', competition: 'Preferent', dateTime: '2025-01-08T12:00:00Z', homeTeam: 'Club Beta', awayTeam: 'Club Terrassa', playerTeam: 'Club Terrassa', homeGamesWon: 4, awayGamesWon: 1, result: 'loss' },
-    { id: 'match-draw', source: 'FCTT', season: '2024-2025', competition: 'Preferent', dateTime: null, homeTeam: 'Club Terrassa', awayTeam: 'Club Alfa', playerTeam: 'Club Terrassa', homeGamesWon: null, awayGamesWon: null, result: 'draw' },
+    { id: 'match-pending', source: 'FCTT', season: '2024-2025', competition: 'Preferent', dateTime: null, homeTeam: 'Club Terrassa', awayTeam: 'Club Alfa', playerTeam: 'Club Terrassa', homeGamesWon: null, awayGamesWon: null, result: null },
     { id: 'match-rfetm', source: 'RFETM', season: '2023-2024', competition: 'Divisió', dateTime: '2024-01-01T12:00:00Z', homeTeam: 'Club Gamma', awayTeam: 'Club Terrassa', playerTeam: 'Club Terrassa', homeGamesWon: 2, awayGamesWon: 4, result: 'win' },
   ],
   statistics: [{ source: 'FCTT', season: '2024-2025', matchesPlayed: 3, wins: 1, losses: 1, winPercentage: 50, averageScore: 3 }],
@@ -30,7 +30,7 @@ const categoryDetails = {
     { id: 'beta-win-1', source: 'FCTT', season: '2024-2025', competition: 'Preferent', homeTeam: 'Club Terrassa', awayTeam: 'Club Beta', playerTeam: 'Club Terrassa', result: 'win' },
     { id: 'beta-win-2', source: 'FCTT', season: '2024-2025', competition: 'Preferent', homeTeam: 'Club Beta', awayTeam: 'Club Terrassa', playerTeam: 'Club Terrassa', result: 'win' },
     { id: 'beta-loss', source: 'FCTT', season: '2024-2025', competition: 'Preferent', homeTeam: 'Club Terrassa', awayTeam: 'Club Beta', playerTeam: 'Club Terrassa', result: 'loss' },
-    { id: 'club-alfa-draw', source: 'FCTT', season: '2024-2025', competition: 'Preferent', homeTeam: 'Club Terrassa', awayTeam: 'Club Alfa', playerTeam: 'Club Terrassa', result: 'draw' },
+    { id: 'club-alfa-pending', source: 'FCTT', season: '2024-2025', competition: 'Preferent', homeTeam: 'Club Terrassa', awayTeam: 'Club Alfa', playerTeam: 'Club Terrassa', result: null },
     { id: 'club-gamma-win', source: 'FCTT', season: '2024-2025', competition: 'Preferent', homeTeam: 'Club Gamma', awayTeam: 'Club Terrassa', playerTeam: 'Club Terrassa', result: 'win' },
     { id: 'club-gamma-loss-1', source: 'FCTT', season: '2024-2025', competition: 'Preferent', homeTeam: 'Club Terrassa', awayTeam: 'Club Gamma', playerTeam: 'Club Terrassa', result: 'loss' },
     { id: 'club-gamma-loss-2', source: 'FCTT', season: '2024-2025', competition: 'Preferent', homeTeam: 'Club Gamma', awayTeam: 'Club Terrassa', playerTeam: 'Club Terrassa', result: 'loss' },
@@ -39,7 +39,7 @@ const categoryDetails = {
   ],
 }
 
-const drawOnlyDetails = {
+const undecidedOnlyDetails = {
   ...details,
   matches: [details.matches[2]],
 }
@@ -70,7 +70,7 @@ const manyOpponentsDetails = {
   ],
 }
 
-function opponentMatches(name, wins, losses, draws = 0) {
+function opponentMatches(name, wins, losses) {
   return [...Array(wins)].map((_, index) => ({
     id: `${name}-win-${index}`,
     source: 'FCTT',
@@ -89,15 +89,6 @@ function opponentMatches(name, wins, losses, draws = 0) {
     awayTeam: name,
     playerTeam: 'Club Terrassa',
     result: 'loss',
-  }))).concat([...Array(draws)].map((_, index) => ({
-    id: `${name}-draw-${index}`,
-    source: 'FCTT',
-    season: '2024-2025',
-    competition: 'Preferent',
-    homeTeam: 'Club Terrassa',
-    awayTeam: name,
-    playerTeam: 'Club Terrassa',
-    result: 'draw',
   })))
 }
 
@@ -164,8 +155,8 @@ describe('PlayerDetailPage', () => {
     const strip = panel.querySelector('.matches-summary-strip')
     const tileValues = [...strip.querySelectorAll('.stat-tile-value')].map((node) => node.textContent)
 
-    expect(tileValues).toEqual(['4', '50%', '50% / 50%', '1'])
-    expect(strip.querySelector('.matches-form-guide')).toHaveTextContent('EVVD')
+    expect(tileValues).toEqual(['4', '67%', '100% / 50%', '1'])
+    expect(strip.querySelector('.matches-form-guide')).toHaveTextContent('NVVD')
     expect(strip.querySelector('.matches-current-streak')).toHaveTextContent('ratxa actual: 1 Derrota')
   })
 
@@ -570,7 +561,7 @@ describe('PlayerDetailPage', () => {
     expect(screen.getByRole('button', { name: /Tots, \d+ oponents/ })).toHaveClass('is-active')
   })
 
-  it('categorizes opponents with a badge on every row and counts draw-only records as uncategorized', () => {
+  it('categorizes opponents with a badge on every row and counts undecided-only records as uncategorized', () => {
     usePlayerDetails.mockReturnValue({ data: categoryDetails, loading: false, error: null, retry: vi.fn() })
     renderPage('/players/player-id?view=opponents')
 
@@ -752,7 +743,7 @@ describe('PlayerDetailPage', () => {
   })
 
   it('shows filter chip counts per category and a shared empty state for an empty filter', () => {
-    usePlayerDetails.mockReturnValue({ data: drawOnlyDetails, loading: false, error: null, retry: vi.fn() })
+    usePlayerDetails.mockReturnValue({ data: undecidedOnlyDetails, loading: false, error: null, retry: vi.fn() })
     renderPage('/players/player-id?view=opponents')
 
     expect(screen.getByRole('button', { name: /Favorable, 0 oponents/ })).toBeInTheDocument()
@@ -905,7 +896,7 @@ describe('PlayerDetailPage', () => {
     ])
 
     const axisTicks = [...document.querySelectorAll('.chart-match-spectrum .spectrum-axis-tick')].map((tick) => tick.firstChild.textContent)
-    expect(axisTicks).toEqual(['3-0', 'Victòria clara', '3-2', 'Empat', 'Derrota ajustada', '1-3', 'Derrota contundent'])
+    expect(axisTicks).toEqual(['3-0', 'Victòria clara', '3-2', 'Derrota ajustada', '1-3', 'Derrota contundent'])
   })
 
   it('shows a date timeline on the match result spectrum x-axis', () => {
@@ -1207,7 +1198,7 @@ describe('PlayerDetailPage', () => {
 
     const row = screen.getByRole('table').querySelector('tbody tr')
     const labels = [...row.querySelectorAll('td')].map((cell) => cell.getAttribute('data-label'))
-    expect(labels).toEqual(['Oponent', 'Categoria', 'Partits jugats', 'Victòries', 'Empats', 'Derrotes', 'Victòries (%)', 'Forma recent', 'Ratxa'])
+    expect(labels).toEqual(['Oponent', 'Categoria', 'Partits jugats', 'Victòries', 'Derrotes', 'Victòries (%)', 'Forma recent', 'Ratxa'])
   })
 
   function expandOpponentRow(name) {

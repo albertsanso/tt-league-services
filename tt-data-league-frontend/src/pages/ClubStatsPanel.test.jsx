@@ -36,6 +36,28 @@ describe('ClubStatsPanel', () => {
     expect(screen.getByText('79%')).toBeInTheDocument()
   })
 
+  it('hides the draws count for a competition outside the tie-eligible allowlist, even if the data carries one', () => {
+    // FEAT-00066: 'Divisió Honor' is not tie-eligible, so its draws (1 in the fixture, which the
+    // backend would never actually send for a non-eligible competition) must never be shown.
+    const competitions = [
+      competition('2024-2025', 'Divisió Honor', { wins: 9, draws: 1, losses: 2 }),
+      competition('2024-2025', 'super-divisio-masculino', { wins: 6, draws: 2, losses: 1 }),
+    ]
+
+    render(
+      <ClubStatsPanel
+        competitions={competitions}
+        seasons={['2024-2025']}
+        trendCompetitions={competitions}
+        season="2024-2025"
+        t={t}
+      />,
+    )
+
+    expect(screen.getByText('9V · 2D')).toBeInTheDocument()
+    expect(screen.getByText('6V · 2E · 1D')).toBeInTheDocument()
+  })
+
   it('groups rows by season when all seasons are selected', () => {
     const competitions = [
       competition('2023-2024', 'Primera Catalana', { wins: 5, draws: 0, losses: 5 }),

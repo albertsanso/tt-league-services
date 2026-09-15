@@ -26,6 +26,7 @@ import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlaye
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.MatchOutcome;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import javax.inject.Inject;
@@ -36,6 +37,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -108,6 +110,9 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
                 .collect(Collectors.toMap(lineup -> lineup.getMatch().getId(), lineup -> lineup,
                         (first, ignored) -> first, LinkedHashMap::new));
         List<Match> allPlayerMatches = lineupByMatchId.values().stream().map(Lineup::getMatch)
+                // Draws never apply at player level (FEAT-00066): a tied match's winnerTeam is
+                // null, so it is dropped here rather than surfaced with a "draw" result below.
+                .filter(match -> match.getWinnerTeam() != null)
                 .sorted(Comparator.comparing(Match::getSeason, Comparator.nullsLast(Comparator.comparing(Object::toString)))
                         .thenComparing(Match::getCompetition, Comparator.nullsLast(String.CASE_INSENSITIVE_ORDER))
                         .thenComparing(Match::getRound).thenComparing(Match::getId)).toList();
@@ -176,8 +181,8 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
         Lineup playerLineup = lineupByMatchId.get(match.getId());
         Team playerTeam = playerLineup == null ? null : playerLineup.getTeam();
         UUID teamId = playerTeam == null ? null : playerTeam.getId();
-        String result = match.getWinnerTeam() == null ? "draw"
-                : match.getWinnerTeam().getId().equals(teamId) ? "win" : "loss";
+        String result = MatchOutcome.playerOutcome(match, teamId)
+                .map(outcome -> outcome.name().toLowerCase()).orElse(null);
         Integer playerGamesWon = teamId == null ? null
                 : match.getHomeTeam().getId().equals(teamId) ? match.getHomeGamesWon()
                 : match.getAwayTeam().getId().equals(teamId) ? match.getAwayGamesWon() : null;
@@ -227,8 +232,10 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
                     "unavailable", game.getHomeSetsWon(), game.getAwaySetsWon(), List.of(),
                     "No s’ha pogut resoldre l’oponent amb identitat de font.");
         }
+        // Games never tie (FEAT-00066: draws only ever apply at team level), so a null winner
+        // side here only ever means the game was not played.
         String result = game.getWinnerSide() == null
-                ? (game.isNotPlayed() ? "unavailable" : "draw")
+                ? "unavailable"
                 : game.getWinnerSide().equals(selectedSide) ? "win" : "loss";
         return new PlayerGameReadModel(game.getId(), game.getGameNumber(), game.getType(), result,
                 game.getHomeSetsWon(), game.getAwaySetsWon(), List.copyOf(unique.values()), null);
@@ -286,12 +293,11 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
             Lineup playerLineup = lineupByMatchId.get(match.getId());
             UUID teamId = playerLineup == null || playerLineup.getTeam() == null
                     ? null : playerLineup.getTeam().getId();
-            if (teamId != null && match.getWinnerTeam() != null) {
-                if (match.getWinnerTeam().getId().equals(teamId)) {
-                    wins++;
-                } else {
-                    losses++;
-                }
+            Optional<MatchOutcome> outcome = MatchOutcome.playerOutcome(match, teamId);
+            if (outcome.isPresent() && outcome.get() == MatchOutcome.WIN) {
+                wins++;
+            } else if (outcome.isPresent() && outcome.get() == MatchOutcome.LOSS) {
+                losses++;
             }
             Integer score = teamId == null ? null
                     : match.getHomeTeam().getId().equals(teamId) ? match.getHomeGamesWon()

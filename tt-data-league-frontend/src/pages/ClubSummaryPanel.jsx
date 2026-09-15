@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useClubMatches } from '../hooks/useClubs.js'
 import { computeOverallRecord, getRecentMatches, getTopPerformers, getTopPlayers } from '../utils/clubSummary.js'
+import { isTieEligibleCompetition } from '../utils/matchSummary.js'
 import i18n from '../i18n/index.js'
 import { routePaths } from '../config/routes.js'
 
@@ -24,7 +25,7 @@ export function StatTile({ label, value, subLabel }) {
   )
 }
 
-function RecordBar({ record, t }) {
+function RecordBar({ record, tieEligible, t }) {
   const total = record.wins + record.draws + record.losses
   const pct = (value) => (total === 0 ? 0 : (value / total) * 100)
 
@@ -36,11 +37,13 @@ function RecordBar({ record, t }) {
         aria-label={t('detail.summaryRecordAria', record)}
       >
         <span className="record-bar-segment is-win" style={{ flexBasis: `${pct(record.wins)}%` }} />
-        <span className="record-bar-segment is-draw" style={{ flexBasis: `${pct(record.draws)}%` }} />
+        {tieEligible ? <span className="record-bar-segment is-draw" style={{ flexBasis: `${pct(record.draws)}%` }} /> : null}
         <span className="record-bar-segment is-loss" style={{ flexBasis: `${pct(record.losses)}%` }} />
       </div>
       <p className="record-bar-legend">
-        {record.wins}{t('detail.winsAbbrev')} · {record.draws}{t('detail.drawsAbbrev')} · {record.losses}{t('detail.lossesAbbrev')}
+        {tieEligible
+          ? <>{record.wins}{t('detail.winsAbbrev')} · {record.draws}{t('detail.drawsAbbrev')} · {record.losses}{t('detail.lossesAbbrev')}</>
+          : <>{record.wins}{t('detail.winsAbbrev')} · {record.losses}{t('detail.lossesAbbrev')}</>}
       </p>
     </div>
   )
@@ -118,7 +121,6 @@ function PerformerRow({ player, t }) {
         {t('detail.summaryPlayerWinRate', {
           winRate: player.winRate,
           wins: player.resultTotals.wins,
-          draws: player.resultTotals.draws,
           losses: player.resultTotals.losses,
         })}
       </span>
@@ -151,6 +153,15 @@ function ClubSummaryPanel({ club, competitions, players, season, returnSearch, o
   )
   const { data: matchGroups } = useClubMatches(club.id, competitionsWithSource)
   const record = useMemo(() => computeOverallRecord(competitions), [competitions])
+  // FEAT-00066: BCNESA and FCTT have no competitions in the tie-eligible allowlist at all (it
+  // only ever matches RFETM's Superdivisió slugs), so filtering to those sources - or to any
+  // other non-eligible RFETM competition - makes a nonzero draws count impossible; showing "0
+  // draws" there would still leak the concept. Only render draws when at least one competition
+  // in the current (already filtered) set could genuinely produce one.
+  const tieEligible = useMemo(
+    () => competitions.some((item) => isTieEligibleCompetition(item.name)),
+    [competitions],
+  )
   const taggedMatches = useMemo(
     () => (matchGroups ?? []).flatMap((group) => group.matches.map((match) => ({
       ...match,
@@ -183,7 +194,9 @@ function ClubSummaryPanel({ club, competitions, players, season, returnSearch, o
         <StatTile
           label={t('common.winPercentage')}
           value={`${record.winRate}%`}
-          subLabel={`${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
+          subLabel={tieEligible
+            ? `${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`
+            : `${record.wins}${t('detail.winsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
         />
         <StatTile
           label={t('common.competitions')}
@@ -198,7 +211,7 @@ function ClubSummaryPanel({ club, competitions, players, season, returnSearch, o
             <h3>{t('detail.summaryRecentMatches')}</h3>
             <button type="button" className="link-button" onClick={onSeeMatches}>{t('detail.seeAll')} →</button>
           </div>
-          <RecordBar record={record} t={t} />
+          <RecordBar record={record} tieEligible={tieEligible} t={t} />
           {recentMatches.length === 0 ? (
             <p className="club-empty card">{t('detail.clubMatchesEmpty')}</p>
           ) : (

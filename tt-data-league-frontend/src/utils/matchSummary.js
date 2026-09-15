@@ -1,3 +1,19 @@
+// Mirrors the backend allowlist in TieEligibleCompetitions (FEAT-00066):
+// draws are only ever real for these four competitions. Everywhere else a
+// tie is excluded entirely upstream, but the win/draw/loss summary text
+// itself must also drop the draws segment for those competitions, rather
+// than show a permanent "0 draws" that implies ties could occur there.
+const TIE_ELIGIBLE_COMPETITIONS = new Set([
+  'super-divisio-femenino',
+  'super-divisio-masculino',
+  'fasc-super-divisio-femenino',
+  'fasc-super-divisio-masculino',
+])
+
+export function isTieEligibleCompetition(competition) {
+  return competition != null && TIE_ELIGIBLE_COMPETITIONS.has(competition.trim())
+}
+
 export function formatFormStrip(results) {
   return (results ?? []).map((result) => resultLetter(result?.result))
 }

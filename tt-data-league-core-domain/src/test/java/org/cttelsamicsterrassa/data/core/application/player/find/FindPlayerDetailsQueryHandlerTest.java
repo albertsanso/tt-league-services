@@ -31,7 +31,9 @@ import static org.mockito.Mockito.when;
 class FindPlayerDetailsQueryHandlerTest {
 
     @Test
-    void mapsThePlayerLineupTeamForDrawnMatches() {
+    void excludesDrawnMatchesEntirelyFromPlayerDetails() {
+        // FEAT-00066: draws never apply at player level, even in a tie-eligible competition
+        // such as Superdivisió Masculina - a tied match must not appear at all.
         UUID playerId = UUID.randomUUID();
         Season season = Season.of(2025);
         Player player = Player.createExisting(playerId, "Anna Player");
@@ -41,7 +43,8 @@ class FindPlayerDetailsQueryHandlerTest {
                 UUID.randomUUID(), ImportSource.RFETM, "Anna Player", "123", federatedPlayer, season);
         Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Terrassa", season, null);
         Team awayTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Barcelona", season, null);
-        Match match = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+        Match match = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM)
+                .competition("super-divisio-masculino")
                 .season(season).groupNumber(2).round(5).phase("Regular Season")
                 .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(3).awayGamesWon(3)
                 .createExisting();
@@ -62,11 +65,12 @@ class FindPlayerDetailsQueryHandlerTest {
                 playerRepository, federatedPlayerRepository, playerSeasonRepository, lineupRepository)
                 .handle(new FindPlayerDetailsQuery(playerId)).getResponse();
 
-        assertEquals("draw", details.matches().getFirst().result());
-        assertEquals("Club Barcelona", details.matches().getFirst().playerTeam());
-        assertEquals(2, details.matches().getFirst().groupNumber());
-        assertEquals(5, details.matches().getFirst().round());
-        assertEquals("Regular Season", details.matches().getFirst().phase());
+        assertEquals(List.of(), details.matches());
+        assertEquals(List.of(), details.competitions());
+        assertEquals(1, details.statistics().size());
+        assertEquals(0, details.statistics().getFirst().matchesPlayed());
+        assertEquals(0, details.statistics().getFirst().wins());
+        assertEquals(0, details.statistics().getFirst().losses());
     }
 
     @Test

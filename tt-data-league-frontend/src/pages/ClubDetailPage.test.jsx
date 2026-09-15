@@ -259,6 +259,34 @@ describe('ClubDetailPage', () => {
     expect(screen.getByText('No hi ha partits disponibles per als filtres seleccionats.')).toBeInTheDocument()
   })
 
+  it('hides draws in the Matches summary strip when no filtered competition is tie-eligible', () => {
+    // FEAT-00066: the base fixture's "Preferent" competitions carry a nonzero draws total
+    // (matching real BCNESA/FCTT data, which the backend would never actually produce for a
+    // non-eligible competition) - it must never surface as a draws count here.
+    renderPage('/clubs/club-id?view=matches&season=all')
+
+    expect(screen.getAllByText('5V · 3D').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/E ·/)).not.toBeInTheDocument()
+  })
+
+  it('shows draws in the Matches summary strip when a filtered competition is tie-eligible', () => {
+    useClubDetails.mockReturnValue({
+      data: {
+        ...club,
+        competitions: [
+          { name: 'super-divisio-masculino', season: '2024-2025', matchCount: 6, resultTotals: { wins: 3, draws: 1, losses: 2 } },
+        ],
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('/clubs/club-id?view=matches&season=all')
+
+    expect(screen.getAllByText('3V · 1E · 2D').length).toBeGreaterThan(0)
+  })
+
   it('switches to the roster tab using an accessible tab', () => {
     renderPage('/clubs/club-id?season=2024-2025')
 

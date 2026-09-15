@@ -11,6 +11,7 @@ import {
   computeTrendNote,
   formatFormStrip,
   formatRecord,
+  isTieEligibleCompetition,
 } from '../utils/matchSummary.js'
 
 function backHref(params) {
@@ -119,6 +120,7 @@ function MatchSummaryPage() {
           lineups={homeLineups}
           alignment={match.homeAlignmentStability}
           playerFormBySeasonId={playerFormBySeasonId}
+          tieEligible={isTieEligibleCompetition(match.competition)}
           side="home"
           returnSearch={params}
           t={t}
@@ -129,6 +131,7 @@ function MatchSummaryPage() {
           lineups={awayLineups}
           alignment={match.awayAlignmentStability}
           playerFormBySeasonId={playerFormBySeasonId}
+          tieEligible={isTieEligibleCompetition(match.competition)}
           side="away"
           returnSearch={params}
           t={t}
@@ -147,7 +150,7 @@ function MatchSummaryPage() {
   )
 }
 
-function TeamPanel({ team, form, lineups, alignment, playerFormBySeasonId, side, returnSearch, t }) {
+function TeamPanel({ team, form, lineups, alignment, playerFormBySeasonId, tieEligible, side, returnSearch, t }) {
   const results = form?.lastResults ?? []
   const record = formatRecord(results)
   const strip = formatFormStrip(results)
@@ -172,7 +175,7 @@ function TeamPanel({ team, form, lineups, alignment, playerFormBySeasonId, side,
               ))}
             </ul>
             <p className="match-form-record">
-              {t('matchSummaryPage.lastRecord', {
+              {t(tieEligible ? 'matchSummaryPage.lastRecord' : 'matchSummaryPage.lastRecordNoDraws', {
                 count: results.length,
                 wins: record.wins,
                 draws: record.draws,
@@ -257,7 +260,7 @@ function TeamPanel({ team, form, lineups, alignment, playerFormBySeasonId, side,
               {t('matchSummaryPage.alignmentTimesFielded', { count: timesFielded })}
             </p>
             <p className="match-alignment-stat">
-              {t('matchSummaryPage.alignmentRecord', {
+              {t(tieEligible ? 'matchSummaryPage.alignmentRecord' : 'matchSummaryPage.alignmentRecordNoDraws', {
                 wins: alignment?.wins ?? 0,
                 draws: alignment?.draws ?? 0,
                 losses: alignment?.losses ?? 0,

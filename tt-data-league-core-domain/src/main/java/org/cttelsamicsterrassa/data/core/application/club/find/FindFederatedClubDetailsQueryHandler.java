@@ -15,6 +15,7 @@ import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.TieEligibleCompetitions;
 
 import javax.inject.Inject;
 import javax.inject.Named;
@@ -129,10 +130,15 @@ public class FindFederatedClubDetailsQueryHandler
                 continue;
             }
 
+            UUID winnerId = teamId(match.getWinnerTeam());
+            if (winnerId == null && !TieEligibleCompetitions.isTieEligible(match.getCompetition())) {
+                // A tie outside the tie-eligible competitions is invisible to team stats and
+                // match records entirely (FEAT-00066), not merely uncounted as a draw.
+                continue;
+            }
             CompetitionKey key = new CompetitionKey(match.getCompetition(), match.getSeason());
             Totals current = totals.computeIfAbsent(key, ignored -> new Totals());
             current.matchCount++;
-            UUID winnerId = teamId(match.getWinnerTeam());
             if (winnerId == null) {
                 current.draws++;
             } else if (clubTeamIds.contains(winnerId)) {

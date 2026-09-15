@@ -18,6 +18,7 @@ import {
   getRosterByCompetition,
   scopePlayerResultsToCompetition,
 } from '../utils/clubSummary.js'
+import { isTieEligibleCompetition } from '../utils/matchSummary.js'
 import { matchesQuery } from '../utils/textSearch.js'
 import ProgressBar from '../components/ui/ProgressBar.jsx'
 import ClubSummaryPanel, { MatchRow, StatTile } from './ClubSummaryPanel.jsx'
@@ -649,6 +650,13 @@ function MatchesPanel({ club, competitions, returnSearch, sourceFilter, season, 
 
 function MatchesSummaryStrip({ matches, competitions, teams, returnSearch, t }) {
   const record = useMemo(() => computeOverallRecord(competitions), [competitions])
+  // FEAT-00066: hide the draws segment when nothing in the current (already filtered) set of
+  // competitions could genuinely produce one - e.g. filtering to BCNESA or FCTT, whose
+  // competitions never match the tie-eligible allowlist (RFETM-only Superdivisió slugs).
+  const tieEligible = useMemo(
+    () => competitions.some((item) => isTieEligibleCompetition(item.name)),
+    [competitions],
+  )
   const homeAway = useMemo(() => computeHomeAwaySplit(matches, teams), [matches, teams])
   const pending = useMemo(() => countPendingMatches(matches), [matches])
   const formGuide = useMemo(() => getFormGuide(matches), [matches])
@@ -664,12 +672,16 @@ function MatchesSummaryStrip({ matches, competitions, teams, returnSearch, t }) 
         <StatTile
           label={t('common.playedMatches')}
           value={record.matchCount}
-          subLabel={`${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
+          subLabel={tieEligible
+            ? `${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`
+            : `${record.wins}${t('detail.winsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
         />
         <StatTile
           label={t('common.winPercentage')}
           value={`${record.winRate}%`}
-          subLabel={`${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
+          subLabel={tieEligible
+            ? `${record.wins}${t('detail.winsAbbrev')} · ${record.draws}${t('detail.drawsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`
+            : `${record.wins}${t('detail.winsAbbrev')} · ${record.losses}${t('detail.lossesAbbrev')}`}
         />
         <StatTile
           label={t('detail.matchesHomeAwayTile')}

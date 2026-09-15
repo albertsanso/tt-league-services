@@ -24,6 +24,7 @@ const es = {
     recentForm: 'Forma reciente',
     formEmpty: 'Sin partidos recientes.',
     lastRecord: 'Últimos {{count}}: {{wins}}V · {{draws}}E · {{losses}}D ({{winRate}})',
+    lastRecordNoDraws: 'Últimos {{count}}: {{wins}}V · {{losses}}D ({{winRate}})',
     trend: {
       improved: 'Mejora respecto a los anteriores ({{previous}}% → {{current}}%)',
       declining: 'Empeora respecto a los anteriores ({{previous}}% → {{current}}%)',
@@ -39,6 +40,7 @@ const es = {
     alignmentNewCombination: 'Primera vez que este trío juega junto esta temporada.',
     alignmentTimesFielded: 'Esta alineación exacta ha jugado junta {{count}} veces esta temporada',
     alignmentRecord: '{{wins}}V · {{draws}}E · {{losses}}D cuando juegan juntos ({{winRate}})',
+    alignmentRecordNoDraws: '{{wins}}V · {{losses}}D cuando juegan juntos ({{winRate}})',
     comparison: {
       above: 'Por encima de la media de victorias del equipo ({{winRate}})',
       below: 'Por debajo de la media de victorias del equipo ({{winRate}})',
@@ -60,12 +62,10 @@ es.detail.recentForm = 'Forma reciente'
 es.detail.streak = 'Racha'
 es.detail.streakWin = 'Racha de {{count}} victorias'
 es.detail.streakLoss = 'Racha de {{count}} derrotas'
-es.detail.streakDraw = 'Racha de {{count}} empates'
 es.detail.noStreak = '—'
 es.detail.qualityStrongWin = 'Victoria contundente'
 es.detail.qualityWin = 'Victoria clara'
 es.detail.qualityCloseWin = 'Victoria ajustada'
-es.detail.qualityDraw = 'Empate'
 es.detail.qualityCloseLoss = 'Derrota ajustada'
 es.detail.qualityLoss = 'Derrota clara'
 es.detail.qualityStrongLoss = 'Derrota contundente'
@@ -89,7 +89,7 @@ es.detail.statsWinRateTrendTitle = 'Porcentaje de victorias por temporada'
 es.detail.statsTrendEmpty = 'Todavía no hay suficientes datos de temporadas para mostrar una tendencia.'
 es.detail.statsTrendAria = 'Tendencia del porcentaje de victorias por temporada: porcentaje de partidos ganados en cada temporada con datos disponibles, del 0% al 100%.'
 es.detail.summaryTopPerformer = 'Mejor rendimiento (Juegos brutos)'
-es.detail.summaryPlayerWinRate = '{{winRate}}% · {{wins}}V-{{draws}}E-{{losses}}D'
+es.detail.summaryPlayerWinRate = '{{winRate}}% · {{wins}}V-{{losses}}D'
 es.detail.summaryTopPerformerEmpty = 'Ningún jugador tiene todavía suficientes partidos para aparecer en este ranking.'
 es.detail.summaryPlayerMatchCount = '{{count}} Juegos individuales'
 es.detail.playersSearchLabel = 'Buscar jugadores por nombre'

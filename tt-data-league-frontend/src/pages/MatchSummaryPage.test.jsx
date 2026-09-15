@@ -167,4 +167,27 @@ describe('MatchSummaryPage', () => {
     expect(screen.queryByRole('link', { name: 'Primera Catalana' })).not.toBeInTheDocument()
     expect(screen.getByText(/Primera Catalana/)).toBeInTheDocument()
   })
+
+  it('hides the draws count for a competition outside the tie-eligible allowlist, even if the data carries one', () => {
+    // FEAT-00066: 'Primera Catalana' is not tie-eligible, so alignment.draws (1 in the fixture)
+    // must never surface as a "1 draw" label here.
+    renderPage()
+
+    expect(screen.getByText('Últims 2: 1V · 1D (60%)')).toBeInTheDocument()
+    expect(screen.getByText('5V · 1D quan juguen junts (71%)')).toBeInTheDocument()
+    expect(screen.queryByText(/E ·/)).not.toBeInTheDocument()
+  })
+
+  it('shows the draws count for a tie-eligible competition', () => {
+    useMatchSummary.mockReturnValue({
+      data: { ...baseMatch, competition: 'super-divisio-masculino' },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+    renderPage()
+
+    expect(screen.getByText('Últims 2: 1V · 0E · 1D (60%)')).toBeInTheDocument()
+    expect(screen.getByText('5V · 1E · 1D quan juguen junts (71%)')).toBeInTheDocument()
+  })
 })

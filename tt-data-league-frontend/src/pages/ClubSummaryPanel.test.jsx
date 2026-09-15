@@ -92,6 +92,50 @@ describe('ClubSummaryPanel', () => {
     expect(screen.getByText('38 de sempre')).toBeInTheDocument()
   })
 
+  it('hides draws entirely when none of the filtered competitions are tie-eligible, even with a nonzero count', () => {
+    // FEAT-00066: BCNESA/FCTT (and any non-Superdivisió RFETM competition) never match the
+    // tie-eligible allowlist, so a stray nonzero draws value (which the backend would never
+    // actually send for such a competition) must still never surface.
+    const nonEligibleCompetitions = [
+      { name: 'Preferent', season: '2024-2025', matchCount: 6, resultTotals: { wins: 3, draws: 1, losses: 2 } },
+    ]
+
+    renderPanel(
+      <ClubSummaryPanel
+        club={club}
+        competitions={nonEligibleCompetitions}
+        players={players}
+        season="2024-2025"
+        onSeeMatches={vi.fn()}
+        onSeePlayers={vi.fn()}
+        t={t}
+      />,
+    )
+
+    expect(screen.getAllByText('3V · 2D').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/E ·/)).not.toBeInTheDocument()
+  })
+
+  it('shows draws when at least one filtered competition is tie-eligible', () => {
+    const eligibleCompetitions = [
+      { name: 'super-divisio-masculino', season: '2024-2025', matchCount: 6, resultTotals: { wins: 3, draws: 1, losses: 2 } },
+    ]
+
+    renderPanel(
+      <ClubSummaryPanel
+        club={club}
+        competitions={eligibleCompetitions}
+        players={players}
+        season="2024-2025"
+        onSeeMatches={vi.fn()}
+        onSeePlayers={vi.fn()}
+        t={t}
+      />,
+    )
+
+    expect(screen.getAllByText('3V · 1E · 2D').length).toBeGreaterThan(0)
+  })
+
   it('shows the recent match and ranks players by competitions played', () => {
     renderPanel(
       <ClubSummaryPanel
@@ -146,8 +190,8 @@ describe('ClubSummaryPanel', () => {
       />,
     )
 
-    expect(screen.getByText('75% · 6V-0E-2D')).toBeInTheDocument()
-    expect(screen.queryByText('100% · 1V-0E-0D')).not.toBeInTheDocument()
+    expect(screen.getByText('75% · 6V-2D')).toBeInTheDocument()
+    expect(screen.queryByText('100% · 1V-0D')).not.toBeInTheDocument()
   })
 
   it('shows the Top performer empty state when no player meets the match floor', () => {
