@@ -17,6 +17,8 @@ const es = {
   matchSummaryPage: {
     ...ca.matchSummaryPage,
     matchLabel: 'Partido',
+    home: 'Local',
+    away: 'Visitante',
     notFound: 'Partido no encontrado',
     notFoundDescription: 'El partido solicitado no existe o el identificador no es válido.',
     loadError: 'No se ha podido cargar el partido',

@@ -23,6 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00070: Match details label home/away team](### [FEAT-00070] Match details label home/away team)
 - [FEAT-00069: BCNESA home/away orientation in extraction and import](### [FEAT-00069] BCNESA home/away orientation in extraction and import)
 - [FEAT-00068: Mismatch in Match details: Team title and summary not matching with Players alignemt below](### [FEAT-00068] Mismatch in Match details: Team title and summary not matching with Players alignemt below)
 - [FEAT-00067: Close button in acta modal](### [FEAT-00067] Close button in acta modal)
@@ -51,6 +52,32 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00070] Match details label home/away team
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Show a home/away label on each team's summary panel on the Match details page so users know which side each team played on.
+
+#### Acceptance Criteria
+- [x] A small gray label reading Home or Away appears at the top of each team's summary panel on the Match details page, matching the team's side.
+- [x] The label is translated (ca/es/en) consistently with the rest of the page.
+
+#### Feature Details
+→ See [FEAT-00070-DETAILS.md](./FEAT-00070-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00069] BCNESA home/away orientation in extraction and import
 - **Status:** done
@@ -516,6 +543,18 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

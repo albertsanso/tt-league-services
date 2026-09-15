@@ -162,6 +162,9 @@ function TeamPanel({ team, form, lineups, alignment, playerFormBySeasonId, tieEl
   return (
     <article className={`match-summary-team match-summary-team-${side}`} aria-label={team?.name ?? t('common.unavailable')}>
       <section className="card match-summary-form-card">
+        <p className="match-summary-team-side">
+          {t(side === 'home' ? 'matchSummaryPage.home' : 'matchSummaryPage.away')}
+        </p>
         <h3><TeamName team={team} returnSearch={returnSearch} t={t} /></h3>
         {results.length === 0 ? (
           <p className="club-empty">{t('matchSummaryPage.formEmpty')}</p>

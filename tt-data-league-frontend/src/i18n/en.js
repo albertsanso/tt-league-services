@@ -17,6 +17,8 @@ const en = {
   matchSummaryPage: {
     ...ca.matchSummaryPage,
     matchLabel: 'Match',
+    home: 'Home',
+    away: 'Away',
     notFound: 'Match not found',
     notFoundDescription: 'The requested match does not exist or its identifier is invalid.',
     loadError: 'Could not load the match',

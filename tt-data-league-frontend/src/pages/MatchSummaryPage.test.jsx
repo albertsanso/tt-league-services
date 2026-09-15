@@ -95,6 +95,13 @@ describe('MatchSummaryPage', () => {
     expect(screen.getAllByText(/60%/).length).toBeGreaterThan(0)
   })
 
+  it('labels the home and away team panels', () => {
+    renderPage()
+
+    expect(screen.getByText('Local')).toBeInTheDocument()
+    expect(screen.getByText('Visitant')).toBeInTheDocument()
+  })
+
   it('links a lineup player to the player detail page only when a canonical id exists', () => {
     renderPage()
 

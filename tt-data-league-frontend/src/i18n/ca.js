@@ -270,6 +270,8 @@ export default {
   },
   matchSummaryPage: {
     matchLabel: 'Partit',
+    home: 'Local',
+    away: 'Visitant',
     notFound: 'Partit no trobat',
     notFoundDescription: 'El partit sol·licitat no existeix o l’identificador no és vàlid.',
     loadError: 'No s’ha pogut carregar el partit',
