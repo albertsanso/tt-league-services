@@ -191,11 +191,13 @@ export function computeHomeAwaySplit(matches, teams, source) {
 }
 
 export function getFormGuide(matches, limit = 5) {
-  return [...getRecentMatches(matches, limit)].reverse()
+  const decided = matches.filter((match) => !isPendingMatch(match))
+  return [...getRecentMatches(decided, limit)].reverse()
 }
 
 export function getCurrentStreak(matches) {
-  const chronological = getRecentMatches(matches, matches.length)
+  const decided = matches.filter((match) => !isPendingMatch(match))
+  const chronological = getRecentMatches(decided, decided.length)
   if (chronological.length === 0) return null
 
   const [latest, ...rest] = chronological

@@ -129,17 +129,20 @@ public class FindMatchDetailsQueryHandler
     }
 
     /**
-     * Returns a team's past matches, same source+season as {@code current}, excluding {@code
-     * current} itself, ordered most-recent-first. Alignment-stability is deliberately scoped to the
-     * same source+season as the viewed match, not aggregated across seasons.
+     * Returns a team's past matches, same source+season+competition as {@code current}, excluding
+     * {@code current} itself, ordered most-recent-first. Team form and alignment-stability are
+     * deliberately scoped to the viewed match's own competition, not aggregated across competitions
+     * or seasons: a {@link Team} is keyed by source+name+season only, so a club fielding teams in
+     * several competitions shares a single registration, and an unscoped lookup would mix every
+     * other competition's matches into this competition's form strip.
      */
     private List<Match> teamMatchesExcludingCurrent(Team team, Match current) {
         if (team == null) {
             return List.of();
         }
-        return matches.findAllMatchesByTeamIdsAndSource(List.of(team.getId()), current.getSource()).stream()
-                .filter(value -> !value.getId().equals(current.getId())
-                        && Objects.equals(value.getSeason(), current.getSeason()))
+        return matches.findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(List.of(team.getId()),
+                        current.getSource(), current.getSeason(), current.getCompetition()).stream()
+                .filter(value -> !value.getId().equals(current.getId()))
                 .sorted(Comparator.comparing(Match::getDateTime,
                         Comparator.nullsLast(Comparator.naturalOrder())).reversed())
                 .toList();
@@ -159,13 +162,21 @@ public class FindMatchDetailsQueryHandler
                 .toList();
     }
 
+    /**
+     * A team's form going <em>into</em> {@code current}: the recent-form windows only ever draw on
+     * matches played before it, so a historical match never reports results that had not happened
+     * yet. {@code overallWinRate} stays season-wide, as the alignment-stability note compares
+     * against the team's whole season.
+     */
     private MatchDetailReadModel.TeamFormReadModel teamForm(Team team, Match current,
                                                             List<Match> sortedDescExcludingCurrentVisible) {
         if (team == null) {
             return new MatchDetailReadModel.TeamFormReadModel(List.of(), null, null, null);
         }
-        List<Match> lastWindow = sortedDescExcludingCurrentVisible.stream().limit(RECENT_FORM_WINDOW).toList();
-        List<Match> previousWindow = sortedDescExcludingCurrentVisible.stream()
+        List<Match> playedBeforeCurrent = sortedDescExcludingCurrentVisible.stream()
+                .filter(value -> isPlayedBefore(value, current)).toList();
+        List<Match> lastWindow = playedBeforeCurrent.stream().limit(RECENT_FORM_WINDOW).toList();
+        List<Match> previousWindow = playedBeforeCurrent.stream()
                 .skip(RECENT_FORM_WINDOW).limit(RECENT_FORM_WINDOW).toList();
         List<MatchDetailReadModel.FormResultReadModel> lastResults = lastWindow.stream()
                 .sorted(Comparator.comparing(Match::getDateTime, Comparator.nullsLast(Comparator.naturalOrder())))
@@ -306,6 +317,15 @@ public class FindMatchDetailsQueryHandler
      * team-level outcome for {@code teamId} (FEAT-00066) - an ineligible tie is excluded here too,
      * consistent with {@link #visibleTeamMatches}.
      */
+    /**
+     * Whether {@code value} was played before {@code current}. An undated match cannot be placed on
+     * either side of the viewed one, so it never takes a recent-form slot.
+     */
+    private boolean isPlayedBefore(Match value, Match current) {
+        return value.getDateTime() != null && current.getDateTime() != null
+                && value.getDateTime().isBefore(current.getDateTime());
+    }
+
     private List<Match> withVisibleCurrent(List<Match> matchesExcludingCurrent, Match current, UUID teamId) {
         List<Match> all = new ArrayList<>(matchesExcludingCurrent);
         if (MatchOutcome.teamOutcome(current, teamId).isPresent()) {

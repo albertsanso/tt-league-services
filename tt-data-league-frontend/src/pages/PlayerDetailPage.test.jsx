@@ -156,7 +156,7 @@ describe('PlayerDetailPage', () => {
     const tileValues = [...strip.querySelectorAll('.stat-tile-value')].map((node) => node.textContent)
 
     expect(tileValues).toEqual(['4', '67%', '100% / 50%', '1'])
-    expect(strip.querySelector('.matches-form-guide')).toHaveTextContent('NVVD')
+    expect(strip.querySelector('.matches-form-guide')).toHaveTextContent('VVD')
     expect(strip.querySelector('.matches-current-streak')).toHaveTextContent('ratxa actual: 1 Derrota')
   })
 

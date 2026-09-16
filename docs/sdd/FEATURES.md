@@ -23,6 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00071: Fix chronological W/L/D chips in matches](### [FEAT-00071] Fix chronological W/L/D chips in matches)
 - [FEAT-00070: Match details label home/away team](### [FEAT-00070] Match details label home/away team)
 - [FEAT-00069: BCNESA home/away orientation in extraction and import](### [FEAT-00069] BCNESA home/away orientation in extraction and import)
 - [FEAT-00068: Mismatch in Match details: Team title and summary not matching with Players alignemt below](### [FEAT-00068] Mismatch in Match details: Team title and summary not matching with Players alignemt below)
@@ -52,6 +53,28 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00071] Fix chronological W/L/D chips in matches
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+The recent-form W/L/D chips shown for a team are computed from the wrong set of matches. On the Match details page the team's last-5 strip mixes in matches from every other competition that team played in the same source+season, and it draws on the season's latest results rather than the form going into the viewed match. On the Player/Club detail pages the strip includes pending matches with no recorded score.
+
+#### Acceptance Criteria
+- [x] Match details team form and alignment stability are scoped to the viewed match's own competition, not just its source and season
+- [x] Match details recent-form windows only use matches played before the viewed match, so a historical match never reports results that had not happened yet
+- [x] getFormGuide excludes pending matches (no recorded score) so the chip strip shows only decided matches, oldest to newest
+- [x] getCurrentStreak excludes pending matches when computing the current win/loss/draw streak
+- [x] Regression tests cover competition scoping and before-the-match scoping on the backend, and pending-match exclusion on the frontend
+- [x] ClubSummaryPanel's plain recent-matches list (which intentionally includes pending matches) is unaffected
+
+#### Feature Details
+→ See [FEAT-00071-DETAILS.md](./FEAT-00071-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00070] Match details label home/away team
 - **Status:** done
@@ -543,6 +566,16 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

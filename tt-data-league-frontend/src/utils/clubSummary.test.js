@@ -396,6 +396,16 @@ describe('getFormGuide', () => {
 
     expect(getFormGuide(matches, 2).map((item) => item.id)).toEqual(['m2', 'm3'])
   })
+
+  it('ignores pending matches without a recorded score', () => {
+    const matches = [
+      match({ id: 'm1', dateTime: '2024-03-01T00:00:00Z', result: 'loss' }),
+      match({ id: 'm2', dateTime: '2024-03-08T00:00:00Z', result: 'win' }),
+      match({ id: 'pending', dateTime: '2024-03-15T00:00:00Z', homeGamesWon: null, awayGamesWon: null }),
+    ]
+
+    expect(getFormGuide(matches, 2).map((item) => item.id)).toEqual(['m1', 'm2'])
+  })
 })
 
 describe('getCurrentStreak', () => {
@@ -420,6 +430,16 @@ describe('getCurrentStreak', () => {
 
   it('returns null when there are no matches', () => {
     expect(getCurrentStreak([])).toBeNull()
+  })
+
+  it('ignores a pending match without a recorded score even when it is most recent', () => {
+    const matches = [
+      match({ id: 'm1', dateTime: '2024-03-01T00:00:00Z', result: 'win' }),
+      match({ id: 'm2', dateTime: '2024-03-08T00:00:00Z', result: 'win' }),
+      match({ id: 'pending', dateTime: '2024-03-15T00:00:00Z', homeGamesWon: null, awayGamesWon: null }),
+    ]
+
+    expect(getCurrentStreak(matches)).toEqual({ result: 'win', count: 2 })
   })
 })
 
