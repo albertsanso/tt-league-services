@@ -83,8 +83,10 @@ public record MatchDetailReadModel(
     }
 
     /**
-     * A lineup player's last-N match results, reusing the per-player match history that backs
-     * {@code PlayerDetailsDto.matches[]}.
+     * A lineup player's last-N match results in the viewed match's own competition, counting only
+     * matches played before it. Unlike {@code PlayerDetailsDto.matches[]}, which is an unscoped
+     * per-player history, this window is competition- and chronology-scoped to match the team form
+     * shown alongside it.
      */
     public record PlayerFormReadModel(
             UUID playerSeasonId,

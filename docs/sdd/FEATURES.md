@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00072: Fix W/L chronology chips in match details at player level](### [FEAT-00072] Fix W/L chronology chips in match details at player level)
+
 - [FEAT-00071: Fix chronological W/L/D chips in matches](### [FEAT-00071] Fix chronological W/L/D chips in matches)
 - [FEAT-00070: Match details label home/away team](### [FEAT-00070] Match details label home/away team)
 - [FEAT-00069: BCNESA home/away orientation in extraction and import](### [FEAT-00069] BCNESA home/away orientation in extraction and import)
@@ -53,6 +55,38 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00072] Fix W/L chronology chips in match details at player level
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+The per-player W/L chips in the Match details lineup table are computed from the wrong set of matches: unlike the team strip above them (fixed in FEAT-00071), they draw on the player's five most recent matches of the whole source+season, so a historical match shows results that had not happened yet and mixes in matches from every other competition the player played.
+
+#### Acceptance Criteria
+- [x] Match details per-player form windows only use matches played before the viewed match, so a historical match never shows a player's later results
+- [x] Match details per-player form is scoped to the viewed match's own competition, matching the team strip above it
+- [x] Both filters are applied before the last-5 window is taken, so out-of-scope matches never consume a form slot
+- [x] Player form remains cross-team within the competition, so a mid-season transfer's earlier matches still count
+- [x] The per-player win rate follows the corrected window
+- [x] Draws remain excluded from player form (FEAT-00066)
+- [x] Regression tests cover competition scoping, before-the-match scoping, and the cross-team transfer case; they are verified to fail before the fix
+- [x] The Player detail page form guide and streak are unchanged
+
+#### Feature Details
+→ See [FEAT-00072-DETAILS.md](./FEAT-00072-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ### [FEAT-00071] Fix chronological W/L/D chips in matches
 - **Status:** done
@@ -566,6 +600,18 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
+
+---
+
+---
 
 ---
 

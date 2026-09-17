@@ -221,6 +221,13 @@ public class FindMatchDetailsQueryHandler
                 timesFielded, wins, draws, losses, winRateValue, overallWinRate);
     }
 
+    /**
+     * A lineup player's form going <em>into</em> {@code current}: scoped to the same canonical
+     * player, source, season and competition, and drawing only on matches played before the viewed
+     * one, so a historical match never reports results that had not happened yet. The window stays
+     * cross-<em>team</em> on purpose, so a mid-season transfer's matches for the previous club still
+     * count (see {@link #resolvePlayerSeasonIds}).
+     */
     private MatchDetailReadModel.PlayerFormReadModel playerForm(Lineup lineup, Match current) {
         PlayerSeason player = lineup.getPlayer();
         if (player == null) {
@@ -236,6 +243,8 @@ public class FindMatchDetailsQueryHandler
                         (first, ignored) -> first, LinkedHashMap::new));
         List<Match> playerMatches = lineupByMatchId.values().stream().map(Lineup::getMatch)
                 .filter(value -> !value.getId().equals(current.getId()))
+                .filter(value -> Objects.equals(value.getCompetition(), current.getCompetition()))
+                .filter(value -> isPlayedBefore(value, current))
                 // Draws never apply at player level (FEAT-00066): a tied match has no
                 // playerOutcome and must not consume a slot in the recent-form window.
                 .filter(value -> MatchOutcome.playerOutcome(value, teamIdFor(lineupByMatchId.get(value.getId())))

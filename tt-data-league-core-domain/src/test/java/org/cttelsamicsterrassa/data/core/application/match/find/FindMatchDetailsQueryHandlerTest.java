@@ -412,4 +412,199 @@ class FindMatchDetailsQueryHandlerTest {
         assertEquals(1, homeAlignment.draws());
         assertEquals(0, homeAlignment.losses());
     }
+
+    @Test
+    void scopesPlayerFormToTheViewedMatchsOwnCompetition() {
+        // FEAT-00072: a player registered once per source+season plays in several competitions, so
+        // an unscoped lookup lets another competition's match crowd this strip out.
+        Season season = Season.of(2025);
+        Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.BCNESA, "Home Club", season, null);
+        Team awayTeam = Team.createExisting(UUID.randomUUID(), ImportSource.BCNESA, "Away Club", season, null);
+        Player canonical = Player.createExisting(UUID.randomUUID(), "Player One");
+        FederatedPlayer federated = FederatedPlayer.createExisting(
+                UUID.randomUUID(), ImportSource.BCNESA, "Player One", canonical);
+        PlayerSeason player = PlayerSeason.createExisting(
+                UUID.randomUUID(), ImportSource.BCNESA, "Player One", "1", federated, season);
+
+        Match veteransWin = Match.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA).competition("Vet 1a")
+                .season(season).round(1).dateTime(ZonedDateTime.parse("2025-10-01T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(2).winnerTeam(homeTeam)
+                .createExisting();
+        Match otherCompetitionLoss = Match.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .competition("1a Divisio")
+                .season(season).round(1).dateTime(ZonedDateTime.parse("2025-11-01T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(1).awayGamesWon(5).winnerTeam(awayTeam)
+                .createExisting();
+        Match current = Match.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA).competition("Vet 1a")
+                .season(season).round(2).dateTime(ZonedDateTime.parse("2025-11-15T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(3).winnerTeam(homeTeam)
+                .createExisting();
+
+        Lineup veteransLineup = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .match(veteransWin).team(homeTeam).letter("A").player(player).createExisting();
+        Lineup otherCompetitionLineup = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .match(otherCompetitionLoss).team(homeTeam).letter("A").player(player).createExisting();
+        Lineup currentLineup = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .match(current).team(homeTeam).letter("A").player(player).createExisting();
+
+        MatchRepository matchRepository = mock(MatchRepository.class);
+        LineupRepository lineupRepository = mock(LineupRepository.class);
+        GameRepository gameRepository = mock(GameRepository.class);
+        SetScoreRepository setScoreRepository = mock(SetScoreRepository.class);
+        DoublesPairRepository doublesPairRepository = mock(DoublesPairRepository.class);
+        PlayerSeasonRepository playerSeasonRepository = mock(PlayerSeasonRepository.class);
+        FederatedPlayerRepository federatedPlayerRepository = mock(FederatedPlayerRepository.class);
+
+        when(matchRepository.findMatchById(current.getId())).thenReturn(Optional.of(current));
+        when(matchRepository.findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(
+                List.of(homeTeam.getId()), ImportSource.BCNESA, season, "Vet 1a"))
+                .thenReturn(List.of(veteransWin));
+        when(lineupRepository.findLineupsByMatchId(current.getId())).thenReturn(List.of(currentLineup));
+        when(lineupRepository.findAllLineupsByMatchIds(anyList())).thenReturn(List.of(veteransLineup));
+        when(federatedPlayerRepository.findAllFederatedPlayersByPlayerId(canonical.getId()))
+                .thenReturn(List.of(federated));
+        when(playerSeasonRepository.findAllPlayerSeasonsByFederatedPlayerIds(List.of(federated.getId())))
+                .thenReturn(List.of(player));
+        // The registration's whole season, both competitions - the handler must narrow it itself.
+        when(lineupRepository.findAllLineupsByPlayerSeasonIds(List.of(player.getId())))
+                .thenReturn(List.of(veteransLineup, otherCompetitionLineup, currentLineup));
+
+        MatchDetailReadModel details = new FindMatchDetailsQueryHandler(matchRepository, lineupRepository,
+                gameRepository, setScoreRepository, doublesPairRepository, playerSeasonRepository,
+                federatedPlayerRepository).handle(new FindMatchDetailsQuery(current.getId())).getResponse();
+
+        assertEquals(1, details.playerForm().size());
+        MatchDetailReadModel.PlayerFormReadModel form = details.playerForm().getFirst();
+        assertEquals(1, form.lastResults().size());
+        assertEquals(veteransWin.getId(), form.lastResults().getFirst().matchId());
+        assertEquals("win", form.lastResults().getFirst().result());
+        assertEquals(100.0, form.winRate());
+    }
+
+    @Test
+    void reportsPlayerFormGoingIntoTheViewedMatch() {
+        // FEAT-00072: viewing a November match must not report the player's March results.
+        Season season = Season.of(2025);
+        Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.BCNESA, "Home Club", season, null);
+        Team awayTeam = Team.createExisting(UUID.randomUUID(), ImportSource.BCNESA, "Away Club", season, null);
+        Player canonical = Player.createExisting(UUID.randomUUID(), "Player One");
+        FederatedPlayer federated = FederatedPlayer.createExisting(
+                UUID.randomUUID(), ImportSource.BCNESA, "Player One", canonical);
+        PlayerSeason player = PlayerSeason.createExisting(
+                UUID.randomUUID(), ImportSource.BCNESA, "Player One", "1", federated, season);
+
+        Match earlierWin = Match.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA).competition("Vet 1a")
+                .season(season).round(1).dateTime(ZonedDateTime.parse("2025-10-01T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(2).winnerTeam(homeTeam)
+                .createExisting();
+        Match current = Match.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA).competition("Vet 1a")
+                .season(season).round(2).dateTime(ZonedDateTime.parse("2025-11-15T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(3).winnerTeam(homeTeam)
+                .createExisting();
+        Match laterLoss = Match.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA).competition("Vet 1a")
+                .season(season).round(3).dateTime(ZonedDateTime.parse("2026-03-01T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(1).awayGamesWon(5).winnerTeam(awayTeam)
+                .createExisting();
+
+        Lineup earlierLineup = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .match(earlierWin).team(homeTeam).letter("A").player(player).createExisting();
+        Lineup laterLineup = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .match(laterLoss).team(homeTeam).letter("A").player(player).createExisting();
+        Lineup currentLineup = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .match(current).team(homeTeam).letter("A").player(player).createExisting();
+
+        MatchRepository matchRepository = mock(MatchRepository.class);
+        LineupRepository lineupRepository = mock(LineupRepository.class);
+        GameRepository gameRepository = mock(GameRepository.class);
+        SetScoreRepository setScoreRepository = mock(SetScoreRepository.class);
+        DoublesPairRepository doublesPairRepository = mock(DoublesPairRepository.class);
+        PlayerSeasonRepository playerSeasonRepository = mock(PlayerSeasonRepository.class);
+        FederatedPlayerRepository federatedPlayerRepository = mock(FederatedPlayerRepository.class);
+
+        when(matchRepository.findMatchById(current.getId())).thenReturn(Optional.of(current));
+        when(matchRepository.findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(
+                List.of(homeTeam.getId()), ImportSource.BCNESA, season, "Vet 1a"))
+                .thenReturn(List.of(earlierWin, laterLoss));
+        when(lineupRepository.findLineupsByMatchId(current.getId())).thenReturn(List.of(currentLineup));
+        when(lineupRepository.findAllLineupsByMatchIds(anyList()))
+                .thenReturn(List.of(earlierLineup, laterLineup));
+        when(federatedPlayerRepository.findAllFederatedPlayersByPlayerId(canonical.getId()))
+                .thenReturn(List.of(federated));
+        when(playerSeasonRepository.findAllPlayerSeasonsByFederatedPlayerIds(List.of(federated.getId())))
+                .thenReturn(List.of(player));
+        when(lineupRepository.findAllLineupsByPlayerSeasonIds(List.of(player.getId())))
+                .thenReturn(List.of(earlierLineup, laterLineup, currentLineup));
+
+        MatchDetailReadModel details = new FindMatchDetailsQueryHandler(matchRepository, lineupRepository,
+                gameRepository, setScoreRepository, doublesPairRepository, playerSeasonRepository,
+                federatedPlayerRepository).handle(new FindMatchDetailsQuery(current.getId())).getResponse();
+
+        MatchDetailReadModel.PlayerFormReadModel form = details.playerForm().getFirst();
+        assertEquals(1, form.lastResults().size());
+        assertEquals(earlierWin.getId(), form.lastResults().getFirst().matchId());
+        assertEquals(100.0, form.winRate());
+    }
+
+    @Test
+    void keepsPlayerFormAcrossTeamsWithinTheSameCompetition() {
+        // FEAT-00072 must not narrow the window to the lineup's own team: a mid-season transfer's
+        // matches for the previous club still count, which is what resolvePlayerSeasonIds is for.
+        Season season = Season.of(2025);
+        Team previousClub = Team.createExisting(UUID.randomUUID(), ImportSource.BCNESA, "Previous Club", season, null);
+        Team currentClub = Team.createExisting(UUID.randomUUID(), ImportSource.BCNESA, "Current Club", season, null);
+        Team awayTeam = Team.createExisting(UUID.randomUUID(), ImportSource.BCNESA, "Away Club", season, null);
+        Player canonical = Player.createExisting(UUID.randomUUID(), "Player One");
+        FederatedPlayer federated = FederatedPlayer.createExisting(
+                UUID.randomUUID(), ImportSource.BCNESA, "Player One", canonical);
+        PlayerSeason previousRegistration = PlayerSeason.createExisting(
+                UUID.randomUUID(), ImportSource.BCNESA, "Player One", "1", federated, season);
+        PlayerSeason currentRegistration = PlayerSeason.createExisting(
+                UUID.randomUUID(), ImportSource.BCNESA, "Player One", "2", federated, season);
+
+        Match previousClubWin = Match.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .competition("Vet 1a")
+                .season(season).round(1).dateTime(ZonedDateTime.parse("2025-10-01T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(previousClub).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(2).winnerTeam(previousClub)
+                .createExisting();
+        Match current = Match.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA).competition("Vet 1a")
+                .season(season).round(2).dateTime(ZonedDateTime.parse("2025-11-15T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(currentClub).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(3).winnerTeam(currentClub)
+                .createExisting();
+
+        Lineup previousClubLineup = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .match(previousClubWin).team(previousClub).letter("A").player(previousRegistration).createExisting();
+        Lineup currentLineup = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .match(current).team(currentClub).letter("A").player(currentRegistration).createExisting();
+
+        MatchRepository matchRepository = mock(MatchRepository.class);
+        LineupRepository lineupRepository = mock(LineupRepository.class);
+        GameRepository gameRepository = mock(GameRepository.class);
+        SetScoreRepository setScoreRepository = mock(SetScoreRepository.class);
+        DoublesPairRepository doublesPairRepository = mock(DoublesPairRepository.class);
+        PlayerSeasonRepository playerSeasonRepository = mock(PlayerSeasonRepository.class);
+        FederatedPlayerRepository federatedPlayerRepository = mock(FederatedPlayerRepository.class);
+
+        when(matchRepository.findMatchById(current.getId())).thenReturn(Optional.of(current));
+        when(matchRepository.findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(
+                List.of(currentClub.getId()), ImportSource.BCNESA, season, "Vet 1a"))
+                .thenReturn(List.of());
+        when(lineupRepository.findLineupsByMatchId(current.getId())).thenReturn(List.of(currentLineup));
+        when(lineupRepository.findAllLineupsByMatchIds(anyList())).thenReturn(List.of());
+        when(federatedPlayerRepository.findAllFederatedPlayersByPlayerId(canonical.getId()))
+                .thenReturn(List.of(federated));
+        when(playerSeasonRepository.findAllPlayerSeasonsByFederatedPlayerIds(List.of(federated.getId())))
+                .thenReturn(List.of(previousRegistration, currentRegistration));
+        when(lineupRepository.findAllLineupsByPlayerSeasonIds(
+                List.of(previousRegistration.getId(), currentRegistration.getId())))
+                .thenReturn(List.of(previousClubLineup, currentLineup));
+
+        MatchDetailReadModel details = new FindMatchDetailsQueryHandler(matchRepository, lineupRepository,
+                gameRepository, setScoreRepository, doublesPairRepository, playerSeasonRepository,
+                federatedPlayerRepository).handle(new FindMatchDetailsQuery(current.getId())).getResponse();
+
+        MatchDetailReadModel.PlayerFormReadModel form = details.playerForm().getFirst();
+        assertEquals(1, form.lastResults().size());
+        assertEquals(previousClubWin.getId(), form.lastResults().getFirst().matchId());
+        assertEquals("win", form.lastResults().getFirst().result());
+    }
 }

@@ -111,6 +111,15 @@ describe('MatchSummaryPage', () => {
     expect(screen.queryByRole('link', { name: 'Pol Serra' })).not.toBeInTheDocument()
   })
 
+  it("shows each lineup player's recent-form chips and win rate, or an empty label when there is no form", () => {
+    renderPage()
+
+    expect(screen.getByText((_, element) => element?.tagName === 'TD'
+      && element.textContent.trim() === 'W (100%)')).toBeInTheDocument()
+    expect(screen.getByText((_, element) => element?.tagName === 'TD'
+      && element.textContent.trim() === 'Sense partits recents.')).toBeInTheDocument()
+  })
+
   it('shows the regular-lineup alignment badge when the exact lineup has been fielded 3+ times', () => {
     renderPage()
     expect(screen.getByText('Alineació habitual')).toBeInTheDocument()
