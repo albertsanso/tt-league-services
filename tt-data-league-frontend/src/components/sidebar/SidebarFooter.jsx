@@ -5,11 +5,11 @@ function SidebarFooter({ collapsed }) {
   return (
     <div className="sidebar-footer">
       {collapsed ? (
-        <p className="sidebar-footer-collapsed">v2.1.0</p>
+        <p className="sidebar-footer-collapsed">v1.0.0-alpha.1</p>
       ) : (
         <div className="sidebar-footer-panel">
           <p>{t('shell.openProject')}</p>
-          <p className="sidebar-version">v2.1.0</p>
+          <p className="sidebar-version">v1.0.0-alpha.1</p>
         </div>
       )}
     </div>

@@ -228,19 +228,8 @@ function ClubDetailContent({
       {successMessage ? <p className="form-success" role="status">{successMessage}</p> : null}
       <div className="club-detail-header">
         <div>
-          <p className="section-label">{t('detail.identityClub')}</p>
           <h1 id="club-detail-title" className="page-title">{club.name}</h1>
-          <p className="club-source">
-            {displaySources(club).length > 1 ? t('common.sources') : t('common.source')}:{' '}
-            {displaySources(club).join(', ')}
-          </p>
-          {club.federatedClubs?.length ? (
-            <p className="club-source">
-              {t('detail.federatedRecords', { records: club.federatedClubs
-                .map((federatedClub) => `${federatedClub.name} (${federatedClub.source})`)
-                .join(', ') })}
-            </p>
-          ) : null}
+
         </div>
         {isAdmin ? (
           <Link
@@ -250,6 +239,52 @@ function ClubDetailContent({
             <Edit3 size={16} aria-hidden="true" /> {t('detail.editClub')}
           </Link>
         ) : null}
+      </div>
+
+      <div className="club-filters is-top">
+        <label className="club-filter">
+          <span>{t('common.source')}</span>
+          <select
+            value={allSourcesSelected ? ALL_SOURCES : sourceFilter}
+            onChange={(event) => updateFilters({
+              source: event.target.value,
+              season: ALL_SEASONS,
+              competition: '',
+            })}
+          >
+            <option value={ALL_SOURCES}>{t('detail.allSources')}</option>
+            {sources.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label className="club-filter">
+          <span>{t('common.season')}</span>
+          <select
+            value={allSeasonsSelected ? ALL_SEASONS : season}
+            onChange={(event) => {
+              const nextSeason = event.target.value
+              const nextCompetition = sourceCompetitions.some(
+                (item) => item.season === nextSeason && item.name === competition,
+              ) || nextSeason === ALL_SEASONS ? competition : ''
+              updateFilters({ season: nextSeason, competition: nextCompetition })
+            }}
+          >
+            <option value={ALL_SEASONS}>{t('detail.allSeasons')}</option>
+            {availableSeasons.length === 0 ? <option value="">{t('detail.noSeasons')}</option> : null}
+            {availableSeasons.map((option) => <option key={option} value={option}>{option}</option>)}
+          </select>
+        </label>
+        <label className="club-filter">
+          <span>{t('common.competition')}</span>
+          <select
+            value={competition}
+            onChange={(event) => updateFilters({ competition: event.target.value })}
+          >
+            <option value="">{t('detail.allCompetitions')}</option>
+            {availableCompetitions.map((option) => (
+              <option key={`${option.season}-${option.name}`} value={option.name}>{option.name}</option>
+            ))}
+          </select>
+        </label>
       </div>
 
       <div className="club-controls">
@@ -294,51 +329,6 @@ function ClubDetailContent({
           >
             <Swords size={16} aria-hidden="true" /> {t('common.matches')}
           </button>
-        </div>
-        <div className="club-filters">
-          <label className="club-filter">
-            <span>{t('common.source')}</span>
-            <select
-              value={allSourcesSelected ? ALL_SOURCES : sourceFilter}
-              onChange={(event) => updateFilters({
-                source: event.target.value,
-                season: ALL_SEASONS,
-                competition: '',
-              })}
-            >
-              <option value={ALL_SOURCES}>{t('detail.allSources')}</option>
-              {sources.map((option) => <option key={option} value={option}>{option}</option>)}
-            </select>
-          </label>
-          <label className="club-filter">
-            <span>{t('common.season')}</span>
-            <select
-              value={allSeasonsSelected ? ALL_SEASONS : season}
-              onChange={(event) => {
-                const nextSeason = event.target.value
-                const nextCompetition = sourceCompetitions.some(
-                  (item) => item.season === nextSeason && item.name === competition,
-                ) || nextSeason === ALL_SEASONS ? competition : ''
-                updateFilters({ season: nextSeason, competition: nextCompetition })
-              }}
-            >
-              <option value={ALL_SEASONS}>{t('detail.allSeasons')}</option>
-              {availableSeasons.length === 0 ? <option value="">{t('detail.noSeasons')}</option> : null}
-              {availableSeasons.map((option) => <option key={option} value={option}>{option}</option>)}
-            </select>
-          </label>
-          <label className="club-filter">
-            <span>{t('common.competition')}</span>
-            <select
-              value={competition}
-              onChange={(event) => updateFilters({ competition: event.target.value })}
-            >
-              <option value="">{t('detail.allCompetitions')}</option>
-              {availableCompetitions.map((option) => (
-                <option key={`${option.season}-${option.name}`} value={option.name}>{option.name}</option>
-              ))}
-            </select>
-          </label>
         </div>
       </div>
 

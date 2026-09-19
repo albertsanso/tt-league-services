@@ -42,7 +42,7 @@ public class User extends Entity {
     }
 
     public static User createNew(String username, String email, String passwordHash) {
-        User user = new User(
+        User user = of(
                 UUID.randomUUID(),
                 ZonedDateTime.now(),
                 username,

@@ -137,9 +137,7 @@ function PlayerDetailContent({ data, params, setParams, t }) {
       <Link className="back-link" to={routePaths.players()}> <ArrowLeft size={16} aria-hidden="true" /> {t('detail.backSearch')}</Link>
       <div className="club-detail-header">
         <div>
-          <p className="section-label">{t('detail.identityCanonical')}</p>
           <h1 id="player-detail-title" className="page-title">{data.name}</h1>
-          <p className="club-source">{t('detail.uuid', { id: data.id })}</p>
         </div>
       </div>
       <div className="player-detail-controls">

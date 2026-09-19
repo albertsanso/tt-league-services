@@ -27,7 +27,8 @@ public class InitialUserProvisioningService {
 
     private static final List<SeedUser> SEED_USERS = List.of(
             new SeedUser("albert", "albert@localhost", "albert"),
-            new SeedUser("oscar", "oscar@localhost", "Oscar&1234"));
+            new SeedUser("oscar", "oscar@localhost", "Oscar&1234"),
+            new SeedUser("test", "test@localhost", "test"));
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -47,7 +48,6 @@ public class InitialUserProvisioningService {
             }
             User user = User.createNew(seedUser.username(), seedUser.email(),
                     passwordEncoder.encode(seedUser.plainPassword()));
-            user.setRoles(Set.of(UserRole.ADMIN));
             userRepository.save(user);
         }
     }

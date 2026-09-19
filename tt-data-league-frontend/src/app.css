@@ -2311,6 +2311,11 @@
   padding-bottom: 0.5rem;
 }
 
+.club-filters.is-top {
+  grid-template-columns: repeat(3, minmax(0, 14rem));
+  padding-bottom: 0;
+}
+
 .season-slider {
   grid-column: 1 / -1;
   grid-row: 1;
@@ -4035,7 +4040,8 @@ a.club-match-card:hover {
     display: none;
   }
 
-  .club-filters {
+  .club-filters,
+  .club-filters.is-top {
     grid-template-columns: minmax(0, 1fr);
   }
 
