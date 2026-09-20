@@ -5,6 +5,7 @@ import org.cttelsamicsterrassa.data.core.domain.club.event.ClubCreatedEvent;
 import org.cttelsamicsterrassa.data.core.domain.club.event.ClubDeletedEvent;
 import org.cttelsamicsterrassa.data.core.domain.club.event.ClubNameModifiedEvent;
 import org.cttelsamicsterrassa.data.core.domain.club.event.ClubsConsolidatedEvent;
+import org.cttelsamicsterrassa.data.core.domain.consolidation.model.ConsolidationActionClub;
 
 import java.util.List;
 import java.util.Objects;
@@ -44,8 +45,18 @@ public class Club extends Entity {
         publishClubDeletedEvent();
     }
 
-    public void consolidate(List<UUID> mergedClubIds) {
-        publishEvent(ClubsConsolidatedEvent.of(id, name, mergedClubIds));
+    /**
+     * Records that the given clubs were merged into this one.
+     *
+     * <p>{@code mergedClubs} must be snapshots taken <em>before</em> those clubs were deleted, and
+     * this club's name must already be the post-merge canonical name: the published event carries
+     * pre-merge source names alongside the post-merge canonical name, and that asymmetry is
+     * deliberate.</p>
+     */
+    public void consolidate(
+            List<ConsolidationActionClub> mergedClubs, UUID performedByUserId, String performedByUsername) {
+        publishEvent(ClubsConsolidatedEvent.of(
+                id, name, name, mergedClubs, performedByUserId, performedByUsername));
     }
 
     public UUID getId() {

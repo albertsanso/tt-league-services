@@ -8,7 +8,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
  * Boots the persistence adapter alone, against H2, so repository behaviour and schema constraints
  * can be tested without the import runtime.
  */
-@SpringBootApplication(scanBasePackages = "org.cttelsamicsterrassa")
+@SpringBootApplication(scanBasePackages = {"org.cttelsamicsterrassa", "org.albertsanso.commons"})
 @EnableJpaRepositories(basePackages = "org.cttelsamicsterrassa")
 @EntityScan(basePackages = "org.cttelsamicsterrassa")
 public class JpaTestApplication {

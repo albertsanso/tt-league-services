@@ -13,21 +13,33 @@ import org.cttelsamicsterrassa.data.core.application.club.find.dto.FederatedClub
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubFederatedReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubSearchReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubDetailsReadModel;
+import org.cttelsamicsterrassa.data.core.application.club.consolidate.ConsolidateClubsCommand;
+import org.cttelsamicsterrassa.data.core.application.consolidation.find.dto.ConsolidationActionClubReadModel;
+import org.cttelsamicsterrassa.data.core.application.consolidation.find.dto.ConsolidationActionReadModel;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.model.User;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.service.UserService;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
+import org.cttelsamicsterrassa.data.core.domain.consolidation.model.ConsolidationActionType;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.test.util.ReflectionTestUtils;
 
+import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentCaptor.forClass;
 
 class ClubControllerTest {
 
@@ -184,7 +196,7 @@ class ClubControllerTest {
         when(commandBus.push(any())).thenReturn(DomainCommandResponse.successResponse(primary));
 
         var response = controller.consolidateClubs(new ConsolidateClubsRequest(
-                List.of(CLUB_ID, UUID.randomUUID()), "Consolidated Club", CLUB_ID));
+                List.of(CLUB_ID, UUID.randomUUID()), "Consolidated Club", CLUB_ID), null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         ClubDto body = (ClubDto) response.getBody();
@@ -200,7 +212,7 @@ class ClubControllerTest {
         when(commandBus.push(any())).thenReturn(DomainCommandResponse.failResponse("Club not found: " + missingId));
 
         var response = controller.consolidateClubs(new ConsolidateClubsRequest(
-                List.of(CLUB_ID, missingId), "Consolidated Club", CLUB_ID));
+                List.of(CLUB_ID, missingId), "Consolidated Club", CLUB_ID), null);
 
         assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
     }
@@ -213,7 +225,7 @@ class ClubControllerTest {
                 DomainCommandResponse.failResponse("At least two distinct clubs must be selected for consolidation"));
 
         var response = controller.consolidateClubs(new ConsolidateClubsRequest(
-                List.of(CLUB_ID, CLUB_ID), "Consolidated Club", CLUB_ID));
+                List.of(CLUB_ID, CLUB_ID), "Consolidated Club", CLUB_ID), null);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
     }
@@ -226,9 +238,117 @@ class ClubControllerTest {
                 DomainCommandResponse.failResponse("Primary club must be one of the selected clubs"));
 
         var response = controller.consolidateClubs(new ConsolidateClubsRequest(
-                List.of(CLUB_ID, UUID.randomUUID()), "Consolidated Club", UUID.randomUUID()));
+                List.of(CLUB_ID, UUID.randomUUID()), "Consolidated Club", UUID.randomUUID()), null);
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+    }
+
+    @Test
+    void takesTheActingUserFromThePrincipalAndNotTheRequestBody() {
+        CommandBus commandBus = mock(CommandBus.class);
+        UserService userService = mock(UserService.class);
+        ClubController controller = controllerWith(mock(QueryBus.class), commandBus, userService);
+        UUID actingUserId = UUID.randomUUID();
+        User admin = User.createExisting(
+                actingUserId, ZonedDateTime.now(), "admin", "admin@example.org", "hash", true);
+        when(userService.getUserByUsername("admin")).thenReturn(Optional.of(admin));
+        when(commandBus.push(any())).thenReturn(
+                DomainCommandResponse.successResponse(Club.createExisting(CLUB_ID, "Consolidated Club")));
+        Authentication authentication = mock(Authentication.class);
+        when(authentication.getName()).thenReturn("admin");
+
+        controller.consolidateClubs(
+                new ConsolidateClubsRequest(List.of(CLUB_ID, UUID.randomUUID()), "Consolidated Club", CLUB_ID),
+                authentication);
+
+        var captor = forClass(ConsolidateClubsCommand.class);
+        verify(commandBus).push(captor.capture());
+        assertEquals(actingUserId, captor.getValue().getPerformedByUserId());
+        assertEquals("admin", captor.getValue().getPerformedByUsername());
+    }
+
+    @Test
+    void consolidatesWithoutAnActingUserWhenThereIsNoPrincipal() {
+        CommandBus commandBus = mock(CommandBus.class);
+        ClubController controller = controllerWith(mock(QueryBus.class), commandBus, mock(UserService.class));
+        when(commandBus.push(any())).thenReturn(
+                DomainCommandResponse.successResponse(Club.createExisting(CLUB_ID, "Consolidated Club")));
+
+        var response = controller.consolidateClubs(
+                new ConsolidateClubsRequest(List.of(CLUB_ID, UUID.randomUUID()), "Consolidated Club", CLUB_ID),
+                null);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        var captor = forClass(ConsolidateClubsCommand.class);
+        verify(commandBus).push(captor.capture());
+        assertNull(captor.getValue().getPerformedByUserId());
+        assertEquals("system", captor.getValue().getPerformedByUsername());
+    }
+
+    @Test
+    void returnsTheFullConsolidationHistory() {
+        QueryBus queryBus = mock(QueryBus.class);
+        ClubController controller = controllerWith(queryBus, mock(CommandBus.class));
+        UUID mergedClubId = UUID.randomUUID();
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(List.of(
+                consolidationReadModel(mergedClubId))));
+
+        var response = controller.findConsolidations();
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        List<ConsolidationActionDto> body = (List<ConsolidationActionDto>) response.getBody();
+        assertEquals(1, body.size());
+        assertEquals("MERGE", body.get(0).type());
+        assertEquals("Consolidated Club", body.get(0).canonicalName());
+        assertEquals(mergedClubId, body.get(0).sourceClubs().get(0).clubId());
+        assertEquals("Old Club", body.get(0).sourceClubs().get(0).clubName());
+        assertEquals(CLUB_ID, body.get(0).targetClubs().get(0).clubId());
+    }
+
+    @Test
+    void returnsTheConsolidationHistoryOfOneClub() {
+        QueryBus queryBus = mock(QueryBus.class);
+        ClubController controller = controllerWith(queryBus, mock(CommandBus.class));
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(List.of(
+                consolidationReadModel(UUID.randomUUID()))));
+
+        var response = controller.findConsolidationsByClubId(CLUB_ID);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        @SuppressWarnings("unchecked")
+        List<ConsolidationActionDto> body = (List<ConsolidationActionDto>) response.getBody();
+        assertEquals(1, body.size());
+    }
+
+    @Test
+    void mapsAFailedConsolidationHistoryQueryToServerError() {
+        QueryBus queryBus = mock(QueryBus.class);
+        ClubController controller = controllerWith(queryBus, mock(CommandBus.class));
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.failResponse(null));
+
+        var response = controller.findConsolidations();
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+    }
+
+    private static ConsolidationActionReadModel consolidationReadModel(UUID mergedClubId) {
+        return new ConsolidationActionReadModel(
+                UUID.randomUUID(),
+                ConsolidationActionType.MERGE,
+                ZonedDateTime.now(),
+                null,
+                "admin",
+                "Consolidated Club",
+                List.of(new ConsolidationActionClubReadModel(mergedClubId, "Old Club")),
+                List.of(new ConsolidationActionClubReadModel(CLUB_ID, "Consolidated Club")));
+    }
+
+    private static ClubController controllerWith(
+            QueryBus queryBus, CommandBus commandBus, UserService userService) {
+        ClubController controller = controllerWith(queryBus, commandBus);
+        ReflectionTestUtils.setField(controller, "userService", userService);
+        return controller;
     }
 
     private static ClubController controllerWith(QueryBus queryBus, CommandBus commandBus) {

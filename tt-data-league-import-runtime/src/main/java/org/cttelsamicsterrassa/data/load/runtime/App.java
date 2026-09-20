@@ -21,7 +21,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 
 import java.nio.file.Path;
 
-@SpringBootApplication(scanBasePackages = {"org.cttelsamicsterrassa"})
+@SpringBootApplication(scanBasePackages = {"org.cttelsamicsterrassa", "org.albertsanso.commons"})
 @EnableJpaRepositories(basePackages = "org.cttelsamicsterrassa")
 @EntityScan(basePackages = "org.cttelsamicsterrassa")
 public class App implements CommandLineRunner {

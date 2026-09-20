@@ -400,3 +400,43 @@ legacy table exists and the new table does not, executes `ALTER TABLE` renames
 from `SystemSetting.setting_key` to `system_settings.key`. The operation is
 data-preserving and idempotent; deployments must grant the application schema
 user permission to rename the table and column.
+
+## Consolidation audit tables
+
+Every manual club consolidation (`POST /api/v1/clubs/consolidate`) writes one
+historic record, so that a merge is no longer a silent, unrecoverable loss of
+the merged-away clubs' identities. Automated import-time consolidation does not
+write to these tables.
+
+### `consolidation_action`
+
+| Column | Type | Nullability | Notes |
+|---|---|---|---|
+| `id` | uuid | not null | Primary key |
+| `type` | varchar | not null | `MERGE`, `SPLIT`, or `RENAME`; only `MERGE` is produced today |
+| `occurred_on` | timestamptz | not null | Taken from the domain event, indexed by `idx_consolidation_action_occurred_on` |
+| `performed_by_user_id` | uuid | nullable | The authenticated user; null when no principal was present |
+| `performed_by_username` | varchar(255) | nullable | Username snapshot, kept when the user row is later deleted |
+| `canonical_name` | varchar(255) | not null | The resulting name, i.e. the **post**-merge name |
+
+### `consolidation_action_club`
+
+One row per club taking part in the action, on either side.
+
+| Column | Type | Nullability | Notes |
+|---|---|---|---|
+| `id` | uuid | not null | Primary key |
+| `consolidation_action_id` | uuid | not null | FK to `consolidation_action` |
+| `role` | varchar | not null | `SOURCE` (consumed by the action) or `TARGET` (survived it) |
+| `club_id` | uuid | not null | See below; indexed by `idx_consolidation_action_club_club_id` |
+| `club_name` | varchar(255) | not null | The club's name at the time of the action |
+
+`club_id` is deliberately **not** a foreign key to `club`. A merge deletes every
+`SOURCE` club row in the same operation that writes this record, so a foreign
+key would either reject the insert or cascade away the audit trail these tables
+exist to keep. Both `club_id` and `club_name` are snapshots: `SOURCE` ids
+generally no longer resolve, and history must never be read back by resolving
+them through `ClubRepository`.
+
+`SOURCE` names are pre-merge while `canonical_name` is post-merge; that
+asymmetry is intended and is what makes the record useful.

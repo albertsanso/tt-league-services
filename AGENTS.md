@@ -55,6 +55,13 @@ limits the imported files, and supports write and report modes. Report mode
 must perform the same matching analysis without persistence writes. Do not
 make consolidation destructive or default-enabled.
 
+Every *manual* consolidation leaves an audit record in `consolidation_action`
+and `consolidation_action_club`. Those tables store club ids and names as
+snapshots taken at merge time, and their `club_id` columns are deliberately
+FK-free because the merge deletes the source club rows in the same operation.
+Never add a foreign key there, and never read the history back by resolving
+those ids through `ClubRepository`.
+
 ## Configuration and secrets
 
 - Use Java 21, UTF-8, and the existing package root

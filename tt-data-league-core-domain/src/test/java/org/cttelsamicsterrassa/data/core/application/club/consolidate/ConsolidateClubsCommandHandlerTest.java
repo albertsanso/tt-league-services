@@ -1,6 +1,11 @@
 package org.cttelsamicsterrassa.data.core.application.club.consolidate;
 
 import org.albertsanso.commons.command.DomainCommandResponse;
+import org.albertsanso.commons.event.DomainEvent;
+import org.albertsanso.commons.event.DomainEventSubscriber;
+import org.albertsanso.commons.event.EventBus;
+import org.cttelsamicsterrassa.data.core.domain.club.event.ClubsConsolidatedEvent;
+import org.cttelsamicsterrassa.data.core.domain.consolidation.model.ConsolidationActionClub;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
@@ -15,6 +20,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -22,17 +28,18 @@ class ConsolidateClubsCommandHandlerTest {
 
     @Test
     void mergesSelectedClubsIntoThePrimaryClub() {
+        RecordingEventBus eventBus = new RecordingEventBus();
         Club primary = Club.createExisting(UUID.randomUUID(), "CTT Terrassa");
         Club secondary = Club.createExisting(UUID.randomUUID(), "C.T.T. Terrassa");
         InMemoryClubs clubs = new InMemoryClubs(List.of(primary, secondary));
         FederatedClub federatedClub = FederatedClub.createExisting(
                 UUID.randomUUID(), ImportSource.RFETM, "CTT Terrassa RFETM", secondary);
         InMemoryFederatedClubs federatedClubs = new InMemoryFederatedClubs(List.of(federatedClub));
-        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(clubs, federatedClubs);
+        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(clubs, federatedClubs, eventBus);
 
         DomainCommandResponse response = handler.handle(new ConsolidateClubsCommand(
                 ZonedDateTime.now(), UUID.randomUUID().toString(),
-                List.of(primary.getId(), secondary.getId()), "CTT Terrassa Consolidat", primary.getId()));
+                List.of(primary.getId(), secondary.getId()), "CTT Terrassa Consolidat", primary.getId(), null, null));
 
         assertTrue(response.isSuccess());
         Club consolidated = (Club) response.getResponse();
@@ -49,11 +56,11 @@ class ConsolidateClubsCommandHandlerTest {
     void failsWhenFewerThanTwoDistinctClubsAreSelected() {
         Club primary = Club.createExisting(UUID.randomUUID(), "CTT Terrassa");
         InMemoryClubs clubs = new InMemoryClubs(List.of(primary));
-        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(clubs, new InMemoryFederatedClubs(List.of()));
+        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(clubs, new InMemoryFederatedClubs(List.of()), new RecordingEventBus());
 
         DomainCommandResponse response = handler.handle(new ConsolidateClubsCommand(
                 ZonedDateTime.now(), UUID.randomUUID().toString(),
-                List.of(primary.getId(), primary.getId()), "CTT Terrassa Consolidat", primary.getId()));
+                List.of(primary.getId(), primary.getId()), "CTT Terrassa Consolidat", primary.getId(), null, null));
 
         assertFalse(response.isSuccess());
     }
@@ -63,11 +70,11 @@ class ConsolidateClubsCommandHandlerTest {
         Club primary = Club.createExisting(UUID.randomUUID(), "CTT Terrassa");
         Club secondary = Club.createExisting(UUID.randomUUID(), "C.T.T. Terrassa");
         InMemoryClubs clubs = new InMemoryClubs(List.of(primary, secondary));
-        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(clubs, new InMemoryFederatedClubs(List.of()));
+        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(clubs, new InMemoryFederatedClubs(List.of()), new RecordingEventBus());
 
         DomainCommandResponse response = handler.handle(new ConsolidateClubsCommand(
                 ZonedDateTime.now(), UUID.randomUUID().toString(),
-                List.of(primary.getId(), secondary.getId()), "CTT Terrassa Consolidat", UUID.randomUUID()));
+                List.of(primary.getId(), secondary.getId()), "CTT Terrassa Consolidat", UUID.randomUUID(), null, null));
 
         assertFalse(response.isSuccess());
         assertEquals("Primary club must be one of the selected clubs", response.getResponse());
@@ -78,11 +85,11 @@ class ConsolidateClubsCommandHandlerTest {
         Club primary = Club.createExisting(UUID.randomUUID(), "CTT Terrassa");
         UUID missingId = UUID.randomUUID();
         InMemoryClubs clubs = new InMemoryClubs(List.of(primary));
-        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(clubs, new InMemoryFederatedClubs(List.of()));
+        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(clubs, new InMemoryFederatedClubs(List.of()), new RecordingEventBus());
 
         DomainCommandResponse response = handler.handle(new ConsolidateClubsCommand(
                 ZonedDateTime.now(), UUID.randomUUID().toString(),
-                List.of(primary.getId(), missingId), "CTT Terrassa Consolidat", primary.getId()));
+                List.of(primary.getId(), missingId), "CTT Terrassa Consolidat", primary.getId(), null, null));
 
         assertFalse(response.isSuccess());
         assertEquals("Club not found: " + missingId, response.getResponse());
@@ -93,13 +100,103 @@ class ConsolidateClubsCommandHandlerTest {
         Club primary = Club.createExisting(UUID.randomUUID(), "CTT Terrassa");
         Club secondary = Club.createExisting(UUID.randomUUID(), "C.T.T. Terrassa");
         InMemoryClubs clubs = new InMemoryClubs(List.of(primary, secondary));
-        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(clubs, new InMemoryFederatedClubs(List.of()));
+        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(clubs, new InMemoryFederatedClubs(List.of()), new RecordingEventBus());
 
         DomainCommandResponse response = handler.handle(new ConsolidateClubsCommand(
                 ZonedDateTime.now(), UUID.randomUUID().toString(),
-                List.of(primary.getId(), secondary.getId()), "A", primary.getId()));
+                List.of(primary.getId(), secondary.getId()), "A", primary.getId(), null, null));
 
         assertFalse(response.isSuccess());
+    }
+
+    @Test
+    void publishesTheConsolidationEventWithPreMergeSourceNamesAndTheActingUser() {
+        RecordingEventBus eventBus = new RecordingEventBus();
+        UUID actingUserId = UUID.randomUUID();
+        Club primary = Club.createExisting(UUID.randomUUID(), "CTT Terrassa");
+        Club secondary = Club.createExisting(UUID.randomUUID(), "C.T.T. Terrassa");
+        InMemoryClubs clubs = new InMemoryClubs(List.of(primary, secondary));
+        InMemoryFederatedClubs federatedClubs = new InMemoryFederatedClubs(List.of());
+        ConsolidateClubsCommandHandler handler =
+                new ConsolidateClubsCommandHandler(clubs, federatedClubs, eventBus);
+
+        DomainCommandResponse response = handler.handle(new ConsolidateClubsCommand(
+                ZonedDateTime.now(), UUID.randomUUID().toString(),
+                List.of(primary.getId(), secondary.getId()), "CTT Terrassa Consolidat", primary.getId(),
+                actingUserId, "admin"));
+
+        assertTrue(response.isSuccess());
+        List<ClubsConsolidatedEvent> consolidated = eventBus.published.stream()
+                .filter(ClubsConsolidatedEvent.class::isInstance)
+                .map(ClubsConsolidatedEvent.class::cast)
+                .toList();
+        assertEquals(1, consolidated.size());
+
+        ClubsConsolidatedEvent event = consolidated.get(0);
+        assertEquals(primary.getId(), event.getPrimaryClubId());
+        assertEquals("CTT Terrassa Consolidat", event.getCanonicalName());
+        assertEquals(actingUserId, event.getPerformedByUserId());
+        assertEquals("admin", event.getPerformedByUsername());
+
+        // Pre-merge name, captured before the club row was deleted.
+        assertEquals(
+                List.of(ConsolidationActionClub.of(secondary.getId(), "C.T.T. Terrassa")),
+                event.getMergedClubs());
+        assertEquals(List.of(secondary.getId()), event.getMergedClubIds());
+    }
+
+    @Test
+    void recordsNoActingUserWhenTheCommandCarriesNone() {
+        RecordingEventBus eventBus = new RecordingEventBus();
+        Club primary = Club.createExisting(UUID.randomUUID(), "CTT Terrassa");
+        Club secondary = Club.createExisting(UUID.randomUUID(), "C.T.T. Terrassa");
+        InMemoryClubs clubs = new InMemoryClubs(List.of(primary, secondary));
+        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(
+                clubs, new InMemoryFederatedClubs(List.of()), eventBus);
+
+        handler.handle(new ConsolidateClubsCommand(
+                ZonedDateTime.now(), UUID.randomUUID().toString(),
+                List.of(primary.getId(), secondary.getId()), "CTT Terrassa Consolidat", primary.getId(),
+                null, null));
+
+        ClubsConsolidatedEvent event = eventBus.published.stream()
+                .filter(ClubsConsolidatedEvent.class::isInstance)
+                .map(ClubsConsolidatedEvent.class::cast)
+                .findFirst()
+                .orElseThrow();
+        assertNull(event.getPerformedByUserId());
+        assertNull(event.getPerformedByUsername());
+    }
+
+    @Test
+    void publishesNothingWhenTheConsolidationIsRejected() {
+        RecordingEventBus eventBus = new RecordingEventBus();
+        Club primary = Club.createExisting(UUID.randomUUID(), "CTT Terrassa");
+        InMemoryClubs clubs = new InMemoryClubs(List.of(primary));
+        ConsolidateClubsCommandHandler handler = new ConsolidateClubsCommandHandler(
+                clubs, new InMemoryFederatedClubs(List.of()), eventBus);
+
+        DomainCommandResponse response = handler.handle(new ConsolidateClubsCommand(
+                ZonedDateTime.now(), UUID.randomUUID().toString(),
+                List.of(primary.getId(), UUID.randomUUID()), "CTT Terrassa Consolidat", primary.getId(),
+                null, null));
+
+        assertFalse(response.isSuccess());
+        assertTrue(eventBus.published.isEmpty());
+    }
+
+    private static final class RecordingEventBus implements EventBus {
+        private final List<DomainEvent> published = new ArrayList<>();
+
+        @Override
+        public void publish(DomainEvent event) {
+            published.add(event);
+        }
+
+        @Override
+        public void registerSubscriber(DomainEventSubscriber subscriber) {
+            // Not used by these tests.
+        }
     }
 
     private static final class InMemoryClubs implements ClubRepository {

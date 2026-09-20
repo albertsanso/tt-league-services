@@ -23,8 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00073: Manual consolidation action stores historic actions](### [FEAT-00073] Manual consolidation action stores historic actions)
 - [FEAT-00072: Fix W/L chronology chips in match details at player level](### [FEAT-00072] Fix W/L chronology chips in match details at player level)
-
 - [FEAT-00071: Fix chronological W/L/D chips in matches](### [FEAT-00071] Fix chronological W/L/D chips in matches)
 - [FEAT-00070: Match details label home/away team](### [FEAT-00070] Match details label home/away team)
 - [FEAT-00069: BCNESA home/away orientation in extraction and import](### [FEAT-00069] BCNESA home/away orientation in extraction and import)
@@ -50,7 +50,44 @@ This file is the single source of truth for planned, in-progress, and completed 
 No features currently in progress.
 ## In Review
 
-No features currently in review.
+### [FEAT-00073] Manual consolidation action stores historic actions
+- **Status:** in-review
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+When a user performs a manual consolidation action (e.g., merging two clubs), the system should store a record of this action in a historical log. 
+This log will allow users to review past consolidation actions, understand the changes made, and provide an audit trail for accountability.
+
+#### Domain entities: `ConsolidationAction`
+New domain entities will be introduced to represent consolidation actions, including details such as:
+- User who performed the action
+- List of source club names and IDs
+- List of target club names and IDs (will be unique after consolidation)
+- Timestamp of the action
+- Type of action (e.g., merge, split, rename)
+
+#### Description
+After a consolidation action is performed, the system will create a new record in `ConsolidationAction` with all relevant details. 
+This record will be stored in a dedicated database table.
+The trigger of this action is backend event-based, and the record will be created automatically without requiring additional user input. Then:
+- Consolidation operation will publish an event to the backend, which will create a new `ConsolidationAction` record with all relevant details.
+
+#### Acceptance Criteria
+- [x] When a user performs a manual consolidation action, a new `ConsolidationAction` record is created in the database with all relevant details.
+- [x] The `ConsolidationAction` record includes the user ID, source and target club names/IDs, timestamp, and action type.
+
+#### Feature Details
+→ See [FEAT-00073-DETAILS.md](./FEAT-00073-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
+
+---
+
+---
 ## Backlog
 
 No features currently in the backlog.
@@ -600,6 +637,10 @@ Let a user viewing a club's players list click a player to open that player's de
 
 #### Feature Details
 → See [FEAT-00053-DETAILS.md](./FEAT-00053-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+---
 
 ---
 

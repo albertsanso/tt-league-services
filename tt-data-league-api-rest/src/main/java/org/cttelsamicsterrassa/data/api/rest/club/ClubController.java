@@ -17,10 +17,14 @@ import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClub
 import org.cttelsamicsterrassa.data.core.application.club.find.FindFederatedClubDetailsQuery;
 import org.cttelsamicsterrassa.data.core.application.club.find.FindClubsByStringInNameQuery;
 import org.cttelsamicsterrassa.data.core.application.club.consolidate.ConsolidateClubsCommand;
+import org.cttelsamicsterrassa.data.core.application.consolidation.find.FindConsolidationActionsQuery;
+import org.cttelsamicsterrassa.data.core.application.consolidation.find.dto.ConsolidationActionReadModel;
 import org.cttelsamicsterrassa.data.core.application.club.update.ModifyFederatedClubNameCommand;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.model.User;
+import org.cttelsamicsterrassa.data.core.domain.auth.user.service.UserService;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -32,6 +36,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import jakarta.validation.Valid;
 
 import java.time.ZonedDateTime;
@@ -47,6 +52,9 @@ public class ClubController {
 
     @Autowired
     private CommandBus commandBus;
+
+    @Autowired
+    private UserService userService;
 
     @GetMapping("/find_by_id")
     @Operation(summary = "Find club by id", description = "Returns a club by its UUID")
@@ -232,13 +240,16 @@ public class ClubController {
             @ApiResponse(responseCode = "404", description = "A selected club was not found"),
             @ApiResponse(responseCode = "500", description = "Unexpected update failure")
     })
-    public ResponseEntity<?> consolidateClubs(@Valid @RequestBody ConsolidateClubsRequest request) {
+    public ResponseEntity<?> consolidateClubs(
+            @Valid @RequestBody ConsolidateClubsRequest request, Authentication authentication) {
         ConsolidateClubsCommand command = new ConsolidateClubsCommand(
                 ZonedDateTime.now(),
                 UUID.randomUUID().toString(),
                 request.clubIds(),
                 request.canonicalName(),
-                request.primaryClubId());
+                request.primaryClubId(),
+                resolveCurrentUserId(authentication),
+                resolveCurrentUsername(authentication));
         DomainCommandResponse commandResponse = commandBus.push(command);
         if (commandResponse.isSuccess()) {
             return ResponseEntity.ok(ClubDto.fromObject((Club) commandResponse.getResponse()));
@@ -249,6 +260,65 @@ public class ClubController {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage(error));
         }
         return ResponseEntity.badRequest().body(new ErrorMessage(error));
+    }
+
+    @GetMapping("/consolidations")
+    @PreAuthorize("hasAuthority('clubs:write')")
+    @Operation(summary = "List consolidation history",
+            description = "Returns every recorded manual consolidation, most recent first; administrators only")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Consolidation history returned"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Missing clubs:write permission"),
+            @ApiResponse(responseCode = "500", description = "Unexpected query failure")
+    })
+    public ResponseEntity<?> findConsolidations() {
+        return consolidationsResponse(new FindConsolidationActionsQuery());
+    }
+
+    @GetMapping("/{id}/consolidations")
+    @PreAuthorize("hasAuthority('clubs:write')")
+    @Operation(summary = "List consolidation history for a club",
+            description = "Returns the recorded consolidations in which this club id took part on either side. "
+                    + "Works for club ids that no longer exist because they were merged away.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Consolidation history returned"),
+            @ApiResponse(responseCode = "400", description = "Malformed UUID"),
+            @ApiResponse(responseCode = "401", description = "Authentication required"),
+            @ApiResponse(responseCode = "403", description = "Missing clubs:write permission"),
+            @ApiResponse(responseCode = "500", description = "Unexpected query failure")
+    })
+    public ResponseEntity<?> findConsolidationsByClubId(@PathVariable("id") UUID id) {
+        return consolidationsResponse(new FindConsolidationActionsQuery(id));
+    }
+
+    private ResponseEntity<?> consolidationsResponse(FindConsolidationActionsQuery query) {
+        DomainQueryResponse<List<ConsolidationActionReadModel>> queryResponse = queryBus.push(query);
+        if (!queryResponse.isSuccess()) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorMessage("Could not read consolidation history"));
+        }
+        return ResponseEntity.ok(queryResponse.getResponse().stream()
+                .map(ConsolidationActionDto::fromObject)
+                .toList());
+    }
+
+    /**
+     * Resolves the acting user from the authenticated principal, never from the request body: an
+     * audit trail that its own subject can set is not an audit trail. Returns {@code null} rather
+     * than failing when there is no principal, so that recording the action can never be the thing
+     * that breaks a consolidation.
+     */
+    private UUID resolveCurrentUserId(Authentication authentication) {
+        if (authentication == null) {
+            return null;
+        }
+        User current = userService.getUserByUsername(authentication.getName()).orElse(null);
+        return current == null ? null : current.getId();
+    }
+
+    private String resolveCurrentUsername(Authentication authentication) {
+        return authentication == null ? "system" : authentication.getName();
     }
 
     private static ImportSource parseSource(String source) {

@@ -43,6 +43,13 @@
             <artifactId>HikariCP</artifactId>
         </dependency>
 
+        <!-- Test-only: the domain command handlers scanned by JpaTestApplication need an EventBus. -->
+        <dependency>
+            <groupId>org.albertsanso</groupId>
+            <artifactId>eventbus-synchronous-inmemory</artifactId>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
