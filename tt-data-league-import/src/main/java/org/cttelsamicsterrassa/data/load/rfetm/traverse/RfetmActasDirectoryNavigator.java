@@ -149,7 +149,8 @@ public class RfetmActasDirectoryNavigator {
 
     private TraversalSummary traverse(Path baseFolder,
                                       Predicate<String> seasonFilter,
-                                      List<MatchContextProcessor> processors, ImportRunContext runContext,
+                                      List<MatchContextProcessor> processors,
+                                      ImportRunContext runContext,
                                       ImportProgressListener progressListener) throws IOException {
         if (!Files.isDirectory(baseFolder)) {
             throw new IOException("Base folder is not a directory: " + baseFolder);

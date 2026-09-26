@@ -65,9 +65,9 @@ public class RfetmClubConsolidationProcessor {
         List<String> createdClubNames = new ArrayList<>();
 
         List<Team> sourceTeams = teamRepository.findAllTeamsBySource(ImportSource.RFETM);
-        Map<String, List<Team>> teamsByName = new LinkedHashMap<>();
+        Map<String, List<Team>> existingTeamsByName = new LinkedHashMap<>();
         for (Team team : sourceTeams) {
-            teamsByName.computeIfAbsent(team.getName(), ignored -> new ArrayList<>()).add(team);
+            existingTeamsByName.computeIfAbsent(team.getName(), ignored -> new ArrayList<>()).add(team);
         }
 
         Map<String, FederatedClub> clubCache = new LinkedHashMap<>();
@@ -104,7 +104,7 @@ public class RfetmClubConsolidationProcessor {
                     clubCache.put(clubName, federatedClub);
                 }
 
-                List<Team> matches = teamsByName.getOrDefault(teamName, List.of());
+                List<Team> matches = existingTeamsByName.getOrDefault(teamName, List.of());
                 if (matches.isEmpty()) {
                     warnings.add(new ConsolidationWarning("No RFETM team registration found for " + teamName));
                 }

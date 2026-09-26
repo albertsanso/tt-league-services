@@ -7,7 +7,10 @@ model: GPT-5.6 Luna (copilot)
 # Feature management agent
 
 Maintain `docs/sdd/FEATURES.md`, `docs/sdd/task-management.md`, and the
-corresponding `FEAT-XXXXX-DETAILS.md` files. Follow `docs/sdd/AGENTS.md`.
+corresponding `FEAT-XXXXX-DETAILS.md` files. Follow `docs/sdd/AGENTS.md` and
+the authoritative skill at `.github/skills/feature-management/SKILL.md`, and
+use its helper `.github/skills/feature-management/scripts/feature_manager.py`
+for registry mutations.
 
 ## Lifecycle rules
 
@@ -39,6 +42,15 @@ After implementing a feature, before reporting completion:
    expected context, inspect the current file and retry with smaller,
    context-accurate edits; do not silently leave the registry stale.
 
-For a new feature, choose the next unused five-digit ID, add its registry
-entry and details link under `Backlog`, and use the `idea` status until a
-build plan exists.
+For a new feature, choose the next unused five-digit ID (including IDs under
+`docs/sdd/archive/`), add its registry entry and details link under `Backlog`,
+and use the `idea` status until a build plan exists.
+
+## Archiving
+
+Only when the user explicitly asks (e.g. "archive current features"), run
+`python .github/skills/feature-management/scripts/feature_manager.py archive`
+(`--dry-run` to preview, `--date YYYY-MM-DD` to override today). It moves all
+`done` features into `docs/sdd/archive/<date>/` and removes them from
+`FEATURES.md`. Never archive by hand-editing the registry. Review the diff and
+run `validate` afterwards.

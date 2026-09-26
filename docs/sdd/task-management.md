@@ -23,7 +23,7 @@ If `FEATURES.md` and a details file disagree, **`FEATURES.md` wins** for status,
 - Registry entries use the heading form: `### [FEAT-XXXXX] Short title` (five-digit zero-padded ID, e.g. `FEAT-00001`).
 - Details file name must match: `FEAT-XXXXX-DETAILS.md` in the same directory as `FEATURES.md`.
 - Link from the registry using a relative path: `[FEAT-XXXXX-DETAILS.md](./FEAT-XXXXX-DETAILS.md)`.
-- When adding a **new** feature, pick the next unused five-digit ID (scan existing headings and `FEAT-*-DETAILS.md` files; do not reuse IDs).
+- When adding a **new** feature, pick the next unused five-digit ID (scan existing headings, `FEAT-*-DETAILS.md` files, and `archive/**/FEAT-*-DETAILS.md`; do not reuse IDs).
 
 ---
 
@@ -163,6 +163,16 @@ When you change a feature’s status, **move the entire block** (heading, metada
 2. Keep the block under **Backlog** (blocked is not “in progress” unless the team explicitly wants it in **In Progress**—**default: Backlog**).
 3. In `FEAT-XXXXX-DETAILS.md`, under **Notes**, state what blocks progress and what unblocks it.
 
+### 8. Archive done features
+
+1. Require an explicit user request (e.g. "archive current features").
+2. Run `python .github/skills/feature-management/scripts/feature_manager.py archive` from the repository root. Use `--dry-run` to preview and `--date YYYY-MM-DD` to override today's date.
+3. The helper creates `docs/sdd/archive/<date>/` holding every `done` feature's `FEAT-XXXXX-DETAILS.md` (moved) and `FEATURES-done.archive.<date>.md` (their `## Main index` entries and `## Done` blocks, descending ID order). It removes those entries and blocks from `FEATURES.md`; **In Progress**, **In Review**, and **Backlog** are untouched.
+4. It refuses to run when there are no `done` features, a details file or index entry is missing, or the target folder already has files.
+5. Review the diff, then run the helper's `validate` command.
+
+Do not archive by hand-editing `FEATURES.md`. Archived IDs remain reserved; never reuse them when creating features.
+
 ---
 
 ## Editing details (`FEAT-*-DETAILS.md`)
@@ -200,7 +210,7 @@ When you change a feature’s status, **move the entire block** (heading, metada
 - **Implementation agents:** The banner in `FEATURES.md` applies to **code** work: prefer working on features at `ready`; do not change `done`, `in-progress`, or `in-review` registry entries **unless** the user asked for doc or scope updates.
 - **SDD maintenance agents:** You **may** edit statuses, move sections, and update details files **when the user asks** or when the task is explicitly to maintain SDD artifacts.
 - **Feature management agent:** Move finalized implementations from `in-progress` to `in-review`, but never move a feature to `done` without an explicit user request.
-- Never delete a feature from the registry without explicit instruction; prefer `done` or `blocked` with explanation.
+- Never delete a feature from the registry without explicit instruction; prefer `done` or `blocked` with explanation. Archiving `done` features on explicit request (workflow 8) is not deletion.
 - Preserve the existing markdown rhythm in `FEATURES.md` (`---` separators, `####` subheadings) unless a human requests a format change.
 
 ---
