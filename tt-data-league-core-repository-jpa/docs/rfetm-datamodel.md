@@ -3,15 +3,18 @@
 ## Scope and JPA conventions
 
 This document describes the relational model implemented by the JPA entities in
-`tt-data-league-core-repository-jpa`. It includes imported league data and the
-application authentication tables.
+`tt-data-league-core-repository-jpa`. It includes imported league data, import
+bookkeeping, application authentication, settings, and consolidation audit
+tables.
 
 - Entities use Jakarta Persistence and application-assigned `UUID` identifiers.
   No entity configures `@GeneratedValue`.
 - Enum fields use `@Enumerated(EnumType.STRING)`.
 - Every `@ManyToOne` association is lazy and owns its explicit join column.
-- No entity currently declares a `@OneToMany` collection. `MATCH` and `GAME`
-  children are loaded through their repositories.
+- The only `@OneToMany` collection is `ConsolidationActionJPA.clubs` (see
+  [Consolidation audit tables](#consolidation-audit-tables)). League entities
+  declare none: `MATCH` and `GAME` children are loaded through their
+  repositories.
 - Unless a column is explicitly marked otherwise below, its nullability and
   length are those declared by the entity.
 - `source` is stored as a string enum with the values `RFETM`, `BCNESA`, and
@@ -27,6 +30,11 @@ application authentication tables.
 | `MatchResult` | `HOME`, `AWAY` |
 | `Side` | `HOME`, `AWAY` |
 | `UserRole` | `ADMIN`, `CLUB_MANAGER`, `ANALYST`, `PRACTITIONER` |
+| `ResourceType` | `ACTAS`, `TEAMS` |
+| `ImportResourceStatus` | `PENDING`, `PROCESSING`, `PROCESSED`, `ERROR` |
+| `SettingCategory` | `GENERAL`, `IMPORT`, `NOTIFICATIONS` |
+| `ConsolidationActionType` | `MERGE`, `SPLIT`, `RENAME` |
+| `ConsolidationActionClubRole` | `SOURCE`, `TARGET` |
 
 ## League tables
 
@@ -46,18 +54,23 @@ The unique constraint `uk_resource_logic_path_name` covers
 
 ### `import_resource`
 
-Import metadata associated with a stored resource.
+Import bookkeeping for a stored resource, per source and season.
 
 | Column | Type | Null | Key/index |
 | --- | --- | --- | --- |
 | `id` | `UUID` | No | Primary key |
-| `resource_id` | `UUID` | No | FK to `resource` |
+| `resource_id` | `UUID` | Yes | FK to `resource`; `idx_import_resource_resource_id` |
 | `valid` | `BOOLEAN` | Yes | — |
-| `type` | `VARCHAR` | No | Enum string |
+| `type` | `VARCHAR` | No | `ResourceType` enum string |
 | `created` | `TIMESTAMP WITH TIME ZONE` | No | — |
 | `last_processed_date` | `TIMESTAMP WITH TIME ZONE` | Yes | — |
+| `season` | `VARCHAR` | No | — |
+| `source` | `VARCHAR` | No | `Source` enum string |
+| `status` | `VARCHAR` | No | `ImportResourceStatus` enum string |
 
-The `resource` association is a lazy `@OneToOne` with no cascade.
+The unique constraint `uk_import_resource_resource_season_source` covers
+`(resource_id, season, source)`. The `resource` association is a lazy
+`@ManyToOne` with no cascade.
 
 ### `club`
 
@@ -111,10 +124,14 @@ source licence when available.
 | Column | Type | Null | Key/index |
 | --- | --- | --- | --- |
 | `id` | `UUID` | No | Primary key |
-| `name` | `VARCHAR(255)` | No | Unique; `idx_player_name` |
+| `name` | `VARCHAR(255)` | No | `idx_player_name` (not unique) |
 | `license_id` | `VARCHAR(20)` | Yes | — |
 
-The table constraint is `uk_player_name`.
+Unlike `club`, `player` declares **no** unique constraint on `name`: the
+`uk_player_name` declaration is commented out in `PlayerJPA`, so the database
+does not prevent two canonical players with the same name. `findByName`
+returns an `Optional`, so Spring Data throws
+`IncorrectResultSizeDataAccessException` when duplicates exist.
 
 ### `federated_player`
 
@@ -328,19 +345,23 @@ addition to ordinary CRUD operations:
 
 | Repository | Lookup behavior |
 | --- | --- |
+| `ResourceRepositoryHelper` | Exact `(logic_path, name)`; all resources under a logic path. |
+| `ImportResourceRepositoryHelper` | Exact `(source, type, season)`; rows by `(source, type)` newest first; rows by status; rows by source. |
 | `ClubRepositoryHelper` | Exact canonical club name. |
-| `PlayerRepositoryHelper` | Exact canonical player name. |
-| `FederatedClubRepositoryHelper` | Source-scoped exact name, all rows by source, rows by canonical club id, and case-insensitive name searches; list results can be sorted. The adapter also supports fragment-based searches through specifications. |
-| `FederatedPlayerRepositoryHelper` | Source-scoped exact name; the adapter also supports fragment-based searches through specifications. |
-| `TeamRepositoryHelper` | Exact `(name, season, source)`, first team by federated club and season, all teams by source, and case-insensitive name searches with optional season/source. |
-| `PlayerSeasonRepositoryHelper` | Exact `(source, license, season)`, all rows by source, and source-scoped players associated with team ids through lineups. |
-| `MatchRepositoryHelper` | Exact external id; exact natural-key lookup by competition, season, group, round, home team, and away team; team-id searches optionally filtered by source, season, and competition. |
-| `LineupRepositoryHelper` | All lineup rows for a match id. |
+| `PlayerRepositoryHelper` | Exact canonical player name (not unique; see `player`); specification queries. |
+| `FederatedClubRepositoryHelper` | Source-scoped exact name, all rows by source, rows by canonical club id, and case-insensitive name searches (optionally source-scoped); list results can be sorted. Counts distinct trimmed, case-insensitive names. The adapter also supports fragment-based searches through specifications. |
+| `FederatedPlayerRepositoryHelper` | Source-scoped exact name, source-scoped licence, and rows by canonical player id. Counts distinct trimmed, case-insensitive names. The adapter also supports fragment-based searches through specifications. |
+| `TeamRepositoryHelper` | Exact `(name, season, source)`, first team by federated club and season, all teams by federated club (fetching the club), all teams by source, and case-insensitive name searches with optional season/source. Counts distinct federated clubs per season. |
+| `PlayerSeasonRepositoryHelper` | Exact `(source, license, season)`, all rows by source, rows by federated player ids (fetching federated and canonical players), source-scoped players and their competitions for team ids through lineups. Counts distinct federated players per season. |
+| `MatchRepositoryHelper` | Exact external id; natural-key lookup by competition, season, group, round, phase, home team, and away team (null group/phase match null); team-id searches optionally filtered by source, season, and competition; paginated source/season search with competition, date range, club-name and player-name fragments, player id, and home/away location, plus its count; paginated fragment search over team and player names; all matches by source; distinct seasons (overall or by source) and competitions by source and season; match count per season. |
+| `LineupRepositoryHelper` | Rows for a match id (optionally ordered by team and position); rows for match ids or player-season ids (optionally paginated), fetching match, teams, clubs, and players. |
 | `GameRepositoryHelper` | All games for a match id, or for a collection of match ids, ordered by match and `game_number` ascending. |
-| `SetScoreRepositoryHelper` | CRUD only; no derived lookup method. |
+| `SetScoreRepositoryHelper` | Set scores for a collection of game ids, ordered by game and `set_number`. |
 | `DoublesPairRepositoryHelper` | All doubles-pair rows for a collection of game ids, ordered by game, side, and id. |
-| `UserRepositoryHelper` | Exact username/email lookup and existence checks. |
+| `UserRepositoryHelper` | Exact username/email lookup and existence checks; paginated case-insensitive username/email search, optionally filtered by active flag; count of active users per role. |
 | `PasswordRecoveryTokenRepositoryHelper` | Active token lookup by hash; atomic conditional consumption by token id or user id. |
+| `SettingRepositoryHelper` | Exact `(category, name)`; all settings in a category. |
+| `ConsolidationActionRepositoryHelper` | All actions newest first; actions involving a club id snapshot, newest first. |
 
 Repository queries that traverse teams, players, lineups, or matches apply
 source predicates where the operation is source-scoped. The database natural
@@ -353,6 +374,7 @@ The associations are owned by the child entities:
 
 ```mermaid
 erDiagram
+    RESOURCE o|--o{ IMPORT_RESOURCE : tracked_by
     CLUB o|--o{ FEDERATED_CLUB : canonicalizes
     FEDERATED_CLUB o|--o{ TEAM : groups
     PLAYER o|--o{ FEDERATED_PLAYER : canonicalizes
@@ -369,6 +391,14 @@ erDiagram
     GAME ||--o{ SET_SCORE : scores
     GAME ||--o{ DOUBLES_PAIR : contains
     PLAYER_SEASON ||--o{ DOUBLES_PAIR : paired
+    CONSOLIDATION_ACTION ||--|{ CONSOLIDATION_ACTION_CLUB : involves
+    CONSOLIDATION_ACTION_CLUB {
+        uuid club_id "snapshot, no FK to CLUB"
+    }
+    APP_USER ||--o{ APP_USER_ROLE : has
+    PASSWORD_RECOVERY_TOKEN {
+        uuid user_id "scalar, no FK to APP_USER"
+    }
 ```
 
 `SET_SCORE` and `DOUBLES_PAIR` point to `GAME` from their own entities.
@@ -377,29 +407,35 @@ Team and player season rows preserve season-specific identity; canonical club
 and player links do not retarget historical match, lineup, game, or doubles
 pair foreign keys.
 
-## System settings
+`APP_USER`, `APP_USER_ROLE`, and `PASSWORD_RECOVERY_TOKEN` stand for the
+`AppUser`, `AppUserRole`, and `PasswordRecoveryToken` tables. Two id columns
+are deliberately drawn without a relationship line because they are not
+foreign keys:
 
-`system_settings` stores the administrator-managed allowlisted settings used by
-the system settings panel. It is deliberately separate from deployment
-configuration and never stores datasource credentials, JWT secrets, mail
-credentials, or other secrets.
+- `consolidation_action_club.club_id` is a snapshot of a club that the merge
+  usually deletes; see [Consolidation audit tables](#consolidation-audit-tables).
+- `PasswordRecoveryToken.user_id` is a scalar UUID with no JPA association to
+  `UserJPA`; see [`PasswordRecoveryToken`](#passwordrecoverytoken).
 
-| Column | Type | Nullability | Notes |
-|---|---|---|---|
-| `key` | varchar(120) | not null | Primary key; one row per supported setting |
-| `setting_type` | varchar(20) | not null | `BOOLEAN`, `INTEGER`, or `STRING` |
-| `setting_value` | varchar(2000) | not null | Validated scalar value |
-| `version` | bigint | not null | Optimistic version, incremented for each update |
+## Settings
 
-Bulk updates and restores validate the complete operation before replacing
-values. Restore is transactional and the versioned JSON backup format is
-`{"schemaVersion":1,"settings":{"key":value}}`.
+### `setting`
 
-At startup, `SystemSettingsSchemaMigration` checks metadata and, when the
-legacy table exists and the new table does not, executes `ALTER TABLE` renames
-from `SystemSetting.setting_key` to `system_settings.key`. The operation is
-data-preserving and idempotent; deployments must grant the application schema
-user permission to rename the table and column.
+Application settings, one row per `(category, name)`. The table is separate
+from deployment configuration and must never store datasource credentials, JWT
+secrets, mail credentials, or other secrets.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `id` | `UUID` | No | Primary key |
+| `category` | `VARCHAR` | No | `SettingCategory` enum string; `idx_setting_category_name` |
+| `name` | `VARCHAR(255)` | No | `idx_setting_category_name` |
+| `value` | `VARCHAR(255)` | No | — |
+
+The unique constraint `uk_setting_category_name` covers `(category, name)`.
+`value` is a reserved word in several databases, so `SettingJPA` maps it as a
+quoted identifier (`"value"`). There is no version column and no optimistic
+locking.
 
 ## Consolidation audit tables
 
@@ -440,3 +476,8 @@ them through `ClubRepository`.
 
 `SOURCE` names are pre-merge while `canonical_name` is post-merge; that
 asymmetry is intended and is what makes the record useful.
+
+`ConsolidationActionJPA.clubs` is a lazy `@OneToMany(mappedBy = "action",
+cascade = ALL, orphanRemoval = true)` collection, initialized to an empty list;
+`ConsolidationActionClubJPA.action` is the owning lazy `@ManyToOne`. Saving an
+action therefore persists its club rows, and deleting it removes them.
