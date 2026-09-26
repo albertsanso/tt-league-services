@@ -34,21 +34,23 @@ import java.util.regex.Pattern;
  *
  * <pre>[baseFolder]/[season]/[league-competition]/[group]/[phase]/acta.json</pre>
  *
- * <p>Unlike the RFETM export, a BCNESA file is not one match: it is a whole matchday of one group, and
- * only its first fixture is named by {@code equipos}. Every group folder is therefore read twice -
- * once by {@link BcnesaClubIndex#build} to learn which club each licence plays for, and once here to
- * split each file into fixtures via {@link BcnesaMatchdaySplitter} and dispatch them. Which processors
- * run is a parameter of {@link #traverse(Path, List)}, so a caller can run a reporting pass and a
- * persisting pass over the same tree without changing anything here.</p>
+ * <p>Like the RFETM export, a BCNESA file holds one match: measured over the whole export (16,387
+ * files, 2020-2021 to 2025-2026), every file holds exactly one fixture, named by its {@code equipos}.
+ * Each file is still split into fixtures via {@link BcnesaMatchdaySplitter}, which also accepts a
+ * file holding a whole matchday back to back; the clubs of any fixture after the first are then
+ * inferred from licences, which is why every group folder is read twice - once by
+ * {@link BcnesaClubIndex#build} to learn which club each licence plays for, and once here to split and
+ * dispatch. Which processors run is a parameter of {@link #traverse(Path, List)}, so a caller can run
+ * a reporting pass and a persisting pass over the same tree without changing anything here.</p>
  *
- * <h2>Report file names are opaque</h2>
- * <p>A report file is any {@code acta*.json} under a phase folder - {@code acta.json} or
- * {@code acta_<matchId>.json}, where the suffix is an arbitrary identifier carrying no meaning for the
- * import. The name is never parsed: the match day comes from the payload's {@code jornada} and the
- * clubs from {@code equipos} plus the group's licence index. Measured over the whole export,
- * {@code jornada} is present in all 2,996 files, so nothing is lost by ignoring the name. The one
- * exception is a fixture under a BCNESA Veterans "Other" group (see {@link BcnesaVeteransPhases}): if
- * its payload carries no {@code jornada}, the match day is instead parsed from the file name
+ * <h2>Report file names are not parsed</h2>
+ * <p>A report file is any {@code acta*.json} under a phase folder. In the export, 16,310 files are
+ * named {@code acta_<jornada>_page_<n>.json} - one page per fixture of that match day - and 77 are
+ * named {@code acta_<n>.json}. The name is never parsed: the match day comes from the payload's
+ * {@code jornada}, present in all 16,387 files (and equal to the name's {@code <jornada>} in every
+ * {@code _page_} file), and the clubs from {@code equipos}. The one exception is a fixture under a
+ * BCNESA Veterans "Other" group (see {@link BcnesaVeteransPhases}): if its payload carries no
+ * {@code jornada}, the match day is instead parsed from the file name
  * ({@link #OTHER_GROUP_ROUND_FROM_FILE_NAME}).</p>
  *
  * <h2>Failure handling</h2>
@@ -72,7 +74,8 @@ public class BcnesaActasDirectoryNavigator {
      * Fallback source for the match day when a payload under a Veterans "Other" group carries no
      * {@code jornada} (see {@link BcnesaVeteransPhases}): the report file name mirrors the
      * source PDF's {@code acta_<number>_page_<*>.pdf} naming, where {@code <number>} is the
-     * jornada. Not evidenced against a real "Other"-group export - confirm before relying on it.
+     * jornada - true of every {@code _page_} file in the export. The fallback has not yet been
+     * needed: all 2,586 files under "Other" group folders in the export carry {@code jornada}.
      */
     private static final Pattern OTHER_GROUP_ROUND_FROM_FILE_NAME =
             Pattern.compile("acta_(\\d+)_page_.*\\.json", Pattern.CASE_INSENSITIVE);

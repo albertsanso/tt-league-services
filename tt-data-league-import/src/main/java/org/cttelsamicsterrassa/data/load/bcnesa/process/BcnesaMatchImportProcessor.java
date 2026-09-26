@@ -156,9 +156,9 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
     }
 
     /**
-     * The fixture's own {@code resultado_final} is not available - the payload's field aggregates
-     * every fixture of the matchday, not this one - so the winner is always the games-won comparison,
-     * with a draw left unset.
+     * The winner is always the games-won comparison, with a draw left unset, rather than the
+     * payload's {@code resultado_final}: that field is file-level, so it would aggregate every
+     * fixture of a multi-fixture file. In the current export (one fixture per file) the two agree.
      */
     private static Team resolveWinnerTeam(int homeGamesWon, int awayGamesWon,
                                                 Team homeTeam, Team awayTeam) {
@@ -173,8 +173,9 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
     /**
      * Builds one side's lineup from this fixture's own singles games, keyed by lineup letter for
      * position resolution and by name for doubles-pair resolution. Unlike the RFETM importer, this
-     * does not read {@code alineaciones}: it only ever covers the file's first fixture, while every
-     * singles game in every fixture carries its own participant licence.
+     * does not read {@code alineaciones}: it covers only a file's first fixture, and even in the
+     * current one-fixture-per-file export 476 of 16,387 files have a singles participant missing
+     * from it, while every singles game carries its own participant licence.
      */
     private SideLineup resolveLineup(List<ActaGame> games, boolean home, Season season,
                                      BcnesaMatchReportContext context) {

@@ -26,15 +26,16 @@ import java.util.regex.Pattern;
  * the clubs of a BCNESA fixture whose file does not name them directly.
  *
  * <h2>Why this exists</h2>
- * <p>A BCNESA match report covers a whole matchday of a group, not one match: it holds
- * every fixture played that day, but names the clubs of only the first one ({@code equipos}) and
- * lists the lineup of only the first one ({@code alineaciones}). Every other fixture in the file must
- * have its clubs inferred from its players.</p>
+ * <p>A report's {@code equipos} and {@code alineaciones} describe its first fixture only. A report
+ * holding a whole matchday back to back must therefore have the clubs of every later fixture inferred
+ * from its players. Measured over the whole export (16,387 files, 2020-2021 to 2025-2026), every report
+ * holds exactly one fixture, so the index is built for every group but not consulted for any
+ * fixture there.</p>
  *
  * <p>Every file in the group, including the one being resolved, contributes its header pairing
- * (club name to each licence in its {@code alineaciones}) as one vote. Measured over the whole BCNESA
- * export, this resolves 94.8% of fixtures; the 19 of 7,975 licences that vote for more than one club
- * (a player who changed club mid-season within the group) are settled by majority.</p>
+ * (club name to each licence in its {@code alineaciones}) as one vote. Of the 17,742 licence entries
+ * across the export's 241 group folders, 60 vote for more than one club (a player who changed club
+ * mid-season within the group); those are settled by majority.</p>
  */
 public final class BcnesaClubIndex {
 

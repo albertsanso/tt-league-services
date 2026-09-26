@@ -15,15 +15,14 @@ import java.util.Objects;
 /**
  * Everything a {@link BcnesaMatchReportProcessor} needs about one BCNESA fixture.
  *
- * <p>A BCNESA match report covers a whole matchday of one group, not one match: it holds
- * every fixture played that day back to back, reusing the same lineup letters (A/B/C, X/Y/Z) for
- * each. {@link BcnesaActasDirectoryNavigator} splits a file into fixtures via
- * {@link BcnesaMatchdaySplitter} and dispatches one
- * context per fixture, so {@link #acta()} is the whole file's parsed payload (shared by every
- * fixture in it) while {@link #games()} is this fixture's own slice.</p>
+ * <p>{@link BcnesaActasDirectoryNavigator} splits a file into fixtures via
+ * {@link BcnesaMatchdaySplitter} and dispatches one context per fixture, so {@link #acta()} is the
+ * whole file's parsed payload while {@link #games()} is this fixture's own slice. Throughout the
+ * current export a file holds exactly one fixture, so the slice is every game in the file; a file
+ * holding a whole matchday back to back would share its payload among several contexts.</p>
  *
  * <p>{@code homeTeamName}/{@code awayTeamName} come from {@code equipos} for the file's first fixture
- * and are inferred from the fixture's own players for every other one; they are never guessed, so a
+ * and are inferred from the fixture's own players for any other one; they are never guessed, so a
  * fixture whose clubs could not be attributed carries {@code null} here and must be skipped by
  * processors rather than stored under a wrong club.</p>
  *
@@ -116,7 +115,9 @@ public record BcnesaMatchReportContext(
 
     /**
      * Games this fixture's home side won, derived from each game's {@code ganador} rather than from
-     * the file-level {@code resultado_final}, which aggregates every fixture in the file.
+     * the file-level {@code resultado_final}, which would aggregate every fixture of a multi-fixture
+     * file. In the current export, where each file is one fixture, {@code marcador_partidos} equals
+     * this count in all 16,387 files.
      */
     public int homeGamesWon() {
         return (int) games.stream().filter(g -> ActaGame.WINNER_HOME.equals(g.winner())).count();

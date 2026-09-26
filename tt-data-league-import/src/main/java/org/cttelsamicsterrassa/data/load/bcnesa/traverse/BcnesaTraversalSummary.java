@@ -7,10 +7,10 @@ import java.util.Objects;
 /**
  * What one BCNESA traversal did.
  *
- * <p>A BCNESA file holds a whole matchday and splits into several fixtures, so counts are kept at
- * both levels: {@code filesSeen}/{@code filesSkipped} describe the walk over the {@code acta*.json}
- * files, {@code fixturesSeen}/{@code fixturesDispatched}/{@code fixturesUnresolved} describe what came
- * out of splitting them.</p>
+ * <p>A BCNESA file is split into fixtures (one per file throughout the current export, but a file
+ * may hold a whole matchday), so counts are kept at both levels: {@code filesSeen}/{@code filesSkipped}
+ * describe the walk over the {@code acta*.json} files, {@code fixturesSeen}/{@code fixturesDispatched}/
+ * {@code fixturesUnresolved} describe what came out of splitting them.</p>
  *
  * @param filesSeen          match report files encountered under the base folder
  * @param filesSkipped       files skipped because the payload could not be parsed or carried no

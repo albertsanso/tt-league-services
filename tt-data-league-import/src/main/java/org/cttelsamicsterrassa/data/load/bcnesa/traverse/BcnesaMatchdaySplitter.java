@@ -13,14 +13,16 @@ import java.util.Objects;
 /**
  * Splits one BCNESA {@link Acta}'s games into the fixtures they actually belong to.
  *
- * <p>A BCNESA report holds every fixture of a matchday, one after another, reusing the same lineup
- * letters (A/B/C, X/Y/Z) for each. Measured over the whole export, {@code A vs Y} is the first
- * crossing in all 2,996 files, so a new fixture starts wherever a game's {@code cruce} repeats the
- * file's first crossing.</p>
+ * <p>Measured over the whole export (16,387 files, 2020-2021 to 2025-2026), every BCNESA report holds
+ * exactly one fixture, so this split yields a single fixture per file. The split also accepts a
+ * report that holds every fixture of a matchday one after another, reusing the same lineup letters
+ * (A/B/C, X/Y/Z) for each: {@code A vs Y} is the first crossing in all 16,387 files, so a new fixture
+ * starts wherever a game's {@code cruce} repeats the file's first crossing. A report with no games
+ * yields no fixtures.</p>
  *
- * <p>Only the first fixture is named directly, by {@code equipos}; every later fixture's clubs are
- * inferred from its own participants' licences via {@link BcnesaClubIndex}, and are left {@code null}
- * when the index cannot resolve them - callers must treat a fixture with either name {@code null} as
+ * <p>The first fixture is named directly, by {@code equipos}; any later fixture's clubs are inferred
+ * from its own participants' licences via {@link BcnesaClubIndex}, and are left {@code null} when the
+ * index cannot resolve them - callers must treat a fixture with either name {@code null} as
  * unresolved rather than guessing.</p>
  */
 public final class BcnesaMatchdaySplitter {
