@@ -75,7 +75,7 @@ class BcnesaMatchdaySplitterTest {
                 new ActaTeam(null, "HOME CLUB", null, null),
                 new ActaTeam(null, "AWAY CLUB", null, null));
         ActaLineups lineups = new ActaLineups(Map.of(), Map.of());
-        return new Acta("Federació Catalana de Tennis Taula", "2023/2024", "Preferent", 1, 1,
+        return new Acta(null, null, "Federació Catalana de Tennis Taula", "2023/2024", "Preferent", 1, 1, null, null,
                 null, null, null, teams, true, null, lineups, null, List.of(games), null, false);
     }
 

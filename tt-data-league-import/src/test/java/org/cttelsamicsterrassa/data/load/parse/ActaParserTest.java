@@ -113,6 +113,42 @@ class ActaParserTest {
     }
 
     @Test
+    void aMissingActaPublicadaIsTreatedAsPublished() throws Exception {
+        Acta acta = parser.parse(fixture("acta_singles.json"));
+
+        assertNull(acta.published());
+        assertTrue(acta.isPublished());
+        assertNull(acta.matchId());
+        assertNull(acta.phase());
+        assertNull(acta.gender());
+    }
+
+    @Test
+    void parsesTheNewFcttPayloadFields() throws Exception {
+        Acta acta = parser.parse(fixture("acta_fctt_female_groupless.json"));
+
+        assertEquals("2026-2027_CopaCatFem1a_G1_1aFase_301-402_1", acta.matchId());
+        assertTrue(acta.isPublished());
+        assertEquals(Boolean.TRUE, acta.published());
+        assertEquals("1aFase", acta.phase());
+        assertEquals("femenino", acta.gender());
+    }
+
+    @Test
+    void anUnpublishedActaParsesWithEmptyPartidosAndAlineacionesAndAPlaceholderResult() throws Exception {
+        Acta acta = parser.parse(fixture("acta_fctt_unpublished.json"));
+
+        assertFalse(acta.isPublished());
+        assertEquals(Boolean.FALSE, acta.published());
+        assertTrue(acta.games().isEmpty());
+        assertTrue(acta.lineups().home().isEmpty());
+        assertTrue(acta.lineups().away().isEmpty());
+        assertNull(acta.abcIsHome());
+        // resultado_final is only a placeholder for an unpublished acta and must never be read as a result.
+        assertNotNull(acta.finalResult());
+    }
+
+    @Test
     void reportsTheFileWhenTheContentIsNotAValidActa(@TempDir Path tempDir) throws IOException {
         Path broken = tempDir.resolve("acta_1_2.json");
         Files.writeString(broken, "{ not json");

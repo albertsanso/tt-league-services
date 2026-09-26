@@ -88,7 +88,7 @@ class FcttImportProcessorsTest {
         assertEquals(1, matches.saved.size());
         Match match = matches.saved.getFirst();
         assertEquals(ImportSource.FCTT, match.getSource());
-        assertEquals("Tercera nacional", match.getCompetition());
+        assertEquals("Tercera nacional-masculino", match.getCompetition());
         assertEquals(3, match.getGroupNumber());
         assertEquals(1, match.getRound());
         assertEquals(6, lineups.saved.size());
@@ -137,14 +137,48 @@ class FcttImportProcessorsTest {
                 pair.getSide(), () -> "doubles " + pair.getPlayer().getLicenseId()));
     }
 
+    @Test
+    void unpublishedActaStoresNoMatch() {
+        run(context("acta_fctt_unpublished.json", "G1"));
+
+        assertEquals(0, matches.saved.size());
+        assertEquals(0, lineups.saved.size());
+        assertEquals(0, games.saved.size());
+    }
+
+    @Test
+    void phaseIsStoredAndIsPartOfTheNaturalKeySoReimportStaysIdempotent() {
+        FcttMatchReportContext context = context("acta_doubles.json", "G3");
+
+        run(context);
+        run(context);
+
+        assertEquals(1, matches.saved.size());
+        assertEquals("1aFase", matches.saved.getFirst().getPhase());
+    }
+
+    @Test
+    void groupLessFemaleReportStoresMatchWithNullGroupNumber() {
+        run(context("acta_fctt_female_groupless.json", "female", "copa-catalana-femenina-1a", null));
+
+        assertEquals(1, matches.saved.size());
+        Match match = matches.saved.getFirst();
+        assertEquals("copa-catalana-femenina-1a-femenino", match.getCompetition());
+        assertEquals(null, match.getGroupNumber());
+    }
+
     private void run(FcttMatchReportContext context) {
         processors.forEach(processor -> processor.process(context));
     }
 
     private static FcttMatchReportContext context(String fixture, String group) {
+        return context(fixture, "male", "Tercera nacional", group);
+    }
+
+    private static FcttMatchReportContext context(String fixture, String gender, String leagueCompetition, String group) {
         Path file = fixture(fixture);
         Acta acta = new ActaParser().parse(file);
-        return new FcttMatchReportContext("2023-2024", "Tercera nacional", group, acta.round(), file, acta);
+        return new FcttMatchReportContext("2023-2024", gender, leagueCompetition, group, acta.round(), file, acta);
     }
 
     private static Path fixture(String name) {

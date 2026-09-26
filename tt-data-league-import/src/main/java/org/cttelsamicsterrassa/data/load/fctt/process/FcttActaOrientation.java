@@ -23,7 +23,8 @@ final class FcttActaOrientation {
         if (!isMirrored(acta)) {
             return acta;
         }
-        return new Acta(acta.federation(), acta.season(), acta.competition(), acta.group(), acta.round(),
+        return new Acta(acta.matchId(), acta.published(), acta.federation(), acta.season(), acta.competition(),
+                acta.group(), acta.round(), acta.phase(), acta.gender(),
                 acta.date(), acta.time(), acta.venue(), acta.teams(), false, acta.officials(),
                 swapLineups(acta.lineups()), swapDoubles(acta.doubles()),
                 acta.games().stream().map(FcttActaOrientation::swapGame).toList(),

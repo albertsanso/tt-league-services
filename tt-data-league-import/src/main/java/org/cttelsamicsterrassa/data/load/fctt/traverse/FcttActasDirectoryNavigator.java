@@ -22,6 +22,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
 
@@ -29,17 +30,19 @@ import java.util.regex.Pattern;
  * Walks an FCTT {@code actas-json} export and dispatches one context per match report.
  *
  * <p>The expected layout is
- * {@code [baseFolder]/[season]/[league-competition]/[group]/jornada_[day]_partido_[match].json}.
+ * {@code [baseFolder]/[season]/[male|female]/[league-competition]/[group]/jornada-[day]-partido-[match].json}.
  * Directory names provide the contextual identity, while {@code jornada} in the parsed payload is
- * the sole source of the round. Filename suffixes are opaque.</p>
+ * the sole source of the round. A competition folder without a group subfolder dispatches its report
+ * files directly, with a {@code null} group. Filename suffixes are opaque.</p>
  */
 @Component
 public class FcttActasDirectoryNavigator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FcttActasDirectoryNavigator.class);
 
-    private static final Pattern MATCH_REPORT_FILE_PATTERN = Pattern.compile("jornada_.*_partido_.*\\.json");
+    private static final Pattern MATCH_REPORT_FILE_PATTERN = Pattern.compile("jornada-\\d+-partido-[\\d-]+\\.json");
     private static final Pattern SEASON_FOLDER_PATTERN = Pattern.compile("\\d{4}-\\d{4}");
+    private static final Set<String> GENDER_FOLDERS = Set.of("male", "female");
 
     private final List<FcttMatchReportProcessor> processors;
     private final ActaParser actaParser;
@@ -158,18 +161,39 @@ public class FcttActasDirectoryNavigator {
                                       List<FcttMatchReportProcessor> processors,
                                       Counters counters, ImportRunContext runContext,
                                       ImportProgressListener progressListener) throws IOException {
-        for (Path competitionFolder : listDirectories(seasonFolder)) {
-            String leagueCompetition = competitionFolder.getFileName().toString();
-            for (Path groupFolder : listDirectories(competitionFolder)) {
-                String group = groupFolder.getFileName().toString();
-                traverseReportFolder(groupFolder, season, leagueCompetition, group, processors, counters,
-                        runContext, progressListener);
+        for (Path genderFolder : listDirectories(seasonFolder)) {
+            String gender = genderFolder.getFileName().toString();
+            if (!GENDER_FOLDERS.contains(gender)) {
+                LOGGER.warn("Skipping unexpected gender folder {}", genderFolder);
+                continue;
             }
+            for (Path competitionFolder : listDirectories(genderFolder)) {
+                String leagueCompetition = competitionFolder.getFileName().toString();
+                traverseCompetitionFolder(competitionFolder, season, gender, leagueCompetition, processors,
+                        counters, runContext, progressListener);
+            }
+        }
+    }
+
+    private void traverseCompetitionFolder(Path competitionFolder,
+                                           String season,
+                                           String gender,
+                                           String leagueCompetition,
+                                           List<FcttMatchReportProcessor> processors,
+                                           Counters counters, ImportRunContext runContext,
+                                           ImportProgressListener progressListener) throws IOException {
+        traverseReportFolder(competitionFolder, season, gender, leagueCompetition, null, processors, counters,
+                runContext, progressListener);
+        for (Path groupFolder : listDirectories(competitionFolder)) {
+            String group = groupFolder.getFileName().toString();
+            traverseReportFolder(groupFolder, season, gender, leagueCompetition, group, processors, counters,
+                    runContext, progressListener);
         }
     }
 
     private void traverseReportFolder(Path reportFolder,
                                       String season,
+                                      String gender,
                                       String leagueCompetition,
                                       String group,
                                       List<FcttMatchReportProcessor> processors,
@@ -196,11 +220,18 @@ public class FcttActasDirectoryNavigator {
             }
 
             FcttMatchReportContext context = new FcttMatchReportContext(
-                    season, leagueCompetition, group, acta.round(), reportFile, acta, runContext);
-            if (context.groupNumber().isEmpty()) {
+                    season, gender, leagueCompetition, group, acta.round(), reportFile, acta, runContext);
+            if (context.hasGroupFolder() && context.groupNumber().isEmpty()) {
                 counters.skipped++;
                 LOGGER.warn("Skipping {}: group folder \"{}\" is not G<number> or <number>",
                         reportFile, group);
+                reportProgress(counters, progressListener);
+                continue;
+            }
+            if (acta.gender() != null && !acta.gender().equals(context.sex())) {
+                counters.skipped++;
+                LOGGER.warn("Skipping {}: payload gender \"{}\" does not match the {} folder",
+                        reportFile, acta.gender(), gender);
                 reportProgress(counters, progressListener);
                 continue;
             }
@@ -226,9 +257,15 @@ public class FcttActasDirectoryNavigator {
             if (!SEASON_FOLDER_PATTERN.matcher(season).matches() || !seasonFilter.test(season)) {
                 continue;
             }
-            for (Path competitionFolder : listDirectories(seasonFolder)) {
-                for (Path groupFolder : listDirectories(competitionFolder)) {
-                    total += listMatchReportFiles(groupFolder).size();
+            for (Path genderFolder : listDirectories(seasonFolder)) {
+                if (!GENDER_FOLDERS.contains(genderFolder.getFileName().toString())) {
+                    continue;
+                }
+                for (Path competitionFolder : listDirectories(genderFolder)) {
+                    total += listMatchReportFiles(competitionFolder).size();
+                    for (Path groupFolder : listDirectories(competitionFolder)) {
+                        total += listMatchReportFiles(groupFolder).size();
+                    }
                 }
             }
         }

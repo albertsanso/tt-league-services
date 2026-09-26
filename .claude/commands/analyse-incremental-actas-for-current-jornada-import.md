@@ -14,6 +14,8 @@ From now on, Actas import will be incremental for each current `jornada` so it i
 The actas reports can be present but empty because no matches have been produced yet. 
 That means the zip file can contain actas with results and played matches up to the last played match day, and also can contain empty actas records planned but not already played. 
 
+Consider last modifications in `docs/acta-model-definition.json` in order to support published/non published actas and empty actas for future matches.
+
 # Goal 
 Make a feasibility analysis and make a plan in steps with prioritized implementation tasks. Don't implement anything, just show the analysis and plan.
 - Output report file `/docs/analysis/analysis-incremental-actas-for-current-jornada-import.md` with the analysis and plan.

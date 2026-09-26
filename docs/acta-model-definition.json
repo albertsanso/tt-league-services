@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Modelo de acta de partido de la RFETM",
+  "title": "Modelo de acta de partido",
   "description": "Definición descriptiva y de validación para los ficheros resources/actas-json/**/*.json. Los campos opcionales o anulables reflejan variantes presentes entre temporadas y actas incompletas.",
   "type": "object",
   "additionalProperties": false,
@@ -23,6 +23,17 @@
     "acta_protestada"
   ],
   "properties": {
+    "id_partido": {
+      "type": "string",
+      "description": "Identificador único del encuentro: temporada, categoría, grupo, fase y equipos/jornada del fichero de origen. Es el mismo valor en las versiones publicada y no publicada de un mismo encuentro.",
+      "pattern": "^[0-9]{4}-[0-9]{4}_[^_]+_[^_]+_[^_]+_.+$",
+      "examples": ["2026-2027_Vet1a_G1_1aFase_151-247_2"]
+    },
+    "acta_publicada": {
+      "type": "boolean",
+      "description": "false cuando el encuentro aún no se ha disputado o su acta no se ha publicado; entonces partidos y alineaciones van vacíos. Si falta, el acta se considera publicada.",
+      "examples": [true, false]
+    },
     "federacion": {
       "type": "string",
       "description": "Nombre de la federación emisora del acta.",
@@ -33,6 +44,12 @@
       "description": "Temporada deportiva a la que pertenece el encuentro. Puede no estar disponible en actas incompletas.",
       "pattern": "^[0-9]{4}/[0-9]{4}$",
       "examples": ["2025/2026", null]
+    },
+    "genero": {
+      "type": "string",
+      "description": "Género de la competición del acta, derivado de la carpeta male/female de origen. Solo se incluye en las fuentes que distinguen género.",
+      "enum": ["masculino", "femenino"],
+      "examples": ["masculino", "femenino"]
     },
     "competicion": {
       "type": ["string", "null"],
@@ -88,9 +105,9 @@
       }
     },
     "abc_es_local": {
-      "type": "boolean",
-      "description": "Indica si las letras A, B y C de la alineación y los cruces corresponden al equipo local; si es false, las letras X, Y y Z corresponden al local.",
-      "examples": [true, false]
+      "type": ["boolean", "null"],
+      "description": "Indica si las letras A, B y C de la alineación y los cruces corresponden al equipo local; si es false, las letras X, Y y Z corresponden al local. Es null en actas no publicadas.",
+      "examples": [true, false, null]
     },
     "arbitros": {
       "type": "object",
@@ -127,16 +144,15 @@
     "partidos": {
       "type": "array",
       "description": "Partidos individuales y, si procede, de dobles que componen la eliminatoria, en orden de disputa programado.",
-      "items": { "$ref": "#/$defs/partido" },
-      "minItems": 1
+      "items": { "$ref": "#/$defs/partido" }
     },
     "resultado_final": {
       "type": "object",
-      "description": "Resultado global de la eliminatoria.",
+      "description": "Resultado global de la eliminatoria. Cuando acta_publicada es false este resultado es un placeholder generado por el origen (por ejemplo, victoria del equipo local por 6-0) y no un resultado real; no debe usarse para calcular ganadores, clasificaciones ni estadísticas.",
       "additionalProperties": false,
       "required": ["ganador", "marcador_partidos", "marcador_juegos"],
       "properties": {
-        "ganador": { "type": ["string", "null"], "description": "Nombre del equipo ganador; null cuando no se determina.", "examples": ["ARTEAL SANTIAGO", null] },
+        "ganador": { "type": ["string", "null"], "description": "Nombre del equipo ganador; null cuando no se determina. En una acta no publicada (acta_publicada: false) todo este objeto es un resultado provisional/placeholder y no debe interpretarse como el resultado real del encuentro.", "examples": ["ARTEAL SANTIAGO", null] },
         "marcador_partidos": { "$ref": "#/$defs/marcadorConValoresNulos" },
         "marcador_juegos": { "$ref": "#/$defs/marcadorNullable" }
       }
@@ -147,6 +163,25 @@
       "examples": [false]
     }
   },
+  "allOf": [
+    {
+      "description": "Un acta no publicada no tiene partidos ni alineaciones; una publicada, al menos un partido y tres jugadores por lado.",
+      "if": { "required": ["acta_publicada"], "properties": { "acta_publicada": { "const": false } } },
+      "then": {
+        "properties": {
+          "partidos": { "maxItems": 0 },
+          "alineaciones": { "properties": { "local": { "maxProperties": 0 }, "visitante": { "maxProperties": 0 } } }
+        }
+      },
+      "else": {
+        "properties": {
+          "abc_es_local": { "type": "boolean" },
+          "partidos": { "minItems": 1 },
+          "alineaciones": { "properties": { "local": { "minProperties": 3 }, "visitante": { "minProperties": 3 } } }
+        }
+      }
+    }
+  ],
   "$defs": {
     "lugar": {
       "type": "object",
@@ -215,7 +250,6 @@
         "Y": { "$ref": "#/$defs/jugador" },
         "Z": { "$ref": "#/$defs/jugador" }
       },
-      "minProperties": 3,
       "maxProperties": 3
     },
     "dobles": {

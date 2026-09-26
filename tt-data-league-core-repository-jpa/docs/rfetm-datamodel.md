@@ -210,6 +210,13 @@ The unique constraints are:
 `homeTeam`, `awayTeam`, and `winnerTeam` are lazy `@ManyToOne` associations
 to `team`. The winner association is nullable.
 
+`competition` has no dedicated gender column; RFETM and FCTT both fold gender
+into this value as `<competition-slug>-<masculino|femenino>` (for example
+`tercera-nacional-masculino`, `copa-catalana-femenina-1a-femenino`). FCTT also
+populates `phase` from the source payload's `fase` field, following BCNESA's
+existing use of that column to disambiguate fixtures that reuse round numbers
+across phases within the same group.
+
 ### `lineup`
 
 Player assignment to a team and position in a match.

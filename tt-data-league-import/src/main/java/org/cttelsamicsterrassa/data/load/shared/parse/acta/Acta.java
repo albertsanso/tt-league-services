@@ -22,11 +22,15 @@ import java.util.List;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record Acta(
+        @JsonProperty("id_partido") String matchId,
+        @JsonProperty("acta_publicada") Boolean published,
         @JsonProperty("federacion") String federation,
         @JsonProperty("temporada") String season,
         @JsonProperty("competicion") String competition,
         @JsonProperty("grupo") Integer group,
         @JsonProperty("jornada") Integer round,
+        @JsonProperty("fase") String phase,
+        @JsonProperty("genero") String gender,
         @JsonProperty("fecha") LocalDate date,
         @JsonProperty("hora") LocalTime time,
         @JsonProperty("lugar") ActaVenue venue,
@@ -45,5 +49,13 @@ public record Acta(
 
     public boolean wasProtested() {
         return Boolean.TRUE.equals(protested);
+    }
+
+    /**
+     * The model definition treats a missing {@code acta_publicada} as published, so RFETM and BCNESA
+     * sources (which never send this field) behave as before.
+     */
+    public boolean isPublished() {
+        return !Boolean.FALSE.equals(published);
     }
 }

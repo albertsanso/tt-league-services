@@ -226,8 +226,9 @@ class ImportProcessorsTest {
         List<ActaGame> gamesWithSubstitute = original.games().stream()
                 .map(game -> game.number() == 5 ? gameWithSubstituteHomePlayer(game, substitute) : game)
                 .toList();
-        Acta withSubstitute = new Acta(original.federation(), original.season(), original.competition(), original.group(),
-                original.round(), original.date(), original.time(), original.venue(), original.teams(), original.abcIsHome(),
+        Acta withSubstitute = new Acta(original.matchId(), original.published(), original.federation(), original.season(),
+                original.competition(), original.group(), original.round(), original.phase(), original.gender(),
+                original.date(), original.time(), original.venue(), original.teams(), original.abcIsHome(),
                 original.officials(), original.lineups(), original.doubles(), gamesWithSubstitute, original.finalResult(),
                 original.protested());
         MatchReportContext context = new MatchReportContext("2023-2024", "super-divisio", "1", "masculino",
@@ -291,7 +292,8 @@ class ImportProcessorsTest {
     }
 
     private static Acta withRound(Acta original, Integer round) {
-        return new Acta(original.federation(), original.season(), original.competition(), original.group(), round,
+        return new Acta(original.matchId(), original.published(), original.federation(), original.season(),
+                original.competition(), original.group(), round, original.phase(), original.gender(),
                 original.date(), original.time(), original.venue(), original.teams(), original.abcIsHome(), original.officials(),
                 original.lineups(), original.doubles(), original.games(), original.finalResult(), original.protested());
     }
@@ -302,7 +304,8 @@ class ImportProcessorsTest {
         List<ActaGame> games = original.games().stream()
                 .map(game -> game.isDoubles() ? gameWithUnlistedHomePlayer(game, unlistedPlayer) : game)
                 .toList();
-        return new Acta(original.federation(), original.season(), original.competition(), original.group(), original.round(),
+        return new Acta(original.matchId(), original.published(), original.federation(), original.season(),
+                original.competition(), original.group(), original.round(), original.phase(), original.gender(),
                 original.date(), original.time(), original.venue(), original.teams(), original.abcIsHome(), original.officials(),
                 original.lineups(), original.doubles(), games, original.finalResult(), original.protested());
     }
@@ -325,7 +328,8 @@ class ImportProcessorsTest {
         List<ActaGame> games = original.games().stream()
                 .map(game -> game.number() == 5 ? gameWithSubstituteHomePlayer(game, substitute) : game)
                 .toList();
-        return new Acta(original.federation(), original.season(), original.competition(), original.group(), original.round(),
+        return new Acta(original.matchId(), original.published(), original.federation(), original.season(),
+                original.competition(), original.group(), original.round(), original.phase(), original.gender(),
                 original.date(), original.time(), original.venue(), original.teams(), original.abcIsHome(), original.officials(),
                 original.lineups(), original.doubles(), games, original.finalResult(), original.protested());
     }

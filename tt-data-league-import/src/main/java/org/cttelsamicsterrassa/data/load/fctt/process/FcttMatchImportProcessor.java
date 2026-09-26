@@ -79,16 +79,20 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
 
     @Override
     public void process(FcttMatchReportContext reportContext) {
-        FcttMatchReportContext context = new FcttMatchReportContext(reportContext.season(),
+        FcttMatchReportContext context = new FcttMatchReportContext(reportContext.season(), reportContext.gender(),
                 reportContext.leagueCompetition(), reportContext.group(), reportContext.round(),
                 reportContext.matchReportFile(), FcttActaOrientation.toHomeAway(reportContext.acta()),
                 reportContext.runContext());
+        if (!context.acta().isPublished()) {
+            LOGGER.debug("FCTT report {} is not published; match not stored", context.matchReportFile());
+            return;
+        }
         if (context.acta().teams() == null || context.acta().teams().home() == null
                 || context.acta().teams().away() == null) {
             LOGGER.warn("FCTT report {} has incomplete teams; match not stored", context.matchReportFile());
             return;
         }
-        if (context.groupNumber().isEmpty()) {
+        if (context.hasGroupFolder() && context.groupNumber().isEmpty()) {
             LOGGER.warn("FCTT report {} has invalid group folder {}; match not stored",
                     context.matchReportFile(), context.group());
             return;
@@ -101,9 +105,9 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
             return;
         }
 
-        int groupNumber = context.groupNumber().orElseThrow();
-        if (matchRepository.findMatchByNaturalKey(context.competition(), season, groupNumber, context.round(), null,
-                homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
+        Integer groupNumber = context.groupNumber().isPresent() ? context.groupNumber().getAsInt() : null;
+        if (matchRepository.findMatchByNaturalKey(context.competition(), season, groupNumber, context.round(),
+                context.phase(), homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
             LOGGER.debug("FCTT match already stored for {}; skipping", context.matchReportFile());
             return;
         }
@@ -119,7 +123,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         storeGames(context, match, home, away);
     }
 
-    private Match buildMatch(FcttMatchReportContext context, Season season, int groupNumber,
+    private Match buildMatch(FcttMatchReportContext context, Season season, Integer groupNumber,
                              Team homeTeam, Team awayTeam) {
         Acta acta = context.acta();
         ActaScore gamesWon = acta.finalResult() == null ? null : acta.finalResult().gamesWon();
@@ -131,6 +135,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
                 .season(season)
                 .groupNumber(groupNumber)
                 .round(context.round())
+                .phase(context.phase())
                 .dateTime(toDateTime(acta))
                 .city(acta.venue() == null ? null : acta.venue().city())
                 .venue(acta.venue() == null ? null : acta.venue().venue())
