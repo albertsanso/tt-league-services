@@ -36,7 +36,10 @@
       "Bash(mvn -pl tt-data-league-core-domain,tt-data-league-core-repository-jpa,tt-data-league-import -am test -Dtest=DebugScratchTest -Dsurefire.failIfNoSpecifiedTests=false)",
       "PowerShell(mvn *)",
       "PowerShell(python \"C:\\\\Users\\\\asanso\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--dev-local-tt-tt-league-2\\\\1b399686-ad67-4b32-b197-2b9ae4218024\\\\scratchpad\\\\scan_ids.py\")",
-      "Bash(mvn *)"
+      "Bash(mvn *)",
+      "Bash(grep -hE '^\\\\s*[A-Z_]+[,;\\(]?\\\\s*$|^\\\\s*[A-Z_]+,' tt-data-league-core-repository-jpa/src/main/java/org/cttelsamicsterrassa/data/core/repository/jpa/common/Source.java tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/domain/auth/user/model/UserRole.java)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m ' *)"
     ],
     "defaultMode": "acceptEdits"
   }
