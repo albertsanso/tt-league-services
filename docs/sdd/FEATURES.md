@@ -71,27 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00076] Acta completeness classifier
-- **Status:** idea
-- **Priority:** high
-- **Effort:** small
-- **Depends on:** FEAT-00075
-
-#### Goal
-Classify every acta/fixture as PLAYED, PENDING, PARTIAL or INVALID with acta_publicada deciding first, so no placeholder result is ever treated as a played match.
-
-#### Acceptance Criteria
-- [ ] ActaCompleteness { PLAYED, PENDING, PARTIAL, INVALID } and a shared classifier over Acta exist in tt-data-league-import
-- [ ] Rules are evaluated in the order of analysis section 4.1 and resultado_final is never read to decide the class
-- [ ] Games with no_disputado: true count as complete; legacy acta without acta_publicada needs at least one game with a result to be PLAYED
-- [ ] A PENDING acta without both teams is identified as an unresolved pending fixture
-- [ ] A JUnit test covers each rule and each T0 fixture; the FCTT 6-0, BCNESA 4-4 and RFETM decided 0-0 fixtures classify as PENDING
-
-#### Feature Details
-→ See [FEAT-00076-DETAILS.md](./FEAT-00076-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00077] MatchStatus in domain and JPA
 - **Status:** idea
 - **Priority:** high
@@ -437,6 +416,28 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00076] Acta completeness classifier
+- **Status:** done
+- **Priority:** high
+- **Effort:** small
+- **Depends on:** FEAT-00075
+
+#### Goal
+Classify every acta/fixture as PLAYED, PENDING, PARTIAL or INVALID with acta_publicada deciding first, so no placeholder result is ever treated as a played match.
+
+#### Acceptance Criteria
+- [x] ActaCompleteness { PLAYED, PENDING, PARTIAL, INVALID } and a shared classifier over Acta exist in tt-data-league-import
+- [x] Rules are evaluated in the order of analysis section 4.1 and resultado_final is never read to decide the class
+- [x] Games with no_disputado: true count as complete; legacy acta without acta_publicada needs at least one game with a result to be PLAYED
+- [x] A PENDING acta without both teams is identified as an unresolved pending fixture
+- [x] A JUnit test covers each rule and each T0 fixture; the FCTT 6-0, BCNESA 4-4 and RFETM decided 0-0 fixtures classify as PENDING
+- [x] A published acta is INVALID only when it has no games, no game with a result, an empty lineup side, or a null abc_es_local; the 2-player-per-side FCTT female fixture classifies as PLAYED
+
+#### Feature Details
+→ See [FEAT-00076-DETAILS.md](./FEAT-00076-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00075] Incremental actas: reference fixtures and schema contract text
 - **Status:** done
