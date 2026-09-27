@@ -71,27 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00075] Incremental actas: reference fixtures and schema contract text
-- **Status:** idea
-- **Priority:** high
-- **Effort:** small
-- **Depends on:** —
-
-#### Goal
-Provide anonymised JUnit fixtures from the 2026-2027 example exports and restore the source-neutral acta schema descriptions so the incremental-import work is tested against real acta shapes.
-
-#### Acceptance Criteria
-- [ ] Anonymised fixtures exist for RFETM 2026-2027 published and unpublished actas, RFETM 2025-2026 "decided 0-0" (G17) and a legacy empty acta
-- [ ] Anonymised fixtures exist for BCNESA 2026-2027 unpublished actas, including the 4-4 placeholder score (G14)
-- [ ] Anonymised fixtures exist for an FCTT 2026-2027 published/unpublished pair, the no-team placeholder (G18), and the 2025-2026 6-0 placeholder
-- [ ] docs/acta-model-definition.json restores the id_partido stability and unpublished resultado_final placeholder descriptions and keeps a source-neutral title
-- [ ] All fixtures parse with the existing Acta parser in a JUnit test
-
-#### Feature Details
-→ See [FEAT-00075-DETAILS.md](./FEAT-00075-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00076] Acta completeness classifier
 - **Status:** idea
 - **Priority:** high
@@ -459,6 +438,27 @@ Automate fetching extractor snapshots and uploading them each jornada.
 ---
 ## Done
 
+### [FEAT-00075] Incremental actas: reference fixtures and schema contract text
+- **Status:** done
+- **Priority:** high
+- **Effort:** small
+- **Depends on:** —
+
+#### Goal
+Provide anonymised JUnit fixtures from the 2026-2027 example exports and restore the source-neutral acta schema descriptions so the incremental-import work is tested against real acta shapes.
+
+#### Acceptance Criteria
+- [x] Anonymised fixtures exist for RFETM 2026-2027 published and unpublished actas, RFETM 2025-2026 "decided 0-0" (G17) and a legacy empty acta
+- [x] Anonymised fixtures exist for BCNESA 2026-2027 unpublished actas, including the 4-4 placeholder score (G14)
+- [x] Anonymised fixtures exist for an FCTT 2026-2027 published/unpublished pair, the no-team placeholder (G18), and the 2025-2026 6-0 placeholder
+- [x] docs/acta-model-definition.json restores the id_partido stability and unpublished resultado_final placeholder descriptions and keeps a source-neutral title
+- [x] All fixtures parse with the existing Acta parser in a JUnit test
+
+#### Feature Details
+→ See [FEAT-00075-DETAILS.md](./FEAT-00075-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
 ### [FEAT-00074] FCTT import resource format modified
 - **Status:** done
 - **Priority:** medium
@@ -511,87 +511,5 @@ Target folder structure:
 
 #### Feature Details
 → See [FEAT-00074-DETAILS.md](./FEAT-00074-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
-
----
 
 ---

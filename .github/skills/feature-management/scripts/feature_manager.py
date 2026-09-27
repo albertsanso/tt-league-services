@@ -111,12 +111,18 @@ def normalize_section_body_for(section: str, body: str, blocks: list[str]) -> st
         body_without_features,
     )
     prefix = body_without_empty_marker.rstrip()
-    if prefix.endswith("---"):
+    while prefix.endswith("---"):
         prefix = prefix[:-3].rstrip()
     if prefix:
         prefix += "\n\n"
     if blocks:
-        prefix += "\n\n".join(block.rstrip() for block in blocks)
+        normalized_blocks = []
+        for block in blocks:
+            normalized = block.rstrip()
+            while normalized.endswith("---"):
+                normalized = normalized[:-3].rstrip()
+            normalized_blocks.append(normalized)
+        prefix += "\n\n---\n\n".join(normalized_blocks)
         prefix += "\n\n---"
     else:
         prefix += {
@@ -268,10 +274,6 @@ def command_status(args: argparse.Namespace) -> None:
         raise OperationError(f"{identifier} is already {target}.")
     replacement = STATUS_RE.sub(rf"\g<1>{target}", current_block, count=1)
     grouped = blocks_by_section(replace_block(registry, identifier, ""))
-    current_section = STATUS_SECTION[current_status]
-    grouped[current_section] = [
-        block for block in grouped[current_section] if identifier not in block
-    ]
     grouped[STATUS_SECTION[target]].append(replacement)
     updated = write_registry_sections(registry, grouped)
     atomic_write(registry_file, updated)

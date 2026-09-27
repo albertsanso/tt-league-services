@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Modelo de acta de partido de la RFETM",
+  "title": "Modelo de acta de partido (RFETM, BCNESA, FCTT)",
   "description": "Definición descriptiva y de validación para los ficheros resources/actas-json/**/*.json. Los campos opcionales o anulables reflejan variantes presentes entre temporadas y actas incompletas.",
   "type": "object",
   "additionalProperties": false,
@@ -25,7 +25,7 @@
   "properties": {
     "id_partido": {
       "type": "string",
-      "description": "Identificador único del encuentro: temporada, categoría, grupo, fase y equipos/jornada del fichero de origen.",
+      "description": "Identificador único del encuentro: temporada, categoría, grupo, fase y equipos/jornada del fichero de origen. Es una clave opaca de la fuente cuyo formato de segmentos varía según la federación, pero su valor es idéntico entre la versión no publicada y la publicada del mismo encuentro.",
       "pattern": "^[0-9]{4}-[0-9]{4}_[^_]+_[^_]+_[^_]+_.+$",
       "examples": ["2026-2027_Vet1a_G1_1aFase_151-247_2"]
     },
@@ -148,7 +148,7 @@
     },
     "resultado_final": {
       "type": "object",
-      "description": "Resultado global de la eliminatoria.",
+      "description": "Resultado global de la eliminatoria. Cuando acta_publicada es false, el valor es un marcador provisional (todo null, o un marcador ficticio como 6-0 o 4-4) y no debe interpretarse como un resultado real.",
       "additionalProperties": false,
       "required": ["ganador", "marcador_partidos", "marcador_juegos"],
       "properties": {
