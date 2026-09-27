@@ -26,6 +26,7 @@ tables.
 | Enum | Stored values |
 | --- | --- |
 | `Source` | `RFETM`, `BCNESA`, `FCTT` |
+| `MatchStatus` | `SCHEDULED`, `PLAYED` |
 | `GameType` | `INDIVIDUAL`, `DOUBLES` |
 | `MatchResult` | `HOME`, `AWAY` |
 | `Side` | `HOME`, `AWAY` |
@@ -197,6 +198,17 @@ Top-level team match event.
 | `away_sets_won` | `INTEGER` | Yes | — |
 | `winner_team_id` | `UUID` | Yes | FK to `team`; `idx_match_winner_team_id` |
 | `protested` | `BOOLEAN` | No | Database default `false` |
+| `status` | `VARCHAR(20)` | No | Database default `'PLAYED'` |
+
+`status` is `SCHEDULED` while the fixture is known but not yet played, and `PLAYED` once results are
+stored. The database default is what lets `ddl-auto: update` add this column to an already-populated
+table: PostgreSQL backfills every existing row with `'PLAYED'`, matching what those rows already mean.
+The invariant `status = SCHEDULED` implies no `lineup`, `game`, `set_score`, or `doubles_pair` rows for
+the match, and a null `winner_team_id`, `home_games_won`, `away_games_won`, `home_sets_won`, and
+`away_sets_won`. The domain enforces the header half of this (winner and games/sets won) in
+`Match.of(...)`; the child half (no lineups, games, set scores, doubles pairs) is enforced by the match
+writers, not by a database `CHECK` constraint. Legacy empty and "decided 0-0" rows stay `PLAYED` until
+the FEAT-00078 backfill runs.
 
 The unique constraints are:
 

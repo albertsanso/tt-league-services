@@ -2,9 +2,11 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.resource;
 
 import org.cttelsamicsterrassa.data.core.domain.resource.model.Resource;
 import org.cttelsamicsterrassa.data.core.domain.resource.repository.ResourceRepository;
+import org.cttelsamicsterrassa.data.core.repository.jpa.JpaTestSupportConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.file.Path;
@@ -14,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
+@Import(JpaTestSupportConfiguration.class)
 @Transactional
 class ResourceRepositoryJpaTest {
 

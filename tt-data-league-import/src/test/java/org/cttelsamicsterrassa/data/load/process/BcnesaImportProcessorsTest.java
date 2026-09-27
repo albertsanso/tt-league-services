@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaTeamImportProcessor;
@@ -231,6 +232,7 @@ class BcnesaImportProcessorsTest {
         Match match = matches.saved.getFirst();
         assertEquals("CTT DELS HORTS 2000", homeName(match));
         assertEquals("CTT RIPOLLET", match.getAwayTeam().getName());
+        assertEquals(MatchStatus.PLAYED, match.getStatus());
         assertEquals(4, match.getHomeGamesWon());
         assertEquals(2, match.getAwayGamesWon());
         assertEquals(match.getHomeTeam(), match.getWinnerTeam());

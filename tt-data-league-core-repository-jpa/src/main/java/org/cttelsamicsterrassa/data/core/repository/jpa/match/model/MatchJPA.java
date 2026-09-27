@@ -10,6 +10,7 @@ import java.time.LocalTime;
 import java.util.UUID;
 import org.cttelsamicsterrassa.data.core.repository.jpa.club.model.TeamJPA;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
+import org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus;
 
 @Entity
 @Getter
@@ -103,5 +104,9 @@ public class MatchJPA {
 
     @Column(name = "protested", nullable = false, columnDefinition = "boolean default false")
     private boolean protested;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 20, columnDefinition = "varchar(20) default 'PLAYED'")
+    private MatchStatus status;
 
 }

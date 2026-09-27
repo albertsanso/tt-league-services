@@ -5,6 +5,7 @@ import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmTeamImportProcessor;
@@ -111,6 +112,7 @@ class ImportProcessorsTest {
         assertEquals("JOSE VICENTE NICOLAS PELLICER", match.getRefereeName());
         assertEquals(3, match.getHomeGamesWon());
         assertEquals(9, match.getAwaySetsWon());
+        assertEquals(MatchStatus.PLAYED, match.getStatus());
         // The report is a 3-3 draw, so no club won it.
         assertNull(match.getWinnerTeam());
     }

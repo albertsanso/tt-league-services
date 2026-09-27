@@ -5,6 +5,7 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.TeamToTeamJPAMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.model.MatchJPA;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
+import org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus;
 import org.springframework.stereotype.Component;
 
 import java.util.function.Function;
@@ -41,6 +42,7 @@ public class MatchToMatchJPAMapper implements Function<Match, MatchJPA> {
         matchJPA.setRefereeName(match.getRefereeName());
         matchJPA.setRefereeLicense(match.getRefereeLicense());
         matchJPA.setProtested(match.isProtested());
+        matchJPA.setStatus(MatchStatus.valueOf(match.getStatus().name()));
 
         matchJPA.setHomeTeam(teamToTeamJPAMapper.apply(match.getHomeTeam()));
         matchJPA.setAwayTeam(teamToTeamJPAMapper.apply(match.getAwayTeam()));

@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.load.process;
 import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttTeamImportProcessor;
@@ -91,6 +92,7 @@ class FcttImportProcessorsTest {
         assertEquals("Tercera nacional-masculino", match.getCompetition());
         assertEquals(3, match.getGroupNumber());
         assertEquals(1, match.getRound());
+        assertEquals(MatchStatus.PLAYED, match.getStatus());
         assertEquals(6, lineups.saved.size());
         assertEquals(7, games.saved.size());
         assertEquals(30, setScores.saved.size());

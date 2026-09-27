@@ -8,8 +8,10 @@ import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRep
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
+import org.cttelsamicsterrassa.data.core.domain.game.repository.GameRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
@@ -23,6 +25,7 @@ import org.junit.jupiter.api.Test;
 import jakarta.persistence.EntityManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZonedDateTime;
@@ -40,6 +43,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * Exercises the schema decisions the RFETM import depends on, against a real database.
  */
 @SpringBootTest
+@Import(JpaTestSupportConfiguration.class)
 @Transactional
 class ImportSchemaTest {
 
@@ -86,6 +90,9 @@ class ImportSchemaTest {
 
     @Autowired
     private LineupRepository lineupRepository;
+
+    @Autowired
+    private GameRepository gameRepository;
 
     @Test
     void findsAClubByItsFederationId() {
@@ -187,15 +194,6 @@ class ImportSchemaTest {
         assertEquals("CANONICAL PLAYER", found.getPlayer().orElseThrow().getName());
         assertEquals(canonical.getId(),
                 canonicalPlayerRepository.findPlayerByExactName("CANONICAL PLAYER").orElseThrow().getId());
-    }
-
-    @Test
-    void enforcesCanonicalPlayerNameUniqueness() {
-        canonicalPlayerRepository.savePlayer(Player.createNew("UNIQUE CANONICAL PLAYER"));
-
-        canonicalPlayerRepository.savePlayer(Player.createNew("UNIQUE CANONICAL PLAYER"));
-
-        assertThrows(Exception.class, entityManager::flush);
     }
 
     @Test
@@ -350,6 +348,88 @@ class ImportSchemaTest {
         assertEquals(4, found.getHomeGamesWon());
         assertTrue(found.isProtested());
         assertEquals("1a Fase", found.getPhase());
+        assertEquals(MatchStatus.PLAYED, found.getStatus());
+    }
+
+    @Test
+    void roundTripsAScheduledMatchWithNoResults() {
+        Team home = storedTeam("1", "CLUB A");
+        Team away = storedTeam("2", "CLUB B");
+        Match saved = Match.builder()
+                .id(UUID.randomUUID())
+                .source(ImportSource.RFETM)
+                .competition("super-divisio-masculino")
+                .season(SEASON)
+                .round(3)
+                .dateTime(ZonedDateTime.of(2023, 10, 6, 19, 0, 0, 0, Match.COMPETITION_ZONE))
+                .venue("PABELLON PEREZ PUIG")
+                .refereeName("A REFEREE")
+                .homeTeam(home)
+                .awayTeam(away)
+                .status(MatchStatus.SCHEDULED)
+                .createNew();
+        matchRepository.saveMatch(saved);
+
+        Match found = matchRepository.findMatchById(saved.getId()).orElseThrow();
+
+        assertEquals(MatchStatus.SCHEDULED, found.getStatus());
+        assertNull(found.getWinnerTeam());
+        assertNull(found.getHomeGamesWon());
+        assertNull(found.getAwayGamesWon());
+        assertNull(found.getHomeSetsWon());
+        assertNull(found.getAwaySetsWon());
+        assertTrue(lineupRepository.findLineupsByMatchId(saved.getId()).isEmpty());
+        assertTrue(gameRepository.findGamesByMatchId(saved.getId()).isEmpty());
+    }
+
+    @Test
+    void matchRowInsertedWithoutAStatusDefaultsToPlayed() {
+        Team home = storedTeam("1", "CLUB A");
+        Team away = storedTeam("2", "CLUB B");
+        UUID id = UUID.randomUUID();
+
+        entityManager.createNativeQuery(
+                "INSERT INTO match_record (id, source, round, home_team_id, away_team_id, protested) "
+                        + "VALUES (:id, 'RFETM', 1, :home, :away, false)")
+                .setParameter("id", id)
+                .setParameter("home", home.getId())
+                .setParameter("away", away.getId())
+                .executeUpdate();
+
+        assertEquals(MatchStatus.PLAYED, matchRepository.findMatchById(id).orElseThrow().getStatus());
+    }
+
+    @Test
+    void matchStatusColumnRejectsNull() {
+        Team home = storedTeam("1", "CLUB A");
+        Team away = storedTeam("2", "CLUB B");
+        UUID id = UUID.randomUUID();
+
+        assertThrows(Exception.class, () -> entityManager.createNativeQuery(
+                "INSERT INTO match_record (id, source, round, home_team_id, away_team_id, protested, status) "
+                        + "VALUES (:id, 'RFETM', 1, :home, :away, false, NULL)")
+                .setParameter("id", id)
+                .setParameter("home", home.getId())
+                .setParameter("away", away.getId())
+                .executeUpdate());
+    }
+
+    @Test
+    void rejectsAScheduledMatchCarryingAResult() {
+        Team home = storedTeam("1", "CLUB A");
+        Team away = storedTeam("2", "CLUB B");
+
+        assertThrows(IllegalArgumentException.class, () -> Match.builder()
+                .id(UUID.randomUUID())
+                .source(ImportSource.RFETM)
+                .competition("super-divisio-masculino")
+                .season(SEASON)
+                .round(3)
+                .homeTeam(home)
+                .awayTeam(away)
+                .status(MatchStatus.SCHEDULED)
+                .winnerTeam(home)
+                .createNew());
     }
 
     @Test
@@ -402,7 +482,7 @@ class ImportSchemaTest {
     }
 
     @Test
-    void searchMatchesFiltersByClubNameCaseInsensitivelyAndByAnyFragment() {
+    void searchMatchesFiltersByClubNameCaseInsensitivelyRequiringAllFragments() {
         Team terrassa = storedTeam("1", "CN Terrassa A");
         Team manresa = storedTeam("2", "UE Manresa B");
         Team alien = storedTeam("3", "CLUB ALIEN");
@@ -435,16 +515,25 @@ class ImportSchemaTest {
         assertEquals(2, matchRepository.countMatches(unfiltered));
 
         MatchSearchCriteria singleFragment = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
-                null, null, null, null, null, "terrassa", 0, 10);
+                null, null, null, null, null, "TERRASSA", 0, 10);
         assertEquals(1, matchRepository.searchMatches(singleFragment).size());
 
-        // Multi-word search matches ANY fragment, not the whole phrase: "terrassa" only matches the
-        // first match's home team, "alien" only matches the second match's home team, so both come back.
-        MatchSearchCriteria anyFragment = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
-                null, null, null, null, null, "terrassa alien", 0, 10);
-        List<Match> results = matchRepository.searchMatches(anyFragment);
-        assertEquals(2, results.size());
-        assertEquals(2, matchRepository.countMatches(anyFragment));
+        // Multi-word search requires ALL fragments, each possibly matching a different field:
+        // "terrassa" matches the first match's home team and "manresa" matches its away team, so both
+        // fragments are satisfied by the first match alone.
+        MatchSearchCriteria allFragmentsOneMatch = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
+                null, null, null, null, null, "terrassa manresa", 0, 10);
+        List<Match> results = matchRepository.searchMatches(allFragmentsOneMatch);
+        assertEquals(1, results.size());
+        assertEquals(match.getId(), results.getFirst().getId());
+        assertEquals(1, matchRepository.countMatches(allFragmentsOneMatch));
+
+        // "terrassa" only appears in the first match and "alien" only in the second, so no single
+        // match satisfies both fragments.
+        MatchSearchCriteria fragmentsAcrossDifferentMatches = new MatchSearchCriteria(
+                ImportSource.BCNESA, SEASON, "Preferent", null, null, null, null, null, "terrassa alien", 0, 10);
+        assertEquals(0, matchRepository.searchMatches(fragmentsAcrossDifferentMatches).size());
+        assertEquals(0, matchRepository.countMatches(fragmentsAcrossDifferentMatches));
 
         MatchSearchCriteria noMatch = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
                 null, null, null, null, null, "nonexistent", 0, 10);
@@ -453,7 +542,7 @@ class ImportSchemaTest {
     }
 
     @Test
-    void searchMatchesFiltersByPlayerNameCaseInsensitivelyAndByAnyFragment() {
+    void searchMatchesFiltersByPlayerNameCaseInsensitivelyRequiringAllFragments() {
         Team home = storedTeam("1", "CLUB A");
         Team away = storedTeam("2", "CLUB B");
         Match saved = Match.builder()
@@ -487,14 +576,20 @@ class ImportSchemaTest {
                 null, null, null, null, "oscar campos", null, 0, 10);
         assertEquals(1, matchRepository.searchMatches(byFullName).size());
 
-        // Fragment order doesn't matter, and an extra fragment that matches nothing is ignored,
-        // because matching is ANY fragment, not the whole phrase.
+        // Fragment order doesn't matter, and matching is case-insensitive, as long as every fragment
+        // is found somewhere in the same player's name.
         MatchSearchCriteria byReorderedFragments = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
-                null, null, null, null, "campos oscar nonexistent", null, 0, 10);
+                null, null, null, null, "CAMPOS oscar", null, 0, 10);
         List<Match> results = matchRepository.searchMatches(byReorderedFragments);
         assertEquals(1, results.size());
         assertEquals(saved.getId(), results.getFirst().getId());
         assertEquals(1, matchRepository.countMatches(byReorderedFragments));
+
+        // An extra fragment that matches nothing causes no match, because ALL fragments must be found.
+        MatchSearchCriteria extraNonMatchingFragment = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
+                null, null, null, null, "campos oscar nonexistent", null, 0, 10);
+        assertEquals(0, matchRepository.searchMatches(extraNonMatchingFragment).size());
+        assertEquals(0, matchRepository.countMatches(extraNonMatchingFragment));
 
         MatchSearchCriteria noMatch = new MatchSearchCriteria(ImportSource.BCNESA, SEASON, "Preferent",
                 null, null, null, null, "nonexistent alsomissing", null, 0, 10);

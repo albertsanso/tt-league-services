@@ -71,27 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00077] MatchStatus in domain and JPA
-- **Status:** idea
-- **Priority:** high
-- **Effort:** small
-- **Depends on:** —
-
-#### Goal
-Give every stored match an explicit SCHEDULED or PLAYED lifecycle status so scheduled fixtures can be told apart from played matches.
-
-#### Acceptance Criteria
-- [ ] MatchStatus { SCHEDULED, PLAYED } exists in the domain as a Match field and builder property
-- [ ] match_record.status is VARCHAR(20) NOT NULL DEFAULT 'PLAYED' mapped with @Enumerated(STRING) and works under ddl-auto: update on a populated table
-- [ ] Mappers and in-memory repositories carry the status
-- [ ] rfetm-datamodel.md documents the column, default and the invariant SCHEDULED => no lineups, games, set scores, doubles pairs or winner
-- [ ] JPA tests cover the default value and the invariant
-
-#### Feature Details
-→ See [FEAT-00077-DETAILS.md](./FEAT-00077-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00078] Backfill legacy empty and decided 0-0 matches to SCHEDULED
 - **Status:** idea
 - **Priority:** high
@@ -416,6 +395,27 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00077] MatchStatus in domain and JPA
+- **Status:** done
+- **Priority:** high
+- **Effort:** small
+- **Depends on:** —
+
+#### Goal
+Give every stored match an explicit SCHEDULED or PLAYED lifecycle status so scheduled fixtures can be told apart from played matches.
+
+#### Acceptance Criteria
+- [x] MatchStatus { SCHEDULED, PLAYED } exists in the domain as a Match field and builder property
+- [x] match_record.status is VARCHAR(20) NOT NULL DEFAULT 'PLAYED' mapped with @Enumerated(STRING) and works under ddl-auto: update on a populated table
+- [x] Mappers and in-memory repositories carry the status
+- [x] rfetm-datamodel.md documents the column, default and the invariant SCHEDULED => no lineups, games, set scores, doubles pairs or winner
+- [x] JPA tests cover the default value and the invariant
+
+#### Feature Details
+→ See [FEAT-00077-DETAILS.md](./FEAT-00077-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00076] Acta completeness classifier
 - **Status:** done

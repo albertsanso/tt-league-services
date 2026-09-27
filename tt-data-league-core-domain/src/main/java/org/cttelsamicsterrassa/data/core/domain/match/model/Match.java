@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 public class Match extends Entity {
@@ -41,8 +42,9 @@ public class Match extends Entity {
     private final Integer homeSetsWon;
     private final Integer awaySetsWon;
     private final boolean protested;
+    private final MatchStatus status;
 
-    private Match(UUID id, ImportSource source, String externalId, String competition, Season season, Integer groupNumber, int round, String phase, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested) {
+    private Match(UUID id, ImportSource source, String externalId, String competition, Season season, Integer groupNumber, int round, String phase, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested, MatchStatus status) {
         this.id = id;
         this.source = source;
         this.externalId = externalId;
@@ -64,6 +66,7 @@ public class Match extends Entity {
         this.homeSetsWon = homeSetsWon;
         this.awaySetsWon = awaySetsWon;
         this.protested = protested;
+        this.status = status;
     }
 
     public static MatchBuilder builder() {
@@ -71,6 +74,15 @@ public class Match extends Entity {
     }
 
     private static Match of(MatchBuilder builder) {
+        Objects.requireNonNull(builder.status, "status");
+        if (builder.status == MatchStatus.SCHEDULED
+                && (builder.winnerTeam != null
+                        || builder.homeGamesWon != null
+                        || builder.awayGamesWon != null
+                        || builder.homeSetsWon != null
+                        || builder.awaySetsWon != null)) {
+            throw new IllegalArgumentException("A SCHEDULED match cannot carry a winner or game/set results");
+        }
         return new Match(
                 builder.id,
                 builder.source,
@@ -92,7 +104,8 @@ public class Match extends Entity {
                 builder.awayGamesWon,
                 builder.homeSetsWon,
                 builder.awaySetsWon,
-                builder.protested
+                builder.protested,
+                builder.status
         );
     }
     private static Match createNew(MatchBuilder matchBuilder) {
@@ -139,6 +152,7 @@ public class Match extends Entity {
         private Integer homeSetsWon;
         private Integer awaySetsWon;
         private boolean protested;
+        private MatchStatus status = MatchStatus.PLAYED;
 
         public MatchBuilder id(UUID id) {
             this.id = id;
@@ -245,6 +259,11 @@ public class Match extends Entity {
             return this;
         }
 
+        public MatchBuilder status(MatchStatus status) {
+            this.status = status;
+            return this;
+        }
+
         public Match createNew() {
             return Match.createNew(this);
         }
@@ -336,5 +355,9 @@ public class Match extends Entity {
 
     public Team getWinnerTeam() {
         return winnerTeam;
+    }
+
+    public MatchStatus getStatus() {
+        return status;
     }
 }
