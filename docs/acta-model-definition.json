@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Modelo de acta de partido",
+  "title": "Modelo de acta de partido de la RFETM",
   "description": "Definición descriptiva y de validación para los ficheros resources/actas-json/**/*.json. Los campos opcionales o anulables reflejan variantes presentes entre temporadas y actas incompletas.",
   "type": "object",
   "additionalProperties": false,
@@ -25,7 +25,7 @@
   "properties": {
     "id_partido": {
       "type": "string",
-      "description": "Identificador único del encuentro: temporada, categoría, grupo, fase y equipos/jornada del fichero de origen. Es el mismo valor en las versiones publicada y no publicada de un mismo encuentro.",
+      "description": "Identificador único del encuentro: temporada, categoría, grupo, fase y equipos/jornada del fichero de origen.",
       "pattern": "^[0-9]{4}-[0-9]{4}_[^_]+_[^_]+_[^_]+_.+$",
       "examples": ["2026-2027_Vet1a_G1_1aFase_151-247_2"]
     },
@@ -148,11 +148,11 @@
     },
     "resultado_final": {
       "type": "object",
-      "description": "Resultado global de la eliminatoria. Cuando acta_publicada es false este resultado es un placeholder generado por el origen (por ejemplo, victoria del equipo local por 6-0) y no un resultado real; no debe usarse para calcular ganadores, clasificaciones ni estadísticas.",
+      "description": "Resultado global de la eliminatoria.",
       "additionalProperties": false,
       "required": ["ganador", "marcador_partidos", "marcador_juegos"],
       "properties": {
-        "ganador": { "type": ["string", "null"], "description": "Nombre del equipo ganador; null cuando no se determina. En una acta no publicada (acta_publicada: false) todo este objeto es un resultado provisional/placeholder y no debe interpretarse como el resultado real del encuentro.", "examples": ["ARTEAL SANTIAGO", null] },
+        "ganador": { "type": ["string", "null"], "description": "Nombre del equipo ganador; null cuando no se determina.", "examples": ["ARTEAL SANTIAGO", null] },
         "marcador_partidos": { "$ref": "#/$defs/marcadorConValoresNulos" },
         "marcador_juegos": { "$ref": "#/$defs/marcadorNullable" }
       }
@@ -305,7 +305,7 @@
         "licencia": { "type": "string", "description": "Licencia del jugador individual, cuando está disponible.", "pattern": "^[0-9]+$", "examples": ["31328"] },
         "id": { "type": "string", "description": "Identificador del jugador individual, cuando está disponible.", "pattern": "^[0-9]+$", "examples": ["31328"] },
         "ranking": { "type": "number", "description": "Ranking del jugador individual, cuando está disponible.", "examples": [1777.0] },
-        "jugadores": { "$ref": "#/$defs/pareja", "description": "Integrantes de la pareja; se usa en partidos de tipo dobles." }
+        "jugadores": { "oneOf": [{ "$ref": "#/$defs/pareja" }, { "type": "array", "maxItems": 0 }], "description": "Integrantes de la pareja; se usa en partidos de tipo dobles. Lista vacía cuando el dobles no se disputa.", "examples": [[]] }
       }
     },
     "set": {
