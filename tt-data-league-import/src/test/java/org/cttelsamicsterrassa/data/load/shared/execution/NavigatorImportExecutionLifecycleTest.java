@@ -453,7 +453,11 @@ class NavigatorImportExecutionLifecycleTest {
     /** The 2026 published reference acta wearing the unpublished fixture's equipos, one and the same match. */
     private ObjectNode publishedWithPendingTeams() throws Exception {
         ObjectNode published = fixture("acta_rfetm_2026_published.json");
-        published.set("equipos", fixture("acta_rfetm_2026_unpublished.json").get("equipos"));
+        ObjectNode unpublished = fixture("acta_rfetm_2026_unpublished.json");
+        published.set("equipos", unpublished.get("equipos"));
+        // One and the same fixture keeps its id_partido (FEAT-00085): a different value over the
+        // same natural key would be reported as a fixture identity conflict instead of upgrading.
+        published.put("id_partido", unpublished.get("id_partido").asText());
         return published;
     }
 

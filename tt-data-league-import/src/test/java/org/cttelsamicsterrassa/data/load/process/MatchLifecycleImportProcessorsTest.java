@@ -114,8 +114,11 @@ class MatchLifecycleImportProcessorsTest {
         var scheduledId = matches.saved.getFirst().getId();
 
         // Same fixture as the published pair of the FEAT-00075 reference actas: same equipos ids,
-        // jornada and group, published with games.
-        Acta published = withTeams(acta("acta_rfetm_2026_published.json"), pending.acta().teams());
+        // jornada and group, published with games. The reference files carry different id_partido
+        // values for two different fixtures; the published acta is aligned to the stored fixture id
+        // so the FEAT-00085 identity guard lets the upgrade through (a mismatch is a conflict).
+        Acta published = withMatchId(withTeams(acta("acta_rfetm_2026_published.json"),
+                pending.acta().teams()), pending.acta().matchId());
         runRfetm(rfetmContext("2026-2027", "divisio-honor", "1", "femenino", published, runContext));
 
         assertEquals(1, matches.saved.size());
@@ -280,16 +283,104 @@ class MatchLifecycleImportProcessorsTest {
         assertEquals(created.getId(),
                 matches.findBySourceFixtureId(ImportSource.RFETM, unpublished.matchId()).orElseThrow().getId());
 
-        Acta published = withTeams(acta("acta_rfetm_2026_published.json"), unpublished.teams());
+        // The published version of the same fixture carries the same id_partido; a different one
+        // would be a FEAT-00085 conflict instead (see the mismatch test below).
+        Acta published = withMatchId(withTeams(acta("acta_rfetm_2026_published.json"),
+                unpublished.teams()), unpublished.matchId());
         runRfetm(rfetmContext("2026-2027", "divisio-honor", "1", "femenino", published, runContext));
 
         assertEquals(1, matches.saved.size());
         Match upgraded = matches.saved.getFirst();
         assertEquals(created.getId(), upgraded.getId());
         assertEquals(MatchStatus.PLAYED, upgraded.getStatus());
-        // A non-null incoming id_partido is written as is (FEAT-00083 contract 5).
-        assertEquals(published.matchId(), upgraded.getSourceFixtureId());
+        assertEquals(unpublished.matchId(), upgraded.getSourceFixtureId());
         assertTrue(matches.findBySourceFixtureId(ImportSource.RFETM, published.matchId()).isPresent());
+    }
+
+    @Test
+    void rfetmPublishedActaWithADifferentIdPartidoConflictsAndNeverOverwritesTheStoredOne() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.RFETM, "2026-2027");
+        Acta unpublished = acta("acta_rfetm_2026_unpublished.json");
+        runRfetm(rfetmContext("2026-2027", "divisio-honor", "1", "femenino", unpublished, runContext));
+        Match created = matches.saved.getFirst();
+
+        // Same natural key, different id_partido (FEAT-00085): the stored fixture wins.
+        Acta mismatched = withTeams(acta("acta_rfetm_2026_published.json"), unpublished.teams());
+        runRfetm(rfetmContext("2026-2027", "divisio-honor", "1", "femenino", mismatched, runContext));
+
+        assertEquals(1, matches.saved.size());
+        Match stored = matches.saved.getFirst();
+        assertEquals(created.getId(), stored.getId());
+        assertEquals(MatchStatus.SCHEDULED, stored.getStatus(), "the conflicting upgrade is not applied");
+        assertEquals(unpublished.matchId(), stored.getSourceFixtureId());
+        assertTrue(games.saved.isEmpty());
+        assertEquals(1, count(runContext, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT));
+        assertEquals(1, runContext.reportedMatchIssues().size());
+        String reason = runContext.reportedMatchIssues().getFirst().message();
+        assertTrue(reason.contains(unpublished.matchId()), reason);
+        assertTrue(reason.contains(mismatched.matchId()), reason);
+    }
+
+    @Test
+    void rfetmActaWithoutPayloadJornadaStoresDayFolderRoundAndReportsTheFallback() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.RFETM, "2026-2027");
+        runRfetm(rfetmContext("2026-2027", "divisio-honor", "4", "femenino",
+                withRound(acta("acta_rfetm_2026_unpublished.json"), null), runContext));
+
+        assertEquals(1, matches.saved.size());
+        assertEquals(4, matches.saved.getFirst().getRound());
+        assertEquals(1, count(runContext, MatchLifecycleOutcome.SCHEDULED_CREATED));
+        assertEquals(1, runContext.reportedMatchIssues().size());
+        assertEquals("RfetmMatchImportProcessor", runContext.reportedMatchIssues().getFirst().processor());
+        assertTrue(runContext.reportedMatchIssues().getFirst().message().contains("day folder 4"),
+                runContext.reportedMatchIssues().getFirst().message());
+    }
+
+    @Test
+    void rfetmActaWithPayloadJornadaRecordsNoFallbackWarning() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.RFETM, "2026-2027");
+        runRfetm(rfetmContext("2026-2027", "divisio-honor", "4", "femenino",
+                acta("acta_rfetm_2026_unpublished.json"), runContext));
+
+        assertEquals(1, matches.saved.getFirst().getRound());
+        assertTrue(runContext.reportedMatchIssues().isEmpty());
+    }
+
+    @Test
+    void rfetmJornadaDriftWithTheSameIdPartidoConflictsInsteadOfDuplicating() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.RFETM, "2026-2027");
+        Acta pending = acta("acta_rfetm_2026_unpublished.json");
+        runRfetm(rfetmContext("2026-2027", "divisio-honor", "1", "femenino", pending, runContext));
+        Match created = matches.saved.getFirst();
+
+        runRfetm(rfetmContext("2026-2027", "divisio-honor", "1", "femenino",
+                withRound(pending, pending.round() + 1), runContext));
+
+        assertEquals(1, matches.saved.size());
+        Match stored = matches.saved.getFirst();
+        assertEquals(created.getId(), stored.getId());
+        assertEquals(pending.round(), stored.getRound());
+        assertEquals(MatchStatus.SCHEDULED, stored.getStatus());
+        assertEquals(1, count(runContext, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT));
+        assertEquals(1, runContext.reportedMatchIssues().size());
+        assertTrue(runContext.reportedMatchIssues().getFirst().message().contains(pending.matchId()));
+    }
+
+    @Test
+    void rfetmJornadaDriftWithAPlayedSecondVersionDoesNotUpgradeTheStoredMatch() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.RFETM, "2026-2027");
+        Acta pending = acta("acta_rfetm_2026_unpublished.json");
+        runRfetm(rfetmContext("2026-2027", "divisio-honor", "1", "femenino", pending, runContext));
+
+        Acta playedElsewhere = withMatchId(withTeams(withRound(
+                acta("acta_rfetm_2026_published.json"), pending.round() + 1), pending.teams()),
+                pending.matchId());
+        runRfetm(rfetmContext("2026-2027", "divisio-honor", "1", "femenino", playedElsewhere, runContext));
+
+        assertEquals(1, matches.saved.size());
+        assertEquals(MatchStatus.SCHEDULED, matches.saved.getFirst().getStatus());
+        assertTrue(games.saved.isEmpty());
+        assertEquals(1, count(runContext, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT));
     }
 
     @Test
@@ -414,6 +505,25 @@ class MatchLifecycleImportProcessorsTest {
                 matches.findBySourceFixtureId(ImportSource.FCTT, published.matchId()).orElseThrow().getId());
     }
 
+    @Test
+    void fcttJornadaDriftWithTheSameIdPartidoConflictsInsteadOfDuplicating() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.FCTT, "2026-2027");
+        Acta pending = acta("acta_fctt_unpublished.json");
+        runFctt(fcttContext("2026-2027", "tercera-nacional", "G1", pending, runContext));
+        Match created = matches.saved.getFirst();
+
+        runFctt(fcttContext("2026-2027", "tercera-nacional", "G1", withRound(pending, 2), runContext));
+
+        assertEquals(1, matches.saved.size());
+        Match stored = matches.saved.getFirst();
+        assertEquals(created.getId(), stored.getId());
+        assertEquals(pending.round(), stored.getRound());
+        assertEquals(MatchStatus.SCHEDULED, stored.getStatus());
+        assertEquals(1, count(runContext, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT));
+        assertEquals(1, runContext.reportedMatchIssues().size());
+        assertTrue(runContext.reportedMatchIssues().getFirst().message().contains(pending.matchId()));
+    }
+
     // --- BCNESA --------------------------------------------------------------------------------
 
     @Test
@@ -524,6 +634,32 @@ class MatchLifecycleImportProcessorsTest {
         assertNull(matches.saved.getFirst().getSourceFixtureId(),
                 "only fixture 0 owns the file's id_partido");
         assertTrue(matches.findBySourceFixtureId(ImportSource.BCNESA, pending.matchId()).isEmpty());
+
+        // A fixture without a fixture id skips the guard's lookup (FEAT-00085): re-import is plain.
+        runBcnesa(secondFixture);
+        assertEquals(1, matches.saved.size());
+        assertEquals(0, count(runContext, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT));
+        assertEquals(1, count(runContext, MatchLifecycleOutcome.UNCHANGED));
+    }
+
+    @Test
+    void bcnesaJornadaDriftWithTheSameIdPartidoConflictsInsteadOfDuplicating() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.BCNESA, "2026-2027");
+        Acta pending = acta("acta_bcnesa_2026_unpublished.json");
+        runBcnesa(bcnesaContext("2026-2027", "1a Comarcal", "G1", "1a Fase",
+                pending, pending.games(), runContext));
+        Match created = matches.saved.getFirst();
+
+        runBcnesa(bcnesaContext("2026-2027", "1a Comarcal", "G1", "1a Fase",
+                withRound(pending, pending.round() + 1), pending.games(), runContext));
+
+        assertEquals(1, matches.saved.size());
+        Match stored = matches.saved.getFirst();
+        assertEquals(created.getId(), stored.getId());
+        assertEquals(pending.round(), stored.getRound());
+        assertEquals(MatchStatus.SCHEDULED, stored.getStatus());
+        assertEquals(1, count(runContext, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT));
+        assertTrue(runContext.reportedMatchIssues().getFirst().message().contains(pending.matchId()));
     }
 
     @Test
@@ -607,6 +743,14 @@ class MatchLifecycleImportProcessorsTest {
 
     private static Acta withDate(Acta acta, LocalDate date) {
         return copy(acta, b -> b.date = date);
+    }
+
+    private static Acta withMatchId(Acta acta, String matchId) {
+        return copy(acta, b -> b.matchId = matchId);
+    }
+
+    private static Acta withRound(Acta acta, Integer round) {
+        return copy(acta, b -> b.round = round);
     }
 
     private static Acta withTeams(Acta acta, org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeams teams) {

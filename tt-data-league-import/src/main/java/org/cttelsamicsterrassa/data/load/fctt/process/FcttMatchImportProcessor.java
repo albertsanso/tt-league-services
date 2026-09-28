@@ -20,6 +20,8 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard.IncomingFixture;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleSource;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleWriter;
@@ -69,6 +71,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
     private final DoublesPairRepository doublesPairRepository;
     private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
     private final MatchLifecycleWriter lifecycleWriter;
+    private final MatchFixtureIdentityGuard identityGuard;
 
     public FcttMatchImportProcessor(TeamRepository teamRepository,
                                     PlayerSeasonRepository playerSeasonRepository,
@@ -86,6 +89,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         this.doublesPairRepository = doublesPairRepository;
         this.lifecycleWriter = new MatchLifecycleWriter(matchRepository, lineupRepository, gameRepository,
                 setScoreRepository, doublesPairRepository);
+        this.identityGuard = new MatchFixtureIdentityGuard(matchRepository);
     }
 
     @Override
@@ -122,13 +126,24 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         Integer groupNumber = context.groupNumber().isPresent() ? context.groupNumber().getAsInt() : null;
         Optional<Match> existing = matchRepository.findMatchByNaturalKey(context.competition(), season,
                 groupNumber, context.round(), context.phase(), homeTeam.get().getId(), awayTeam.get().getId());
+        Optional<String> conflict = identityGuard.conflict(
+                new IncomingFixture(ImportSource.FCTT, acta.matchId(), context.competition(), season,
+                        groupNumber, context.round(), context.phase()),
+                existing);
+        if (conflict.isPresent()) {
+            recordOutcome(context, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT, conflict.get());
+            return;
+        }
         MatchLifecycleOutcome outcome = lifecycleWriter.apply(classification, existing,
                 new FcttLifecycleSource(context, season, groupNumber, homeTeam.get(), awayTeam.get()));
+        recordOutcome(context, outcome, classification.reason());
+    }
+
+    private void recordOutcome(FcttMatchReportContext context, MatchLifecycleOutcome outcome, String reason) {
         context.runContext().recordMatchOutcome(outcome, getClass().getSimpleName(),
-                context.matchReportFile(), classification.reason());
+                context.matchReportFile(), reason);
         if (outcome.isReportable()) {
-            LOGGER.warn("FCTT match lifecycle {} for {}: {}", outcome, context.matchReportFile(),
-                    classification.reason());
+            LOGGER.warn("FCTT match lifecycle {} for {}: {}", outcome, context.matchReportFile(), reason);
         }
     }
 

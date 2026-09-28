@@ -98,7 +98,7 @@ def section_body(registry: str, section: str) -> tuple[int, int, str]:
 def rebuild_section(registry: str, section: str, blocks: list[str]) -> str:
     start, end, body = section_body(registry, section)
     if section == "Done":
-        blocks.sort(key=lambda block: re.match(r"^### \[(FEAT-\d{5})\]", block).group(1), reverse=True)
+        blocks.sort(key=block_id, reverse=True)
     replacement = normalize_section_body_for(section, body, blocks)
     return registry[:start] + replacement + registry[end:]
 
@@ -142,6 +142,21 @@ def blocks_by_section(registry: str) -> dict[str, list[str]]:
             raise OperationError(f"Feature {match.group(1)} is outside a lifecycle section.")
         grouped[section].append(match.group(0).rstrip())
     return grouped
+
+
+def block_id(block: str) -> str:
+    return re.match(r"^### \[(FEAT-\d{5})\]", block).group(1)
+
+
+def insert_in_id_order(blocks: list[str], block: str, identifier: str) -> None:
+    """Insert before the first block with a higher ID, so a status change within a section keeps
+    the block in place and a move into a section lands in ascending-ID order. Other blocks are not
+    reordered; Done is re-sorted descending by rebuild_section."""
+    for index, existing in enumerate(blocks):
+        if block_id(existing) > identifier:
+            blocks.insert(index, block)
+            return
+    blocks.append(block)
 
 
 def write_registry_sections(registry: str, grouped: dict[str, list[str]]) -> str:
@@ -274,7 +289,7 @@ def command_status(args: argparse.Namespace) -> None:
         raise OperationError(f"{identifier} is already {target}.")
     replacement = STATUS_RE.sub(rf"\g<1>{target}", current_block, count=1)
     grouped = blocks_by_section(replace_block(registry, identifier, ""))
-    grouped[STATUS_SECTION[target]].append(replacement)
+    insert_in_id_order(grouped[STATUS_SECTION[target]], replacement, identifier)
     updated = write_registry_sections(registry, grouped)
     atomic_write(registry_file, updated)
     if args.note:

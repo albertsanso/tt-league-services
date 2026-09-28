@@ -20,6 +20,8 @@ import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository
 import org.cttelsamicsterrassa.data.core.domain.game.repository.SetScoreRepository;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard.IncomingFixture;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleSource;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleWriter;
@@ -73,6 +75,7 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
     private final DoublesPairRepository doublesPairRepository;
     private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
     private final MatchLifecycleWriter lifecycleWriter;
+    private final MatchFixtureIdentityGuard identityGuard;
 
     public RfetmMatchImportProcessor(TeamRepository teamRepository,
                                 PlayerSeasonRepository playerSeasonRepository,
@@ -90,6 +93,7 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
         this.doublesPairRepository = doublesPairRepository;
         this.lifecycleWriter = new MatchLifecycleWriter(matchRepository, lineupRepository, gameRepository,
                 setScoreRepository, doublesPairRepository);
+        this.identityGuard = new MatchFixtureIdentityGuard(matchRepository);
     }
 
     @Override
@@ -114,19 +118,30 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
 
         Optional<Match> existing = matchRepository.findMatchByNaturalKey(competition, season, groupNumber,
                 round, null, homeTeam.get().getId(), awayTeam.get().getId());
+        Optional<String> conflict = identityGuard.conflict(
+                new IncomingFixture(ImportSource.RFETM, acta.matchId(), competition, season, groupNumber,
+                        round, null),
+                existing);
+        if (conflict.isPresent()) {
+            recordOutcome(context, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT, conflict.get());
+            return;
+        }
         MatchLifecycleOutcome outcome = lifecycleWriter.apply(classification, existing,
                 new RfetmLifecycleSource(context, acta, season, competition, groupNumber, round,
                         homeTeam.get(), awayTeam.get()));
-        recordOutcome(context, outcome, classification);
+        recordOutcome(context, outcome, classification.reason());
     }
 
     private void recordOutcome(MatchReportContext context, MatchLifecycleOutcome outcome,
                                ActaClassification classification) {
+        recordOutcome(context, outcome, classification.reason());
+    }
+
+    private void recordOutcome(MatchReportContext context, MatchLifecycleOutcome outcome, String reason) {
         context.runContext().recordMatchOutcome(outcome, getClass().getSimpleName(),
-                context.matchReportFile(), classification.reason());
+                context.matchReportFile(), reason);
         if (outcome.isReportable()) {
-            LOGGER.warn("Match lifecycle {} for {}: {}", outcome, context.matchReportFile(),
-                    classification.reason());
+            LOGGER.warn("Match lifecycle {} for {}: {}", outcome, context.matchReportFile(), reason);
         }
     }
 
@@ -241,6 +256,9 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
         }
         LOGGER.warn("No jornada in payload for {}; using the day folder {}",
                 context.matchReportFile(), context.day());
+        context.runContext().recordRoundFallback(getClass().getSimpleName(), context.matchReportFile(),
+                "No jornada in payload; round " + context.round() + " taken from the day folder "
+                        + context.day());
         return context.round();
     }
 

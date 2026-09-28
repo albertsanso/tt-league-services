@@ -67,6 +67,17 @@ public final class ImportRunContext {
     }
 
     /**
+     * Reports that a processor had to fall back to a contextual round because the payload carried
+     * none (FEAT-00085, gap G8). Like the reported match outcomes this is a warning only: it never
+     * touches the outcome counters, the lifecycle counters or the run status.
+     */
+    public void recordRoundFallback(String processor, Path location, String reason) {
+        Objects.requireNonNull(processor, "processor");
+        Objects.requireNonNull(reason, "reason");
+        reportedMatchIssues.add(new ImportExecutionIssue(processor, String.valueOf(location), reason));
+    }
+
+    /**
      * Records one unresolved pending fixture (FEAT-00082): a pending acta whose teams could not be
      * attributed, so it was skipped instead of dispatched. It increments the lifecycle counter and
      * becomes a reported issue carrying the navigator name, the location and the classifier reason.

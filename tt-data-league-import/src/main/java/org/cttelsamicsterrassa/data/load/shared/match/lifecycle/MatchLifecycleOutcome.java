@@ -31,13 +31,21 @@ public enum MatchLifecycleOutcome {
     PARTIAL_REPORTED,
 
     /** An invalid acta was kept scheduled (or untouched when already played) and reported. */
-    INVALID_REPORTED;
+    INVALID_REPORTED,
+
+    /**
+     * The acta's {@code id_partido} and its natural key point at different stored matches (or the
+     * natural-key match already keeps another {@code id_partido}); nothing was written
+     * (FEAT-00085).
+     */
+    FIXTURE_IDENTITY_CONFLICT;
 
     /**
      * Whether this outcome must appear in the run's reported issues rather than only in the
      * outcome counters.
      */
     public boolean isReportable() {
-        return this == REGRESSION_REPORTED || this == PARTIAL_REPORTED || this == INVALID_REPORTED;
+        return this == REGRESSION_REPORTED || this == PARTIAL_REPORTED || this == INVALID_REPORTED
+                || this == FIXTURE_IDENTITY_CONFLICT;
     }
 }

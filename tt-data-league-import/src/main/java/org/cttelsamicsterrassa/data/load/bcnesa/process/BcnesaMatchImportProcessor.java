@@ -18,6 +18,8 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard.IncomingFixture;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleSource;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleWriter;
@@ -69,6 +71,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
     private final DoublesPairRepository doublesPairRepository;
     private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
     private final MatchLifecycleWriter lifecycleWriter;
+    private final MatchFixtureIdentityGuard identityGuard;
 
     public BcnesaMatchImportProcessor(TeamRepository teamRepository,
                                       PlayerSeasonRepository playerSeasonRepository,
@@ -84,6 +87,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         this.doublesPairRepository = doublesPairRepository;
         this.lifecycleWriter = new MatchLifecycleWriter(matchRepository, lineupRepository, gameRepository,
                 doublesPairRepository);
+        this.identityGuard = new MatchFixtureIdentityGuard(matchRepository);
     }
 
     @Override
@@ -102,14 +106,35 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
 
         Optional<Match> existing = matchRepository.findMatchByNaturalKey(competition, season, groupNumber,
                 round, context.phase(), homeTeam.get().getId(), awayTeam.get().getId());
+        Optional<String> conflict = identityGuard.conflict(
+                new IncomingFixture(ImportSource.BCNESA, sourceFixtureId(context, context.acta()),
+                        competition, season, groupNumber, round, context.phase()),
+                existing);
+        if (conflict.isPresent()) {
+            recordOutcome(context, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT, conflict.get());
+            return;
+        }
         MatchLifecycleOutcome outcome = lifecycleWriter.apply(classification, existing,
                 new BcnesaLifecycleSource(context, season, competition, groupNumber, round,
                         homeTeam.get(), awayTeam.get()));
+        recordOutcome(context, outcome, classification.reason());
+    }
+
+    /**
+     * Only the fixture named by {@code equipos} owns the file's {@code id_partido}; an inferred
+     * later fixture of a multi-fixture file never borrows it (FEAT-00083). Both header builders and
+     * the identity guard use this one rule so they cannot diverge (FEAT-00085).
+     */
+    private static String sourceFixtureId(BcnesaMatchReportContext context, Acta acta) {
+        return context.fixtureIndex() == 0 ? acta.matchId() : null;
+    }
+
+    private void recordOutcome(BcnesaMatchReportContext context, MatchLifecycleOutcome outcome, String reason) {
         context.runContext().recordMatchOutcome(outcome, getClass().getSimpleName(),
-                context.matchReportFile(), classification.reason());
+                context.matchReportFile(), reason);
         if (outcome.isReportable()) {
             LOGGER.warn("Match lifecycle {} for fixture {} of {}: {}", outcome, context.fixtureIndex(),
-                    context.matchReportFile(), classification.reason());
+                    context.matchReportFile(), reason);
         }
     }
 
@@ -150,9 +175,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             return Match.builder()
                     .id(id)
                     .source(ImportSource.BCNESA)
-                    // Only the fixture named by equipos owns the file's id_partido; an inferred
-                    // later fixture of a multi-fixture file never borrows it (FEAT-00083).
-                    .sourceFixtureId(context.fixtureIndex() == 0 ? acta.matchId() : null)
+                    .sourceFixtureId(sourceFixtureId(context, acta))
                     .competition(competition)
                     .season(season)
                     .groupNumber(groupNumber)
@@ -187,7 +210,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             Match.MatchBuilder builder = Match.builder()
                     .id(id)
                     .source(ImportSource.BCNESA)
-                    .sourceFixtureId(context.fixtureIndex() == 0 ? acta.matchId() : null)
+                    .sourceFixtureId(sourceFixtureId(context, acta))
                     .competition(competition)
                     .season(season)
                     .groupNumber(groupNumber)

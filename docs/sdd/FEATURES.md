@@ -71,25 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00085] Natural-key stability guard
-- **Status:** idea
-- **Priority:** medium
-- **Effort:** small
-- **Depends on:** FEAT-00081, FEAT-00083
-
-#### Goal
-Prevent duplicate fixtures caused by jornada drift by warning on the RFETM day-folder fallback and cross-checking the natural key against id_partido.
-
-#### Acceptance Criteria
-- [ ] A warning is reported when payload jornada is missing and the RFETM day-folder fallback is used
-- [ ] When a stored match has the same id_partido but a different natural key, an issue is raised and no duplicate match is created
-- [ ] Tests cover both cases
-
-#### Feature Details
-→ See [FEAT-00085-DETAILS.md](./FEAT-00085-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00086] Snapshot reconciliation report
 - **Status:** idea
 - **Priority:** medium
@@ -246,6 +227,25 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00085] Natural-key stability guard
+- **Status:** done
+- **Priority:** medium
+- **Effort:** small
+- **Depends on:** FEAT-00081, FEAT-00083
+
+#### Goal
+Prevent duplicate fixtures caused by jornada drift by warning on the RFETM day-folder fallback and cross-checking the natural key against id_partido.
+
+#### Acceptance Criteria
+- [x] A warning is reported when payload jornada is missing and the RFETM day-folder fallback is used
+- [x] When a stored match has the same id_partido but a different natural key, an issue is raised and no duplicate match is created
+- [x] Tests cover both cases
+
+#### Feature Details
+→ See [FEAT-00085-DETAILS.md](./FEAT-00085-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00084] Jornada progress query and exposure
 - **Status:** done

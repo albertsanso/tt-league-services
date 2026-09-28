@@ -108,8 +108,10 @@ public final class MatchLifecycleWriter {
     /**
      * An upgrade never erases a stored fixture id: when the incoming PLAYED header has no
      * {@code sourceFixtureId} but the stored SCHEDULED match has one, the rebuilt header carries
-     * the stored value (FEAT-00083). A non-null incoming value is written as is; a mismatch of two
-     * non-null ids is FEAT-00085's cross-check, not handled here.
+     * the stored value (FEAT-00083). A mismatch of two non-null ids can no longer reach this
+     * writer: the {@link MatchFixtureIdentityGuard} reports it as a conflict beforehand
+     * (FEAT-00085), so the only incoming value that gets through here is {@code null} or the
+     * stored id itself.
      */
     private static MatchContent keepStoredFixtureId(MatchContent content, Match stored) {
         if (content.match().getSourceFixtureId() == null && stored.getSourceFixtureId() != null) {
