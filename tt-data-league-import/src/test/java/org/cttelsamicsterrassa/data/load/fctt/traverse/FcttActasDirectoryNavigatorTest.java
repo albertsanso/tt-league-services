@@ -180,6 +180,17 @@ class FcttActasDirectoryNavigatorTest {
     }
 
     @Test
+    void skipsAPendingFixtureWithoutTeamsBeforeDispatch() throws IOException {
+        writeGrouplessReport("2026-2027", "female", "copa-catalana-femenina-1a",
+                "jornada-1-partido-1.json", reportWithoutTeams(1));
+
+        TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(new TraversalSummary(1, 0, 1, 0), summary);
+        assertTrue(injected.contexts.isEmpty(), "no processor may create teams for a placeholder");
+    }
+
+    @Test
     void explicitProcessorsOverrideInjectedOnesAndSeasonFilteringWorks() throws IOException {
         writeReport("2023-2024", "male", "tercera-nacional", "G1", "jornada-1-partido-1.json", report(1, "HOME", "AWAY"));
         writeReport("2024-2025", "male", "tercera-nacional", "G1", "jornada-2-partido-2.json", report(2, "HOME", "AWAY"));
@@ -276,6 +287,21 @@ class FcttActasDirectoryNavigatorTest {
                   "jornada": null
                 }
                 """;
+    }
+
+    private static String reportWithoutTeams(int round) {
+        return """
+                {
+                  "federacion": "Federació Catalana de Tennis Taula",
+                  "jornada": %d,
+                  "acta_publicada": false,
+                  "genero": "femenino",
+                  "equipos": {
+                    "local": { "id": null, "nombre": null },
+                    "visitante": { "id": null, "nombre": null }
+                  }
+                }
+                """.formatted(round);
     }
 
     private static final class RecordingProcessor implements FcttMatchReportProcessor {

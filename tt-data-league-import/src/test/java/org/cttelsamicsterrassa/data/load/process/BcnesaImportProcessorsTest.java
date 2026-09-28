@@ -53,10 +53,11 @@ class BcnesaImportProcessorsTest {
         players = new InMemoryRepositories.Players();
         canonicalPlayers = new InMemoryRepositories.Players.CanonicalPlayers();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
-        matches = new InMemoryRepositories.Matches();
         lineups = new InMemoryRepositories.Lineups(playerSeasons);
         games = new InMemoryRepositories.Games();
         doublesPairs = new InMemoryRepositories.DoublesPairs();
+        matches = new InMemoryRepositories.Matches(lineups, games,
+                new InMemoryRepositories.SetScores(), doublesPairs);
 
         processors = List.of(
                 new BcnesaTeamImportProcessor(teams),

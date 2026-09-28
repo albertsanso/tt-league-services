@@ -11,11 +11,18 @@ import org.cttelsamicsterrassa.data.core.domain.game.repository.SetScoreReposito
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleSource;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleWriter;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
@@ -60,6 +67,8 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
     private final GameRepository gameRepository;
     private final SetScoreRepository setScoreRepository;
     private final DoublesPairRepository doublesPairRepository;
+    private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
+    private final MatchLifecycleWriter lifecycleWriter;
 
     public FcttMatchImportProcessor(TeamRepository teamRepository,
                                     PlayerSeasonRepository playerSeasonRepository,
@@ -75,16 +84,21 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         this.gameRepository = gameRepository;
         this.setScoreRepository = setScoreRepository;
         this.doublesPairRepository = doublesPairRepository;
+        this.lifecycleWriter = new MatchLifecycleWriter(matchRepository, lineupRepository, gameRepository,
+                setScoreRepository, doublesPairRepository);
     }
 
     @Override
     public void process(FcttMatchReportContext reportContext) {
+        ActaClassification classification = classifier.classify(reportContext.acta());
+        Acta acta = classification.isPlayed() ? FcttActaOrientation.toHomeAway(reportContext.acta())
+                : reportContext.acta();
         FcttMatchReportContext context = new FcttMatchReportContext(reportContext.season(), reportContext.gender(),
                 reportContext.leagueCompetition(), reportContext.group(), reportContext.round(),
-                reportContext.matchReportFile(), FcttActaOrientation.toHomeAway(reportContext.acta()),
-                reportContext.runContext());
-        if (!context.acta().isPublished()) {
-            LOGGER.debug("FCTT report {} is not published; match not stored", context.matchReportFile());
+                reportContext.matchReportFile(), acta, reportContext.runContext());
+        if (classification.unresolvedPendingFixture()) {
+            LOGGER.warn("FCTT report {} is a pending fixture without teams; not stored",
+                    context.matchReportFile());
             return;
         }
         if (context.acta().teams() == null || context.acta().teams().home() == null
@@ -106,49 +120,104 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         }
 
         Integer groupNumber = context.groupNumber().isPresent() ? context.groupNumber().getAsInt() : null;
-        if (matchRepository.findMatchByNaturalKey(context.competition(), season, groupNumber, context.round(),
-                context.phase(), homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
-            LOGGER.debug("FCTT match already stored for {}; skipping", context.matchReportFile());
-            return;
+        Optional<Match> existing = matchRepository.findMatchByNaturalKey(context.competition(), season,
+                groupNumber, context.round(), context.phase(), homeTeam.get().getId(), awayTeam.get().getId());
+        MatchLifecycleOutcome outcome = lifecycleWriter.apply(classification, existing,
+                new FcttLifecycleSource(context, season, groupNumber, homeTeam.get(), awayTeam.get()));
+        context.runContext().recordMatchOutcome(outcome, getClass().getSimpleName(),
+                context.matchReportFile(), classification.reason());
+        if (outcome.isReportable()) {
+            LOGGER.warn("FCTT match lifecycle {} for {}: {}", outcome, context.matchReportFile(),
+                    classification.reason());
         }
-
-        Match match = buildMatch(context, season, groupNumber, homeTeam.get(), awayTeam.get());
-        matchRepository.saveMatch(match);
-
-        SideLineup home = resolveLineup(context.acta().lineups() == null
-                ? Map.of() : context.acta().lineups().home(), season, context);
-        SideLineup away = resolveLineup(context.acta().lineups() == null
-                ? Map.of() : context.acta().lineups().away(), season, context);
-        lineupRepository.saveLineups(buildLineups(match, homeTeam.get(), home, awayTeam.get(), away));
-        storeGames(context, match, home, away);
     }
 
-    private Match buildMatch(FcttMatchReportContext context, Season season, Integer groupNumber,
-                             Team homeTeam, Team awayTeam) {
-        Acta acta = context.acta();
-        ActaScore gamesWon = acta.finalResult() == null ? null : acta.finalResult().gamesWon();
-        ActaScore setsWon = acta.finalResult() == null ? null : acta.finalResult().setsWon();
-        return Match.builder()
-                .id(UUID.randomUUID())
-                .source(ImportSource.FCTT)
-                .competition(context.competition())
-                .season(season)
-                .groupNumber(groupNumber)
-                .round(context.round())
-                .phase(context.phase())
-                .dateTime(toDateTime(acta))
-                .city(acta.venue() == null ? null : acta.venue().city())
-                .venue(acta.venue() == null ? null : acta.venue().venue())
-                .homeTeam(homeTeam)
-                .awayTeam(awayTeam)
-                .winnerTeam(resolveWinnerTeam(acta, homeTeam, awayTeam, context))
-                .refereeName(refereeName(acta))
-                .homeGamesWon(gamesWon == null ? null : gamesWon.home())
-                .awayGamesWon(gamesWon == null ? null : gamesWon.away())
-                .homeSetsWon(setsWon == null ? null : setsWon.home())
-                .awaySetsWon(setsWon == null ? null : setsWon.away())
-                .protested(acta.wasProtested())
-                .createNew();
+    /**
+     * The FCTT callbacks of the shared match lifecycle. Orientation has already been applied when
+     * the classification is PLAYED, so the scheduled header never reads {@code resultado_final}.
+     */
+    private final class FcttLifecycleSource implements MatchLifecycleSource {
+
+        private final FcttMatchReportContext context;
+        private final Season season;
+        private final Integer groupNumber;
+        private final Team homeTeam;
+        private final Team awayTeam;
+
+        private FcttLifecycleSource(FcttMatchReportContext context, Season season, Integer groupNumber,
+                                    Team homeTeam, Team awayTeam) {
+            this.context = context;
+            this.season = season;
+            this.groupNumber = groupNumber;
+            this.homeTeam = homeTeam;
+            this.awayTeam = awayTeam;
+        }
+
+        @Override
+        public Match buildScheduledMatch(UUID id) {
+            Acta acta = context.acta();
+            return Match.builder()
+                    .id(id)
+                    .source(ImportSource.FCTT)
+                    .competition(context.competition())
+                    .season(season)
+                    .groupNumber(groupNumber)
+                    .round(context.round())
+                    .phase(context.phase())
+                    .dateTime(toDateTime(acta))
+                    .city(acta.venue() == null ? null : acta.venue().city())
+                    .venue(acta.venue() == null ? null : acta.venue().venue())
+                    .homeTeam(homeTeam)
+                    .awayTeam(awayTeam)
+                    .refereeName(refereeName(acta))
+                    .protested(acta.wasProtested())
+                    .status(MatchStatus.SCHEDULED)
+                    .createNew();
+        }
+
+        @Override
+        public MatchContent buildPlayedContent(UUID id, boolean existing) {
+            Match match = buildPlayedMatch(id, existing);
+            SideLineup home = resolveLineup(context.acta().lineups() == null
+                    ? Map.of() : context.acta().lineups().home(), season, context);
+            SideLineup away = resolveLineup(context.acta().lineups() == null
+                    ? Map.of() : context.acta().lineups().away(), season, context);
+            List<Lineup> lineups = buildLineups(match, homeTeam, home, awayTeam, away);
+            BuiltGames built = buildGames(context, match, home, away);
+            return new MatchContent(match, lineups, built.games(), built.setScores(), built.doublesPairs());
+        }
+
+        private Match buildPlayedMatch(UUID id, boolean existing) {
+            Acta acta = context.acta();
+            ActaScore gamesWon = acta.finalResult() == null ? null : acta.finalResult().gamesWon();
+            ActaScore setsWon = acta.finalResult() == null ? null : acta.finalResult().setsWon();
+            Match.MatchBuilder builder = Match.builder()
+                    .id(id)
+                    .source(ImportSource.FCTT)
+                    .competition(context.competition())
+                    .season(season)
+                    .groupNumber(groupNumber)
+                    .round(context.round())
+                    .phase(context.phase())
+                    .dateTime(toDateTime(acta))
+                    .city(acta.venue() == null ? null : acta.venue().city())
+                    .venue(acta.venue() == null ? null : acta.venue().venue())
+                    .homeTeam(homeTeam)
+                    .awayTeam(awayTeam)
+                    .winnerTeam(resolveWinnerTeam(acta, homeTeam, awayTeam, context))
+                    .refereeName(refereeName(acta))
+                    .homeGamesWon(gamesWon == null ? null : gamesWon.home())
+                    .awayGamesWon(gamesWon == null ? null : gamesWon.away())
+                    .homeSetsWon(setsWon == null ? null : setsWon.home())
+                    .awaySetsWon(setsWon == null ? null : setsWon.away())
+                    .protested(acta.wasProtested())
+                    .status(MatchStatus.PLAYED);
+            return existing ? builder.createExisting() : builder.createNew();
+        }
+    }
+
+    /** Games, set scores and doubles pairs built from one report, not yet saved. */
+    private record BuiltGames(List<Game> games, List<SetScore> setScores, List<DoublesPair> doublesPairs) {
     }
 
     private static ZonedDateTime toDateTime(Acta acta) {
@@ -240,7 +309,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         });
     }
 
-    private void storeGames(FcttMatchReportContext context, Match match, SideLineup home, SideLineup away) {
+    private BuiltGames buildGames(FcttMatchReportContext context, Match match, SideLineup home, SideLineup away) {
         List<Game> games = new ArrayList<>();
         List<SetScore> setScores = new ArrayList<>();
         List<DoublesPair> doublesPairs = new ArrayList<>();
@@ -256,9 +325,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
                 doublesPairs.addAll(buildDoublesPairs(actaGame, game, home, away, context));
             }
         }
-        gameRepository.saveGames(games);
-        setScoreRepository.saveSetScores(setScores);
-        doublesPairRepository.saveDoublesPairs(doublesPairs);
+        return new BuiltGames(games, setScores, doublesPairs);
     }
 
     private Game buildGame(ActaGame actaGame, Match match, SideLineup home, SideLineup away) {

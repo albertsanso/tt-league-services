@@ -18,7 +18,9 @@ import java.util.Objects;
  * report that holds every fixture of a matchday one after another, reusing the same lineup letters
  * (A/B/C, X/Y/Z) for each: {@code A vs Y} is the first crossing in all 16,387 files, so a new fixture
  * starts wherever a game's {@code cruce} repeats the file's first crossing. A report with no games
- * yields no fixtures.</p>
+ * yields one fixture named by {@code equipos} alone (FEAT-00081): that is the shape of a pending
+ * acta whose scheduled fixture has no published games yet, and the match processor stores it as a
+ * SCHEDULED match.</p>
  *
  * <p>The first fixture is named directly, by {@code equipos}; any later fixture's clubs are inferred
  * from its own participants' licences via {@link BcnesaClubIndex}, and are left {@code null} when the
@@ -44,7 +46,8 @@ public final class BcnesaMatchdaySplitter {
     public List<Fixture> split(Acta acta, BcnesaClubIndex clubIndex) {
         List<ActaGame> games = acta.games();
         if (games.isEmpty()) {
-            return List.of();
+            return List.of(new Fixture(teamName(acta.teams(), true), teamName(acta.teams(), false),
+                    List.of()));
         }
 
         List<List<ActaGame>> cycles = splitIntoCycles(games);

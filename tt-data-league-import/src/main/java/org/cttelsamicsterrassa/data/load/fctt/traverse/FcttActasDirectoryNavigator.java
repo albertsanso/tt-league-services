@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportContext;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportProcessor;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParseException;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
@@ -46,6 +47,7 @@ public class FcttActasDirectoryNavigator {
 
     private final List<FcttMatchReportProcessor> processors;
     private final ActaParser actaParser;
+    private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
 
     public FcttActasDirectoryNavigator(List<FcttMatchReportProcessor> processors, ActaParser actaParser) {
         this.processors = processors == null ? List.of() : List.copyOf(processors);
@@ -232,6 +234,13 @@ public class FcttActasDirectoryNavigator {
                 counters.skipped++;
                 LOGGER.warn("Skipping {}: payload gender \"{}\" does not match the {} folder",
                         reportFile, acta.gender(), gender);
+                reportProgress(counters, progressListener);
+                continue;
+            }
+            if (classifier.classify(acta).unresolvedPendingFixture()) {
+                counters.skipped++;
+                LOGGER.warn("Skipping {}: pending fixture has no teams; it is reported as unresolved "
+                        + "and not dispatched", reportFile);
                 reportProgress(counters, progressListener);
                 continue;
             }

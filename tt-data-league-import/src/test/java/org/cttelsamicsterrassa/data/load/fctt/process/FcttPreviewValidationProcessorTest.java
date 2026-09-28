@@ -43,8 +43,27 @@ class FcttPreviewValidationProcessorTest {
         assertTrue(result.validationFindings().stream()
                 .anyMatch(finding -> finding.message().contains("not published")));
         assertTrue(result.validationFindings().stream()
+                .anyMatch(finding -> finding.message().contains("stored as a scheduled match")));
+        assertTrue(result.validationFindings().stream()
                 .noneMatch(finding -> finding.message().contains("ready to simulate")));
         assertTrue(result.processingErrors().isEmpty());
+    }
+
+    @Test
+    void noTeamPlaceholderIsReportedAsUnresolvedNotAsAnError() {
+        ImportPreviewCollector collector = new ImportPreviewCollector();
+        FcttMatchReportContext context = context("acta_fctt_2026_no_team_placeholder.json", "female",
+                "copa-catalana-femenina-1a", null);
+
+        new FcttPreviewValidationProcessor(collector).process(context);
+        ImportPreviewResult result = collector.toResult(1, 1, 0, 0);
+
+        assertEquals("success", result.status().value());
+        assertTrue(result.validationFindings().stream()
+                .anyMatch(finding -> finding.message().contains("no teams")
+                        && finding.message().contains("not stored")));
+        assertTrue(result.processingErrors().isEmpty(),
+                "a placeholder must not fail the preview as incomplete teams used to");
     }
 
     @Test

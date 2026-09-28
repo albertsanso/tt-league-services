@@ -87,13 +87,18 @@ class ScheduledMatchBackfillServiceTest {
     }
 
     private void seed(List<MatchContextProcessor> processors) {
+        // FEAT-00081 imports the legacy-empty and decided 0-0 shapes directly as SCHEDULED, so the
+        // stored PLAYED placeholder rows this backfill repairs are restored here to the pre-feature
+        // state the FEAT-00077 default produced: same header, status PLAYED.
         int before = matches.saved.size();
         run(processors, legacyEmptyContext());
         legacyEmptyMatchId = lastAdded(before);
+        restoreLegacyPlayedPlaceholder(legacyEmptyMatchId);
 
         before = matches.saved.size();
         run(processors, decidedZeroZeroContext());
         decidedZeroZeroMatchId = lastAdded(before);
+        restoreLegacyPlayedPlaceholder(decidedZeroZeroMatchId);
 
         before = matches.saved.size();
         run(processors, playedWithWinnerContext());
@@ -197,6 +202,39 @@ class ScheduledMatchBackfillServiceTest {
                 .filter(match -> matchId.equals(match.getId()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Match not found: " + matchId));
+    }
+
+    /**
+     * Rewrites the stored fixture as the pre-FEAT-00081 row the backfill repairs: same id and header,
+     * status PLAYED. FEAT-00081 imports these shapes directly as SCHEDULED, so the legacy stored state
+     * must be restored for the backfill service to have candidates.
+     */
+    private void restoreLegacyPlayedPlaceholder(UUID matchId) {
+        Match stored = matchById(matchId);
+        matches.saved.set(matches.saved.indexOf(stored), Match.builder()
+                .id(stored.getId())
+                .source(stored.getSource())
+                .externalId(stored.getExternalId())
+                .competition(stored.getCompetition())
+                .season(stored.getSeason())
+                .groupNumber(stored.getGroupNumber())
+                .round(stored.getRound())
+                .phase(stored.getPhase())
+                .dateTime(stored.getDateTime())
+                .city(stored.getCity())
+                .venue(stored.getVenue())
+                .homeTeam(stored.getHomeTeam())
+                .awayTeam(stored.getAwayTeam())
+                .winnerTeam(stored.getWinnerTeam())
+                .refereeName(stored.getRefereeName())
+                .refereeLicense(stored.getRefereeLicense())
+                .homeGamesWon(stored.getHomeGamesWon())
+                .awayGamesWon(stored.getAwayGamesWon())
+                .homeSetsWon(stored.getHomeSetsWon())
+                .awaySetsWon(stored.getAwaySetsWon())
+                .protested(stored.isProtested())
+                .status(MatchStatus.PLAYED)
+                .createExisting());
     }
 
     private static Set<UUID> candidateIds(List<ScheduledMatchBackfillCandidate> candidates) {

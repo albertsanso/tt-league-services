@@ -71,30 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00081] Match processor lifecycle for incremental actas
-- **Status:** idea
-- **Priority:** high
-- **Effort:** medium
-- **Depends on:** FEAT-00076, FEAT-00079, FEAT-00080
-
-#### Goal
-Store pending actas of all three sources as SCHEDULED matches and upgrade them in place to PLAYED when their published acta arrives.
-
-#### Acceptance Criteria
-- [ ] RFETM, FCTT and BCNESA match processors implement the shared algorithm of analysis section 4.3 (create, upgrade, reschedule, skip, regression issue)
-- [ ] RFETM classifies actas before buildMatch and never stores unpublished actas as played
-- [ ] FCTT replaces the FEAT-00074 unpublished skip with the SCHEDULED branch and skips no-team placeholders before the team processor
-- [ ] BcnesaMatchdaySplitter yields one fixture named by equipos when partidos is empty
-- [ ] The SCHEDULED branch never copies resultado_final or a winner; a PLAYED match is never downgraded
-- [ ] The doubles path handles jugadores: [] without creating a DoublesPair
-- [ ] FCTT preview wording reflects the new behaviour
-- [ ] Tests cover create, upgrade, reschedule, idempotent re-import and regression for each source
-
-#### Feature Details
-→ See [FEAT-00081-DETAILS.md](./FEAT-00081-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00082] Incremental import run status and metrics
 - **Status:** idea
 - **Priority:** high
@@ -332,6 +308,30 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00081] Match processor lifecycle for incremental actas
+- **Status:** done
+- **Priority:** high
+- **Effort:** medium
+- **Depends on:** FEAT-00076, FEAT-00079, FEAT-00080
+
+#### Goal
+Store pending actas of all three sources as SCHEDULED matches and upgrade them in place to PLAYED when their published acta arrives.
+
+#### Acceptance Criteria
+- [x] RFETM, FCTT and BCNESA match processors implement the shared algorithm of analysis section 4.3 (create, upgrade, reschedule, skip, regression issue)
+- [x] RFETM classifies actas before buildMatch and never stores unpublished actas as played
+- [x] FCTT replaces the FEAT-00074 unpublished skip with the SCHEDULED branch and skips no-team placeholders before the team processor
+- [x] BcnesaMatchdaySplitter yields one fixture named by equipos when partidos is empty
+- [x] The SCHEDULED branch never copies resultado_final or a winner; a PLAYED match is never downgraded
+- [x] The doubles path handles jugadores: [] without creating a DoublesPair
+- [x] FCTT preview wording reflects the new behaviour
+- [x] Tests cover create, upgrade, reschedule, idempotent re-import and regression for each source
+
+#### Feature Details
+→ See [FEAT-00081-DETAILS.md](./FEAT-00081-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00080] Match upgrade and reschedule repository ports
 - **Status:** done

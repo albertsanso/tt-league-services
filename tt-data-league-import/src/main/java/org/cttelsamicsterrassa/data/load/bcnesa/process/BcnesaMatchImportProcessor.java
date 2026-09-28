@@ -9,11 +9,18 @@ import org.cttelsamicsterrassa.data.core.domain.game.repository.GameRepository;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleSource;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleWriter;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
@@ -60,6 +67,8 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
     private final LineupRepository lineupRepository;
     private final GameRepository gameRepository;
     private final DoublesPairRepository doublesPairRepository;
+    private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
+    private final MatchLifecycleWriter lifecycleWriter;
 
     public BcnesaMatchImportProcessor(TeamRepository teamRepository,
                                       PlayerSeasonRepository playerSeasonRepository,
@@ -73,10 +82,13 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         this.lineupRepository = lineupRepository;
         this.gameRepository = gameRepository;
         this.doublesPairRepository = doublesPairRepository;
+        this.lifecycleWriter = new MatchLifecycleWriter(matchRepository, lineupRepository, gameRepository,
+                doublesPairRepository);
     }
 
     @Override
     public void process(BcnesaMatchReportContext context) {
+        ActaClassification classification = classifier.classify(context.acta(), context.games());
         Season season = context.toSeason();
         Optional<Team> homeTeam = resolveTeam(context.homeTeamName(), season, context);
         Optional<Team> awayTeam = resolveTeam(context.awayTeamName(), season, context);
@@ -88,57 +100,117 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         Integer groupNumber = context.groupNumber();
         int round = context.round();
 
-        if (matchRepository.findMatchByNaturalKey(competition, season, groupNumber, round, context.phase(),
-                homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
-            LOGGER.debug("Fixture already stored for {} #{}; skipping", context.matchReportFile(), context.fixtureIndex());
-            return;
+        Optional<Match> existing = matchRepository.findMatchByNaturalKey(competition, season, groupNumber,
+                round, context.phase(), homeTeam.get().getId(), awayTeam.get().getId());
+        MatchLifecycleOutcome outcome = lifecycleWriter.apply(classification, existing,
+                new BcnesaLifecycleSource(context, season, competition, groupNumber, round,
+                        homeTeam.get(), awayTeam.get()));
+        context.runContext().recordMatchOutcome(outcome, getClass().getSimpleName(),
+                context.matchReportFile(), classification.reason());
+        if (outcome.isReportable()) {
+            LOGGER.warn("Match lifecycle {} for fixture {} of {}: {}", outcome, context.fixtureIndex(),
+                    context.matchReportFile(), classification.reason());
+        }
+    }
+
+    /**
+     * The BCNESA callbacks of the shared match lifecycle. The scheduled header never derives
+     * games/set counts or a winner from the fixture's games, and set scores are always empty:
+     * BCNESA stores none.
+     */
+    private final class BcnesaLifecycleSource implements MatchLifecycleSource {
+
+        private final BcnesaMatchReportContext context;
+        private final Season season;
+        private final String competition;
+        private final Integer groupNumber;
+        private final int round;
+        private final Team homeTeam;
+        private final Team awayTeam;
+
+        private BcnesaLifecycleSource(BcnesaMatchReportContext context,
+                                      Season season,
+                                      String competition,
+                                      Integer groupNumber,
+                                      int round,
+                                      Team homeTeam,
+                                      Team awayTeam) {
+            this.context = context;
+            this.season = season;
+            this.competition = competition;
+            this.groupNumber = groupNumber;
+            this.round = round;
+            this.homeTeam = homeTeam;
+            this.awayTeam = awayTeam;
         }
 
-        Match match = buildMatch(context, season, competition, groupNumber, round, homeTeam.get(), awayTeam.get());
-        matchRepository.saveMatch(match);
+        @Override
+        public Match buildScheduledMatch(UUID id) {
+            Acta acta = context.acta();
+            return Match.builder()
+                    .id(id)
+                    .source(ImportSource.BCNESA)
+                    .competition(competition)
+                    .season(season)
+                    .groupNumber(groupNumber)
+                    .round(round)
+                    .phase(context.phase())
+                    .dateTime(toDateTime(acta))
+                    .city(acta.venue() != null ? acta.venue().city() : null)
+                    .venue(acta.venue() != null ? acta.venue().venue() : null)
+                    .homeTeam(homeTeam)
+                    .awayTeam(awayTeam)
+                    .refereeName(refereeName(acta))
+                    .protested(acta.wasProtested())
+                    .status(MatchStatus.SCHEDULED)
+                    .createNew();
+        }
 
-        SideLineup home = resolveLineup(context.games(), true, season, context);
-        SideLineup away = resolveLineup(context.games(), false, season, context);
+        @Override
+        public MatchContent buildPlayedContent(UUID id, boolean existing) {
+            Match match = buildPlayedMatch(id, existing);
+            SideLineup home = resolveLineup(context.games(), true, season, context);
+            SideLineup away = resolveLineup(context.games(), false, season, context);
+            List<Lineup> lineups = buildLineups(match, homeTeam, home, awayTeam, away);
+            BuiltGames built = buildGames(context, match, home, away);
+            return new MatchContent(match, lineups, built.games(), List.of(), built.doublesPairs());
+        }
 
-        lineupRepository.saveLineups(buildLineups(match, homeTeam.get(), home, awayTeam.get(), away));
-        storeGames(context, match, home, away);
+        private Match buildPlayedMatch(UUID id, boolean existing) {
+            Acta acta = context.acta();
+            int homeGamesWon = context.homeGamesWon();
+            int awayGamesWon = context.awayGamesWon();
+
+            Match.MatchBuilder builder = Match.builder()
+                    .id(id)
+                    .source(ImportSource.BCNESA)
+                    .competition(competition)
+                    .season(season)
+                    .groupNumber(groupNumber)
+                    .round(round)
+                    .phase(context.phase())
+                    .dateTime(toDateTime(acta))
+                    .city(acta.venue() != null ? acta.venue().city() : null)
+                    .venue(acta.venue() != null ? acta.venue().venue() : null)
+                    .homeTeam(homeTeam)
+                    .awayTeam(awayTeam)
+                    .winnerTeam(resolveWinnerTeam(homeGamesWon, awayGamesWon, homeTeam, awayTeam))
+                    .refereeName(refereeName(acta))
+                    .homeGamesWon(homeGamesWon)
+                    .awayGamesWon(awayGamesWon)
+                    .homeSetsWon(context.homeSetsWon())
+                    .awaySetsWon(context.awaySetsWon())
+                    .protested(acta.wasProtested())
+                    .status(MatchStatus.PLAYED);
+            return existing ? builder.createExisting() : builder.createNew();
+        }
+    }
+
+    /** Games and doubles pairs built from one fixture, not yet saved. BCNESA stores no set scores. */
+    private record BuiltGames(List<Game> games, List<DoublesPair> doublesPairs) {
     }
 
     // --- match -----------------------------------------------------------------------------
-
-    private Match buildMatch(BcnesaMatchReportContext context,
-                             Season season,
-                             String competition,
-                             Integer groupNumber,
-                             int round,
-                             Team homeTeam,
-                             Team awayTeam) {
-        Acta acta = context.acta();
-        int homeGamesWon = context.homeGamesWon();
-        int awayGamesWon = context.awayGamesWon();
-
-        return Match.builder()
-                .id(UUID.randomUUID())
-                .source(ImportSource.BCNESA)
-                .competition(competition)
-                .season(season)
-                .groupNumber(groupNumber)
-                .round(round)
-                .phase(context.phase())
-                .dateTime(toDateTime(acta))
-                .city(acta.venue() != null ? acta.venue().city() : null)
-                .venue(acta.venue() != null ? acta.venue().venue() : null)
-                .homeTeam(homeTeam)
-                .awayTeam(awayTeam)
-                .winnerTeam(resolveWinnerTeam(homeGamesWon, awayGamesWon, homeTeam, awayTeam))
-                .refereeName(refereeName(acta))
-                .homeGamesWon(homeGamesWon)
-                .awayGamesWon(awayGamesWon)
-                .homeSetsWon(context.homeSetsWon())
-                .awaySetsWon(context.awaySetsWon())
-                .protested(acta.wasProtested())
-                .createNew();
-    }
 
     private static ZonedDateTime toDateTime(Acta acta) {
         if (acta.date() == null) {
@@ -235,7 +307,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
 
     // --- games -----------------------------------------------------------------------------
 
-    private void storeGames(BcnesaMatchReportContext context, Match match, SideLineup home, SideLineup away) {
+    private BuiltGames buildGames(BcnesaMatchReportContext context, Match match, SideLineup home, SideLineup away) {
         List<Game> games = new ArrayList<>();
         List<DoublesPair> doublesPairs = new ArrayList<>();
 
@@ -251,8 +323,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             }
         }
 
-        gameRepository.saveGames(games);
-        doublesPairRepository.saveDoublesPairs(doublesPairs);
+        return new BuiltGames(games, doublesPairs);
     }
 
     private Game buildGame(ActaGame actaGame, Match match, SideLineup home, SideLineup away) {

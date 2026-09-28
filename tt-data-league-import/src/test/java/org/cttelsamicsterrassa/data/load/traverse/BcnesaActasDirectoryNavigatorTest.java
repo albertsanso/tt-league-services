@@ -311,6 +311,50 @@ class BcnesaActasDirectoryNavigatorTest {
         assertThrows(IOException.class, () -> navigatorWith(injected).traverse(missing));
     }
 
+    @Test
+    void dispatchesOneFixtureForAnUnpublishedActaWithoutGames() throws IOException {
+        // FEAT-00081: a pending fixture has no games; the splitter must still yield the equipos
+        // fixture so the match processor can store it as SCHEDULED.
+        writeReport("2020-2021", "Preferent", "G1", "1a Fase", "acta.json",
+                pendingActaWithoutGames("HOME CLUB", "AWAY CLUB"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(1, summary.fixturesSeen());
+        assertEquals(1, summary.fixturesDispatched());
+        assertEquals(0, summary.fixturesUnresolved());
+        BcnesaMatchReportContext context = injected.single();
+        assertEquals("HOME CLUB", context.homeTeamName());
+        assertTrue(context.games().isEmpty());
+    }
+
+    private static String pendingActaWithoutGames(String home, String away) {
+        return """
+                {
+                  "federacion": "Federació Catalana de Tennis Taula",
+                  "temporada": "2020/2021",
+                  "competicion": "Preferent",
+                  "grupo": 1,
+                  "jornada": 2,
+                  "acta_publicada": false,
+                  "fecha": "2020-10-08",
+                  "hora": null,
+                  "lugar": null,
+                  "equipos": {
+                    "local": { "id": null, "nombre": "%s", "delegado": null, "entrenador": null },
+                    "visitante": { "id": null, "nombre": "%s", "delegado": null, "entrenador": null }
+                  },
+                  "abc_es_local": null,
+                  "arbitros": null,
+                  "alineaciones": { "local": {}, "visitante": {} },
+                  "dobles": null,
+                  "partidos": [],
+                  "resultado_final": null,
+                  "acta_protestada": false
+                }
+                """.formatted(home, away);
+    }
+
     private BcnesaActasDirectoryNavigator navigatorWith(BcnesaMatchReportProcessor... processors) {
         return new BcnesaActasDirectoryNavigator(List.of(processors), new ActaParser());
     }

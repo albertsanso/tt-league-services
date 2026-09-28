@@ -70,6 +70,36 @@ class BcnesaMatchdaySplitterTest {
         assertFalse(second.isResolved());
     }
 
+    @Test
+    void anActaWithoutGamesYieldsOneFixtureNamedByEquipos() {
+        // FEAT-00081: a pending fixture has no published games yet but must still reach the
+        // processors so it can be stored as a SCHEDULED match.
+        Acta acta = acta();
+
+        List<BcnesaMatchdaySplitter.Fixture> fixtures = splitter.split(acta, BcnesaClubIndex.of(Map.of()));
+
+        assertEquals(1, fixtures.size());
+        BcnesaMatchdaySplitter.Fixture fixture = fixtures.getFirst();
+        assertEquals("HOME CLUB", fixture.homeTeamName());
+        assertEquals("AWAY CLUB", fixture.awayTeamName());
+        assertTrue(fixture.isResolved());
+        assertTrue(fixture.games().isEmpty());
+    }
+
+    @Test
+    void anActaWithoutGamesOrEquiposStaysUnresolved() {
+        Acta acta = actaWithoutTeams();
+
+        BcnesaMatchdaySplitter.Fixture fixture = splitter.split(acta, BcnesaClubIndex.of(Map.of())).getFirst();
+
+        assertFalse(fixture.isResolved());
+    }
+
+    private static Acta actaWithoutTeams() {
+        return new Acta(null, false, "Federació Catalana de Tennis Taula", "2026/2027", "1a Comarcal", 1, 1,
+                null, null, null, null, null, null, null, null, null, null, List.of(), null, false);
+    }
+
     private static Acta acta(ActaGame... games) {
         ActaTeams teams = new ActaTeams(
                 new ActaTeam(null, "HOME CLUB", null, null),

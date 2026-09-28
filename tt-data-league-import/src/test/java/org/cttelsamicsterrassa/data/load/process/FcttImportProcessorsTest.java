@@ -23,6 +23,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -51,11 +52,11 @@ class FcttImportProcessorsTest {
         players = new InMemoryRepositories.Players();
         canonicalPlayers = new InMemoryRepositories.Players.CanonicalPlayers();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
-        matches = new InMemoryRepositories.Matches();
         lineups = new InMemoryRepositories.Lineups(playerSeasons);
         games = new InMemoryRepositories.Games();
         setScores = new InMemoryRepositories.SetScores();
         doublesPairs = new InMemoryRepositories.DoublesPairs();
+        matches = new InMemoryRepositories.Matches(lineups, games, setScores, doublesPairs);
         processors = List.of(
                 new FcttTeamImportProcessor(teams),
                 new FcttPlayerImportProcessor(playerSeasons),
@@ -140,10 +141,15 @@ class FcttImportProcessorsTest {
     }
 
     @Test
-    void unpublishedActaStoresNoMatch() {
+    void unpublishedActaStoresAScheduledMatchWithNoChildren() {
         run(context("acta_fctt_unpublished.json", "G1"));
 
-        assertEquals(0, matches.saved.size());
+        assertEquals(1, matches.saved.size());
+        Match match = matches.saved.getFirst();
+        assertEquals(MatchStatus.SCHEDULED, match.getStatus());
+        assertNull(match.getWinnerTeam());
+        assertNull(match.getHomeGamesWon());
+        assertNull(match.getAwayGamesWon());
         assertEquals(0, lineups.saved.size());
         assertEquals(0, games.saved.size());
     }
