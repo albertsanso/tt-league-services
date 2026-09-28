@@ -106,15 +106,18 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
 
         ActaClassification classification = classifier.classify(acta);
         Season season = context.toSeason();
-        Optional<Team> homeTeam = resolveTeam(context.homeTeam(), homeTeam(context), season, context);
-        Optional<Team> awayTeam = resolveTeam(context.awayTeam(), awayTeam(context), season, context);
-        if (homeTeam.isEmpty() || awayTeam.isEmpty()) {
-            return;
-        }
-
         String competition = context.competition();
         int groupNumber = acta.group() != null ? acta.group() : 0;
         int round = resolveRound(acta, context);
+        Optional<Team> homeTeam = resolveTeam(context.homeTeam(), homeTeam(context), season, context);
+        Optional<Team> awayTeam = resolveTeam(context.awayTeam(), awayTeam(context), season, context);
+        // FEAT-00086: the fixture is "seen" even when a team is unregistered or the identity guard
+        // later rejects it, so snapshot reconciliation cannot report it as absent.
+        context.runContext().recordSnapshotFixture(competition, groupNumber, null, round, acta.matchId(),
+                homeTeam.map(Team::getId).orElse(null), awayTeam.map(Team::getId).orElse(null));
+        if (homeTeam.isEmpty() || awayTeam.isEmpty()) {
+            return;
+        }
 
         Optional<Match> existing = matchRepository.findMatchByNaturalKey(competition, season, groupNumber,
                 round, null, homeTeam.get().getId(), awayTeam.get().getId());

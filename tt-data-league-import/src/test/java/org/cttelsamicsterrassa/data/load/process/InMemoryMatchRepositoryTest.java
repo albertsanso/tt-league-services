@@ -250,6 +250,34 @@ class InMemoryMatchRepositoryTest {
         assertThrows(NullPointerException.class, () -> matches.findRoundProgress(ImportSource.RFETM, null));
     }
 
+    @Test
+    void findMatchesBySourceSeasonAndStatusIsScopedAndRejectsNullArguments() {
+        Match scheduled = savedScheduled(UUID.randomUUID(), 1);
+        savedPlayed(UUID.randomUUID(), 2);
+        Match otherSeason = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM)
+                .competition(COMPETITION).season(Season.of(2026)).groupNumber(1).round(1)
+                .homeTeam(home).awayTeam(away).status(MatchStatus.SCHEDULED).createExisting();
+        matches.saveMatch(otherSeason);
+        Match otherSource = Match.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .competition(COMPETITION).season(SEASON).groupNumber(1).round(1)
+                .homeTeam(home).awayTeam(away).status(MatchStatus.SCHEDULED).createExisting();
+        matches.saveMatch(otherSource);
+
+        assertEquals(List.of(scheduled.getId()), matches.findMatchesBySourceSeasonAndStatus(
+                ImportSource.RFETM, SEASON, MatchStatus.SCHEDULED).stream().map(Match::getId).toList());
+        assertEquals(1, matches.findMatchesBySourceSeasonAndStatus(
+                ImportSource.RFETM, SEASON, MatchStatus.PLAYED).size());
+        assertTrue(matches.findMatchesBySourceSeasonAndStatus(
+                ImportSource.FCTT, SEASON, MatchStatus.SCHEDULED).isEmpty());
+
+        assertThrows(NullPointerException.class,
+                () -> matches.findMatchesBySourceSeasonAndStatus(null, SEASON, MatchStatus.SCHEDULED));
+        assertThrows(NullPointerException.class,
+                () -> matches.findMatchesBySourceSeasonAndStatus(ImportSource.RFETM, null, MatchStatus.SCHEDULED));
+        assertThrows(NullPointerException.class,
+                () -> matches.findMatchesBySourceSeasonAndStatus(ImportSource.RFETM, SEASON, null));
+    }
+
     // --- fixtures ----------------------------------------------------------------------------
 
     private void storedFcttMatch(Season season, int round, MatchStatus status) {

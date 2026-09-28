@@ -71,26 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00086] Snapshot reconciliation report
-- **Status:** idea
-- **Priority:** medium
-- **Effort:** small
-- **Depends on:** FEAT-00081, FEAT-00083
-
-#### Goal
-Report stored SCHEDULED matches that are absent from a snapshot, without deleting anything.
-
-#### Acceptance Criteria
-- [ ] After a snapshot run, stored SCHEDULED matches of the season not seen in the run are reported, matched by id_partido or natural key
-- [ ] Rounds beyond the snapshot's highest round are not flagged (FCTT sliding window)
-- [ ] No match is deleted or modified by reconciliation
-- [ ] Tests cover a vanished fixture and the FCTT window case
-
-#### Feature Details
-→ See [FEAT-00086-DETAILS.md](./FEAT-00086-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00087] Snapshot upload contract and shrink check
 - **Status:** idea
 - **Priority:** medium
@@ -227,6 +207,26 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00086] Snapshot reconciliation report
+- **Status:** done
+- **Priority:** medium
+- **Effort:** small
+- **Depends on:** FEAT-00081, FEAT-00083, FEAT-00085
+
+#### Goal
+Report stored SCHEDULED matches that are absent from a snapshot, without deleting anything.
+
+#### Acceptance Criteria
+- [x] After a snapshot run, stored SCHEDULED matches of the season not seen in the run are reported, matched by id_partido or natural key
+- [x] Rounds beyond the snapshot's highest round are not flagged (FCTT sliding window)
+- [x] No match is deleted or modified by reconciliation
+- [x] Tests cover a vanished fixture and the FCTT window case
+
+#### Feature Details
+→ See [FEAT-00086-DETAILS.md](./FEAT-00086-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00085] Natural-key stability guard
 - **Status:** done

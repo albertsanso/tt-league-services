@@ -106,6 +106,23 @@ class MatchLifecycleImportProcessorsTest {
     }
 
     @Test
+    void rfetmRecordsTheFixtureAsSeenBeforeTheUnregisteredTeamEarlyReturn() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.RFETM, "2026-2027");
+        RfetmMatchImportProcessor matchProcessor = new RfetmMatchImportProcessor(teams, playerSeasons, matches,
+                lineups, games, setScores, doublesPairs);
+
+        // teams is empty, so neither side resolves and the processor returns before storing anything.
+        matchProcessor.process(rfetmContext("2026-2027", "divisio-honor", "1", "femenino",
+                acta("acta_rfetm_2026_unpublished.json"), runContext));
+
+        assertTrue(matches.saved.isEmpty(), "an unregistered team stores no match");
+        var seen = runContext.snapshotFixtures();
+        assertTrue(seen.containsFixtureId("2026-2027_divisio-honor_G3_J1_20201878-1052"),
+                "the fixture id is recorded before the early return, so reconciliation sees it by id_partido");
+        assertTrue(seen.naturalKeys().isEmpty(), "no natural key is recorded without resolved teams");
+    }
+
+    @Test
     void rfetmPublishedActaUpgradesStoredScheduledMatchKeepingItsId() {
         ImportRunContext runContext = new ImportRunContext(ImportSource.RFETM, "2026-2027");
         MatchReportContext pending = rfetmContext("2026-2027", "divisio-honor", "1", "femenino",

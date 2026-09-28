@@ -96,13 +96,17 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         Season season = context.toSeason();
         Optional<Team> homeTeam = resolveTeam(context.homeTeamName(), season, context);
         Optional<Team> awayTeam = resolveTeam(context.awayTeamName(), season, context);
-        if (homeTeam.isEmpty() || awayTeam.isEmpty()) {
-            return;
-        }
-
         String competition = context.competition();
         Integer groupNumber = context.groupNumber();
         int round = context.round();
+        // FEAT-00086: the fixture is "seen" even when a team is unregistered or the identity guard
+        // later rejects it, so snapshot reconciliation cannot report it as absent.
+        context.runContext().recordSnapshotFixture(competition, groupNumber, context.phase(), round,
+                sourceFixtureId(context, context.acta()),
+                homeTeam.map(Team::getId).orElse(null), awayTeam.map(Team::getId).orElse(null));
+        if (homeTeam.isEmpty() || awayTeam.isEmpty()) {
+            return;
+        }
 
         Optional<Match> existing = matchRepository.findMatchByNaturalKey(competition, season, groupNumber,
                 round, context.phase(), homeTeam.get().getId(), awayTeam.get().getId());

@@ -128,6 +128,23 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
         issues.addAll(counts.issues);
         ImportProcessStatus status = ImportRunStatusPolicy.statusOf(counts.processorFailures,
                 !counts.issues.isEmpty(), counts.dispatched, counts.lifecycle);
+        Season requestedSeason = request.season().orElse(null);
+
+        // FEAT-00086: snapshot reconciliation is report-only. It runs only on a SUCCESS traversal with
+        // a season (a failed or partial traversal would report present fixtures as absent) and only
+        // when the match repository is wired. Its findings are warnings that never change a SUCCESS
+        // status; only a reconciliation failure does, exactly like round progress below.
+        List<ImportExecutionIssue> reconciliationWarnings = List.of();
+        if (status == ImportProcessStatus.SUCCESS && requestedSeason != null && matchRepository != null) {
+            try {
+                reconciliationWarnings = new SnapshotReconciler(matchRepository)
+                        .reconcile(request.source(), requestedSeason, runContext.snapshotFixtures());
+            } catch (RuntimeException exception) {
+                issues.add(new ImportExecutionIssue("snapshot-reconciliation", "", safeMessage(exception)));
+                status = ImportProcessStatus.FAILURE;
+            }
+        }
+
         List<PostProcessingOutcome> outcomes = new ArrayList<>();
         if (status == ImportProcessStatus.SUCCESS) {
             if (effective.clubConsolidationMode() != null) {
@@ -150,7 +167,6 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
         // traversal, or file selection. Without a season no implicit season is chosen, so it is not
         // computed at all.
         List<RoundProgress> roundProgress = List.of();
-        Season requestedSeason = request.season().orElse(null);
         if (requestedSeason != null && matchRepository != null) {
             try {
                 roundProgress = matchRepository.findRoundProgress(request.source(), requestedSeason);
@@ -165,8 +181,10 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
         progressListener.onProgress(counts.files > 0
                 ? ImportRunProgress.determinate(counts.dispatched, counts.files, counts.skipped, counts.processorFailures)
                 : ImportRunProgress.indeterminate(counts.dispatched, counts.skipped, counts.processorFailures));
+        List<ImportExecutionIssue> warnings = new ArrayList<>(runContext.reportedMatchIssues());
+        warnings.addAll(reconciliationWarnings);
         return new ImportExecutionResult(request.source(), request.season().map(Object::toString),
-                status, metrics, issues, outcomes, runContext.reportedMatchIssues(), roundProgress);
+                status, metrics, issues, outcomes, warnings, roundProgress);
     }
 
     private Counts traverse(ImportSource source, Path folder, String season, ImportRunContext runContext,

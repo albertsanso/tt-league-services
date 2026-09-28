@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -40,6 +41,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -312,6 +314,112 @@ class NavigatorImportExecutionLifecycleTest {
         assertTrue(result.roundProgress().isEmpty());
     }
 
+    @Test
+    void aFixtureThatVanishesFromTheSnapshotIsReportedButNeverDeleted() throws Exception {
+        writeFcttGroupOneSnapshot();
+        ImportExecutionRequest request = fcttRequest();
+
+        ImportExecutionResult first = service.execute(request, ImportExecutionOptions.defaults());
+        assertEquals(ImportProcessStatus.SUCCESS, first.status());
+        assertTrue(reconciliationWarnings(first).isEmpty(), "the first snapshot sees every stored fixture");
+
+        Match vanished = matches.findBySourceFixtureId(ImportSource.FCTT,
+                "2026-2027_tercera-nacional_G1_1aFase_R2P3").orElseThrow();
+        assertEquals(MatchStatus.SCHEDULED, vanished.getStatus());
+        ZonedDateTime scheduleBefore = vanished.getDateTime();
+
+        Files.delete(fcttGroupOneFolder().resolve("jornada-2-partido-3.json"));
+
+        ImportExecutionResult second = service.execute(request, ImportExecutionOptions.defaults());
+        assertEquals(ImportProcessStatus.SUCCESS, second.status(), "reconciliation never changes a SUCCESS run");
+
+        List<ImportExecutionIssue> reconciliation = reconciliationWarnings(second);
+        assertEquals(1, reconciliation.size(), "exactly the vanished jornada-2 fixture is reported");
+        assertEquals("match " + vanished.getId(), reconciliation.getFirst().location());
+        assertTrue(reconciliation.getFirst().message()
+                        .contains("id_partido 2026-2027_tercera-nacional_G1_1aFase_R2P3"),
+                reconciliation.getFirst().message());
+
+        Match after = matches.findMatchById(vanished.getId()).orElseThrow();
+        assertEquals(MatchStatus.SCHEDULED, after.getStatus(), "reconciliation never deletes or re-statuses");
+        assertEquals(scheduleBefore, after.getDateTime(), "reconciliation never reschedules");
+    }
+
+    @Test
+    void roundsBeyondTheSnapshotWindowAreNotReported() throws Exception {
+        writeFcttGroupOneSnapshot();
+        for (int partido = 1; partido <= 3; partido++) {
+            writeFcttActa(pendingFcttActa(3, partido), 3, partido);
+        }
+        ImportExecutionRequest request = fcttRequest();
+
+        ImportExecutionResult first = service.execute(request, ImportExecutionOptions.defaults());
+        assertEquals(ImportProcessStatus.SUCCESS, first.status());
+        assertTrue(matches.findBySourceFixtureId(ImportSource.FCTT,
+                "2026-2027_tercera-nacional_G1_1aFase_R3P1").isPresent(), "jornada 3 was stored as SCHEDULED");
+
+        // The FCTT window slides back to jornadas 1-2; round 3 disappears from the export.
+        for (int partido = 1; partido <= 3; partido++) {
+            Files.delete(fcttGroupOneFolder().resolve("jornada-3-partido-" + partido + ".json"));
+        }
+
+        ImportExecutionResult second = service.execute(request, ImportExecutionOptions.defaults());
+        assertEquals(ImportProcessStatus.SUCCESS, second.status());
+        assertTrue(reconciliationWarnings(second).isEmpty(),
+                "rounds beyond the snapshot's highest round are the sliding window, not vanished fixtures");
+        assertTrue(matches.findBySourceFixtureId(ImportSource.FCTT,
+                "2026-2027_tercera-nacional_G1_1aFase_R3P1").isPresent(), "the round-3 fixture is kept");
+    }
+
+    @Test
+    void aRunWithoutASeasonDoesNotReconcile() throws Exception {
+        writeFcttGroupOneSnapshot();
+        service.execute(fcttRequest(), ImportExecutionOptions.defaults());
+        Files.delete(fcttGroupOneFolder().resolve("jornada-2-partido-3.json"));
+
+        ImportExecutionResult noSeason = service.execute(
+                new ImportExecutionRequest(ImportSource.FCTT, baseFolder, Optional.empty()),
+                ImportExecutionOptions.defaults());
+
+        assertEquals(ImportProcessStatus.SUCCESS, noSeason.status());
+        assertTrue(reconciliationWarnings(noSeason).isEmpty(),
+                "without a season no implicit season is chosen, so reconciliation does not run");
+    }
+
+    @Test
+    void aRunWithAProcessorFailureDoesNotReconcile() throws Exception {
+        writeFcttGroupOneSnapshot();
+        ImportExecutionRequest request = fcttRequest();
+        service.execute(request, ImportExecutionOptions.defaults());
+        Files.delete(fcttGroupOneFolder().resolve("jornada-2-partido-3.json"));
+
+        FcttMatchReportProcessor throwing = context -> {
+            throw new IllegalStateException("processor boom");
+        };
+        NavigatorImportExecutionService failing = new NavigatorImportExecutionService(
+                new RfetmActasDirectoryNavigator(List.of(), new ActaParser()),
+                new BcnesaActasDirectoryNavigator(List.of(), new ActaParser()),
+                new FcttActasDirectoryNavigator(List.of(throwing), new ActaParser()),
+                List.of(), List.of(), List.of(throwing),
+                null, null, null, null, matches);
+
+        ImportExecutionResult result = failing.execute(request, ImportExecutionOptions.defaults());
+
+        assertEquals(ImportProcessStatus.FAILURE, result.status());
+        assertTrue(reconciliationWarnings(result).isEmpty(),
+                "an incomplete traversal must not report present fixtures as absent");
+    }
+
+    private static List<ImportExecutionIssue> reconciliationWarnings(ImportExecutionResult result) {
+        return result.warnings().stream()
+                .filter(warning -> "SnapshotReconciliation".equals(warning.processor()))
+                .toList();
+    }
+
+    private Path fcttGroupOneFolder() {
+        return baseFolder.resolve("2026-2027").resolve("male").resolve("tercera-nacional").resolve("G1");
+    }
+
     private ImportExecutionRequest fcttRequest() {
         return new ImportExecutionRequest(ImportSource.FCTT, baseFolder, Optional.of(Season.of(2026)));
     }
@@ -424,6 +532,12 @@ class NavigatorImportExecutionLifecycleTest {
         @Override
         public void updateSchedule(UUID matchId, MatchSchedule schedule) {
             throw new UnsupportedOperationException("not needed by this test");
+        }
+
+        @Override
+        public List<Match> findMatchesBySourceSeasonAndStatus(ImportSource source, Season season,
+                                                              MatchStatus status) {
+            return List.of();
         }
     }
 

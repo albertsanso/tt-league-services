@@ -329,6 +329,25 @@ public class MatchRepositoryJpa implements MatchRepository {
         return RoundProgressCalculator.compute(source, season, counts);
     }
 
+    /**
+     * FEAT-00086. Source-scoped read of every match with one status, for snapshot reconciliation.
+     * Read-only; no entity, index or column change.
+     */
+    @Override
+    public List<Match> findMatchesBySourceSeasonAndStatus(
+            ImportSource source, Season season,
+            org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus status) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(season, "season");
+        Objects.requireNonNull(status, "status");
+        return matchRepositoryHelper
+                .findAllBySourceAndSeasonAndStatus(Source.valueOf(source.name()), season.toString(),
+                        MatchStatus.valueOf(status.name()))
+                .stream()
+                .map(matchJPAToMatchMapper)
+                .toList();
+    }
+
     private static RoundStatusCount toStatusCount(RoundStatusCountProjection projection) {
         return new RoundStatusCount(projection.competition(), projection.groupNumber(), projection.phase(),
                 projection.round(),

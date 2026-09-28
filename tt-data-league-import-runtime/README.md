@@ -215,6 +215,34 @@ not shorten a later import: every run still traverses the whole requested
 season. If the progress query itself fails, the run ends `FAILURE` with a
 `round-progress` issue rather than reporting success with no progress.
 
+### Snapshot reconciliation
+
+Every run is a snapshot: the season folder is traversed as a whole, so a stored
+`SCHEDULED` fixture the snapshot no longer carries has probably been cancelled
+or moved by the federation. After a `SUCCESS` traversal of a run with
+`--season`, the run compares the stored `SCHEDULED` matches of that source and
+season against the fixtures it just saw and reports each absent one. A stored
+match counts as seen when its `id_partido` (source fixture id) or its natural
+key (competition, group, phase, round and both clubs) appears in the snapshot,
+so a fixture whose club is not yet registered, or that the identity guard
+rejected, is still seen and never reported.
+
+Rounds beyond the snapshot's highest round are not reported: a source export is
+a sliding window over the season, so an upcoming jornada the window has not
+reached yet is not a vanished fixture. The window is tracked per competition,
+group and phase; a group that disappeared entirely is measured against the
+snapshot-wide highest round, so it is still reported unless all its rounds lie
+beyond that frontier.
+
+Reconciliation is report-only. It never deletes, re-keys, re-statuses or
+reschedules a match; deleting a vanished fixture stays a manual decision. Its
+findings surface as warnings in the run log and as `warning` findings in the
+administration API, and never change a `SUCCESS` run. A run without `--season`,
+or one whose traversal did not end `SUCCESS`, skips reconciliation entirely so
+an incomplete traversal cannot report present fixtures as absent. If the
+reconciliation read itself fails, the run ends `FAILURE` with a
+`snapshot-reconciliation` issue.
+
 ## Launch modes
 
 ### Backfill legacy empty and decided 0-0 matches

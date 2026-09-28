@@ -613,6 +613,20 @@ public final class InMemoryRepositories {
         private record RoundRowKey(String competition, Integer groupNumber, String phase, int round,
                                    MatchStatus status) {
         }
+
+        /** FEAT-00086: source-scoped read of every stored match with one status. */
+        @Override
+        public List<Match> findMatchesBySourceSeasonAndStatus(ImportSource source, Season season,
+                                                              MatchStatus status) {
+            Objects.requireNonNull(source, "source");
+            Objects.requireNonNull(season, "season");
+            Objects.requireNonNull(status, "status");
+            return saved.stream()
+                    .filter(m -> source.equals(m.getSource()))
+                    .filter(m -> season.equals(m.getSeason()))
+                    .filter(m -> status == m.getStatus())
+                    .toList();
+        }
     }
 
     public static final class Lineups implements LineupRepository {

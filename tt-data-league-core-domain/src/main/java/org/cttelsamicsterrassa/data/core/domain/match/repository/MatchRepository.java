@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -152,4 +153,14 @@ public interface MatchRepository {
      * @throws NullPointerException if {@code source} or {@code season} is {@code null}
      */
     List<RoundProgress> findRoundProgress(ImportSource source, Season season);
+
+    /**
+     * Returns every stored match of one source, season and status (FEAT-00086). Used by snapshot
+     * reconciliation, which compares the stored SCHEDULED fixtures of a season against the fixtures
+     * seen in a snapshot run. The lookup is always source-scoped and read-only; an empty list means
+     * the source and season hold no match with that status.
+     *
+     * @throws NullPointerException if {@code source}, {@code season} or {@code status} is {@code null}
+     */
+    List<Match> findMatchesBySourceSeasonAndStatus(ImportSource source, Season season, MatchStatus status);
 }

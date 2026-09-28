@@ -24,6 +24,12 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
      */
     Optional<MatchJPA> findBySourceAndSourceFixtureId(Source source, String sourceFixtureId);
 
+    /**
+     * FEAT-00086: every match of one source, season and status, for snapshot reconciliation.
+     * Served by {@code idx_match_source_season_competition_status}.
+     */
+    List<MatchJPA> findAllBySourceAndSeasonAndStatus(Source source, String season, MatchStatus status);
+
     @Query("""
             select m from MatchJPA m
             where m.source = :source and m.season = :season

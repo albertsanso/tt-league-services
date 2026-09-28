@@ -119,11 +119,16 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         Season season = context.toSeason();
         Optional<Team> homeTeam = resolveTeam(context.acta().teams().home(), season, context);
         Optional<Team> awayTeam = resolveTeam(context.acta().teams().away(), season, context);
+        Integer groupNumber = context.groupNumber().isPresent() ? context.groupNumber().getAsInt() : null;
+        // FEAT-00086: the fixture is "seen" even when a team is unregistered or the identity guard
+        // later rejects it, so snapshot reconciliation cannot report it as absent.
+        context.runContext().recordSnapshotFixture(context.competition(), groupNumber, context.phase(),
+                context.round(), acta.matchId(),
+                homeTeam.map(Team::getId).orElse(null), awayTeam.map(Team::getId).orElse(null));
         if (homeTeam.isEmpty() || awayTeam.isEmpty()) {
             return;
         }
 
-        Integer groupNumber = context.groupNumber().isPresent() ? context.groupNumber().getAsInt() : null;
         Optional<Match> existing = matchRepository.findMatchByNaturalKey(context.competition(), season,
                 groupNumber, context.round(), context.phase(), homeTeam.get().getId(), awayTeam.get().getId());
         Optional<String> conflict = identityGuard.conflict(

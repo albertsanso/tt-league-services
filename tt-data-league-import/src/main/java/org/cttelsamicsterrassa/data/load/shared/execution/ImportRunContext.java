@@ -9,9 +9,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+import java.util.UUID;
 
 /**
  * Mutable state owned by one import invocation. It is deliberately not static or shared between
@@ -25,6 +28,9 @@ public final class ImportRunContext {
             new EnumMap<>(MatchLifecycleOutcome.class);
     private final List<ImportExecutionIssue> reportedMatchIssues = new ArrayList<>();
     private long unresolvedPendingFixtureCount;
+    private final Set<String> snapshotFixtureIds = new LinkedHashSet<>();
+    private final Set<SnapshotFixtures.NaturalKey> snapshotNaturalKeys = new LinkedHashSet<>();
+    private final Map<SnapshotFixtures.Scope, Integer> snapshotHighestRoundByScope = new HashMap<>();
 
     public ImportRunContext(ImportSource source, String season) {
         this.source = Objects.requireNonNull(source, "source");
@@ -85,6 +91,44 @@ public final class ImportRunContext {
     public void recordUnresolvedPendingFixture(String navigator, Path location, String reason) {
         unresolvedPendingFixtureCount++;
         reportedMatchIssues.add(new ImportExecutionIssue(navigator, String.valueOf(location), reason));
+    }
+
+    /**
+     * Records one fixture seen by the snapshot run (FEAT-00086). The processors call this before
+     * team resolution, the identity guard and the writer, so fixtures with an unregistered team and
+     * {@code FIXTURE_IDENTITY_CONFLICT} fixtures are still "seen" and are not falsely reported as
+     * absent. It accumulates the non-null fixture id, the natural key when both team ids are present,
+     * and the highest round per competition/group/phase scope. It never touches the outcome counters,
+     * the lifecycle counters or the reported issues.
+     *
+     * @param competition    required
+     * @param sourceFixtureId nullable
+     * @param homeTeamId     nullable, but both team ids are present or both are absent
+     * @param awayTeamId     nullable, but both team ids are present or both are absent
+     * @throws NullPointerException     if {@code competition} is {@code null}
+     * @throws IllegalArgumentException if exactly one of the two team ids is {@code null}
+     */
+    public void recordSnapshotFixture(String competition, Integer groupNumber, String phase, int round,
+                                      String sourceFixtureId, UUID homeTeamId, UUID awayTeamId) {
+        Objects.requireNonNull(competition, "competition");
+        if ((homeTeamId == null) != (awayTeamId == null)) {
+            throw new IllegalArgumentException(
+                    "homeTeamId and awayTeamId must be both present or both absent");
+        }
+        if (sourceFixtureId != null) {
+            snapshotFixtureIds.add(sourceFixtureId);
+        }
+        if (homeTeamId != null) {
+            snapshotNaturalKeys.add(new SnapshotFixtures.NaturalKey(competition, groupNumber, phase, round,
+                    homeTeamId, awayTeamId));
+        }
+        snapshotHighestRoundByScope.merge(new SnapshotFixtures.Scope(competition, groupNumber, phase),
+                round, Math::max);
+    }
+
+    /** The fixtures seen so far, as an immutable value (FEAT-00086). */
+    public SnapshotFixtures snapshotFixtures() {
+        return new SnapshotFixtures(snapshotFixtureIds, snapshotNaturalKeys, snapshotHighestRoundByScope);
     }
 
     /**
