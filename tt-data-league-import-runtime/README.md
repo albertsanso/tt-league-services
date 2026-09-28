@@ -100,6 +100,9 @@ The application is launched with `--key=value` parameters:
 | `--consolidate-players`        | No | Runs player consolidation in write mode after import. |
 | `--consolidate-players=write`  | No | Explicitly runs player consolidation in write mode. |
 | `--consolidate-players=report` | No | Runs the same player matching path without saving changes. |
+| `--backfill-scheduled-matches`          | No | Runs the scheduled-match backfill (see below) in write mode instead of an import. |
+| `--backfill-scheduled-matches=write`    | No | Explicitly runs the backfill in write mode. |
+| `--backfill-scheduled-matches=report`   | No | Runs the same backfill candidate query without saving changes. |
 
 The source value is case-insensitive. Consolidation flags are opt-in and can
 be used independently or together. Unknown consolidation modes fail with an
@@ -140,6 +143,40 @@ actas-json/
   games; only their clubs are registered from `equipos`.
 
 ## Launch modes
+
+### Backfill legacy empty and decided 0-0 matches
+
+`--backfill-scheduled-matches[=write|report]` marks as `SCHEDULED` the
+`PLAYED` matches of a source and season that carry no result at all: no
+winner, no non-zero header games or sets won, and no game of their own with a
+result (a winner, a non-zero set count, or a set-score row). This covers
+legacy empty RFETM actas and the "decided 0-0" administrative placeholders; it
+never selects a match that has a real winner or a game with a result.
+
+The command is opt-in, requires an explicit `--season` in `YYYY-YYYY` form
+with consecutive years, and is exclusive with every import argument
+(`--actas-folder`, `--rfetm-teams-folder`, `--consolidate-clubs*`,
+`--consolidate-players*`); combining them fails with an error instead of
+running either one. It does not traverse actas.
+
+Report mode runs the same candidate query and performs no writes. Write mode
+marks every candidate `SCHEDULED` in one transaction, deleting the match's
+placeholder games, lineups, set scores, and doubles pairs, and nulling its
+header games/sets won and winner. Only result-less placeholder rows are
+removed this way; the source actas are unaffected, and a later import can
+recreate the child rows once the acta is actually published. Because write
+mode leaves no candidates behind, a second write run finds zero matches: the
+command is idempotent.
+
+Report-then-write example (PowerShell):
+
+```powershell
+java -jar target\tt-data-league-import-runtime.jar `
+  --source=rfetm --season=2025-2026 --backfill-scheduled-matches=report
+
+java -jar target\tt-data-league-import-runtime.jar `
+  --source=rfetm --season=2025-2026 --backfill-scheduled-matches
+```
 
 ## Administration import API
 
@@ -245,3 +282,7 @@ run after an unsuccessful source traversal.
 
 Club and player consolidation are source-scoped. They are not enabled by
 default, and report mode performs no persistence writes.
+
+`--backfill-scheduled-matches` runs instead of steps 2-4 above, not alongside
+them; it is rejected together with `--actas-folder`, `--rfetm-teams-folder`,
+or either consolidation flag.

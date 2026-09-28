@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.core.application.match.find.dto;
 
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
@@ -24,7 +25,8 @@ public record MatchSearchReadModel(
         Integer awaySetsWon,
         boolean protested,
         List<PlayerReadModel> homePlayers,
-        List<PlayerReadModel> awayPlayers) {
+        List<PlayerReadModel> awayPlayers,
+        MatchStatus status) {
     public record PlayerReadModel(UUID id, String name, String license) {
     }
 }

@@ -360,4 +360,31 @@ public class Match extends Entity {
     public MatchStatus getStatus() {
         return status;
     }
+
+    public boolean isPlayed() {
+        return status == MatchStatus.PLAYED;
+    }
+
+    /**
+     * Whether {@code other} is the same fixture: identical source, competition, season, group
+     * number, round, phase and team ids (FEAT-00080). Results, schedules and children may differ;
+     * a replacement that changes this key would silently move a fixture and must be rejected.
+     */
+    public boolean hasSameNaturalKeyAs(Match other) {
+        if (other == null) {
+            return false;
+        }
+        return Objects.equals(source, other.source)
+                && Objects.equals(competition, other.competition)
+                && Objects.equals(season, other.season)
+                && Objects.equals(groupNumber, other.groupNumber)
+                && round == other.round
+                && Objects.equals(phase, other.phase)
+                && Objects.equals(teamId(homeTeam), teamId(other.homeTeam))
+                && Objects.equals(teamId(awayTeam), teamId(other.awayTeam));
+    }
+
+    private static java.util.UUID teamId(Team team) {
+        return team == null ? null : team.getId();
+    }
 }

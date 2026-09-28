@@ -44,4 +44,19 @@ class MatchSearchCriteriaTest {
                 null, null, null, null, null, " CN Terrassa ", 0, 10);
         assertEquals("CN Terrassa", trimmed.clubName());
     }
+
+    @Test
+    void defaultsStatusToPlayedAndRejectsNullStatus() {
+        var defaulted = new MatchSearchCriteria(ImportSource.RFETM, Season.of(2023), "Liga",
+                null, null, null, null, null, null, 0, 10);
+        assertEquals(MatchStatus.PLAYED, defaulted.status());
+
+        var scheduled = new MatchSearchCriteria(ImportSource.RFETM, Season.of(2023), "Liga",
+                null, null, null, null, null, null, 0, 10, MatchStatus.SCHEDULED);
+        assertEquals(MatchStatus.SCHEDULED, scheduled.status());
+
+        assertThrows(NullPointerException.class,
+                () -> new MatchSearchCriteria(ImportSource.RFETM, Season.of(2023), "Liga",
+                        null, null, null, null, null, null, 0, 10, null));
+    }
 }

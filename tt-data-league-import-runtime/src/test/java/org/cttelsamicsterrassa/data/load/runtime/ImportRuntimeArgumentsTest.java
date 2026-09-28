@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
+import org.cttelsamicsterrassa.data.load.shared.match.backfill.ScheduledMatchBackfillMode;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -82,5 +83,41 @@ class ImportRuntimeArgumentsTest {
                 () -> ImportRuntimeArguments.parse("--consolidate-players=preview"));
 
         assertTrue(exception.getMessage().contains("--consolidate-players=preview"));
+    }
+
+    @Test
+    void backfillFlagIsAbsentByDefault() {
+        ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
+                "--source=rfetm", "--actas-folder=C:\\data");
+
+        assertFalse(arguments.backfillScheduledMatches());
+        assertEquals(ScheduledMatchBackfillMode.WRITE, arguments.backfillMode());
+    }
+
+    @Test
+    void enablesWriteBackfillOnlyWhenTheBareFlagIsPresent() {
+        ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
+                "--source=rfetm", "--season=2025-2026", "--backfill-scheduled-matches");
+
+        assertTrue(arguments.backfillScheduledMatches());
+        assertEquals(ScheduledMatchBackfillMode.WRITE, arguments.backfillMode());
+    }
+
+    @Test
+    void enablesAReportOnlyBackfillRun() {
+        ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
+                "--source=rfetm", "--season=2025-2026", "--backfill-scheduled-matches=report");
+
+        assertTrue(arguments.backfillScheduledMatches());
+        assertEquals(ScheduledMatchBackfillMode.REPORT, arguments.backfillMode());
+    }
+
+    @Test
+    void identifiesTheBackfillOptionWithAnInvalidMode() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> ImportRuntimeArguments.parse("--backfill-scheduled-matches=preview"));
+
+        assertTrue(exception.getMessage().contains("--backfill-scheduled-matches=preview"));
     }
 }

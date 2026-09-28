@@ -1,6 +1,8 @@
 package org.cttelsamicsterrassa.data.core.domain.match.repository;
 
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -72,22 +74,25 @@ public interface MatchRepository {
     }
 
     /**
-     * Returns the total number of matches across every source, for community-wide aggregate statistics.
+     * Returns the total number of PLAYED matches across every source, for community-wide aggregate
+     * statistics. SCHEDULED fixtures are excluded (FEAT-00079).
      */
     default long countAllMatches() {
         return 0;
     }
 
     /**
-     * Returns every season with at least one match, across every source, ordered from the most to the
-     * least recent. Used to determine the community-wide current season.
+     * Returns every season with at least one PLAYED match, across every source, ordered from the
+     * most to the least recent. Used to determine the community-wide current season; seasons whose
+     * matches are all SCHEDULED do not appear (FEAT-00079).
      */
     default List<String> findAllSeasons() {
         return List.of();
     }
 
     /**
-     * Returns the number of matches played in the given season, across every source.
+     * Returns the number of PLAYED matches in the given season, across every source
+     * (FEAT-00079).
      */
     default long countMatchesBySeason(Season season) {
         return 0;
@@ -97,4 +102,26 @@ public interface MatchRepository {
     default void saveMatches(Collection<Match> matches) {
         matches.forEach(this::saveMatch);
     }
+
+    /**
+     * Replaces the whole playable content of an existing match in one transaction (FEAT-00080):
+     * the header is overwritten and its lineups, games, set scores and doubles pairs are deleted
+     * and re-inserted from {@code content}. The match id is preserved and the natural key
+     * (source, competition, season, group, round, phase, teams) must be unchanged. Valid for
+     * upgrading a SCHEDULED fixture to PLAYED and for correcting an already PLAYED match; the new
+     * content must be PLAYED (a played match is never downgraded here).
+     *
+     * @throws IllegalStateException if no match with {@code content.match().getId()} exists or its
+     *         natural key differs from the replacement
+     */
+    void replaceMatchContent(MatchContent content);
+
+    /**
+     * Rewrites the schedule fields (date, time, city, venue, referee name and license) of a
+     * SCHEDULED match (FEAT-00080). Touches nothing else: status, teams, results and children are
+     * left alone, and the values are written exactly as given.
+     *
+     * @throws IllegalStateException if no match with {@code matchId} exists or it is not SCHEDULED
+     */
+    void updateSchedule(UUID matchId, MatchSchedule schedule);
 }

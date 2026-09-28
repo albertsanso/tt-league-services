@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
+import org.cttelsamicsterrassa.data.load.shared.match.backfill.ScheduledMatchBackfillMode;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -16,7 +17,9 @@ public record ImportRuntimeArguments(
         boolean consolidateClubs,
         ConsolidationMode consolidationMode,
         boolean consolidatePlayers,
-        ConsolidationMode playerConsolidationMode
+        ConsolidationMode playerConsolidationMode,
+        boolean backfillScheduledMatches,
+        ScheduledMatchBackfillMode backfillMode
 ) {
     public static ImportRuntimeArguments parse(String... args) {
         String source = valueOf(args, ImportRuntimeCliContract.SOURCE_ARGUMENT);
@@ -24,9 +27,10 @@ public record ImportRuntimeArguments(
                 ? ImportRuntimeCliContract.DEFAULT_SOURCE
                 : source.toLowerCase(Locale.ROOT);
 
-        ConsolidationSelection clubs = parseConsolidationSelection(args, ImportRuntimeCliContract.CONSOLIDATE_CLUBS_ARGUMENT);
-        ConsolidationSelection players =
-                parseConsolidationSelection(args, ImportRuntimeCliContract.CONSOLIDATE_PLAYERS_ARGUMENT);
+        ModeSelection clubs = parseModeSelection(args, ImportRuntimeCliContract.CONSOLIDATE_CLUBS_ARGUMENT);
+        ModeSelection players = parseModeSelection(args, ImportRuntimeCliContract.CONSOLIDATE_PLAYERS_ARGUMENT);
+        ModeSelection backfill =
+                parseModeSelection(args, ImportRuntimeCliContract.BACKFILL_SCHEDULED_MATCHES_ARGUMENT);
 
         return new ImportRuntimeArguments(
                 source,
@@ -34,37 +38,57 @@ public record ImportRuntimeArguments(
                 valueOf(args, ImportRuntimeCliContract.RFETM_TEAMS_FOLDER_ARGUMENT),
                 valueOf(args, ImportRuntimeCliContract.SEASON_ARGUMENT),
                 clubs.enabled(),
-                clubs.mode(),
+                toConsolidationMode(ImportRuntimeCliContract.CONSOLIDATE_CLUBS_ARGUMENT, clubs.rawMode()),
                 players.enabled(),
-                players.mode());
+                toConsolidationMode(ImportRuntimeCliContract.CONSOLIDATE_PLAYERS_ARGUMENT, players.rawMode()),
+                backfill.enabled(),
+                toBackfillMode(ImportRuntimeCliContract.BACKFILL_SCHEDULED_MATCHES_ARGUMENT, backfill.rawMode()));
     }
 
     public Optional<String> optionalSeason() {
         return Optional.ofNullable(season);
     }
 
-    private static ConsolidationSelection parseConsolidationSelection(String[] args, String optionName) {
+    /**
+     * Parses whether {@code optionName} is present and, when it is, which raw mode value it carries:
+     * bare (no value), {@code =write}, or {@code =report}. Shared by every write/report-mode flag
+     * (club and player consolidation, and the scheduled-match backfill), which each map the raw value
+     * to their own mode enum so an invalid value still names the right flag in its error message.
+     */
+    private static ModeSelection parseModeSelection(String[] args, String optionName) {
         boolean enabled = false;
-        ConsolidationMode mode = ConsolidationMode.WRITE;
+        String rawMode = "";
         for (String arg : args) {
             if (arg.equals(optionName)) {
                 enabled = true;
-                mode = ConsolidationMode.WRITE;
+                rawMode = "";
                 continue;
             }
             String withEquals = optionName + "=";
             if (arg.startsWith(withEquals)) {
                 enabled = true;
-                String rawValue = arg.substring(withEquals.length()).trim().toLowerCase(Locale.ROOT);
-                mode = switch (rawValue) {
-                    case "", "true", "write" -> ConsolidationMode.WRITE;
-                    case "report" -> ConsolidationMode.REPORT;
-                    default -> throw new IllegalArgumentException(
-                            "Unsupported consolidation mode: " + optionName + "=" + rawValue);
-                };
+                rawMode = arg.substring(withEquals.length()).trim().toLowerCase(Locale.ROOT);
             }
         }
-        return new ConsolidationSelection(enabled, mode);
+        return new ModeSelection(enabled, rawMode);
+    }
+
+    private static ConsolidationMode toConsolidationMode(String optionName, String rawValue) {
+        return switch (rawValue) {
+            case "", "true", "write" -> ConsolidationMode.WRITE;
+            case "report" -> ConsolidationMode.REPORT;
+            default -> throw new IllegalArgumentException(
+                    "Unsupported consolidation mode: " + optionName + "=" + rawValue);
+        };
+    }
+
+    private static ScheduledMatchBackfillMode toBackfillMode(String optionName, String rawValue) {
+        return switch (rawValue) {
+            case "", "true", "write" -> ScheduledMatchBackfillMode.WRITE;
+            case "report" -> ScheduledMatchBackfillMode.REPORT;
+            default -> throw new IllegalArgumentException(
+                    "Unsupported backfill mode: " + optionName + "=" + rawValue);
+        };
     }
 
     private static String valueOf(String[] args, String prefix) {
@@ -77,6 +101,6 @@ public record ImportRuntimeArguments(
         return null;
     }
 
-    private record ConsolidationSelection(boolean enabled, ConsolidationMode mode) {
+    private record ModeSelection(boolean enabled, String rawMode) {
     }
 }

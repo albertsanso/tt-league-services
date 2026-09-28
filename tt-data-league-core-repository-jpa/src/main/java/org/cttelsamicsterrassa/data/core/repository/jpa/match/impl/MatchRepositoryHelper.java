@@ -1,7 +1,9 @@
 package org.cttelsamicsterrassa.data.core.repository.jpa.match.impl;
 
+import org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.model.MatchJPA;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.data.domain.Pageable;
@@ -19,6 +21,7 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
     @Query("""
             select m from MatchJPA m
             where m.source = :source and m.season = :season
+              and m.status = :status
               and (:competition is null or m.competition = :competition)
               and (:fromDate is null or m.matchDate >= :fromDate)
               and (:toDate is null or m.matchDate <= :toDate)
@@ -61,11 +64,13 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                           @Param("playerNameF4") String playerNameF4,
                           @Param("clubNameF0") String clubNameF0, @Param("clubNameF1") String clubNameF1,
                           @Param("clubNameF2") String clubNameF2, @Param("clubNameF3") String clubNameF3,
-                          @Param("clubNameF4") String clubNameF4, Pageable pageable);
+                          @Param("clubNameF4") String clubNameF4, @Param("status") MatchStatus status,
+                          Pageable pageable);
 
     @Query("""
             select count(m) from MatchJPA m
             where m.source = :source and m.season = :season
+              and m.status = :status
               and (:competition is null or m.competition = :competition)
               and (:fromDate is null or m.matchDate >= :fromDate)
               and (:toDate is null or m.matchDate <= :toDate)
@@ -103,11 +108,12 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                      @Param("playerNameF4") String playerNameF4,
                      @Param("clubNameF0") String clubNameF0, @Param("clubNameF1") String clubNameF1,
                      @Param("clubNameF2") String clubNameF2, @Param("clubNameF3") String clubNameF3,
-                     @Param("clubNameF4") String clubNameF4);
+                     @Param("clubNameF4") String clubNameF4, @Param("status") MatchStatus status);
 
     @Query("""
             select m from MatchJPA m
-            where (:clubNameF0 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF0, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF0, '%'))
+            where m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.PLAYED
+              and (:clubNameF0 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF0, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF0, '%'))
                    or exists (select l0.id from LineupJPA l0 join l0.player p0 where l0.match = m and lower(p0.name) like lower(concat('%', :clubNameF0, '%'))))
               and (:clubNameF1 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF1, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF1, '%'))
                    or exists (select l1.id from LineupJPA l1 join l1.player p1 where l1.match = m and lower(p1.name) like lower(concat('%', :clubNameF1, '%'))))
@@ -127,7 +133,12 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                           @Param("clubNameF2") String clubNameF2, @Param("clubNameF3") String clubNameF3,
                           @Param("clubNameF4") String clubNameF4, Pageable pageable);
 
-    @Query("select m from MatchJPA m where m.source = :source order by m.matchDate desc, m.id asc")
+    @Query("""
+            select m from MatchJPA m
+            where m.source = :source
+              and m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.PLAYED
+            order by m.matchDate desc, m.id asc
+            """)
     List<MatchJPA> findAllBySource(@Param("source") Source source);
 
     @Query("select distinct m.season from MatchJPA m where m.source = :source and m.season is not null order by m.season desc")
@@ -136,11 +147,26 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
     @Query("select distinct m.competition from MatchJPA m where m.source = :source and m.season = :season and m.competition is not null order by m.competition asc")
     List<String> findAllCompetitionsBySourceAndSeason(@Param("source") Source source, @Param("season") String season);
 
-    @Query("select distinct m.season from MatchJPA m where m.season is not null order by m.season desc")
+    @Query("""
+            select distinct m.season from MatchJPA m
+            where m.season is not null
+              and m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.PLAYED
+            order by m.season desc
+            """)
     List<String> findAllSeasons();
 
-    @Query("select count(m) from MatchJPA m where m.season = :season")
+    @Query("""
+            select count(m) from MatchJPA m
+            where m.season = :season
+              and m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.PLAYED
+            """)
     long countBySeason(@Param("season") String season);
+
+    @Query("""
+            select count(m) from MatchJPA m
+            where m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.PLAYED
+            """)
+    long countAllPlayed();
 
     @Query("""
             select distinct m from MatchJPA m
@@ -207,4 +233,92 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
             @Param("phase") String phase,
             @Param("homeTeamId") UUID homeTeamId,
             @Param("awayTeamId") UUID awayTeamId);
+
+    /**
+     * FEAT-00078 backfill candidates: PLAYED matches, scoped by source and season, with no winner,
+     * no non-zero header games/sets won, and no game carrying a result of its own (a winner, a
+     * non-zero set count, or any set score row). A {@code not_played} game that still names a winner
+     * (a walkover) counts as a result, so its match is excluded.
+     */
+    @Query("""
+            select new org.cttelsamicsterrassa.data.core.repository.jpa.match.impl.ScheduledMatchBackfillCandidateProjection(
+                m.id, m.competition, m.groupNumber, m.round, m.phase, m.matchDate, m.homeTeam.id, m.awayTeam.id,
+                (select count(g0) from GameJPA g0 where g0.match = m),
+                (select count(l0) from LineupJPA l0 where l0.match = m))
+            from MatchJPA m
+            where m.source = :source and m.season = :season
+              and m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.PLAYED
+              and m.winnerTeam is null
+              and (m.homeGamesWon is null or m.homeGamesWon = 0)
+              and (m.awayGamesWon is null or m.awayGamesWon = 0)
+              and (m.homeSetsWon is null or m.homeSetsWon = 0)
+              and (m.awaySetsWon is null or m.awaySetsWon = 0)
+              and not exists (
+                  select 1 from GameJPA g
+                  where g.match = m
+                    and (g.winner is not null
+                         or coalesce(g.homeSetsWon, 0) > 0
+                         or coalesce(g.awaySetsWon, 0) > 0
+                         or exists (select 1 from SetScoreJPA s where s.game = g))
+              )
+            order by m.competition asc, m.groupNumber asc, m.round asc, m.id asc
+            """)
+    List<ScheduledMatchBackfillCandidateProjection> findScheduledBackfillCandidates(
+            @Param("source") Source source, @Param("season") String season);
+
+    /**
+     * Same candidate rule, restricted to {@code matchIds}. Used by {@code markScheduled} to re-check
+     * every id inside the write transaction before mutating anything.
+     */
+    @Query("""
+            select m.id from MatchJPA m
+            where m.source = :source and m.season = :season and m.id in :matchIds
+              and m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.PLAYED
+              and m.winnerTeam is null
+              and (m.homeGamesWon is null or m.homeGamesWon = 0)
+              and (m.awayGamesWon is null or m.awayGamesWon = 0)
+              and (m.homeSetsWon is null or m.homeSetsWon = 0)
+              and (m.awaySetsWon is null or m.awaySetsWon = 0)
+              and not exists (
+                  select 1 from GameJPA g
+                  where g.match = m
+                    and (g.winner is not null
+                         or coalesce(g.homeSetsWon, 0) > 0
+                         or coalesce(g.awaySetsWon, 0) > 0
+                         or exists (select 1 from SetScoreJPA s where s.game = g))
+              )
+            """)
+    List<UUID> findScheduledBackfillCandidateIds(
+            @Param("source") Source source, @Param("season") String season, @Param("matchIds") Collection<UUID> matchIds);
+
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update MatchJPA m
+               set m.homeGamesWon = null, m.awayGamesWon = null, m.homeSetsWon = null, m.awaySetsWon = null,
+                   m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.SCHEDULED
+             where m.id in :matchIds
+               and m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.PLAYED
+            """)
+    int markScheduledByIds(@Param("matchIds") Collection<UUID> matchIds);
+
+    /**
+     * FEAT-00080 reschedule: rewrites only the schedule columns of a SCHEDULED match. The status
+     * guard is part of the update so a PLAYED match can never be rescheduled here; the caller
+     * distinguishes "not found" from "not scheduled" by the returned row count.
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update MatchJPA m
+               set m.matchDate = :matchDate, m.matchTime = :matchTime, m.city = :city, m.venue = :venue,
+                   m.refereeName = :refereeName, m.refereeLicense = :refereeLicense
+             where m.id = :matchId
+               and m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.SCHEDULED
+            """)
+    int updateScheduleOfScheduledMatch(@Param("matchId") UUID matchId,
+                                       @Param("matchDate") java.time.LocalDate matchDate,
+                                       @Param("matchTime") java.time.LocalTime matchTime,
+                                       @Param("city") String city,
+                                       @Param("venue") String venue,
+                                       @Param("refereeName") String refereeName,
+                                       @Param("refereeLicense") String refereeLicense);
 }

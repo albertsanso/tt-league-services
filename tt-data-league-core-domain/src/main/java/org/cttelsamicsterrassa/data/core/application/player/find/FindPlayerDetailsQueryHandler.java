@@ -110,6 +110,9 @@ public class FindPlayerDetailsQueryHandler extends DomainQueryHandler<FindPlayer
                 .collect(Collectors.toMap(lineup -> lineup.getMatch().getId(), lineup -> lineup,
                         (first, ignored) -> first, LinkedHashMap::new));
         List<Match> allPlayerMatches = lineupByMatchId.values().stream().map(Lineup::getMatch)
+                // SCHEDULED fixtures have no lineups (FEAT-00077 invariant); the explicit guard is
+                // defence in depth against an unfiltered repository (FEAT-00079 / risk K1).
+                .filter(Match::isPlayed)
                 // Draws never apply at player level (FEAT-00066): a tied match's winnerTeam is
                 // null, so it is dropped here rather than surfaced with a "draw" result below.
                 .filter(match -> match.getWinnerTeam() != null)

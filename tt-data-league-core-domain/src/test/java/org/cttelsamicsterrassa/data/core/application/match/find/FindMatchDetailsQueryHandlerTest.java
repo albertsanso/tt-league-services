@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.core.domain.game.repository.SetScoreReposito
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
 import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
@@ -27,6 +28,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -65,7 +67,7 @@ class FindMatchDetailsQueryHandlerTest {
                 .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(3).winnerTeam(homeTeam)
                 .createExisting();
 
-        // match1: same players as the current lineup, boards swapped (A<->B) — still counts as the same set.
+        // match1: same players as the current lineup, boards swapped (A<->B) â€” still counts as the same set.
         Lineup match1LineupA = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).match(match1)
                 .team(homeTeam).letter("A").player(p2).createExisting();
         Lineup match1LineupB = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).match(match1)
@@ -75,7 +77,7 @@ class FindMatchDetailsQueryHandlerTest {
                 .team(homeTeam).letter("A").player(p1).createExisting();
         Lineup match2LineupB = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).match(match2)
                 .team(homeTeam).letter("B").player(p2).createExisting();
-        // match3: a different player (p3 instead of p2) — must not count toward the current lineup's group.
+        // match3: a different player (p3 instead of p2) â€” must not count toward the current lineup's group.
         Lineup match3LineupA = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).match(match3)
                 .team(homeTeam).letter("A").player(p1).createExisting();
         Lineup match3LineupB = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).match(match3)
@@ -606,5 +608,91 @@ class FindMatchDetailsQueryHandlerTest {
         assertEquals(1, form.lastResults().size());
         assertEquals(previousClubWin.getId(), form.lastResults().getFirst().matchId());
         assertEquals("win", form.lastResults().getFirst().result());
+    }
+
+    @Test
+    void scheduledMatchesAreExcludedFromTeamFormAndWinRatesAndStatusIsExposed() {
+        Season season = Season.of(2025);
+        Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Home Club", season, null);
+        Team awayTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Away Club", season, null);
+
+        Match played = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+                .season(season).round(1).dateTime(ZonedDateTime.parse("2025-11-01T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(2).winnerTeam(homeTeam)
+                .createExisting();
+        Match scheduled = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+                .season(season).round(2).dateTime(ZonedDateTime.parse("2025-11-08T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).status(MatchStatus.SCHEDULED)
+                .createExisting();
+        Match current = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+                .season(season).round(3).dateTime(ZonedDateTime.parse("2025-11-15T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(3).winnerTeam(homeTeam)
+                .createExisting();
+
+        MatchRepository matchRepository = mock(MatchRepository.class);
+        LineupRepository lineupRepository = mock(LineupRepository.class);
+        GameRepository gameRepository = mock(GameRepository.class);
+        SetScoreRepository setScoreRepository = mock(SetScoreRepository.class);
+        DoublesPairRepository doublesPairRepository = mock(DoublesPairRepository.class);
+        PlayerSeasonRepository playerSeasonRepository = mock(PlayerSeasonRepository.class);
+        FederatedPlayerRepository federatedPlayerRepository = mock(FederatedPlayerRepository.class);
+
+        when(matchRepository.findMatchById(current.getId())).thenReturn(Optional.of(current));
+        when(matchRepository.findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(
+                List.of(homeTeam.getId()), ImportSource.RFETM, season, "Preferent"))
+                .thenReturn(List.of(played, scheduled));
+        when(matchRepository.findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(
+                List.of(awayTeam.getId()), ImportSource.RFETM, season, "Preferent"))
+                .thenReturn(List.of(played, scheduled));
+        when(lineupRepository.findLineupsByMatchId(current.getId())).thenReturn(List.of());
+        when(lineupRepository.findAllLineupsByMatchIds(anyList())).thenReturn(List.of());
+
+        MatchDetailReadModel details = new FindMatchDetailsQueryHandler(matchRepository, lineupRepository,
+                gameRepository, setScoreRepository, doublesPairRepository, playerSeasonRepository,
+                federatedPlayerRepository).handle(new FindMatchDetailsQuery(current.getId())).getResponse();
+
+        assertEquals(MatchStatus.PLAYED, details.status());
+        assertEquals(1, details.homeTeamForm().lastResults().size());
+        assertEquals(played.getId(), details.homeTeamForm().lastResults().getFirst().matchId());
+        assertEquals(100.0, details.homeTeamForm().overallWinRate());
+    }
+
+    @Test
+    void viewingAScheduledMatchReturnsScheduleStatusAndNoOutcomes() {
+        Season season = Season.of(2025);
+        Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Home Club", season, null);
+        Team awayTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Away Club", season, null);
+
+        Match played = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+                .season(season).round(1).dateTime(ZonedDateTime.parse("2025-11-01T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(2).winnerTeam(homeTeam)
+                .createExisting();
+        Match scheduled = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+                .season(season).round(2).dateTime(ZonedDateTime.parse("2025-11-08T18:00:00+01:00[Europe/Madrid]"))
+                .homeTeam(homeTeam).awayTeam(awayTeam).status(MatchStatus.SCHEDULED)
+                .createExisting();
+
+        MatchRepository matchRepository = mock(MatchRepository.class);
+        LineupRepository lineupRepository = mock(LineupRepository.class);
+        GameRepository gameRepository = mock(GameRepository.class);
+        SetScoreRepository setScoreRepository = mock(SetScoreRepository.class);
+        DoublesPairRepository doublesPairRepository = mock(DoublesPairRepository.class);
+        PlayerSeasonRepository playerSeasonRepository = mock(PlayerSeasonRepository.class);
+        FederatedPlayerRepository federatedPlayerRepository = mock(FederatedPlayerRepository.class);
+
+        when(matchRepository.findMatchById(scheduled.getId())).thenReturn(Optional.of(scheduled));
+        when(matchRepository.findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(
+                anyList(), eq(ImportSource.RFETM), eq(season), eq("Preferent")))
+                .thenReturn(List.of(played, scheduled));
+        when(lineupRepository.findLineupsByMatchId(scheduled.getId())).thenReturn(List.of());
+        when(lineupRepository.findAllLineupsByMatchIds(anyList())).thenReturn(List.of());
+
+        MatchDetailReadModel details = new FindMatchDetailsQueryHandler(matchRepository, lineupRepository,
+                gameRepository, setScoreRepository, doublesPairRepository, playerSeasonRepository,
+                federatedPlayerRepository).handle(new FindMatchDetailsQuery(scheduled.getId())).getResponse();
+
+        assertEquals(MatchStatus.SCHEDULED, details.status());
+        assertEquals(1, details.homeTeamForm().lastResults().size());
+        assertEquals(played.getId(), details.homeTeamForm().lastResults().getFirst().matchId());
     }
 }

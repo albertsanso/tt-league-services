@@ -6,6 +6,7 @@ import org.cttelsamicsterrassa.data.core.application.club.find.FindClubsByString
 import org.cttelsamicsterrassa.data.core.application.club.find.dto.ClubSearchReadModel;
 import org.cttelsamicsterrassa.data.core.application.match.find.FindMatchesByStringInNameQuery;
 import org.cttelsamicsterrassa.data.core.application.match.find.dto.MatchSearchReadModel;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.application.player.find.FindFederatedPlayersByStringInNameQuery;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerFederatedReadModel;
 import org.cttelsamicsterrassa.data.core.application.player.find.dto.PlayerSearchReadModel;
@@ -52,7 +53,7 @@ class GlobalSearchControllerTest {
                 .thenReturn(DomainQueryResponse.sucessResponse(List.of(
                         new MatchSearchReadModel(matchId, ImportSource.RFETM, "Primera", null, 1, "REGULAR",
                                 null, "Anna's Club", "Other Club", null, null, null, null, null,
-                                false, List.of(), List.of()))));
+                                false, List.of(), List.of(), MatchStatus.PLAYED))));
 
         var response = controller.search(" Anna ");
 

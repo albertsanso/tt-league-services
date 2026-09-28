@@ -2,15 +2,31 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.match.impl;
 
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
+import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
+import org.cttelsamicsterrassa.data.core.domain.game.model.SetScore;
+import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
 import org.cttelsamicsterrassa.data.core.domain.match.model.PlayerLocation;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
+import org.cttelsamicsterrassa.data.core.repository.jpa.doublespair.impl.DoublesPairRepositoryHelper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.doublespair.mapper.DoublesPairToDoublesPairJPAMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.game.impl.GameRepositoryHelper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.game.mapper.GameToGameJPAMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.lineup.impl.LineupRepositoryHelper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.lineup.mapper.LineupToLineupJPAMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus;
+import org.cttelsamicsterrassa.data.core.repository.jpa.match.model.MatchJPA;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.mapper.MatchJPAToMatchMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.mapper.MatchToMatchJPAMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.setscore.impl.SetScoreRepositoryHelper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.setscore.mapper.SetScoreToSetScoreJPAMapper;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -27,6 +43,14 @@ public class MatchRepositoryJpa implements MatchRepository {
     private final MatchRepositoryHelper matchRepositoryHelper;
     private final MatchJPAToMatchMapper matchJPAToMatchMapper;
     private final MatchToMatchJPAMapper matchToMatchJPAMapper;
+    private final LineupRepositoryHelper lineupRepositoryHelper;
+    private final GameRepositoryHelper gameRepositoryHelper;
+    private final SetScoreRepositoryHelper setScoreRepositoryHelper;
+    private final DoublesPairRepositoryHelper doublesPairRepositoryHelper;
+    private final LineupToLineupJPAMapper lineupToLineupJPAMapper;
+    private final GameToGameJPAMapper gameToGameJPAMapper;
+    private final SetScoreToSetScoreJPAMapper setScoreToSetScoreJPAMapper;
+    private final DoublesPairToDoublesPairJPAMapper doublesPairToDoublesPairJPAMapper;
 
     @Override
     public Optional<Match> findMatchById(UUID id) {
@@ -115,7 +139,7 @@ public class MatchRepositoryJpa implements MatchRepository {
                         playerNameFragments[0], playerNameFragments[1], playerNameFragments[2],
                         playerNameFragments[3], playerNameFragments[4],
                         clubNameFragments[0], clubNameFragments[1], clubNameFragments[2],
-                        clubNameFragments[3], clubNameFragments[4],
+                        clubNameFragments[3], clubNameFragments[4], toJpaStatus(criteria.status()),
                         PageRequest.of(criteria.page(), criteria.pageSize()))
                 .stream().map(matchJPAToMatchMapper).toList();
     }
@@ -131,7 +155,14 @@ public class MatchRepositoryJpa implements MatchRepository {
                 playerNameFragments[0], playerNameFragments[1], playerNameFragments[2],
                 playerNameFragments[3], playerNameFragments[4],
                 clubNameFragments[0], clubNameFragments[1], clubNameFragments[2],
-                clubNameFragments[3], clubNameFragments[4]);
+                clubNameFragments[3], clubNameFragments[4], toJpaStatus(criteria.status()));
+    }
+
+    private static MatchStatus toJpaStatus(
+            org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus status) {
+        return status == null
+                ? MatchStatus.PLAYED
+                : MatchStatus.valueOf(status.name());
     }
 
     @Override
@@ -199,7 +230,7 @@ public class MatchRepositoryJpa implements MatchRepository {
 
     @Override
     public long countAllMatches() {
-        return matchRepositoryHelper.count();
+        return matchRepositoryHelper.countAllPlayed();
     }
 
     @Override
@@ -213,5 +244,59 @@ public class MatchRepositoryJpa implements MatchRepository {
             return 0;
         }
         return matchRepositoryHelper.countBySeason(season.toString());
+    }
+
+    /**
+     * FEAT-00080. One transaction (class-level {@code @Transactional}): validates existence and
+     * natural key before any delete, removes the old children in FK order, overwrites the header
+     * keeping the id, inserts the new children, and flushes so constraint failures roll the whole
+     * replacement back rather than leaving a half-written match.
+     */
+    @Override
+    public void replaceMatchContent(MatchContent content) {
+        Match replacement = content.match();
+        MatchJPA existing = matchRepositoryHelper.findById(replacement.getId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Cannot replace content of unknown match " + replacement.getId()));
+        if (!matchJPAToMatchMapper.apply(existing).hasSameNaturalKeyAs(replacement)) {
+            throw new IllegalStateException(
+                    "Replacement must not change the natural key of match " + replacement.getId());
+        }
+
+        // Flush first: the bulk deletes only auto-flush pending writes touching their own tables,
+        // and clearAutomatically would purge not-yet-written parent rows (match, teams).
+        matchRepositoryHelper.flush();
+        List<UUID> matchIds = List.of(replacement.getId());
+        doublesPairRepositoryHelper.deleteAllByMatchIds(matchIds);
+        setScoreRepositoryHelper.deleteAllByMatchIds(matchIds);
+        gameRepositoryHelper.deleteAllByMatchIds(matchIds);
+        lineupRepositoryHelper.deleteAllByMatchIds(matchIds);
+
+        matchRepositoryHelper.save(matchToMatchJPAMapper.apply(replacement));
+        lineupRepositoryHelper.saveAll(
+                content.lineups().stream().map(lineupToLineupJPAMapper).toList());
+        gameRepositoryHelper.saveAll(
+                content.games().stream().map(gameToGameJPAMapper).toList());
+        setScoreRepositoryHelper.saveAll(
+                content.setScores().stream().map(setScoreToSetScoreJPAMapper).toList());
+        doublesPairRepositoryHelper.saveAll(
+                content.doublesPairs().stream().map(doublesPairToDoublesPairJPAMapper).toList());
+        matchRepositoryHelper.flush();
+    }
+
+    @Override
+    public void updateSchedule(UUID matchId, MatchSchedule schedule) {
+        java.time.LocalDate matchDate = schedule.dateTime() == null ? null : schedule.dateTime().toLocalDate();
+        java.time.LocalTime matchTime = schedule.dateTime() == null ? null : schedule.dateTime().toLocalTime();
+        int updated = matchRepositoryHelper.updateScheduleOfScheduledMatch(
+                matchId, matchDate, matchTime, schedule.city(), schedule.venue(),
+                schedule.refereeName(), schedule.refereeLicense());
+        if (updated == 0) {
+            if (!matchRepositoryHelper.existsById(matchId)) {
+                throw new IllegalStateException("Cannot reschedule unknown match " + matchId);
+            }
+            throw new IllegalStateException(
+                    "Only SCHEDULED matches can be rescheduled, match " + matchId + " is PLAYED");
+        }
     }
 }

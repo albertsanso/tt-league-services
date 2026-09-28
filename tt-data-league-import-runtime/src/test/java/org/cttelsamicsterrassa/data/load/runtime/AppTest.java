@@ -1,15 +1,24 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
+import org.cttelsamicsterrassa.data.core.domain.match.model.ScheduledMatchBackfillCandidate;
+import org.cttelsamicsterrassa.data.core.domain.match.model.ScheduledMatchBackfillWriteResult;
+import org.cttelsamicsterrassa.data.core.domain.match.repository.ScheduledMatchBackfillRepository;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaTraversalSummary;
 import org.cttelsamicsterrassa.data.load.fctt.traverse.FcttActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.rfetm.traverse.RfetmActasDirectoryNavigator;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionService;
+import org.cttelsamicsterrassa.data.load.shared.match.backfill.ScheduledMatchBackfillService;
 import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -59,14 +68,11 @@ class AppTest {
         assertNull(rfetm.lastCall);
     }
 
-       private static App app(
+    private static App app(
             RecordingRfetmNavigator rfetm,
             RecordingBcnesaNavigator bcnesa,
             RecordingFcttNavigator fctt) {
-        return app(
-                rfetm,
-                bcnesa,
-                fctt);
+        return new App(rfetm, bcnesa, fctt);
     }
 
     private static final class RecordingRfetmNavigator extends RfetmActasDirectoryNavigator {
@@ -106,6 +112,90 @@ class AppTest {
         public BcnesaTraversalSummary traverseSeason(Path baseFolder, String season) {
             lastCall = season;
             return new BcnesaTraversalSummary(0, 0, 0, 0, 0, 0);
+        }
+    }
+
+    @Test
+    void backfillDispatchesReportAndWriteWithTheParsedSourceAndSeason() {
+        RecordingBackfillRepository repository = new RecordingBackfillRepository();
+        FailingImportExecutionService executionService = new FailingImportExecutionService();
+        App app = new App(executionService, new ScheduledMatchBackfillService(repository));
+
+        app.run("--source=fctt", "--season=2025-2026", "--backfill-scheduled-matches=report");
+
+        assertEquals(ImportSource.FCTT, repository.lastSource);
+        assertEquals(Season.of(2025, 2026), repository.lastSeason);
+        assertFalse(repository.markScheduledCalled);
+
+        app.run("--source=fctt", "--season=2025-2026", "--backfill-scheduled-matches");
+
+        assertTrue(repository.markScheduledCalled);
+        assertFalse(executionService.called);
+    }
+
+    @Test
+    void backfillWithoutASeasonIsRejected() {
+        App app = new App(new FailingImportExecutionService(),
+                new ScheduledMatchBackfillService(new RecordingBackfillRepository()));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> app.run("--backfill-scheduled-matches"));
+    }
+
+    @Test
+    void backfillWithAMalformedSeasonIsRejected() {
+        App app = new App(new FailingImportExecutionService(),
+                new ScheduledMatchBackfillService(new RecordingBackfillRepository()));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> app.run("--season=2025", "--backfill-scheduled-matches"));
+        assertThrows(IllegalArgumentException.class,
+                () -> app.run("--season=2025-2027", "--backfill-scheduled-matches"));
+    }
+
+    @Test
+    void backfillCombinedWithImportArgumentsIsRejected() {
+        App app = new App(new FailingImportExecutionService(),
+                new ScheduledMatchBackfillService(new RecordingBackfillRepository()));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> app.run("--season=2025-2026", "--actas-folder=C:\\data", "--backfill-scheduled-matches"));
+        assertThrows(IllegalArgumentException.class,
+                () -> app.run("--season=2025-2026", "--consolidate-clubs", "--backfill-scheduled-matches"));
+    }
+
+    private static final class RecordingBackfillRepository implements ScheduledMatchBackfillRepository {
+        private ImportSource lastSource;
+        private Season lastSeason;
+        private boolean markScheduledCalled;
+
+        @Override
+        public List<ScheduledMatchBackfillCandidate> findScheduledBackfillCandidates(
+                ImportSource source, Season season) {
+            lastSource = source;
+            lastSeason = season;
+            return List.of();
+        }
+
+        @Override
+        public ScheduledMatchBackfillWriteResult markScheduled(
+                ImportSource source, Season season, Collection<UUID> matchIds) {
+            lastSource = source;
+            lastSeason = season;
+            markScheduledCalled = true;
+            return new ScheduledMatchBackfillWriteResult(0, 0, 0, 0, 0);
+        }
+    }
+
+    private static final class FailingImportExecutionService implements ImportExecutionService {
+        private boolean called;
+
+        @Override
+        public org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionResult execute(
+                org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionRequest request,
+                org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionOptions options) {
+            called = true;
+            throw new AssertionError("Import must not run during a backfill");
         }
     }
 

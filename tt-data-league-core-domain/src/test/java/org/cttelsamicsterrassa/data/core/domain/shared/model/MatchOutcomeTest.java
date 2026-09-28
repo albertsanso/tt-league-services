@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.core.domain.shared.model;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.junit.jupiter.api.Test;
 
 import java.util.Optional;
@@ -60,6 +61,28 @@ class MatchOutcomeTest {
 
         assertTrue(MatchOutcome.playerOutcome(tie, homeTeam.getId()).isEmpty());
         assertTrue(MatchOutcome.playerOutcome(tie, awayTeam.getId()).isEmpty());
+    }
+
+    @Test
+    void teamOutcomeIsEmptyForAScheduledMatchEvenInATieEligibleCompetition() {
+        Match scheduled = scheduledMatch("super-divisio-femenino");
+
+        assertTrue(MatchOutcome.teamOutcome(scheduled, homeTeam.getId()).isEmpty());
+        assertTrue(MatchOutcome.teamOutcome(scheduled, awayTeam.getId()).isEmpty());
+    }
+
+    @Test
+    void playerOutcomeIsEmptyForAScheduledMatch() {
+        Match scheduled = scheduledMatch("super-divisio-masculino");
+
+        assertTrue(MatchOutcome.playerOutcome(scheduled, homeTeam.getId()).isEmpty());
+        assertTrue(MatchOutcome.playerOutcome(scheduled, awayTeam.getId()).isEmpty());
+    }
+
+    private Match scheduledMatch(String competition) {
+        return Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition(competition)
+                .season(SEASON).round(1).homeTeam(homeTeam).awayTeam(awayTeam)
+                .status(MatchStatus.SCHEDULED).createExisting();
     }
 
     private Match matchWithWinner(String competition, Team winner) {

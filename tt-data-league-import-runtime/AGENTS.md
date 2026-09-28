@@ -30,6 +30,10 @@ The module README is the operational reference for setup and launch examples:
   invalid; do not silently select another folder or source.
 - `--season=<YYYY-YYYY>` limits traversal to one season. Without it, traverse
   all available seasons.
+- `--backfill-scheduled-matches[=write|report]` (FEAT-00078) is opt-in, needs
+  an explicit source and a strict `--season=<YYYY-YYYY>`, has write and report
+  modes, and is exclusive with every import argument (`--actas-folder`,
+  `--rfetm-teams-folder`, `--consolidate-clubs*`, `--consolidate-players*`).
 - Import traversal must complete successfully before optional consolidation
   runs.
 - Club consolidation runs once after traversal, against the complete

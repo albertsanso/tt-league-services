@@ -127,7 +127,10 @@ public class FindClubsByStringInNameQueryHandler
         List<Match> matches = new java.util.ArrayList<>();
         Map<UUID, PlayerSeason> players = new LinkedHashMap<>();
         for (Map.Entry<ImportSource, List<UUID>> entry : teamIdsBySource.entrySet()) {
-            matches.addAll(matchRepository.findAllMatchesByTeamIdsAndSource(entry.getValue(), entry.getKey()));
+            // FEAT-00079: competition summaries and season lists use PLAYED matches only; the
+            // repository deliberately stays unfiltered (consolidation scope, risk K9).
+            matches.addAll(matchRepository.findAllMatchesByTeamIdsAndSource(entry.getValue(), entry.getKey())
+                    .stream().filter(Match::isPlayed).toList());
             playerSeasonRepository.findAllPlayerSeasonsByTeamIdsAndSource(entry.getValue(), entry.getKey())
                     .forEach(player -> players.putIfAbsent(player.getId(), player));
         }

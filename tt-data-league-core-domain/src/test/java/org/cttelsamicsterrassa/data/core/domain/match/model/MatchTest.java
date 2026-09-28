@@ -15,6 +15,7 @@ class MatchTest {
     private static final Season SEASON = Season.of(2025);
     private final Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Home", SEASON, null);
     private final Team awayTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Away", SEASON, null);
+    private final Team awayTeam2 = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Away Two", SEASON, null);
 
     @Test
     void builderDefaultsStatusToPlayed() {
@@ -61,6 +62,54 @@ class MatchTest {
                 .homeGamesWon(3).awayGamesWon(3).createNew();
 
         assertEquals(MatchStatus.PLAYED, tie.getStatus());
+    }
+
+    @Test
+    void isPlayedIsTrueOnlyForPlayedStatus() {
+        assertEquals(true, builder().createNew().isPlayed());
+        assertEquals(false, builder().status(MatchStatus.SCHEDULED).createNew().isPlayed());
+    }
+
+    @Test
+    void sameNaturalKeyIgnoresResultsAndSchedule() {
+        Match stored = builder().externalId("E1").homeGamesWon(5).awayGamesWon(2).winnerTeam(homeTeam)
+                .createExisting();
+        Match replacement = Match.builder().id(stored.getId()).source(ImportSource.RFETM).competition("preferent")
+                .season(SEASON).round(1).homeTeam(homeTeam).awayTeam(awayTeam)
+                .homeGamesWon(2).awayGamesWon(5).winnerTeam(awayTeam)
+                .status(MatchStatus.PLAYED).createExisting();
+
+        assertEquals(true, stored.hasSameNaturalKeyAs(replacement));
+    }
+
+    @Test
+    void naturalKeyDiffersWhenAnyKeyComponentDiffers() {
+        Match stored = builder().groupNumber(2).phase("REGULAR").createExisting();
+
+        assertEquals(false, stored.hasSameNaturalKeyAs(null));
+        assertEquals(false, stored.hasSameNaturalKeyAs(
+                copyBuilder(stored).competition("super-divisio").createExisting()));
+        assertEquals(false, stored.hasSameNaturalKeyAs(copyBuilder(stored).round(2).createExisting()));
+        assertEquals(false, stored.hasSameNaturalKeyAs(copyBuilder(stored).groupNumber(3).createExisting()));
+        assertEquals(false, stored.hasSameNaturalKeyAs(copyBuilder(stored).phase("PLAYOFF").createExisting()));
+        assertEquals(false, stored.hasSameNaturalKeyAs(copyBuilder(stored).awayTeam(awayTeam2).createExisting()));
+        assertEquals(false, stored.hasSameNaturalKeyAs(copyBuilder(stored).source(ImportSource.BCNESA).createExisting()));
+        // A null group is part of the key: null vs 1 must not match.
+        assertEquals(false, stored.hasSameNaturalKeyAs(copyBuilder(stored).groupNumber(null).createExisting()));
+        assertEquals(true, stored.hasSameNaturalKeyAs(copyBuilder(stored).groupNumber(2).phase("REGULAR").createExisting()));
+    }
+
+    private Match.MatchBuilder copyBuilder(Match match) {
+        return Match.builder().id(match.getId()).source(match.getSource()).externalId(match.getExternalId())
+                .competition(match.getCompetition()).season(match.getSeason())
+                .groupNumber(match.getGroupNumber()).round(match.getRound()).phase(match.getPhase())
+                .dateTime(match.getDateTime()).city(match.getCity()).venue(match.getVenue())
+                .homeTeam(match.getHomeTeam()).awayTeam(match.getAwayTeam())
+                .refereeName(match.getRefereeName()).refereeLicense(match.getRefereeLicense())
+                .protested(match.isProtested()).homeGamesWon(match.getHomeGamesWon())
+                .awayGamesWon(match.getAwayGamesWon()).homeSetsWon(match.getHomeSetsWon())
+                .awaySetsWon(match.getAwaySetsWon()).winnerTeam(match.getWinnerTeam())
+                .status(match.getStatus());
     }
 
     private Match.MatchBuilder builder() {

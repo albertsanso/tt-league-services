@@ -177,10 +177,10 @@ Top-level team match event.
 | Column | Type | Null | Key/index |
 | --- | --- | --- | --- |
 | `id` | `UUID` | No | Primary key |
-| `source` | `VARCHAR(20)` | No | — |
+| `source` | `VARCHAR(20)` | No | `idx_match_source_season_competition_status` |
 | `external_id` | `VARCHAR(20)` | Yes | Unique; `idx_match_external_id` |
-| `competition` | `VARCHAR(255)` | Yes | `idx_match_competition_season_group_round` |
-| `season` | `VARCHAR(9)` | Yes | `idx_match_competition_season_group_round` |
+| `competition` | `VARCHAR(255)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status` |
+| `season` | `VARCHAR(9)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status` |
 | `group_num` | `INTEGER` | Yes | `idx_match_competition_season_group_round` |
 | `round` | `INTEGER` | No | `idx_match_competition_season_group_round` |
 | `phase` | `VARCHAR(255)` | Yes | — |
@@ -198,7 +198,7 @@ Top-level team match event.
 | `away_sets_won` | `INTEGER` | Yes | — |
 | `winner_team_id` | `UUID` | Yes | FK to `team`; `idx_match_winner_team_id` |
 | `protested` | `BOOLEAN` | No | Database default `false` |
-| `status` | `VARCHAR(20)` | No | Database default `'PLAYED'` |
+| `status` | `VARCHAR(20)` | No | Database default `'PLAYED'`; `idx_match_source_season_competition_status` |
 
 `status` is `SCHEDULED` while the fixture is known but not yet played, and `PLAYED` once results are
 stored. The database default is what lets `ddl-auto: update` add this column to an already-populated
@@ -207,8 +207,46 @@ The invariant `status = SCHEDULED` implies no `lineup`, `game`, `set_score`, or 
 the match, and a null `winner_team_id`, `home_games_won`, `away_games_won`, `home_sets_won`, and
 `away_sets_won`. The domain enforces the header half of this (winner and games/sets won) in
 `Match.of(...)`; the child half (no lineups, games, set scores, doubles pairs) is enforced by the match
-writers, not by a database `CHECK` constraint. Legacy empty and "decided 0-0" rows stay `PLAYED` until
-the FEAT-00078 backfill runs.
+writers, not by a database `CHECK` constraint.
+
+**FEAT-00078 backfill.** A `PLAYED` row is a backfill candidate when, within one `(source, season)`
+scope, it has a null `winner_team_id`, `home_games_won`/`away_games_won` and `home_sets_won`/
+`away_sets_won` that are each null or `0`, and no `game` row of its own with a result — a game has a
+result when its `winner` is set, `home_sets_won`/`away_sets_won` is non-zero, or it has a `set_score`
+row; a `not_played` game that still names a `winner` (a walkover) counts as a result. This covers legacy
+empty RFETM actas and the "decided 0-0" administrative placeholders, and never a match with a real
+winner or a game result of its own. Marking a candidate `SCHEDULED` (the `tt-data-league-import-runtime`
+`--backfill-scheduled-matches` command, in one transaction per run) deletes its `doubles_pair`,
+`set_score`, `game`, and `lineup` rows and nulls the four header score columns before setting
+`status = SCHEDULED`, keeping the invariant above. The source actas are unaffected; a later import can
+recreate the deleted child rows once the acta is actually published.
+
+**FEAT-00079 read-side filtering.** Statistics, counts and search must never see unplayed fixtures, so
+the read queries split into two groups. Query-level: the paginated `search`/`countSearch` carry a
+mandatory `MatchSearchCriteria.status` (defaulting to `PLAYED`), and fragment search, all-matches-by-
+source, distinct seasons, per-season count and the total match count all add `status = 'PLAYED'`.
+The `(source, season, competition, status)` index supports these predicates. Handler-level: the team-id
+traversals (`findAllByTeamIds`, `findAllByTeamIdsAndSource`,
+`findAllByTeamIdsAndSourceAndSeasonAndCompetition`) stay deliberately **unfiltered** so consolidation
+and future calendar reads can see `SCHEDULED` rows (risk K9); every statistics handler filters the
+returned matches through `Match.isPlayed()` before aggregating (risk K1), and `MatchOutcome` returns
+empty for any `SCHEDULED` match as the central safety net. The REST and MCP match DTOs expose the new
+additive `status` field. `findAllSeasonsBySource`/`findAllCompetitionsBySourceAndSeason` (the API
+option lists) are not status-filtered, so a season whose actas are all pending still appears in the
+dropdown while its search results exclude scheduled rows.
+
+**FEAT-00080 upgrade and reschedule.** `MatchRepository.replaceMatchContent(MatchContent)` upgrades a
+`SCHEDULED` fixture to `PLAYED` or corrects an already-played match in one transaction: it requires an
+existing match with the same id and the unchanged natural key
+(`(competition, season, group_num, round, phase, home_team_id, away_team_id)`), flushes pending writes,
+deletes the old children in FK order (doubles pairs → set scores → games → lineups, reusing the
+`deleteAllByMatchIds` helpers), overwrites the header keeping the id, inserts the new children, and
+flushes so a constraint failure rolls back the whole replacement (no half-written match). The domain
+`MatchContent` record validates before any write that the header is `PLAYED` and every child belongs
+to that match or one of its games. `MatchRepository.updateSchedule(UUID, MatchSchedule)` rewrites
+only `match_date`, `match_time`, `city`, `venue`, `referee_name`, and `referee_license` and is guarded
+by `status = 'SCHEDULED'` in the update itself: a `PLAYED` match or an unknown id fails with
+`IllegalStateException` and status, teams, results, and children are never touched by either path.
 
 The unique constraints are:
 
@@ -372,11 +410,12 @@ addition to ordinary CRUD operations:
 | `FederatedPlayerRepositoryHelper` | Source-scoped exact name, source-scoped licence, and rows by canonical player id. Counts distinct trimmed, case-insensitive names. The adapter also supports fragment-based searches through specifications. |
 | `TeamRepositoryHelper` | Exact `(name, season, source)`, first team by federated club and season, all teams by federated club (fetching the club), all teams by source, and case-insensitive name searches with optional season/source. Counts distinct federated clubs per season. |
 | `PlayerSeasonRepositoryHelper` | Exact `(source, license, season)`, all rows by source, rows by federated player ids (fetching federated and canonical players), source-scoped players and their competitions for team ids through lineups. Counts distinct federated players per season. |
-| `MatchRepositoryHelper` | Exact external id; natural-key lookup by competition, season, group, round, phase, home team, and away team (null group/phase match null); team-id searches optionally filtered by source, season, and competition; paginated source/season search with competition, date range, club-name and player-name fragments, player id, and home/away location, plus its count; paginated fragment search over team and player names; all matches by source; distinct seasons (overall or by source) and competitions by source and season; match count per season. |
-| `LineupRepositoryHelper` | Rows for a match id (optionally ordered by team and position); rows for match ids or player-season ids (optionally paginated), fetching match, teams, clubs, and players. |
-| `GameRepositoryHelper` | All games for a match id, or for a collection of match ids, ordered by match and `game_number` ascending. |
-| `SetScoreRepositoryHelper` | Set scores for a collection of game ids, ordered by game and `set_number`. |
-| `DoublesPairRepositoryHelper` | All doubles-pair rows for a collection of game ids, ordered by game, side, and id. |
+| `MatchRepositoryHelper` | Exact external id; natural-key lookup by competition, season, group, round, phase, home team, and away team (null group/phase match null); team-id searches optionally filtered by source, season, and competition — deliberately **not** filtered by status (FEAT-00079 consolidation exception; statistics handlers filter in memory); paginated source/season search with mandatory match-status predicate (default `PLAYED`), competition, date range, club-name and player-name fragments, player id, and home/away location, plus its count; paginated fragment search over team and player names restricted to `PLAYED`; all matches by source restricted to `PLAYED`; distinct seasons (`PLAYED` only overall, all statuses by source for option lists) and competitions by source and season (unfiltered); `PLAYED`-only match count per season and overall (`countAllPlayed`); FEAT-00078 backfill candidates by source and season (with per-match game/lineup counts), the same rule restricted to a match-id collection, and the bulk `SCHEDULED`-marking update; the FEAT-00080 schedule-only update guarded by `status = SCHEDULED`. |
+| `LineupRepositoryHelper` | Rows for a match id (optionally ordered by team and position); rows for match ids or player-season ids (optionally paginated), fetching match, teams, clubs, and players; bulk delete by match ids (FEAT-00078 backfill). |
+| `GameRepositoryHelper` | All games for a match id, or for a collection of match ids, ordered by match and `game_number` ascending; bulk delete by match ids (FEAT-00078 backfill). |
+| `SetScoreRepositoryHelper` | Set scores for a collection of game ids, ordered by game and `set_number`; bulk delete by match ids (FEAT-00078 backfill). |
+| `DoublesPairRepositoryHelper` | All doubles-pair rows for a collection of game ids, ordered by game, side, and id; bulk delete by match ids (FEAT-00078 backfill). |
+| `ScheduledMatchBackfillRepositoryJpa` | Implements the domain `ScheduledMatchBackfillRepository` port by composing the helpers above: read-only candidate listing, and an all-or-nothing `markScheduled` that re-checks every id, deletes child rows in FK order, and updates the match header, chunking ids by 500 per transaction. |
 | `UserRepositoryHelper` | Exact username/email lookup and existence checks; paginated case-insensitive username/email search, optionally filtered by active flag; count of active users per role. |
 | `PasswordRecoveryTokenRepositoryHelper` | Active token lookup by hash; atomic conditional consumption by token id or user id. |
 | `SettingRepositoryHelper` | Exact `(category, name)`; all settings in a category. |

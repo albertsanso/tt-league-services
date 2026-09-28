@@ -79,7 +79,10 @@ public class FindFederatedClubDetailsQueryHandler
                 : playerSeasonRepository.findAllPlayerSeasonsByTeamIdsAndSource(teamIds, club.getSource());
         List<Match> matches = teamIds.isEmpty()
                 ? List.of()
-                : matchRepository.findAllMatchesByTeamIdsAndSource(teamIds, club.getSource());
+                // FEAT-00079: competition summaries are computed over PLAYED matches only; the
+                // repository deliberately stays unfiltered (consolidation scope, risk K9).
+                : matchRepository.findAllMatchesByTeamIdsAndSource(teamIds, club.getSource()).stream()
+                        .filter(Match::isPlayed).toList();
         Map<UUID, List<String>> playerCompetitions = teamIds.isEmpty()
                 ? Map.of()
                 : playerSeasonRepository.findAllPlayerSeasonCompetitionsByTeamIdsAndSource(

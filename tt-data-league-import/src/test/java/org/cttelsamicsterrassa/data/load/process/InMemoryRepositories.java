@@ -12,6 +12,11 @@ import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
+import org.cttelsamicsterrassa.data.core.domain.match.model.ScheduledMatchBackfillCandidate;
+import org.cttelsamicsterrassa.data.core.domain.match.model.ScheduledMatchBackfillWriteResult;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.game.model.SetScore;
 import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
@@ -23,16 +28,21 @@ import org.cttelsamicsterrassa.data.core.domain.game.repository.DoublesPairRepos
 import org.cttelsamicsterrassa.data.core.domain.game.repository.GameRepository;
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
+import org.cttelsamicsterrassa.data.core.domain.match.repository.ScheduledMatchBackfillRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.SetScoreRepository;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 /**
@@ -406,6 +416,21 @@ public final class InMemoryRepositories {
 
     static final class Matches implements MatchRepository {
         final List<Match> saved = new ArrayList<>();
+        private final Lineups lineups;
+        private final Games games;
+        private final SetScores setScores;
+        private final DoublesPairs doublesPairs;
+
+        Matches() {
+            this(null, null, null, null);
+        }
+
+        Matches(Lineups lineups, Games games, SetScores setScores, DoublesPairs doublesPairs) {
+            this.lineups = lineups;
+            this.games = games;
+            this.setScores = setScores;
+            this.doublesPairs = doublesPairs;
+        }
 
         @Override
         public Optional<Match> findMatchById(UUID id) {
@@ -468,6 +493,72 @@ public final class InMemoryRepositories {
         @Override
         public void saveMatch(Match match) {
             saved.add(match);
+        }
+
+        @Override
+        public void replaceMatchContent(MatchContent content) {
+            if (lineups == null || games == null || setScores == null || doublesPairs == null) {
+                throw new IllegalStateException(
+                        "replaceMatchContent requires the wired child stores (lineups, games, set scores, "
+                                + "doubles pairs)");
+            }
+            Match replacement = content.match();
+            int index = indexOfMatch(replacement.getId());
+            if (!saved.get(index).hasSameNaturalKeyAs(replacement)) {
+                throw new IllegalStateException("Replacement must not change the natural key of match "
+                        + replacement.getId());
+            }
+            List<UUID> gameIds = games.saved.stream()
+                    .filter(game -> replacement.getId().equals(game.getMatch().getId()))
+                    .map(Game::getId)
+                    .toList();
+            doublesPairs.saved.removeIf(pair -> gameIds.contains(pair.getGame().getId()));
+            setScores.saved.removeIf(setScore -> gameIds.contains(setScore.getGame().getId()));
+            games.saved.removeIf(game -> replacement.getId().equals(game.getMatch().getId()));
+            lineups.saved.removeIf(lineup -> replacement.getId().equals(lineup.getMatch().getId()));
+            saved.set(index, replacement);
+            lineups.saved.addAll(content.lineups());
+            games.saved.addAll(content.games());
+            setScores.saved.addAll(content.setScores());
+            doublesPairs.saved.addAll(content.doublesPairs());
+        }
+
+        @Override
+        public void updateSchedule(UUID matchId, MatchSchedule schedule) {
+            int index = indexOfMatch(matchId);
+            Match existing = saved.get(index);
+            if (existing.getStatus() != MatchStatus.SCHEDULED) {
+                throw new IllegalStateException(
+                        "Only SCHEDULED matches can be rescheduled, match " + matchId + " is PLAYED");
+            }
+            saved.set(index, Match.builder()
+                    .id(existing.getId())
+                    .source(existing.getSource())
+                    .externalId(existing.getExternalId())
+                    .competition(existing.getCompetition())
+                    .season(existing.getSeason())
+                    .groupNumber(existing.getGroupNumber())
+                    .round(existing.getRound())
+                    .phase(existing.getPhase())
+                    .dateTime(schedule.dateTime())
+                    .city(schedule.city())
+                    .venue(schedule.venue())
+                    .homeTeam(existing.getHomeTeam())
+                    .awayTeam(existing.getAwayTeam())
+                    .refereeName(schedule.refereeName())
+                    .refereeLicense(schedule.refereeLicense())
+                    .protested(existing.isProtested())
+                    .status(existing.getStatus())
+                    .createExisting());
+        }
+
+        private int indexOfMatch(UUID matchId) {
+            for (int i = 0; i < saved.size(); i++) {
+                if (matchId.equals(saved.get(i).getId())) {
+                    return i;
+                }
+            }
+            throw new IllegalStateException("Match not found: " + matchId);
         }
     }
 
@@ -536,6 +627,166 @@ public final class InMemoryRepositories {
         @Override
         public void saveDoublesPairs(List<DoublesPair> doublesPairs) {
             saved.addAll(doublesPairs);
+        }
+    }
+
+    static final class ScheduledMatchBackfill implements ScheduledMatchBackfillRepository {
+        private final Matches matches;
+        private final Games games;
+        private final Lineups lineups;
+        private final SetScores setScores;
+        private final DoublesPairs doublesPairs;
+
+        ScheduledMatchBackfill(Matches matches, Games games, Lineups lineups, SetScores setScores,
+                               DoublesPairs doublesPairs) {
+            this.matches = matches;
+            this.games = games;
+            this.lineups = lineups;
+            this.setScores = setScores;
+            this.doublesPairs = doublesPairs;
+        }
+
+        @Override
+        public List<ScheduledMatchBackfillCandidate> findScheduledBackfillCandidates(ImportSource source, Season season) {
+            Objects.requireNonNull(source, "source");
+            Objects.requireNonNull(season, "season");
+            return matches.saved.stream()
+                    .filter(match -> source.equals(match.getSource()) && season.equals(match.getSeason()))
+                    .filter(this::isCandidate)
+                    .sorted(Comparator
+                            .comparing(Match::getCompetition, Comparator.nullsFirst(Comparator.naturalOrder()))
+                            .thenComparing(match -> Optional.ofNullable(match.getGroupNumber()).orElse(Integer.MIN_VALUE))
+                            .thenComparingInt(Match::getRound)
+                            .thenComparing(Match::getId))
+                    .map(this::toCandidate)
+                    .toList();
+        }
+
+        @Override
+        public ScheduledMatchBackfillWriteResult markScheduled(ImportSource source, Season season, Collection<UUID> matchIds) {
+            Objects.requireNonNull(source, "source");
+            Objects.requireNonNull(season, "season");
+            if (matchIds == null || matchIds.isEmpty()) {
+                return new ScheduledMatchBackfillWriteResult(0, 0, 0, 0, 0);
+            }
+            Set<UUID> candidateIds = findScheduledBackfillCandidates(source, season).stream()
+                    .map(ScheduledMatchBackfillCandidate::matchId)
+                    .collect(Collectors.toSet());
+            List<UUID> offending = matchIds.stream().filter(id -> !candidateIds.contains(id)).toList();
+            if (!offending.isEmpty()) {
+                throw new IllegalStateException(
+                        "Match ids are no longer backfill candidates for " + source + "/" + season + ": " + offending);
+            }
+
+            int doublesPairsDeleted = 0;
+            int setScoresDeleted = 0;
+            int gamesDeleted = 0;
+            int lineupsDeleted = 0;
+            int matchesUpdated = 0;
+
+            for (UUID matchId : matchIds) {
+                List<UUID> gameIds = games.saved.stream()
+                        .filter(game -> matchId.equals(game.getMatch().getId()))
+                        .map(Game::getId)
+                        .toList();
+
+                doublesPairsDeleted += removeIf(doublesPairs.saved, pair -> gameIds.contains(pair.getGame().getId()));
+                setScoresDeleted += removeIf(setScores.saved, setScore -> gameIds.contains(setScore.getGame().getId()));
+                gamesDeleted += removeIf(games.saved, game -> matchId.equals(game.getMatch().getId()));
+                lineupsDeleted += removeIf(lineups.saved, lineup -> matchId.equals(lineup.getMatch().getId()));
+
+                Match existing = matches.saved.stream()
+                        .filter(match -> matchId.equals(match.getId()))
+                        .findFirst()
+                        .orElseThrow(() -> new IllegalStateException("Match not found: " + matchId));
+                Match updated = Match.builder()
+                        .id(existing.getId())
+                        .source(existing.getSource())
+                        .externalId(existing.getExternalId())
+                        .competition(existing.getCompetition())
+                        .season(existing.getSeason())
+                        .groupNumber(existing.getGroupNumber())
+                        .round(existing.getRound())
+                        .phase(existing.getPhase())
+                        .dateTime(existing.getDateTime())
+                        .city(existing.getCity())
+                        .venue(existing.getVenue())
+                        .homeTeam(existing.getHomeTeam())
+                        .awayTeam(existing.getAwayTeam())
+                        .refereeName(existing.getRefereeName())
+                        .refereeLicense(existing.getRefereeLicense())
+                        .protested(existing.isProtested())
+                        .status(MatchStatus.SCHEDULED)
+                        .createExisting();
+                matches.saved.removeIf(match -> matchId.equals(match.getId()));
+                matches.saved.add(updated);
+                matchesUpdated++;
+            }
+
+            return new ScheduledMatchBackfillWriteResult(
+                    matchesUpdated, gamesDeleted, lineupsDeleted, setScoresDeleted, doublesPairsDeleted);
+        }
+
+        private boolean isCandidate(Match match) {
+            if (match.getStatus() != MatchStatus.PLAYED) {
+                return false;
+            }
+            if (match.getWinnerTeam() != null) {
+                return false;
+            }
+            if (nonZero(match.getHomeGamesWon()) || nonZero(match.getAwayGamesWon())) {
+                return false;
+            }
+            if (nonZero(match.getHomeSetsWon()) || nonZero(match.getAwaySetsWon())) {
+                return false;
+            }
+            List<Game> matchGames = games.saved.stream()
+                    .filter(game -> match.getId().equals(game.getMatch().getId()))
+                    .toList();
+            for (Game game : matchGames) {
+                if (game.getWinnerSide() != null) {
+                    return false;
+                }
+                if (nonZero(game.getHomeSetsWon()) || nonZero(game.getAwaySetsWon())) {
+                    return false;
+                }
+                boolean hasSetScore = setScores.saved.stream()
+                        .anyMatch(setScore -> game.getId().equals(setScore.getGame().getId()));
+                if (hasSetScore) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private ScheduledMatchBackfillCandidate toCandidate(Match match) {
+            int gameCount = (int) games.saved.stream()
+                    .filter(game -> match.getId().equals(game.getMatch().getId()))
+                    .count();
+            int lineupCount = (int) lineups.saved.stream()
+                    .filter(lineup -> match.getId().equals(lineup.getMatch().getId()))
+                    .count();
+            return new ScheduledMatchBackfillCandidate(
+                    match.getId(),
+                    match.getCompetition(),
+                    match.getGroupNumber(),
+                    match.getRound(),
+                    match.getPhase(),
+                    match.getDateTime() == null ? null : match.getDateTime().toLocalDate(),
+                    match.getHomeTeam().getId(),
+                    match.getAwayTeam().getId(),
+                    gameCount,
+                    lineupCount);
+        }
+
+        private static boolean nonZero(Integer value) {
+            return value != null && value != 0;
+        }
+
+        private static <T> int removeIf(List<T> list, Predicate<T> predicate) {
+            int before = list.size();
+            list.removeIf(predicate);
+            return before - list.size();
         }
     }
 }

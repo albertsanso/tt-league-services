@@ -71,69 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00078] Backfill legacy empty and decided 0-0 matches to SCHEDULED
-- **Status:** idea
-- **Priority:** high
-- **Effort:** small
-- **Depends on:** FEAT-00077
-
-#### Goal
-Repair existing phantom draws by marking legacy empty and "decided 0-0" matches as SCHEDULED through an opt-in, source- and season-scoped runtime command.
-
-#### Acceptance Criteria
-- [ ] An opt-in runtime command marks as SCHEDULED matches with no game result, no winner_team_id and null or 0-0 games won
-- [ ] The command is scoped by source and season and supports report and write modes; report mode performs no writes
-- [ ] Tests cover legacy empty actas, decided 0-0 matches, and a real played match that must stay PLAYED
-- [ ] The runtime README documents the command, its arguments and modes
-
-#### Feature Details
-→ See [FEAT-00078-DETAILS.md](./FEAT-00078-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
-### [FEAT-00079] Read-side match status filtering
-- **Status:** idea
-- **Priority:** high
-- **Effort:** medium
-- **Depends on:** FEAT-00077
-
-#### Goal
-Make every outcome, statistic and count read path consider only PLAYED matches and expose the status in match DTOs, so scheduled fixtures never leak into statistics.
-
-#### Acceptance Criteria
-- [ ] MatchOutcome returns empty for SCHEDULED matches and its javadoc states that a winner-less PLAYED match is a tie
-- [ ] Match, player, club, federated-club, competition and club-search query handlers compute stats, win rates, form and streaks over PLAYED only
-- [ ] MatchRepositoryHelper countBySeason, countAllMatches and findAllSeasons count PLAYED only; searchMatches/countMatches and fragment search default to PLAYED
-- [ ] REST and MCP MatchDto/MatchDetailDto expose an additive status field
-- [ ] findAllMatchesByTeamIds used by consolidation is not filtered by status
-- [ ] Each affected handler has a test with a mixed SCHEDULED/PLAYED fixture
-- [ ] Shipped with or before the processor lifecycle feature (T6)
-
-#### Feature Details
-→ See [FEAT-00079-DETAILS.md](./FEAT-00079-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
-### [FEAT-00080] Match upgrade and reschedule repository ports
-- **Status:** idea
-- **Priority:** high
-- **Effort:** medium
-- **Depends on:** FEAT-00077
-
-#### Goal
-Provide transactional domain ports to upgrade a SCHEDULED match in place to PLAYED and to reschedule it, preserving the match UUID.
-
-#### Acceptance Criteria
-- [ ] MatchRepository.replaceMatchContent replaces header and children (lineups, games, set scores, doubles pairs) of an existing match in one transaction, preserving its id
-- [ ] MatchRepository.updateSchedule (or a verified createExisting/saveMatch merge) updates date, time, city, venue and referee
-- [ ] JPA and in-memory implementations exist
-- [ ] Rollback tests prove a failed replace leaves no half-written match
-
-#### Feature Details
-→ See [FEAT-00080-DETAILS.md](./FEAT-00080-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00081] Match processor lifecycle for incremental actas
 - **Status:** idea
 - **Priority:** high
@@ -395,6 +332,69 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00080] Match upgrade and reschedule repository ports
+- **Status:** done
+- **Priority:** high
+- **Effort:** medium
+- **Depends on:** FEAT-00077
+
+#### Goal
+Provide transactional domain ports to upgrade a SCHEDULED match in place to PLAYED and to reschedule it, preserving the match UUID.
+
+#### Acceptance Criteria
+- [x] MatchRepository.replaceMatchContent replaces header and children (lineups, games, set scores, doubles pairs) of an existing match in one transaction, preserving its id
+- [x] MatchRepository.updateSchedule (or a verified createExisting/saveMatch merge) updates date, time, city, venue and referee
+- [x] JPA and in-memory implementations exist
+- [x] Rollback tests prove a failed replace leaves no half-written match
+
+#### Feature Details
+→ See [FEAT-00080-DETAILS.md](./FEAT-00080-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+### [FEAT-00079] Read-side match status filtering
+- **Status:** done
+- **Priority:** high
+- **Effort:** medium
+- **Depends on:** FEAT-00077
+
+#### Goal
+Make every outcome, statistic and count read path consider only PLAYED matches and expose the status in match DTOs, so scheduled fixtures never leak into statistics.
+
+#### Acceptance Criteria
+- [x] MatchOutcome returns empty for SCHEDULED matches and its javadoc states that a winner-less PLAYED match is a tie
+- [x] Match, player, club, federated-club, competition and club-search query handlers compute stats, win rates, form and streaks over PLAYED only
+- [x] MatchRepositoryHelper countBySeason, countAllMatches and findAllSeasons count PLAYED only; searchMatches/countMatches and fragment search default to PLAYED
+- [x] REST and MCP MatchDto/MatchDetailDto expose an additive status field
+- [x] findAllMatchesByTeamIds used by consolidation is not filtered by status
+- [x] Each affected handler has a test with a mixed SCHEDULED/PLAYED fixture
+- [x] Shipped with or before the processor lifecycle feature (T6)
+
+#### Feature Details
+→ See [FEAT-00079-DETAILS.md](./FEAT-00079-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
+
+### [FEAT-00078] Backfill legacy empty and decided 0-0 matches to SCHEDULED
+- **Status:** done
+- **Priority:** high
+- **Effort:** small
+- **Depends on:** FEAT-00077
+
+#### Goal
+Repair existing phantom draws by marking legacy empty and "decided 0-0" matches as SCHEDULED through an opt-in, source- and season-scoped runtime command.
+
+#### Acceptance Criteria
+- [x] An opt-in runtime command marks as SCHEDULED matches with no game result, no winner_team_id and null or 0-0 games won
+- [x] The command is scoped by source and season and supports report and write modes; report mode performs no writes
+- [x] Tests cover legacy empty actas, decided 0-0 matches, and a real played match that must stay PLAYED
+- [x] The runtime README documents the command, its arguments and modes
+
+#### Feature Details
+→ See [FEAT-00078-DETAILS.md](./FEAT-00078-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00077] MatchStatus in domain and JPA
 - **Status:** done

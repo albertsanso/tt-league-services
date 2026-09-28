@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.core.domain.game.repository.GameRepository;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
 import org.cttelsamicsterrassa.data.core.domain.player.model.Player;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
@@ -237,5 +238,49 @@ class FindPlayerDetailsQueryHandlerTest {
 
         assertEquals(0, details.statistics().getFirst().matchesPlayed());
         assertNull(details.statistics().getFirst().winPercentage());
+    }
+
+    @Test
+    void excludesScheduledMatchesFromPlayerMatchesAndStatistics() {
+        // FEAT-00079: SCHEDULED fixtures carry no lineups in storage; if one ever reaches the
+        // handler it must not appear in matches, competitions counts or statistics (defence in
+        // depth against an unfiltered repository, risk K1).
+        UUID playerId = UUID.randomUUID();
+        Season season = Season.of(2025);
+        Player player = Player.createExisting(playerId, "Anna Player");
+        FederatedPlayer federatedPlayer = FederatedPlayer.createExisting(
+                UUID.randomUUID(), ImportSource.RFETM, "Anna Player", player);
+        PlayerSeason registration = PlayerSeason.createExisting(
+                UUID.randomUUID(), ImportSource.RFETM, "Anna Player", "123", federatedPlayer, season);
+        Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Terrassa", season, null);
+        Team awayTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Barcelona", season, null);
+        Match played = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+                .season(season).homeTeam(homeTeam).awayTeam(awayTeam).homeGamesWon(5).awayGamesWon(2)
+                .winnerTeam(homeTeam).createExisting();
+        Match scheduled = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+                .season(season).round(2).homeTeam(homeTeam).awayTeam(awayTeam)
+                .status(MatchStatus.SCHEDULED).createExisting();
+        Lineup playedLineup = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).match(played)
+                .team(homeTeam).player(registration).createExisting();
+        Lineup scheduledLineup = Lineup.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).match(scheduled)
+                .team(homeTeam).player(registration).createExisting();
+
+        PlayerRepository playerRepository = mock(PlayerRepository.class);
+        FederatedPlayerRepository federatedPlayerRepository = mock(FederatedPlayerRepository.class);
+        PlayerSeasonRepository playerSeasonRepository = mock(PlayerSeasonRepository.class);
+        LineupRepository lineupRepository = mock(LineupRepository.class);
+        when(playerRepository.findPlayerById(playerId)).thenReturn(Optional.of(player));
+        when(federatedPlayerRepository.findAllFederatedPlayersByPlayerId(playerId)).thenReturn(List.of(federatedPlayer));
+        when(playerSeasonRepository.findAllPlayerSeasonsByFederatedPlayerIds(List.of(federatedPlayer.getId())))
+                .thenReturn(List.of(registration));
+        when(lineupRepository.findAllLineupsByPlayerSeasonIds(List.of(registration.getId())))
+                .thenReturn(List.of(playedLineup, scheduledLineup));
+
+        PlayerDetailsReadModel details = new FindPlayerDetailsQueryHandler(
+                playerRepository, federatedPlayerRepository, playerSeasonRepository, lineupRepository)
+                .handle(new FindPlayerDetailsQuery(playerId)).getResponse();
+
+        assertEquals(List.of(played.getId()), details.matches().stream().map(value -> value.id()).toList());
+        assertEquals(1, details.statistics().getFirst().matchesPlayed());
     }
 }

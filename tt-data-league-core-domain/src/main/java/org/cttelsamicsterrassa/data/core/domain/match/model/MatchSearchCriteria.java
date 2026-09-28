@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.time.LocalDate;
+import java.util.Objects;
 import java.util.UUID;
 
 public record MatchSearchCriteria(
@@ -17,12 +18,14 @@ public record MatchSearchCriteria(
         String playerName,
         String clubName,
         int page,
-        int pageSize) {
+        int pageSize,
+        MatchStatus status) {
 
     public MatchSearchCriteria {
         if (source == null || season == null) {
             throw new IllegalArgumentException("source and season are mandatory");
         }
+        Objects.requireNonNull(status, "status is mandatory; use MatchStatus.PLAYED or SCHEDULED");
         if (fromDate != null && toDate != null && fromDate.isAfter(toDate)) {
             throw new IllegalArgumentException("fromDate must not be after toDate");
         }
@@ -43,6 +46,23 @@ public record MatchSearchCriteria(
             UUID playerId,
             PlayerLocation playerLocation,
             String playerName) {
-        this(source, season, competition, fromDate, toDate, playerId, playerLocation, playerName, null, 0, 10);
+        this(source, season, competition, fromDate, toDate, playerId, playerLocation, playerName,
+                null, 0, 10, MatchStatus.PLAYED);
+    }
+
+    public MatchSearchCriteria(
+            ImportSource source,
+            Season season,
+            String competition,
+            LocalDate fromDate,
+            LocalDate toDate,
+            UUID playerId,
+            PlayerLocation playerLocation,
+            String playerName,
+            String clubName,
+            int page,
+            int pageSize) {
+        this(source, season, competition, fromDate, toDate, playerId, playerLocation, playerName,
+                clubName, page, pageSize, MatchStatus.PLAYED);
     }
 }
