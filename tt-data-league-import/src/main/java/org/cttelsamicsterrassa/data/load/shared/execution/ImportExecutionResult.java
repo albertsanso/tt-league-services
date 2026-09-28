@@ -8,10 +8,18 @@ import java.util.Optional;
 
 public record ImportExecutionResult(ImportSource source, Optional<String> season, ImportProcessStatus status,
                                     ImportExecutionMetrics metrics, List<ImportExecutionIssue> issues,
-                                    List<PostProcessingOutcome> postProcessing) {
+                                    List<PostProcessingOutcome> postProcessing,
+                                    List<ImportExecutionIssue> warnings) {
+    public ImportExecutionResult(ImportSource source, Optional<String> season, ImportProcessStatus status,
+                                 ImportExecutionMetrics metrics, List<ImportExecutionIssue> issues,
+                                 List<PostProcessingOutcome> postProcessing) {
+        this(source, season, status, metrics, issues, postProcessing, List.of());
+    }
+
     public ImportExecutionResult {
         season = season == null ? Optional.empty() : season;
         issues = issues == null ? List.of() : List.copyOf(issues);
         postProcessing = postProcessing == null ? List.of() : List.copyOf(postProcessing);
+        warnings = warnings == null ? List.of() : List.copyOf(warnings);
     }
 }

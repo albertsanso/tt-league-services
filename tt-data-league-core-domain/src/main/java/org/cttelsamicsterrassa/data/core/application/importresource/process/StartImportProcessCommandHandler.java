@@ -16,6 +16,9 @@ import org.cttelsamicsterrassa.data.core.domain.load.service.ImportRunRegistry;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import java.time.Clock;
+import java.time.ZonedDateTime;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executor;
 import java.util.logging.Level;
@@ -38,16 +41,26 @@ public class StartImportProcessCommandHandler extends DomainCommandHandler<Start
     private final ImportResourceProcessService service;
     private final ImportRunRegistry runRegistry;
     private final Executor executor;
+    private final Clock clock;
 
     @Inject
     public StartImportProcessCommandHandler(ImportResourceRepository repository,
                                             ImportResourceProcessService service,
                                             ImportRunRegistry runRegistry,
                                             Executor executor) {
+        this(repository, service, runRegistry, executor, Clock.systemDefaultZone());
+    }
+
+    public StartImportProcessCommandHandler(ImportResourceRepository repository,
+                                            ImportResourceProcessService service,
+                                            ImportRunRegistry runRegistry,
+                                            Executor executor,
+                                            Clock clock) {
         this.repository = repository;
         this.service = service;
         this.runRegistry = runRegistry;
         this.executor = executor;
+        this.clock = Objects.requireNonNull(clock, "clock");
     }
     @Override
     public DomainCommandResponse handle(StartImportProcessCommand command) {
@@ -79,7 +92,7 @@ public class StartImportProcessCommandHandler extends DomainCommandHandler<Start
 
     private ImportRunStatusDto rejectSubmission(ImportResource resource, ImportRunSnapshot snapshot,
                                                 RuntimeException submissionFailure) {
-        resource.finishProcessing(false);
+        resource.finishProcessing(false, ZonedDateTime.now(clock));
         repository.save(resource);
         ImportRunSnapshot failed = runRegistry.complete(snapshot.runId(), ImportRunStatus.FAILURE,
                         ImportRunProgress.indeterminate(0, 0, 1), null, safeMessage(submissionFailure))
@@ -92,14 +105,14 @@ public class StartImportProcessCommandHandler extends DomainCommandHandler<Start
         try {
             ImportProcessResult result = service.process(resource,
                     progress -> runRegistry.updateProgress(runId, progress));
-            resource.finishProcessing(result.status() == ImportProcessStatus.SUCCESS);
+            resource.finishProcessing(result.status() == ImportProcessStatus.SUCCESS, ZonedDateTime.now(clock));
             repository.save(resource);
             runRegistry.complete(runId, ImportRunStatus.fromProcessStatus(result.status()),
                     progressFrom(result), result, null);
         } catch (RuntimeException exception) {
             LOGGER.log(Level.SEVERE, "Unexpected failure while processing import resource " + resource.getId(),
                     exception);
-            resource.finishProcessing(false);
+            resource.finishProcessing(false, ZonedDateTime.now(clock));
             repository.save(resource);
             runRegistry.complete(runId, ImportRunStatus.FAILURE,
                     ImportRunProgress.indeterminate(0, 0, 1), null, safeMessage(exception));

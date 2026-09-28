@@ -1,9 +1,11 @@
 package org.cttelsamicsterrassa.data.load.fctt.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportContext;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportProcessor;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParseException;
@@ -153,7 +155,7 @@ public class FcttActasDirectoryNavigator {
             traverseSeasonFolder(seasonFolder, season, processors, counters, runContext, progressListener);
         }
 
-        TraversalSummary summary = counters.toSummary();
+        TraversalSummary summary = counters.toSummary(runContext.lifecycleCounters());
         LOGGER.info("Traversal of {} finished: {}", baseFolder, summary);
         return summary;
     }
@@ -237,8 +239,11 @@ public class FcttActasDirectoryNavigator {
                 reportProgress(counters, progressListener);
                 continue;
             }
-            if (classifier.classify(acta).unresolvedPendingFixture()) {
+            ActaClassification classification = classifier.classify(acta);
+            if (classification.unresolvedPendingFixture()) {
                 counters.skipped++;
+                runContext.recordUnresolvedPendingFixture("FcttActasDirectoryNavigator", reportFile,
+                        classification.reason());
                 LOGGER.warn("Skipping {}: pending fixture has no teams; it is reported as unresolved "
                         + "and not dispatched", reportFile);
                 reportProgress(counters, progressListener);
@@ -329,8 +334,8 @@ public class FcttActasDirectoryNavigator {
         private long processorFailures;
         private final List<ImportExecutionIssue> issues = new ArrayList<>();
 
-        private TraversalSummary toSummary() {
-            return new TraversalSummary(filesSeen, dispatched, skipped, processorFailures, issues);
+        private TraversalSummary toSummary(ImportLifecycleCounters lifecycle) {
+            return new TraversalSummary(filesSeen, dispatched, skipped, processorFailures, issues, lifecycle);
         }
     }
 }

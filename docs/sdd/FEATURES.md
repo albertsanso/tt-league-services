@@ -71,26 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00082] Incremental import run status and metrics
-- **Status:** idea
-- **Priority:** high
-- **Effort:** small
-- **Depends on:** FEAT-00081
-
-#### Goal
-Report incremental-import outcomes with explicit counters and make no-change runs succeed, so operators get correct run statuses.
-
-#### Acceptance Criteria
-- [ ] Traversal summaries, ImportExecutionMetrics and ImportProcessResult carry scheduledCreated, upgradedToPlayed, rescheduled, partialActas, invalidActas and unresolvedPendingFixtures
-- [ ] A run with no changes (for example all actas pending and already stored) ends SUCCESS/PROCESSED; EMPTY_RESULT is kept for no actas found
-- [ ] ImportResource.lastProcessedDate is set when a run finishes
-- [ ] README documents the status change and counters
-
-#### Feature Details
-→ See [FEAT-00082-DETAILS.md](./FEAT-00082-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00083] Persist source fixture id (id_partido)
 - **Status:** idea
 - **Priority:** medium
@@ -308,6 +288,26 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00082] Incremental import run status and metrics
+- **Status:** done
+- **Priority:** high
+- **Effort:** small
+- **Depends on:** FEAT-00081
+
+#### Goal
+Report incremental-import outcomes with explicit counters and make no-change runs succeed, so operators get correct run statuses.
+
+#### Acceptance Criteria
+- [x] Traversal summaries, ImportExecutionMetrics and ImportProcessResult carry scheduledCreated, upgradedToPlayed, rescheduled, partialActas, invalidActas and unresolvedPendingFixtures
+- [x] A run with no changes (for example all actas pending and already stored) ends SUCCESS/PROCESSED; EMPTY_RESULT is kept for no actas found
+- [x] ImportResource.lastProcessedDate is set when a run finishes
+- [x] README documents the status change and counters
+
+#### Feature Details
+→ See [FEAT-00082-DETAILS.md](./FEAT-00082-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00081] Match processor lifecycle for incremental actas
 - **Status:** done

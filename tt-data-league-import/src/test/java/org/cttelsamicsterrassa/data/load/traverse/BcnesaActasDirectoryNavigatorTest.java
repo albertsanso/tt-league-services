@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaTraversalSummary;
@@ -323,9 +324,27 @@ class BcnesaActasDirectoryNavigatorTest {
         assertEquals(1, summary.fixturesSeen());
         assertEquals(1, summary.fixturesDispatched());
         assertEquals(0, summary.fixturesUnresolved());
+        assertEquals(ImportLifecycleCounters.ZERO, summary.lifecycle(),
+                "a dispatched fixture records nothing as unresolved");
         BcnesaMatchReportContext context = injected.single();
         assertEquals("HOME CLUB", context.homeTeamName());
         assertTrue(context.games().isEmpty());
+    }
+
+    @Test
+    void recordsAPendingFixtureWithoutTeamsAsUnresolvedInLifecycle() throws IOException {
+        // FEAT-00082: an unattributable fixture whose classification is an unresolved pending
+        // placeholder additionally counts as unresolvedPendingFixtures.
+        writeReport("2020-2021", "Preferent", "G1", "1a Fase", "acta_ph.json",
+                pendingActaWithoutGames("HOME CLUB", "AWAY CLUB")
+                        .replace("\"nombre\": \"HOME CLUB\"", "\"nombre\": null")
+                        .replace("\"nombre\": \"AWAY CLUB\"", "\"nombre\": null"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(1, summary.fixturesUnresolved());
+        assertEquals(1, summary.lifecycle().unresolvedPendingFixtures());
+        assertTrue(injected.contexts.isEmpty());
     }
 
     private static String pendingActaWithoutGames(String home, String away) {

@@ -414,8 +414,8 @@ public final class InMemoryRepositories {
         }
     }
 
-    static final class Matches implements MatchRepository {
-        final List<Match> saved = new ArrayList<>();
+    public static final class Matches implements MatchRepository {
+        public final List<Match> saved = new ArrayList<>();
         private final Lineups lineups;
         private final Games games;
         private final SetScores setScores;
@@ -425,7 +425,7 @@ public final class InMemoryRepositories {
             this(null, null, null, null);
         }
 
-        Matches(Lineups lineups, Games games, SetScores setScores, DoublesPairs doublesPairs) {
+        public Matches(Lineups lineups, Games games, SetScores setScores, DoublesPairs doublesPairs) {
             this.lineups = lineups;
             this.games = games;
             this.setScores = setScores;
@@ -562,15 +562,15 @@ public final class InMemoryRepositories {
         }
     }
 
-    static final class Lineups implements LineupRepository {
-        final List<Lineup> saved = new ArrayList<>();
+    public static final class Lineups implements LineupRepository {
+        public final List<Lineup> saved = new ArrayList<>();
         private final PlayerSeasons playerSeasons;
 
         Lineups() {
             this(null);
         }
 
-        Lineups(PlayerSeasons playerSeasons) {
+        public Lineups(PlayerSeasons playerSeasons) {
             this.playerSeasons = playerSeasons;
         }
 
@@ -588,8 +588,8 @@ public final class InMemoryRepositories {
         }
     }
 
-    static final class Games implements GameRepository {
-        final List<Game> saved = new ArrayList<>();
+    public static final class Games implements GameRepository {
+        public final List<Game> saved = new ArrayList<>();
 
         @Override
         public List<Game> findGamesByMatchId(UUID matchId) {
@@ -607,8 +607,8 @@ public final class InMemoryRepositories {
         }
     }
 
-    static final class SetScores implements SetScoreRepository {
-        final List<SetScore> saved = new ArrayList<>();
+    public static final class SetScores implements SetScoreRepository {
+        public final List<SetScore> saved = new ArrayList<>();
 
         @Override
         public void saveSetScores(List<SetScore> setScores) {
@@ -616,8 +616,8 @@ public final class InMemoryRepositories {
         }
     }
 
-    static final class DoublesPairs implements DoublesPairRepository {
-        final List<DoublesPair> saved = new ArrayList<>();
+    public static final class DoublesPairs implements DoublesPairRepository {
+        public final List<DoublesPair> saved = new ArrayList<>();
 
         @Override
         public List<DoublesPair> findDoublesPairsByGameIds(java.util.Collection<UUID> gameIds) {

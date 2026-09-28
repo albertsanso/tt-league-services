@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.shared.process;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportPreviewFinding;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportPreviewProcessingError;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessResult;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResource;
@@ -61,14 +62,19 @@ public class NavigatorBackedImportResourceProcessService
         List<ImportPreviewProcessingError> errors = result.issues().stream()
                 .map(issue -> new ImportPreviewProcessingError(issue.message(), issue.location()))
                 .toList();
+        List<ImportPreviewFinding> findings = result.warnings().stream()
+                .map(warning -> new ImportPreviewFinding("warning",
+                        warning.processor() + ": " + warning.message(), warning.location()))
+                .toList();
         long files = result.metrics().filesSeen();
         long dispatched = result.metrics().itemsDispatched();
         long skipped = result.metrics().skipped();
         long failures = result.metrics().processorFailures();
-        return new ImportProcessResult(result.status(), List.of(), errors, files, dispatched, skipped, failures,
+        return new ImportProcessResult(result.status(), findings, errors, files, dispatched, skipped, failures,
                 result.metrics().elapsedMillis(), result.metrics().persistenceWrites(),
                 result.issues().stream().map(issue -> issue.processor() + ": " + issue.message()).toList(),
-                result.postProcessing().stream().map(Object::toString).toList());
+                result.postProcessing().stream().map(Object::toString).toList(),
+                result.metrics().lifecycle());
     }
 
     private ImportExecutionOptions effectiveOptions() {

@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.core.application.importresource.process;
 
 import org.albertsanso.commons.command.DomainCommandResponse;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.dto.ImportRunStatusDto;
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessResult;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResource;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResourceStatus;
@@ -19,6 +20,9 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Path;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -188,6 +192,119 @@ class StartImportProcessCommandHandlerTest {
         assertFalse(response.isSuccess());
         assertInstanceOf(ImportRunStatusDto.class, response.getResponse());
     }
+
+    @Test
+    void successStampsLastProcessedDateFromTheClockAndMarksTheResourceProcessed() {
+        InMemoryImportResources repository = new InMemoryImportResources();
+        ImportResource resource = resource(ImportResourceStatus.PENDING);
+        repository.resources.add(resource);
+        StartImportProcessCommandHandler handler = new StartImportProcessCommandHandler(repository,
+                service((ignored, listener) -> ImportProcessResult.success(List.of(), List.of(), 2, 1, 0, 0)),
+                new InMemoryImportRunRegistry(), SAME_THREAD_EXECUTOR, FIXED_CLOCK);
+
+        handler.handle(new StartImportProcessCommand(resource.getId()));
+
+        assertEquals(ImportResourceStatus.PROCESSED, resource.getStatus());
+        assertEquals(Optional.of(FIXED_TIME), resource.getLastProcessedDate());
+    }
+
+    @Test
+    void emptyResultStampsLastProcessedDateAndEndsTheResourceInError() {
+        InMemoryImportResources repository = new InMemoryImportResources();
+        ImportResource resource = resource(ImportResourceStatus.PENDING);
+        repository.resources.add(resource);
+        StartImportProcessCommandHandler handler = new StartImportProcessCommandHandler(repository,
+                service((ignored, listener) -> ImportProcessResult.empty(List.of(), List.of(), 1, 0, 0)),
+                new InMemoryImportRunRegistry(), SAME_THREAD_EXECUTOR, FIXED_CLOCK);
+
+        handler.handle(new StartImportProcessCommand(resource.getId()));
+
+        assertEquals(ImportResourceStatus.ERROR, resource.getStatus());
+        assertEquals(Optional.of(FIXED_TIME), resource.getLastProcessedDate());
+    }
+
+    @Test
+    void failureResultStampsLastProcessedDateAndEndsTheResourceInError() {
+        InMemoryImportResources repository = new InMemoryImportResources();
+        ImportResource resource = resource(ImportResourceStatus.PENDING);
+        repository.resources.add(resource);
+        StartImportProcessCommandHandler handler = new StartImportProcessCommandHandler(repository,
+                service((ignored, listener) -> ImportProcessResult.failure(List.of(), List.of(), 1, 0, 0, 1)),
+                new InMemoryImportRunRegistry(), SAME_THREAD_EXECUTOR, FIXED_CLOCK);
+
+        handler.handle(new StartImportProcessCommand(resource.getId()));
+
+        assertEquals(ImportResourceStatus.ERROR, resource.getStatus());
+        assertEquals(Optional.of(FIXED_TIME), resource.getLastProcessedDate());
+    }
+
+    @Test
+    void aThrownRuntimeExceptionStampsLastProcessedDate() {
+        InMemoryImportResources repository = new InMemoryImportResources();
+        ImportResource resource = resource(ImportResourceStatus.PENDING);
+        repository.resources.add(resource);
+        StartImportProcessCommandHandler handler = new StartImportProcessCommandHandler(repository,
+                service((ignored, listener) -> {
+                    throw new IllegalStateException("boom");
+                }),
+                new InMemoryImportRunRegistry(), SAME_THREAD_EXECUTOR, FIXED_CLOCK);
+
+        handler.handle(new StartImportProcessCommand(resource.getId()));
+
+        assertEquals(ImportResourceStatus.ERROR, resource.getStatus());
+        assertEquals(Optional.of(FIXED_TIME), resource.getLastProcessedDate());
+    }
+
+    @Test
+    void aRejectedSubmissionStampsLastProcessedDate() {
+        InMemoryImportResources repository = new InMemoryImportResources();
+        ImportResource resource = resource(ImportResourceStatus.PENDING);
+        repository.resources.add(resource);
+        Executor rejecting = command -> {
+            throw new RejectedExecutionException("pool exhausted");
+        };
+        StartImportProcessCommandHandler handler = new StartImportProcessCommandHandler(repository,
+                service((ignored, listener) -> {
+                    throw new AssertionError("service must not run");
+                }),
+                new InMemoryImportRunRegistry(), rejecting, FIXED_CLOCK);
+
+        handler.handle(new StartImportProcessCommand(resource.getId()));
+
+        assertEquals(ImportResourceStatus.ERROR, resource.getStatus());
+        assertEquals(Optional.of(FIXED_TIME), resource.getLastProcessedDate());
+    }
+
+    @Test
+    void returnedTerminalResultCarriesTheLifecycleCountersToTheStatusDto() {
+        InMemoryImportResources repository = new InMemoryImportResources();
+        InMemoryImportRunRegistry runRegistry = new InMemoryImportRunRegistry();
+        ImportResource resource = resource(ImportResourceStatus.PENDING);
+        repository.resources.add(resource);
+        ImportProcessResult withCounters = new ImportProcessResult(
+                org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus.SUCCESS,
+                List.of(), List.of(), 3, 3, 0, 0, 10, 3, List.of(), List.of(),
+                new ImportLifecycleCounters(1, 1, 0, 1, 0, 1));
+        StartImportProcessCommandHandler handler = new StartImportProcessCommandHandler(repository,
+                service((ignored, listener) -> withCounters), runRegistry, SAME_THREAD_EXECUTOR);
+
+        DomainCommandResponse response = handler.handle(new StartImportProcessCommand(resource.getId()));
+
+        ImportRunStatusDto accepted = (ImportRunStatusDto) response.getResponse();
+        ImportRunSnapshot finalSnapshot = runRegistry.findByRunId(accepted.runId()).orElseThrow();
+        ImportLifecycleCounters counters = finalSnapshot.result().orElseThrow().lifecycle();
+        assertEquals(1, counters.scheduledCreated());
+        assertEquals(1, counters.upgradedToPlayed());
+        assertEquals(0, counters.rescheduled());
+        assertEquals(1, counters.partialActas());
+        assertEquals(0, counters.invalidActas());
+        assertEquals(1, counters.unresolvedPendingFixtures());
+    }
+
+    private static final Clock FIXED_CLOCK =
+            Clock.fixed(Instant.parse("2026-09-28T08:00:00Z"), ZoneOffset.UTC);
+    private static final ZonedDateTime FIXED_TIME =
+            ZonedDateTime.ofInstant(Instant.parse("2026-09-28T08:00:00Z"), ZoneOffset.UTC);
 
     private static ImportResource resource(ImportResourceStatus status) {
         Resource source = Resource.createExisting(UUID.randomUUID(), "ACTAS", "import/actas",

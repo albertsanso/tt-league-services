@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.shared.execution;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
 
@@ -23,6 +24,7 @@ public final class ImportRunContext {
     private final Map<MatchLifecycleOutcome, Integer> matchOutcomeCounts =
             new EnumMap<>(MatchLifecycleOutcome.class);
     private final List<ImportExecutionIssue> reportedMatchIssues = new ArrayList<>();
+    private long unresolvedPendingFixtureCount;
 
     public ImportRunContext(ImportSource source, String season) {
         this.source = Objects.requireNonNull(source, "source");
@@ -52,9 +54,9 @@ public final class ImportRunContext {
 
     /**
      * Records one match-lifecycle outcome (FEAT-00081). Reportable outcomes additionally become a
-     * reported issue carrying the processor name, the file and the classifier reason. These
-     * records are informational only in this feature: feeding them into traversal summaries,
-     * metrics or run status is FEAT-00082.
+     * reported issue carrying the processor name, the file and the classifier reason. Since
+     * FEAT-00082 these records feed the traversal summaries, metrics and run status through
+     * {@link #lifecycleCounters()} and the warnings channel.
      */
     public void recordMatchOutcome(MatchLifecycleOutcome outcome, String processor, Path location, String reason) {
         Objects.requireNonNull(outcome, "outcome");
@@ -62,6 +64,31 @@ public final class ImportRunContext {
         if (outcome.isReportable()) {
             reportedMatchIssues.add(new ImportExecutionIssue(processor, String.valueOf(location), reason));
         }
+    }
+
+    /**
+     * Records one unresolved pending fixture (FEAT-00082): a pending acta whose teams could not be
+     * attributed, so it was skipped instead of dispatched. It increments the lifecycle counter and
+     * becomes a reported issue carrying the navigator name, the location and the classifier reason.
+     */
+    public void recordUnresolvedPendingFixture(String navigator, Path location, String reason) {
+        unresolvedPendingFixtureCount++;
+        reportedMatchIssues.add(new ImportExecutionIssue(navigator, String.valueOf(location), reason));
+    }
+
+    /**
+     * The run's lifecycle counters (FEAT-00082): the per-acta exclusive match outcomes recorded by
+     * {@link #recordMatchOutcome} plus the unresolved pending fixtures recorded by
+     * {@link #recordUnresolvedPendingFixture}.
+     */
+    public ImportLifecycleCounters lifecycleCounters() {
+        return new ImportLifecycleCounters(
+                matchOutcomeCounts.getOrDefault(MatchLifecycleOutcome.SCHEDULED_CREATED, 0),
+                matchOutcomeCounts.getOrDefault(MatchLifecycleOutcome.UPGRADED_TO_PLAYED, 0),
+                matchOutcomeCounts.getOrDefault(MatchLifecycleOutcome.RESCHEDULED, 0),
+                matchOutcomeCounts.getOrDefault(MatchLifecycleOutcome.PARTIAL_REPORTED, 0),
+                matchOutcomeCounts.getOrDefault(MatchLifecycleOutcome.INVALID_REPORTED, 0),
+                unresolvedPendingFixtureCount);
     }
 
     /** Outcome counters accumulated so far, as an unmodifiable snapshot. */

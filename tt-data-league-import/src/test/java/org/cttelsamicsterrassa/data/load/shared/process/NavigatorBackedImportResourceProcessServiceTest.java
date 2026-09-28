@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.shared.process;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessResult;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResource;
@@ -96,6 +97,51 @@ class NavigatorBackedImportResourceProcessServiceTest {
         assertEquals(2, receivedOptions.size());
         assertEquals(Path.of("teams-1"), receivedOptions.get(0).rfetmTeamsFolder());
         assertEquals(Path.of("teams-2"), receivedOptions.get(1).rfetmTeamsFolder());
+    }
+
+    @Test
+    void copiesLifecycleCountersAndTurnsWarningsIntoFindings() {
+        ImportExecutionService executionService = new ImportExecutionService() {
+            @Override
+            public ImportExecutionResult execute(ImportExecutionRequest request, ImportExecutionOptions options) {
+                return new ImportExecutionResult(request.source(), request.season().map(Object::toString),
+                        ImportProcessStatus.SUCCESS,
+                        new ImportExecutionMetrics(2, 1, 0, 0, 0, 5, new ImportLifecycleCounters(1, 2, 3, 4, 5, 6)),
+                        List.of(), List.of(),
+                        List.of(new org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue(
+                                "RfetmMatchImportProcessor", "actas/acta.json", "acta_publicada is false")));
+            }
+        };
+        NavigatorBackedImportResourceProcessService service =
+                new NavigatorBackedImportResourceProcessService(executionService);
+
+        ImportProcessResult result = service.process(resource());
+
+        assertEquals(new ImportLifecycleCounters(1, 2, 3, 4, 5, 6), result.lifecycle());
+        assertEquals(1, result.findings().size());
+        assertEquals("warning", result.findings().getFirst().severity());
+        assertEquals("RfetmMatchImportProcessor: acta_publicada is false", result.findings().getFirst().message());
+        assertEquals("actas/acta.json", result.findings().getFirst().location());
+        assertTrue(result.processingErrors().isEmpty(), "warnings never become processing errors");
+    }
+
+    @Test
+    void stillDefaultsLifecycleToZeroForOldCallers() {
+        ImportExecutionService executionService = new ImportExecutionService() {
+            @Override
+            public ImportExecutionResult execute(ImportExecutionRequest request, ImportExecutionOptions options) {
+                return new ImportExecutionResult(request.source(), request.season().map(Object::toString),
+                        ImportProcessStatus.SUCCESS, new ImportExecutionMetrics(1, 1, 0, 0, 0, 1),
+                        List.of(), List.of());
+            }
+        };
+        NavigatorBackedImportResourceProcessService service =
+                new NavigatorBackedImportResourceProcessService(executionService);
+
+        ImportProcessResult result = service.process(resource());
+
+        assertEquals(ImportLifecycleCounters.ZERO, result.lifecycle());
+        assertEquals(List.of(), result.findings());
     }
 
     private static ImportResource resource() {

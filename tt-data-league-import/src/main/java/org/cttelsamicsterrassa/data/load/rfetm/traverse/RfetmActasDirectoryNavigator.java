@@ -1,8 +1,11 @@
 package org.cttelsamicsterrassa.data.load.rfetm.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
 import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmClubKey;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParseException;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
@@ -72,6 +75,7 @@ public class RfetmActasDirectoryNavigator {
 
     private final List<MatchContextProcessor> processors;
     private final ActaParser actaParser;
+    private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
 
     public RfetmActasDirectoryNavigator(List<MatchContextProcessor> processors, ActaParser actaParser) {
         this.processors = processors == null ? List.of() : List.copyOf(processors);
@@ -177,7 +181,7 @@ public class RfetmActasDirectoryNavigator {
             traverseSeasonFolder(seasonFolder, season, processors, counters, runContext, progressListener);
         }
 
-        TraversalSummary summary = counters.toSummary();
+        TraversalSummary summary = counters.toSummary(runContext.lifecycleCounters());
         LOGGER.info("Traversal of {} finished: {}", baseFolder, summary);
         return summary;
     }
@@ -234,6 +238,11 @@ public class RfetmActasDirectoryNavigator {
             RfetmClubKey awayTeam = clubKey(acta, false, season, competition);
             if (homeTeam == null || awayTeam == null) {
                 counters.skipped++;
+                ActaClassification classification = classifier.classify(acta);
+                if (classification.unresolvedPendingFixture()) {
+                    runContext.recordUnresolvedPendingFixture("RfetmActasDirectoryNavigator", reportFile,
+                            classification.reason());
+                }
                 LOGGER.warn("Skipping {}: payload identifies its teams by neither id nor name", reportFile);
                 reportProgress(counters, progressListener);
                 continue;
@@ -345,8 +354,8 @@ public class RfetmActasDirectoryNavigator {
         private long processorFailures;
         private final List<ImportExecutionIssue> issues = new ArrayList<>();
 
-        private TraversalSummary toSummary() {
-            return new TraversalSummary(filesSeen, dispatched, skipped, processorFailures, issues);
+        private TraversalSummary toSummary(ImportLifecycleCounters lifecycle) {
+            return new TraversalSummary(filesSeen, dispatched, skipped, processorFailures, issues, lifecycle);
         }
     }
 }

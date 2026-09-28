@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.fctt.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportContext;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportProcessor;
@@ -186,7 +187,10 @@ class FcttActasDirectoryNavigatorTest {
 
         TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
 
-        assertEquals(new TraversalSummary(1, 0, 1, 0), summary);
+        assertEquals(new TraversalSummary(1, 0, 1, 0, List.of(),
+                new ImportLifecycleCounters(0, 0, 0, 0, 0, 1)), summary);
+        assertEquals(1, summary.lifecycle().unresolvedPendingFixtures(),
+                "the no-team placeholder is recorded as unresolved");
         assertTrue(injected.contexts.isEmpty(), "no processor may create teams for a placeholder");
     }
 

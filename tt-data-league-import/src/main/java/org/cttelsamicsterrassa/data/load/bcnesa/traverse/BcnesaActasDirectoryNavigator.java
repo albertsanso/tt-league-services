@@ -1,10 +1,13 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
 import org.cttelsamicsterrassa.data.load.bcnesa.BcnesaVeteransPhases;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportContext;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
@@ -83,6 +86,7 @@ public class BcnesaActasDirectoryNavigator {
     private final List<BcnesaMatchReportProcessor> processors;
     private final ActaParser actaParser;
     private final BcnesaMatchdaySplitter splitter;
+    private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
 
     public BcnesaActasDirectoryNavigator(List<BcnesaMatchReportProcessor> processors, ActaParser actaParser) {
         this.processors = processors == null ? List.of() : List.copyOf(processors);
@@ -194,7 +198,7 @@ public class BcnesaActasDirectoryNavigator {
             traverseSeasonFolder(seasonFolder, season, processors, counters, runContext, progressListener);
         }
 
-        BcnesaTraversalSummary summary = counters.toSummary();
+        BcnesaTraversalSummary summary = counters.toSummary(runContext.lifecycleCounters());
         LOGGER.info("Traversal of {} finished: {}", baseFolder, summary);
         return summary;
     }
@@ -339,6 +343,11 @@ public class BcnesaActasDirectoryNavigator {
                                  Counters counters, ImportRunContext runContext) {
         if (!fixture.isResolved()) {
             counters.fixturesUnresolved++;
+            ActaClassification classification = classifier.classify(acta, fixture.games());
+            if (classification.unresolvedPendingFixture()) {
+                runContext.recordUnresolvedPendingFixture("BcnesaActasDirectoryNavigator", reportFile,
+                        classification.reason());
+            }
             LOGGER.warn("Skipping fixture {} of {}: clubs could not be attributed ({} games)",
                     fixtureIndex, reportFile, fixture.games().size());
             return;
@@ -400,9 +409,9 @@ public class BcnesaActasDirectoryNavigator {
         private long processorFailures;
         private final List<ImportExecutionIssue> issues = new ArrayList<>();
 
-        private BcnesaTraversalSummary toSummary() {
+        private BcnesaTraversalSummary toSummary(ImportLifecycleCounters lifecycle) {
             return new BcnesaTraversalSummary(filesSeen, filesSkipped, fixturesSeen, fixturesDispatched,
-                    fixturesUnresolved, processorFailures, issues);
+                    fixturesUnresolved, processorFailures, issues, lifecycle);
         }
     }
 }

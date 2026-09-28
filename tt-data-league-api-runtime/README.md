@@ -107,7 +107,11 @@ asynchronously: it returns `202 Accepted` immediately with a run id and initial 
 status instead of waiting for the traversal to finish. Poll
 `GET /api/v1/administration/import/process_status?runId=<uuid>` for progress (processed/total
 counts, percentage when a reliable total is available, skipped/error counts) and the terminal
-result. The run registry is in-memory per JVM (`InMemoryImportRunRegistry`); it prevents two
+result. The terminal result carries the six lifecycle counters (`scheduledCreated`,
+`upgradedToPlayed`, `rescheduled`, `partialActas`, `invalidActas`,
+`unresolvedPendingFixtures`) and reports partial, invalid, regression and
+unresolved-placeholder outcomes as `warning` findings. The run registry is in-memory per JVM
+(`InMemoryImportRunRegistry`); it prevents two
 accepted runs for the same import resource but does not persist run history across restarts.
 
 At startup, `ImportFolderSettingStartupInitializer` ensures the `IMPORT/repository-folder`

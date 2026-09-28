@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.shared.execution;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
@@ -95,13 +96,14 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
         } catch (IOException | RuntimeException exception) {
             issues.add(new ImportExecutionIssue("traversal", request.actasFolder().toString(),
                     safeMessage(exception)));
-            return result(request, ImportProcessStatus.FAILURE, countsZero(started), issues, List.of());
+            return new ImportExecutionResult(request.source(), request.season().map(Object::toString),
+                    ImportProcessStatus.FAILURE, countsZero(started), issues, List.of(),
+                    runContext.reportedMatchIssues());
         }
 
         issues.addAll(counts.issues);
-        ImportProcessStatus status = counts.processorFailures > 0 || !counts.issues.isEmpty()
-                ? ImportProcessStatus.FAILURE
-                : counts.dispatched == 0 ? ImportProcessStatus.EMPTY_RESULT : ImportProcessStatus.SUCCESS;
+        ImportProcessStatus status = ImportRunStatusPolicy.statusOf(counts.processorFailures,
+                !counts.issues.isEmpty(), counts.dispatched, counts.lifecycle);
         List<PostProcessingOutcome> outcomes = new ArrayList<>();
         if (status == ImportProcessStatus.SUCCESS) {
             if (effective.clubConsolidationMode() != null) {
@@ -120,12 +122,13 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
             }
         }
         ImportExecutionMetrics metrics = new ImportExecutionMetrics(counts.files, counts.dispatched, counts.skipped,
-                counts.processorFailures, 0, Duration.between(started, Instant.now()).toMillis());
+                counts.processorFailures, 0, Duration.between(started, Instant.now()).toMillis(),
+                counts.lifecycle);
         progressListener.onProgress(counts.files > 0
                 ? ImportRunProgress.determinate(counts.dispatched, counts.files, counts.skipped, counts.processorFailures)
                 : ImportRunProgress.indeterminate(counts.dispatched, counts.skipped, counts.processorFailures));
         return new ImportExecutionResult(request.source(), request.season().map(Object::toString),
-                status, metrics, issues, outcomes);
+                status, metrics, issues, outcomes, runContext.reportedMatchIssues());
     }
 
     private Counts traverse(ImportSource source, Path folder, String season, ImportRunContext runContext,
@@ -136,7 +139,7 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
                         ? rfetmNavigator.traverse(folder, rfetmProcessors, runContext, progressListener)
                         : rfetmNavigator.traverseSeason(folder, season, rfetmProcessors, runContext, progressListener);
                 yield new Counts(summary.filesSeen(), summary.dispatched(), summary.skipped(),
-                        summary.processorFailures(), summary.issues());
+                        summary.processorFailures(), summary.issues(), summary.lifecycle());
             }
             case BCNESA -> {
                 BcnesaTraversalSummary summary = season == null
@@ -144,14 +147,14 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
                         : bcnesaNavigator.traverseSeason(folder, season, bcnesaProcessors, runContext, progressListener);
                 yield new Counts(summary.filesSeen(), summary.fixturesDispatched(),
                         summary.filesSkipped() + summary.fixturesUnresolved(), summary.processorFailures(),
-                        summary.issues());
+                        summary.issues(), summary.lifecycle());
             }
             case FCTT -> {
                 TraversalSummary summary = season == null
                         ? fcttNavigator.traverse(folder, fcttProcessors, runContext, progressListener)
                         : fcttNavigator.traverseSeason(folder, season, fcttProcessors, runContext, progressListener);
                 yield new Counts(summary.filesSeen(), summary.dispatched(), summary.skipped(),
-                        summary.processorFailures(), summary.issues());
+                        summary.processorFailures(), summary.issues(), summary.lifecycle());
             }
         };
     }
@@ -223,13 +226,6 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
                 List.of(error));
     }
 
-    private static ImportExecutionResult result(ImportExecutionRequest request, ImportProcessStatus status,
-                                                ImportExecutionMetrics metrics, List<ImportExecutionIssue> issues,
-                                                List<PostProcessingOutcome> outcomes) {
-        return new ImportExecutionResult(request.source(), request.season().map(Object::toString), status,
-                metrics, issues, outcomes);
-    }
-
     private static ImportExecutionMetrics countsZero(Instant started) {
         return new ImportExecutionMetrics(0, 0, 0, 0, 0, Duration.between(started, Instant.now()).toMillis());
     }
@@ -239,6 +235,6 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
     }
 
     private record Counts(long files, long dispatched, long skipped, long processorFailures,
-                          List<ImportExecutionIssue> issues) {
+                          List<ImportExecutionIssue> issues, ImportLifecycleCounters lifecycle) {
     }
 }

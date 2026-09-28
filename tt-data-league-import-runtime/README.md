@@ -146,8 +146,35 @@ actas-json/
   `PLAYED` keeping its id; an already `PLAYED` match is never downgraded or
   rewritten by a pending acta, which is reported as a regression instead.
   Pending fixtures without team names (FCTT placeholders) cannot be attributed
-  and are reported and skipped, never stored. Partial and invalid actas are
-  likewise stored or kept as `SCHEDULED` and reported, not written as results.
+   and are reported and skipped, never stored. Partial and invalid actas are
+   likewise stored or kept as `SCHEDULED` and reported, not written as results.
+
+### Run status and counters
+
+Every run reports six lifecycle counters (in the traversal summary, the
+execution metrics, the final log line, and the administration API result):
+`scheduledCreated`, `upgradedToPlayed`, `rescheduled`, `partialActas`,
+`invalidActas` and `unresolvedPendingFixtures`. The counters mirror the
+per-acta outcomes and are exclusive: a partial or invalid acta that created or
+rescheduled a `SCHEDULED` match is counted only under `partialActas` /
+`invalidActas`, never also under `scheduledCreated` / `rescheduled`, so no acta
+is ever counted twice. Regressions have no counter; they surface as warnings.
+
+Run status is computed by one rule. Processor failures or traversal issues
+give `FAILURE`. Otherwise a run is `EMPTY_RESULT` only when nothing was
+dispatched *and* no unresolved pending fixture was recognised: no actas found,
+or no file could be read as an acta. Everything else is `SUCCESS`, including
+re-imports where every acta was already stored unchanged and pre-season runs
+whose only actas are no-team placeholders. `SUCCESS` ends the administration
+resource as `PROCESSED`; `FAILURE` and `EMPTY_RESULT` end it as `ERROR`. Note
+that some runs that previously ended `ERROR` (for example re-importing an
+unchanged pending snapshot) now end `PROCESSED`.
+
+Reported outcomes (partial, invalid, regression, unresolved placeholders) are
+warnings, not issues: they never fail the run, never skip consolidation, and
+are surfaced to the administration API as `warning` findings on the terminal
+result. `lastProcessedDate` on the import resource is set at the end of every
+run, including failures and rejected submissions.
 
 ## Launch modes
 

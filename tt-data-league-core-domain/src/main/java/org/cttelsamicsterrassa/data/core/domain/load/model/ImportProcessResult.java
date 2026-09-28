@@ -13,13 +13,24 @@ public record ImportProcessResult(
         long elapsedMillis,
         long persistenceWrites,
         List<String> executionIssues,
-        List<String> postProcessingOutcomes) {
+        List<String> postProcessingOutcomes,
+        ImportLifecycleCounters lifecycle) {
 
     public ImportProcessResult(ImportProcessStatus status, List<ImportPreviewFinding> findings,
                                List<ImportPreviewProcessingError> processingErrors, long filesSeen,
                                long itemsPersisted, long skipped, long processorFailures) {
         this(status, findings, processingErrors, filesSeen, itemsPersisted, skipped, processorFailures,
-                0, 0, List.of(), List.of());
+                0, 0, List.of(), List.of(), ImportLifecycleCounters.ZERO);
+    }
+
+    public ImportProcessResult(ImportProcessStatus status, List<ImportPreviewFinding> findings,
+                               List<ImportPreviewProcessingError> processingErrors, long filesSeen,
+                               long itemsPersisted, long skipped, long processorFailures, long elapsedMillis,
+                               long persistenceWrites, List<String> executionIssues,
+                               List<String> postProcessingOutcomes) {
+        this(status, findings, processingErrors, filesSeen, itemsPersisted, skipped, processorFailures,
+                elapsedMillis, persistenceWrites, executionIssues, postProcessingOutcomes,
+                ImportLifecycleCounters.ZERO);
     }
 
     public ImportProcessResult {
@@ -27,6 +38,7 @@ public record ImportProcessResult(
         processingErrors = processingErrors == null ? List.of() : List.copyOf(processingErrors);
         executionIssues = executionIssues == null ? List.of() : List.copyOf(executionIssues);
         postProcessingOutcomes = postProcessingOutcomes == null ? List.of() : List.copyOf(postProcessingOutcomes);
+        lifecycle = lifecycle == null ? ImportLifecycleCounters.ZERO : lifecycle;
     }
 
     public static ImportProcessResult success(List<ImportPreviewFinding> findings,

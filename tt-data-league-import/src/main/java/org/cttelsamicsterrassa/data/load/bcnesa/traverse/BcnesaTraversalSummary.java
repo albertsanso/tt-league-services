@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue;
 
 import java.util.List;
@@ -19,6 +20,8 @@ import java.util.Objects;
  * @param fixturesDispatched fixtures whose context reached at least one processor
  * @param fixturesUnresolved fixtures skipped because their clubs could not be attributed
  * @param processorFailures  individual processor invocations that threw
+ * @param lifecycle          what the run did to stored matches, including unresolved pending
+ *                           fixtures (FEAT-00082)
  */
 public record BcnesaTraversalSummary(long filesSeen,
                                      long filesSkipped,
@@ -26,15 +29,24 @@ public record BcnesaTraversalSummary(long filesSeen,
                                      long fixturesDispatched,
                                      long fixturesUnresolved,
                                      long processorFailures,
-                                     List<ImportExecutionIssue> issues) {
+                                     List<ImportExecutionIssue> issues,
+                                     ImportLifecycleCounters lifecycle) {
     public BcnesaTraversalSummary(long filesSeen, long filesSkipped, long fixturesSeen,
                                    long fixturesDispatched, long fixturesUnresolved, long processorFailures) {
         this(filesSeen, filesSkipped, fixturesSeen, fixturesDispatched, fixturesUnresolved,
-                processorFailures, List.of());
+                processorFailures, List.of(), ImportLifecycleCounters.ZERO);
+    }
+
+    public BcnesaTraversalSummary(long filesSeen, long filesSkipped, long fixturesSeen,
+                                   long fixturesDispatched, long fixturesUnresolved, long processorFailures,
+                                   List<ImportExecutionIssue> issues) {
+        this(filesSeen, filesSkipped, fixturesSeen, fixturesDispatched, fixturesUnresolved,
+                processorFailures, issues, ImportLifecycleCounters.ZERO);
     }
 
     public BcnesaTraversalSummary {
         issues = issues == null ? List.of() : List.copyOf(issues);
+        lifecycle = lifecycle == null ? ImportLifecycleCounters.ZERO : lifecycle;
     }
 
     @Override
@@ -43,19 +55,21 @@ public record BcnesaTraversalSummary(long filesSeen,
                 && filesSeen == that.filesSeen && filesSkipped == that.filesSkipped
                 && fixturesSeen == that.fixturesSeen && fixturesDispatched == that.fixturesDispatched
                 && fixturesUnresolved == that.fixturesUnresolved
-                && processorFailures == that.processorFailures;
+                && processorFailures == that.processorFailures
+                && lifecycle.equals(that.lifecycle);
     }
 
     @Override
     public int hashCode() {
         return Objects.hash(filesSeen, filesSkipped, fixturesSeen, fixturesDispatched,
-                fixturesUnresolved, processorFailures);
+                fixturesUnresolved, processorFailures, lifecycle);
     }
 
     @Override
     public String toString() {
-        return "%d files seen, %d files skipped, %d fixtures seen, %d dispatched, %d unresolved, %d processor failures"
+        return "%d files seen, %d files skipped, %d fixtures seen, %d dispatched, %d unresolved, "
+                + "%d processor failures, lifecycle %s"
                 .formatted(filesSeen, filesSkipped, fixturesSeen, fixturesDispatched, fixturesUnresolved,
-                        processorFailures);
+                        processorFailures, lifecycle);
     }
 }

@@ -1,8 +1,11 @@
 package org.cttelsamicsterrassa.data.core.application.importresource.process;
 
 import org.albertsanso.commons.query.DomainQueryResponse;
+import org.cttelsamicsterrassa.data.core.application.importresource.process.dto.ImportProcessResultDto;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.dto.ImportRunStatusDto;
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessResult;
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunSnapshot;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunStatus;
@@ -57,6 +60,29 @@ class FindImportRunStatusQueryHandlerTest {
         assertEquals("success", dto.status());
         assertEquals("success", dto.result().status());
         assertEquals(4, dto.result().itemsPersisted());
+    }
+
+    @Test
+    void terminalResultDtoCarriesTheLifecycleCounters() {
+        UUID resourceId = UUID.randomUUID();
+        UUID runId = UUID.randomUUID();
+        ImportProcessResult result = new ImportProcessResult(ImportProcessStatus.SUCCESS, List.of(), List.of(),
+                4, 4, 0, 0, 10, 4, List.of(), List.of(),
+                new ImportLifecycleCounters(2, 1, 3, 4, 5, 6));
+        ImportRunSnapshot completed = ImportRunSnapshot.queued(runId, resourceId, ImportSource.RFETM, "2025-2026")
+                .running(ImportRunProgress.zero())
+                .complete(ImportRunStatus.SUCCESS, ImportRunProgress.determinate(4, 4, 0, 0), result, null);
+        FindImportRunStatusQueryHandler handler = new FindImportRunStatusQueryHandler(registryWith(runId, completed));
+
+        DomainQueryResponse<ImportRunStatusDto> response = handler.handle(new FindImportRunStatusQuery(runId));
+
+        ImportProcessResultDto dto = response.getResponse().result();
+        assertEquals(2, dto.scheduledCreated());
+        assertEquals(1, dto.upgradedToPlayed());
+        assertEquals(3, dto.rescheduled());
+        assertEquals(4, dto.partialActas());
+        assertEquals(5, dto.invalidActas());
+        assertEquals(6, dto.unresolvedPendingFixtures());
     }
 
     @Test

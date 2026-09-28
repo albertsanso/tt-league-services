@@ -41,6 +41,9 @@ final class ImportProcessResultDtoMapper {
                         e.message(), e.location())).toList(),
                 result.filesSeen(), result.itemsPersisted(), result.skipped(), result.processorFailures(),
                 result.elapsedMillis(), result.persistenceWrites(), result.executionIssues(),
-                result.postProcessingOutcomes());
+                result.postProcessingOutcomes(),
+                result.lifecycle().scheduledCreated(), result.lifecycle().upgradedToPlayed(),
+                result.lifecycle().rescheduled(), result.lifecycle().partialActas(),
+                result.lifecycle().invalidActas(), result.lifecycle().unresolvedPendingFixtures());
     }
 }

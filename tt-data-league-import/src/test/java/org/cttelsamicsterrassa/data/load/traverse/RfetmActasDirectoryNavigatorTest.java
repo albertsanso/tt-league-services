@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
@@ -141,7 +142,10 @@ class RfetmActasDirectoryNavigatorTest {
 
         TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
 
-        assertEquals(new TraversalSummary(2, 1, 1, 0), summary);
+        assertEquals(new TraversalSummary(2, 1, 1, 0, List.of(),
+                new ImportLifecycleCounters(0, 0, 0, 0, 0, 1)), summary);
+        assertEquals(1, summary.lifecycle().unresolvedPendingFixtures(),
+                "the no-team pending fixture is recorded as unresolved");
         assertEquals("10", injected.single().homeTeam().value());
     }
 

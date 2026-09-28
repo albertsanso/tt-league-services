@@ -72,19 +72,20 @@ public class App implements CommandLineRunner {
                         TraversalSummary s = season == null ? rfetm.traverse(request.actasFolder())
                                 : rfetm.traverseSeason(request.actasFolder(), season);
                         yield AppSupport.result(request, s.filesSeen(), s.dispatched(), s.skipped(),
-                                s.processorFailures());
+                                s.processorFailures(), s.lifecycle());
                     }
                     case BCNESA -> {
                         BcnesaTraversalSummary s = season == null ? bcnesa.traverse(request.actasFolder())
                                 : bcnesa.traverseSeason(request.actasFolder(), season);
                         yield AppSupport.result(request, s.filesSeen(), s.fixturesDispatched(),
-                                s.filesSkipped() + s.fixturesUnresolved(), s.processorFailures());
+                                s.filesSkipped() + s.fixturesUnresolved(), s.processorFailures(),
+                                s.lifecycle());
                     }
                     case FCTT -> {
                         TraversalSummary s = season == null ? fctt.traverse(request.actasFolder())
                                 : fctt.traverseSeason(request.actasFolder(), season);
                         yield AppSupport.result(request, s.filesSeen(), s.dispatched(), s.skipped(),
-                                s.processorFailures());
+                                s.processorFailures(), s.lifecycle());
                     }
                 };
             } catch (java.io.IOException e) {
@@ -186,15 +187,14 @@ public class App implements CommandLineRunner {
 
     private static final class AppSupport {
         private static ImportExecutionResult result(ImportExecutionRequest request, long files, long dispatched,
-                                                    long skipped, long failures) {
-            var status = failures > 0
-                    ? org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus.FAILURE
-                    : dispatched == 0
-                    ? org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus.EMPTY_RESULT
-                    : org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus.SUCCESS;
+                                                    long skipped, long failures,
+                                                    org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters lifecycle) {
+            var status = org.cttelsamicsterrassa.data.load.shared.execution.ImportRunStatusPolicy.statusOf(
+                    failures, false, dispatched, lifecycle);
             return new ImportExecutionResult(request.source(), request.season().map(Object::toString), status,
                     new org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionMetrics(
-                            files, dispatched, skipped, failures, 0, 0), java.util.List.of(), java.util.List.of());
+                            files, dispatched, skipped, failures, 0, 0, lifecycle),
+                    java.util.List.of(), java.util.List.of());
         }
     }
 }
