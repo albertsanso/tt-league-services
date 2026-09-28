@@ -179,6 +179,7 @@ Top-level team match event.
 | `id` | `UUID` | No | Primary key |
 | `source` | `VARCHAR(20)` | No | `idx_match_source_season_competition_status` |
 | `external_id` | `VARCHAR(20)` | Yes | Unique; `idx_match_external_id` |
+| `source_fixture_id` | `VARCHAR(100)` | Yes | `uk_match_source_fixture_id` |
 | `competition` | `VARCHAR(255)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status` |
 | `season` | `VARCHAR(9)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status` |
 | `group_num` | `INTEGER` | Yes | `idx_match_competition_season_group_round` |
@@ -256,6 +257,17 @@ The unique constraints are:
   finals) carries no group, and per SQL's null-handling this constraint does not dedupe two such
   fixtures by group alone (round, phase, and both teams still must differ).
 - `uk_match_external_id` on `(external_id)`.
+- `uk_match_source_fixture_id` on `(source, source_fixture_id)`.
+
+**FEAT-00083 source fixture id.** `source_fixture_id` stores the source-supplied `id_partido`
+captured at import time. It is an **opaque** per-source key — its layout differs by federation —
+so it is stored verbatim: never parsed, trimmed, padded, truncated, or derived from file names.
+It is not `external_id` and does not widen or repopulate it. Legacy rows and files without an
+`id_partido` keep it `NULL`; the nullable column and the unique constraint are safe to add to a
+populated PostgreSQL table under `ddl-auto: update` because multiple `NULL`s never collide. BCNESA
+assigns the file's `id_partido` only to fixture index 0 (the fixture named by `equipos`); an
+inferred later fixture of a multi-fixture file never borrows it. The constraint's index also serves
+`MatchRepository.findBySourceFixtureId(source, id_partido)`, which is always source-scoped.
 
 `homeTeam`, `awayTeam`, and `winnerTeam` are lazy `@ManyToOne` associations
 to `team`. The winner association is nullable.

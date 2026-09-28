@@ -491,7 +491,27 @@ public final class InMemoryRepositories {
         }
 
         @Override
+        public Optional<Match> findBySourceFixtureId(ImportSource source, String sourceFixtureId) {
+            Objects.requireNonNull(source, "source");
+            Objects.requireNonNull(sourceFixtureId, "sourceFixtureId");
+            return saved.stream()
+                    .filter(m -> source.equals(m.getSource())
+                            && sourceFixtureId.equals(m.getSourceFixtureId()))
+                    .findFirst();
+        }
+
+        @Override
         public void saveMatch(Match match) {
+            if (match.getSourceFixtureId() != null) {
+                boolean duplicate = saved.stream().anyMatch(other ->
+                        !other.getId().equals(match.getId())
+                                && Objects.equals(other.getSource(), match.getSource())
+                                && match.getSourceFixtureId().equals(other.getSourceFixtureId()));
+                if (duplicate) {
+                    throw new IllegalStateException("Duplicate (source, sourceFixtureId): "
+                            + match.getSource() + ", " + match.getSourceFixtureId());
+                }
+            }
             saved.add(match);
         }
 
@@ -535,6 +555,7 @@ public final class InMemoryRepositories {
                     .id(existing.getId())
                     .source(existing.getSource())
                     .externalId(existing.getExternalId())
+                    .sourceFixtureId(existing.getSourceFixtureId())
                     .competition(existing.getCompetition())
                     .season(existing.getSeason())
                     .groupNumber(existing.getGroupNumber())
@@ -703,6 +724,7 @@ public final class InMemoryRepositories {
                         .id(existing.getId())
                         .source(existing.getSource())
                         .externalId(existing.getExternalId())
+                        .sourceFixtureId(existing.getSourceFixtureId())
                         .competition(existing.getCompetition())
                         .season(existing.getSeason())
                         .groupNumber(existing.getGroupNumber())

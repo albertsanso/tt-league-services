@@ -1,6 +1,5 @@
 package org.cttelsamicsterrassa.data.load.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
@@ -37,11 +36,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class ImportProcessorsTest {
 
-    private InMemoryRepositories.Clubs clubs;
-    private InMemoryRepositories.CanonicalClubs canonicalClubs;
     private InMemoryRepositories.Teams teams;
-    private InMemoryRepositories.Players players;
-    private InMemoryRepositories.Players.CanonicalPlayers canonicalPlayers;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
     private InMemoryRepositories.Matches matches;
     private InMemoryRepositories.Lineups lineups;
@@ -53,11 +48,7 @@ class ImportProcessorsTest {
 
     @BeforeEach
     void setUp() {
-        clubs = new InMemoryRepositories.Clubs();
-        canonicalClubs = new InMemoryRepositories.CanonicalClubs();
         teams = new InMemoryRepositories.Teams();
-        players = new InMemoryRepositories.Players();
-        canonicalPlayers = new InMemoryRepositories.Players.CanonicalPlayers();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
         lineups = new InMemoryRepositories.Lineups(playerSeasons);
         games = new InMemoryRepositories.Games();
@@ -73,24 +64,24 @@ class ImportProcessorsTest {
     }
 
     @Test
-    void storesClubsKeyedByTheirFederationId() {
+    void storesTeamsResolvedFromTheActaNames() {
         run(singlesContext());
 
-        assertEquals(2, clubs.byId.size());
-        FederatedClub home = clubs.findFederatedClubBySourceAndName(
-                ImportSource.RFETM, "HORTITEC ALZIRA TT").orElseThrow();
-        assertEquals("HORTITEC ALZIRA TT", home.getName());
+        // The acta import registers Team rows only; FederatedClub rows are created by the
+        // consolidation processors, not here.
         assertEquals(2, teams.byId.size());
-        assertTrue(teams.findTeamByFederatedClubAndSeason(home.getId(), Season.of(2023)).isPresent());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("HORTITEC ALZIRA TT", Season.of(2023),
+                ImportSource.RFETM).isPresent());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("C.E.R. ROBIN HAT PRISCO L\u00B4ESCALA", Season.of(2023),
+                ImportSource.RFETM).isPresent());
     }
 
     @Test
-    void storesOnePlayerAndOneSeasonRegistrationPerLineupEntry() {
+    void storesOneSeasonRegistrationPerLineupEntry() {
         run(singlesContext());
 
-        assertEquals(6, players.byId.size());
-        assertEquals(6, canonicalPlayers.byId.size());
-        assertTrue(players.byId.values().stream().allMatch(player -> player.getPlayer().isPresent()));
+        // FederatedPlayer/Player rows are not created by the acta import; only the season
+        // registration is.
         assertEquals(6, playerSeasons.byId.size());
         assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.RFETM, "29194", Season.of(2023)).isPresent());
     }
@@ -255,9 +246,7 @@ class ImportProcessorsTest {
         run(context);
         run(context);
 
-        assertEquals(2, clubs.byId.size());
         assertEquals(2, teams.byId.size());
-        assertEquals(6, players.byId.size());
         assertEquals(6, playerSeasons.byId.size());
         assertEquals(1, matches.saved.size());
         assertEquals(6, lineups.saved.size());

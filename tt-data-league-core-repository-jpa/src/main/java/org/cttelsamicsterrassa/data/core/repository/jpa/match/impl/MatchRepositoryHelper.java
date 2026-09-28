@@ -18,6 +18,12 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
 
     Optional<MatchJPA> findByExternalId(String externalId);
 
+    /**
+     * FEAT-00083: exact source-scoped lookup by the source fixture id ({@code id_partido}). The
+     * {@code uk_match_source_fixture_id} unique constraint makes the result at most one row.
+     */
+    Optional<MatchJPA> findBySourceAndSourceFixtureId(Source source, String sourceFixtureId);
+
     @Query("""
             select m from MatchJPA m
             where m.source = :source and m.season = :season

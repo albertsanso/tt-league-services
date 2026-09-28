@@ -48,6 +48,7 @@ public class InitialUserProvisioningService {
             }
             User user = User.createNew(seedUser.username(), seedUser.email(),
                     passwordEncoder.encode(seedUser.plainPassword()));
+            user.setRoles(Set.of(UserRole.ADMIN));
             userRepository.save(user);
         }
     }

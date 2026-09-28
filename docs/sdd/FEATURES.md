@@ -71,27 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00083] Persist source fixture id (id_partido)
-- **Status:** idea
-- **Priority:** medium
-- **Effort:** small
-- **Depends on:** FEAT-00077, FEAT-00081
-
-#### Goal
-Store the source-supplied id_partido on each match so a fixture can be identified independently of its natural key across publication.
-
-#### Acceptance Criteria
-- [ ] match_record.source_fixture_id is a nullable VARCHAR(100) with a unique (source, source_fixture_id) constraint; external_id is not reused
-- [ ] Match has a sourceFixtureId field supported by mappers and in-memory repositories
-- [ ] MatchRepository.findBySourceFixtureId(ImportSource, String) exists
-- [ ] All three sources fill it from id_partido on create and on upgrade; legacy rows stay null
-- [ ] rfetm-datamodel.md documents the column and constraint
-
-#### Feature Details
-→ See [FEAT-00083-DETAILS.md](./FEAT-00083-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00084] Jornada progress query and exposure
 - **Status:** idea
 - **Priority:** medium
@@ -288,6 +267,27 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00083] Persist source fixture id (id_partido)
+- **Status:** done
+- **Priority:** medium
+- **Effort:** small
+- **Depends on:** FEAT-00077, FEAT-00081
+
+#### Goal
+Store the source-supplied id_partido on each match so a fixture can be identified independently of its natural key across publication.
+
+#### Acceptance Criteria
+- [x] match_record.source_fixture_id is a nullable VARCHAR(100) with a unique (source, source_fixture_id) constraint; external_id is not reused
+- [x] Match has a sourceFixtureId field supported by mappers and in-memory repositories
+- [x] MatchRepository.findBySourceFixtureId(ImportSource, String) exists
+- [x] All three sources fill it from id_partido on create and on upgrade; legacy rows stay null
+- [x] rfetm-datamodel.md documents the column and constraint
+
+#### Feature Details
+→ See [FEAT-00083-DETAILS.md](./FEAT-00083-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00082] Incremental import run status and metrics
 - **Status:** done

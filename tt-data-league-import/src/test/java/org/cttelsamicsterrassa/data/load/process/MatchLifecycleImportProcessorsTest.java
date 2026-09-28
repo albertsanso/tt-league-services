@@ -269,6 +269,39 @@ class MatchLifecycleImportProcessorsTest {
         assertTrue(doublesPairs.saved.stream().anyMatch(p -> "AWAY".equals(p.getSide())));
     }
 
+    @Test
+    void rfetmIdPartidoIsStoredOnCreateAndThePublishedHeaderIsWrittenOnUpgrade() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.RFETM, "2026-2027");
+        Acta unpublished = acta("acta_rfetm_2026_unpublished.json");
+        runRfetm(rfetmContext("2026-2027", "divisio-honor", "1", "femenino", unpublished, runContext));
+
+        Match created = matches.saved.getFirst();
+        assertEquals(unpublished.matchId(), created.getSourceFixtureId());
+        assertEquals(created.getId(),
+                matches.findBySourceFixtureId(ImportSource.RFETM, unpublished.matchId()).orElseThrow().getId());
+
+        Acta published = withTeams(acta("acta_rfetm_2026_published.json"), unpublished.teams());
+        runRfetm(rfetmContext("2026-2027", "divisio-honor", "1", "femenino", published, runContext));
+
+        assertEquals(1, matches.saved.size());
+        Match upgraded = matches.saved.getFirst();
+        assertEquals(created.getId(), upgraded.getId());
+        assertEquals(MatchStatus.PLAYED, upgraded.getStatus());
+        // A non-null incoming id_partido is written as is (FEAT-00083 contract 5).
+        assertEquals(published.matchId(), upgraded.getSourceFixtureId());
+        assertTrue(matches.findBySourceFixtureId(ImportSource.RFETM, published.matchId()).isPresent());
+    }
+
+    @Test
+    void rfetmLegacyActaStoresNoFixtureId() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.RFETM, "2024-2025");
+        Acta legacy = acta("acta_rfetm_legacy_empty.json");
+        runRfetm(rfetmContext("2024-2025", "temporada-2024-2025", "3", "masculino", legacy, runContext));
+
+        assertNull(matches.saved.getFirst().getSourceFixtureId());
+        assertNull(legacy.matchId());
+    }
+
     // --- FCTT --------------------------------------------------------------------------------
 
     @Test
@@ -357,6 +390,30 @@ class MatchLifecycleImportProcessorsTest {
         assertTrue(doublesPairs.saved.stream().anyMatch(p -> "AWAY".equals(p.getSide())));
     }
 
+    @Test
+    void fcttUnpublishedAndPublishedVersionsShareOneMatchAndOneFixtureId() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.FCTT, "2026-2027");
+        Acta unpublished = acta("acta_fctt_unpublished.json");
+        runFctt(fcttContext("2026-2027", "tercera-nacional", "G1", unpublished, runContext));
+
+        Match created = matches.saved.getFirst();
+        assertEquals(MatchStatus.SCHEDULED, created.getStatus());
+        assertEquals(unpublished.matchId(), created.getSourceFixtureId());
+
+        Acta published = acta("acta_fctt_2026_published.json");
+        runFctt(fcttContext("2026-2027", "tercera-nacional", "G1", published, runContext));
+
+        // Same fixture and same id_partido in both files (G15): one match, one fixture id.
+        assertEquals(unpublished.matchId(), published.matchId());
+        assertEquals(1, matches.saved.size());
+        Match upgraded = matches.saved.getFirst();
+        assertEquals(created.getId(), upgraded.getId());
+        assertEquals(MatchStatus.PLAYED, upgraded.getStatus());
+        assertEquals(unpublished.matchId(), upgraded.getSourceFixtureId());
+        assertEquals(upgraded.getId(),
+                matches.findBySourceFixtureId(ImportSource.FCTT, published.matchId()).orElseThrow().getId());
+    }
+
     // --- BCNESA --------------------------------------------------------------------------------
 
     @Test
@@ -435,6 +492,49 @@ class MatchLifecycleImportProcessorsTest {
         assertTrue(games.saved.stream().anyMatch(g -> "DOUBLES".equals(g.getType())));
         assertTrue(doublesPairs.saved.stream().noneMatch(p -> "HOME".equals(p.getSide())));
         assertTrue(doublesPairs.saved.stream().anyMatch(p -> "AWAY".equals(p.getSide())));
+    }
+
+    @Test
+    void bcnesaPendingActaStoresIdPartidoAndALaterSplitFixtureNeverBorrowsIt() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.BCNESA, "2026-2027");
+        Acta pending = acta("acta_bcnesa_2026_unpublished.json");
+        runBcnesa(bcnesaContext("2026-2027", "1a Comarcal", "G1", "1a Fase",
+                pending, pending.games(), runContext));
+
+        Match created = matches.saved.getFirst();
+        assertEquals(MatchStatus.SCHEDULED, created.getStatus());
+        assertNotNull(pending.matchId());
+        assertEquals(pending.matchId(), created.getSourceFixtureId());
+        assertEquals(created.getId(),
+                matches.findBySourceFixtureId(ImportSource.BCNESA, pending.matchId()).orElseThrow().getId());
+    }
+
+    @Test
+    void bcnesaSplitFixtureBeyondIndexZeroIsCreatedWithoutTheFileIdPartido() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.BCNESA, "2026-2027");
+        Acta pending = acta("acta_bcnesa_2026_unpublished.json");
+        BcnesaMatchReportContext secondFixture = new BcnesaMatchReportContext("2026-2027", "1a Comarcal",
+                "G1", "1a Fase", pending.round(), 1, pending.teams().home().name(),
+                pending.teams().away().name(), ANY_FILE, pending, pending.games(), runContext);
+
+        runBcnesa(secondFixture);
+
+        assertEquals(1, matches.saved.size());
+        assertEquals(MatchStatus.SCHEDULED, matches.saved.getFirst().getStatus());
+        assertNull(matches.saved.getFirst().getSourceFixtureId(),
+                "only fixture 0 owns the file's id_partido");
+        assertTrue(matches.findBySourceFixtureId(ImportSource.BCNESA, pending.matchId()).isEmpty());
+    }
+
+    @Test
+    void bcnesaLegacyActaStoresNoFixtureId() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.BCNESA, "2020-2021");
+        Acta matchday = acta("acta_matchday.json");
+        runBcnesa(bcnesaContext("2020-2021", "Preferent", "G1", "1a Fase",
+                withPublished(matchday, false), firstFixtureGames(matchday), runContext));
+
+        assertNull(matchday.matchId());
+        assertNull(matches.saved.getFirst().getSourceFixtureId());
     }
 
     // --- helpers -------------------------------------------------------------------------------

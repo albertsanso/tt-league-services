@@ -32,7 +32,10 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus;
                 @UniqueConstraint(
                         name = "uk_competition_season_group_round_teams",
                         columnNames = {"competition", "season", "group_num", "round", "phase", "home_team_id", "away_team_id"}),
-                @UniqueConstraint(name = "uk_match_external_id", columnNames = {"external_id"})
+                @UniqueConstraint(name = "uk_match_external_id", columnNames = {"external_id"}),
+                // FEAT-00083: the source fixture id (id_partido) identifies one fixture per source.
+                // Nullable: legacy rows have none, and multiple NULLs never collide.
+                @UniqueConstraint(name = "uk_match_source_fixture_id", columnNames = {"source", "source_fixture_id"})
         }
 )
 public class MatchJPA {
@@ -45,6 +48,9 @@ public class MatchJPA {
 
     @Column(name = "external_id", nullable = true, length = 20)
     private String externalId;
+
+    @Column(name = "source_fixture_id", nullable = true, length = 100)
+    private String sourceFixtureId;
 
     @Column(name = "competition", nullable = true, length = 255)
     private String competition;

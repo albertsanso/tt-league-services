@@ -101,8 +101,26 @@ public final class MatchLifecycleWriter {
         if (stored.isPlayed()) {
             return MatchLifecycleOutcome.PLAYED_KEPT;
         }
-        matchRepository.replaceMatchContent(source.buildPlayedContent(stored.getId(), true));
+        matchRepository.replaceMatchContent(keepStoredFixtureId(source.buildPlayedContent(stored.getId(), true), stored));
         return MatchLifecycleOutcome.UPGRADED_TO_PLAYED;
+    }
+
+    /**
+     * An upgrade never erases a stored fixture id: when the incoming PLAYED header has no
+     * {@code sourceFixtureId} but the stored SCHEDULED match has one, the rebuilt header carries
+     * the stored value (FEAT-00083). A non-null incoming value is written as is; a mismatch of two
+     * non-null ids is FEAT-00085's cross-check, not handled here.
+     */
+    private static MatchContent keepStoredFixtureId(MatchContent content, Match stored) {
+        if (content.match().getSourceFixtureId() == null && stored.getSourceFixtureId() != null) {
+            return new MatchContent(
+                    content.match().withSourceFixtureId(stored.getSourceFixtureId()),
+                    content.lineups(),
+                    content.games(),
+                    content.setScores(),
+                    content.doublesPairs());
+        }
+        return content;
     }
 
     private MatchLifecycleOutcome applyPending(Optional<Match> existing, MatchLifecycleSource source) {

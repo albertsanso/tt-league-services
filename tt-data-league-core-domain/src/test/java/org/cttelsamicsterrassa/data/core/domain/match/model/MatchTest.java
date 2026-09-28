@@ -99,8 +99,69 @@ class MatchTest {
         assertEquals(true, stored.hasSameNaturalKeyAs(copyBuilder(stored).groupNumber(2).phase("REGULAR").createExisting()));
     }
 
+    @Test
+    void builderRoundTripsSourceFixtureIdAndAcceptsNull() {
+        Match withId = builder().sourceFixtureId("ES_03_26_0012345_0001").createNew();
+        Match legacy = builder().createNew();
+
+        assertEquals("ES_03_26_0012345_0001", withId.getSourceFixtureId());
+        assertEquals(null, legacy.getSourceFixtureId());
+    }
+
+    @Test
+    void sourceFixtureIdBlankOrTooLongIsRejected() {
+        assertThrows(IllegalArgumentException.class, () -> builder().sourceFixtureId("   ").createNew());
+        assertThrows(IllegalArgumentException.class, () -> builder().sourceFixtureId("").createNew());
+        assertThrows(IllegalArgumentException.class,
+                () -> builder().sourceFixtureId("x".repeat(Match.SOURCE_FIXTURE_ID_MAX_LENGTH + 1)).createNew());
+
+        Match maxLength = builder()
+                .sourceFixtureId("x".repeat(Match.SOURCE_FIXTURE_ID_MAX_LENGTH))
+                .createNew();
+        assertEquals(Match.SOURCE_FIXTURE_ID_MAX_LENGTH, maxLength.getSourceFixtureId().length());
+    }
+
+    @Test
+    void withSourceFixtureIdPreservesEveryOtherFieldAndPublishesNoEvent() {
+        Match stored = builder().status(MatchStatus.SCHEDULED).externalId("E1").groupNumber(2).phase("REGULAR")
+                .createExisting();
+
+        Match updated = stored.withSourceFixtureId("ES_03_26_0012345_0001");
+
+        assertEquals("ES_03_26_0012345_0001", updated.getSourceFixtureId());
+        assertEquals(stored.getId(), updated.getId());
+        assertEquals(stored.getSource(), updated.getSource());
+        assertEquals(stored.getExternalId(), updated.getExternalId());
+        assertEquals(stored.getCompetition(), updated.getCompetition());
+        assertEquals(stored.getSeason(), updated.getSeason());
+        assertEquals(stored.getGroupNumber(), updated.getGroupNumber());
+        assertEquals(stored.getRound(), updated.getRound());
+        assertEquals(stored.getPhase(), updated.getPhase());
+        assertEquals(stored.getDateTime(), updated.getDateTime());
+        assertEquals(stored.getCity(), updated.getCity());
+        assertEquals(stored.getVenue(), updated.getVenue());
+        assertEquals(stored.getHomeTeam(), updated.getHomeTeam());
+        assertEquals(stored.getAwayTeam(), updated.getAwayTeam());
+        assertEquals(stored.getRefereeName(), updated.getRefereeName());
+        assertEquals(stored.getRefereeLicense(), updated.getRefereeLicense());
+        assertEquals(stored.isProtested(), updated.isProtested());
+        assertEquals(stored.getStatus(), updated.getStatus());
+        assertEquals(false, updated.hasEvents());
+    }
+
+    @Test
+    void naturalKeyIgnoresSourceFixtureId() {
+        Match stored = builder().sourceFixtureId("A").createExisting();
+        Match other = builder().sourceFixtureId("B").createExisting();
+        Match none = builder().createExisting();
+
+        assertEquals(true, stored.hasSameNaturalKeyAs(other));
+        assertEquals(true, stored.hasSameNaturalKeyAs(none));
+    }
+
     private Match.MatchBuilder copyBuilder(Match match) {
         return Match.builder().id(match.getId()).source(match.getSource()).externalId(match.getExternalId())
+                .sourceFixtureId(match.getSourceFixtureId())
                 .competition(match.getCompetition()).season(match.getSeason())
                 .groupNumber(match.getGroupNumber()).round(match.getRound()).phase(match.getPhase())
                 .dateTime(match.getDateTime()).city(match.getCity()).venue(match.getVenue())

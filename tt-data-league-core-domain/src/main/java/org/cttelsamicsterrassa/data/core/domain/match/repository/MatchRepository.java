@@ -36,6 +36,16 @@ public interface MatchRepository {
                                           UUID awayTeamId);
 
     /**
+     * Finds a match by the source-supplied fixture id ({@code id_partido}) captured at import time
+     * (FEAT-00083). Exact match on {@code (source, source_fixture_id)}; the unique constraint makes
+     * the result at most one row and matches of any status are returned. The lookup is always
+     * source-scoped: the same id may exist under another source.
+     *
+     * @throws NullPointerException if {@code source} or {@code sourceFixtureId} is {@code null}
+     */
+    Optional<Match> findBySourceFixtureId(ImportSource source, String sourceFixtureId);
+
+    /**
      * Returns matches involving any of the supplied canonical team registrations.
      */
     List<Match> findAllMatchesByTeamIds(Collection<UUID> teamIds);

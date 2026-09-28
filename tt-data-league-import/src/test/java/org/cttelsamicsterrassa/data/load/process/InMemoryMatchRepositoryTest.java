@@ -163,6 +163,58 @@ class InMemoryMatchRepositoryTest {
                         List.of(), List.of(), List.of(), List.of())));
     }
 
+    @Test
+    void findBySourceFixtureIdIsSourceScopedAndRejectsNullArguments() {
+        Match withId = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM)
+                .sourceFixtureId("F-1").competition(COMPETITION).season(SEASON).groupNumber(1).round(1)
+                .homeTeam(home).awayTeam(away).status(MatchStatus.SCHEDULED).createExisting();
+        matches.saveMatch(withId);
+        Match otherSource = Match.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .sourceFixtureId("F-2").competition(COMPETITION).season(SEASON).groupNumber(1).round(2)
+                .homeTeam(home).awayTeam(away).status(MatchStatus.SCHEDULED).createExisting();
+        matches.saveMatch(otherSource);
+
+        assertEquals(withId.getId(), matches.findBySourceFixtureId(ImportSource.RFETM, "F-1").orElseThrow().getId());
+        assertTrue(matches.findBySourceFixtureId(ImportSource.RFETM, "F-2").isEmpty());
+        assertTrue(matches.findBySourceFixtureId(ImportSource.BCNESA, "F-1").isEmpty());
+        assertThrows(NullPointerException.class, () -> matches.findBySourceFixtureId(null, "F-1"));
+        assertThrows(NullPointerException.class, () -> matches.findBySourceFixtureId(ImportSource.RFETM, null));
+    }
+
+    @Test
+    void saveMatchMirrorsTheSourceScopedUniqueFixtureIdConstraint() {
+        Match first = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM)
+                .sourceFixtureId("DUP").competition(COMPETITION).season(SEASON).groupNumber(1).round(1)
+                .homeTeam(home).awayTeam(away).status(MatchStatus.SCHEDULED).createExisting();
+        matches.saveMatch(first);
+
+        Match duplicate = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM)
+                .sourceFixtureId("DUP").competition(COMPETITION).season(SEASON).groupNumber(1).round(2)
+                .homeTeam(home).awayTeam(away).status(MatchStatus.SCHEDULED).createExisting();
+        assertThrows(IllegalStateException.class, () -> matches.saveMatch(duplicate));
+
+        Match otherSource = Match.builder().id(UUID.randomUUID()).source(ImportSource.BCNESA)
+                .sourceFixtureId("DUP").competition(COMPETITION).season(SEASON).groupNumber(1).round(3)
+                .homeTeam(home).awayTeam(away).status(MatchStatus.SCHEDULED).createExisting();
+        matches.saveMatch(otherSource);
+
+        savedScheduled(UUID.randomUUID(), 4);
+        savedScheduled(UUID.randomUUID(), 5);
+    }
+
+    @Test
+    void updateScheduleCarriesTheStoredSourceFixtureId() {
+        Match scheduled = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM)
+                .sourceFixtureId("KEEP-1").competition(COMPETITION).season(SEASON).groupNumber(1).round(1)
+                .homeTeam(home).awayTeam(away).status(MatchStatus.SCHEDULED).createExisting();
+        matches.saveMatch(scheduled);
+
+        matches.updateSchedule(scheduled.getId(),
+                new MatchSchedule(null, "Terrassa", null, null, null));
+
+        assertEquals("KEEP-1", matches.findMatchById(scheduled.getId()).orElseThrow().getSourceFixtureId());
+    }
+
     // --- fixtures ----------------------------------------------------------------------------
 
     private Match savedScheduled(UUID id, int round) {

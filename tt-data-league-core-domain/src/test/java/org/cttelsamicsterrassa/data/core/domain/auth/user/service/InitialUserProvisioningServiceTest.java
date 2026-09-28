@@ -25,12 +25,12 @@ class InitialUserProvisioningServiceTest {
     }
 
     @Test
-    void createsBothDefaultAdminsWhenNeitherExists() {
+    void createsEverySeedAdminWhenNoneExists() {
         UserRepository repo = mock(UserRepository.class);
 
         serviceWith(repo).ensureDefaultUsersExist();
 
-        verify(repo, times(2)).save(any(User.class));
+        verify(repo, times(3)).save(any(User.class));
         verify(repo).save(argThat(u -> u.getUsername().equals("albert")
                 && u.getEmail().equals("albert@localhost")
                 && u.getRoles().equals(java.util.Set.of(UserRole.ADMIN))
@@ -39,24 +39,30 @@ class InitialUserProvisioningServiceTest {
                 && u.getEmail().equals("oscar@localhost")
                 && u.getRoles().equals(java.util.Set.of(UserRole.ADMIN))
                 && u.getPasswordHash().equals("hashed:Oscar&1234")));
+        verify(repo).save(argThat(u -> u.getUsername().equals("test")
+                && u.getEmail().equals("test@localhost")
+                && u.getRoles().equals(java.util.Set.of(UserRole.ADMIN))
+                && u.getPasswordHash().equals("hashed:test")));
     }
 
     @Test
-    void createsOnlyTheMissingUserWhenTheOtherAlreadyExists() {
+    void createsOnlyTheMissingUsersWhenOneAlreadyExists() {
         UserRepository repo = mock(UserRepository.class);
         when(repo.existsByUsername("albert")).thenReturn(true);
 
         serviceWith(repo).ensureDefaultUsersExist();
 
-        verify(repo, times(1)).save(any(User.class));
+        verify(repo, times(2)).save(any(User.class));
         verify(repo).save(argThat(u -> u.getUsername().equals("oscar")));
+        verify(repo).save(argThat(u -> u.getUsername().equals("test")));
     }
 
     @Test
-    void isANoOpWhenBothDefaultAdminsAlreadyExist() {
+    void isANoOpWhenAllSeedAdminsAlreadyExist() {
         UserRepository repo = mock(UserRepository.class);
         when(repo.existsByUsername("albert")).thenReturn(true);
         when(repo.existsByUsername("oscar")).thenReturn(true);
+        when(repo.existsByUsername("test")).thenReturn(true);
 
         serviceWith(repo).ensureDefaultUsersExist();
 
@@ -70,7 +76,8 @@ class InitialUserProvisioningServiceTest {
 
         serviceWith(repo).ensureDefaultUsersExist();
 
-        verify(repo, times(1)).save(any(User.class));
+        verify(repo, times(2)).save(any(User.class));
         verify(repo).save(argThat(u -> u.getUsername().equals("oscar")));
+        verify(repo).save(argThat(u -> u.getUsername().equals("test")));
     }
 }

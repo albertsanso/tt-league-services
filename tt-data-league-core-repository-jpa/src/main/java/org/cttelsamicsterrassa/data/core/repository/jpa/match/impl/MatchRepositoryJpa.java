@@ -29,6 +29,7 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.setscore.impl.SetScoreRe
 import org.cttelsamicsterrassa.data.core.repository.jpa.setscore.mapper.SetScoreToSetScoreJPAMapper;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Collection;
 import java.util.List;
@@ -73,6 +74,14 @@ public class MatchRepositoryJpa implements MatchRepository {
         return matchRepositoryHelper
                 .findByCompetitionAndSeasonAndGroupNumberAndRoundAndPhaseAndHomeTeam_IdAndAwayTeam_Id(
                         competition, season.toString(), groupNumber, round, phase, homeTeamId, awayTeamId)
+                .map(matchJPAToMatchMapper);
+    }
+
+    @Override
+    public Optional<Match> findBySourceFixtureId(ImportSource source, String sourceFixtureId) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(sourceFixtureId, "sourceFixtureId");
+        return matchRepositoryHelper.findBySourceAndSourceFixtureId(Source.valueOf(source.name()), sourceFixtureId)
                 .map(matchJPAToMatchMapper);
     }
 

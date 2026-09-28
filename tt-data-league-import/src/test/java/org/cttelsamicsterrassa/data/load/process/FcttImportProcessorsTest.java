@@ -1,6 +1,5 @@
 package org.cttelsamicsterrassa.data.load.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
@@ -31,11 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class FcttImportProcessorsTest {
 
-    private InMemoryRepositories.Clubs clubs;
-    private InMemoryRepositories.CanonicalClubs canonicalClubs;
     private InMemoryRepositories.Teams teams;
-    private InMemoryRepositories.Players players;
-    private InMemoryRepositories.Players.CanonicalPlayers canonicalPlayers;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
     private InMemoryRepositories.Matches matches;
     private InMemoryRepositories.Lineups lineups;
@@ -46,11 +41,7 @@ class FcttImportProcessorsTest {
 
     @BeforeEach
     void setUp() {
-        clubs = new InMemoryRepositories.Clubs();
-        canonicalClubs = new InMemoryRepositories.CanonicalClubs();
         teams = new InMemoryRepositories.Teams();
-        players = new InMemoryRepositories.Players();
-        canonicalPlayers = new InMemoryRepositories.Players.CanonicalPlayers();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
         lineups = new InMemoryRepositories.Lineups(playerSeasons);
         games = new InMemoryRepositories.Games();
@@ -65,17 +56,16 @@ class FcttImportProcessorsTest {
     }
 
     @Test
-    void storesClubsAndPlayersUnderTheFcttSource() {
+    void storesTeamsAndSeasonRegistrationsUnderTheFcttSource() {
         run(context("acta_singles.json", "G3"));
 
-        assertEquals(2, clubs.byId.size());
-        FederatedClub home = clubs.findFederatedClubBySourceAndName(ImportSource.FCTT, "HORTITEC ALZIRA TT").orElseThrow();
-        assertEquals(ImportSource.FCTT, home.getSource());
-        assertEquals(2, canonicalClubs.size());
-        assertEquals("HORTITEC ALZIRA TT", home.getClub().orElseThrow().getName());
-        assertTrue(teams.findTeamByFederatedClubAndSeason(home.getId(), Season.of(2023)).isPresent());
-        assertEquals(6, players.byId.size());
-        assertEquals(6, canonicalPlayers.byId.size());
+        // The acta import registers Team and PlayerSeason rows under the FCTT source;
+        // FederatedClub/Club and FederatedPlayer/Player rows belong to the consolidation
+        // processors.
+        assertEquals(2, teams.byId.size());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("HORTITEC ALZIRA TT", Season.of(2023),
+                ImportSource.FCTT).isPresent());
+        assertEquals(6, playerSeasons.byId.size());
         assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.FCTT, "29194", Season.of(2023))
                 .isPresent());
     }

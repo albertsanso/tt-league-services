@@ -1,6 +1,5 @@
 package org.cttelsamicsterrassa.data.load.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
@@ -31,11 +30,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class BcnesaImportProcessorsTest {
 
-    private InMemoryRepositories.Clubs clubs;
-    private InMemoryRepositories.CanonicalClubs canonicalClubs;
     private InMemoryRepositories.Teams teams;
-    private InMemoryRepositories.Players players;
-    private InMemoryRepositories.Players.CanonicalPlayers canonicalPlayers;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
     private InMemoryRepositories.Matches matches;
     private InMemoryRepositories.Lineups lineups;
@@ -47,11 +42,7 @@ class BcnesaImportProcessorsTest {
 
     @BeforeEach
     void setUp() {
-        clubs = new InMemoryRepositories.Clubs();
-        canonicalClubs = new InMemoryRepositories.CanonicalClubs();
         teams = new InMemoryRepositories.Teams();
-        players = new InMemoryRepositories.Players();
-        canonicalPlayers = new InMemoryRepositories.Players.CanonicalPlayers();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
         lineups = new InMemoryRepositories.Lineups(playerSeasons);
         games = new InMemoryRepositories.Games();
@@ -69,41 +60,43 @@ class BcnesaImportProcessorsTest {
     }
 
     @Test
-    void storesBothClubsOfEachFixtureUnderTheBcnesaSource() {
+    void storesBothTeamsOfEachFixtureUnderTheBcnesaSource() {
         run(firstFixture());
         run(secondFixture());
 
-        assertEquals(4, clubs.byId.size());
-        assertEquals(4, canonicalClubs.size());
-        FederatedClub home1 = clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "FALCONS DE SABADELL").orElseThrow();
-        FederatedClub home2 = clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "CTT ATENEU").orElseThrow();
-        assertEquals("FALCONS DE SABADELL", home1.getClub().orElseThrow().getName());
-        assertEquals("CTT ATENEU", home2.getClub().orElseThrow().getName());
-        assertTrue(teams.findTeamByFederatedClubAndSeason(home1.getId(), Season.of(2020)).isPresent());
-        assertTrue(teams.findTeamByFederatedClubAndSeason(home2.getId(), Season.of(2020)).isPresent());
+        // The acta import registers Team rows only; FederatedClub and canonical Club rows are
+        // created by the consolidation processors.
+        assertEquals(4, teams.byId.size());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("FALCONS DE SABADELL", Season.of(2020),
+                ImportSource.BCNESA).isPresent());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("CTT ATENEU", Season.of(2020),
+                ImportSource.BCNESA).isPresent());
+        assertEquals(4, teams.findAllTeamsBySource(ImportSource.BCNESA).size());
     }
 
     @Test
-    void normalizesQuotedTeamLetterSuffixesToOneClubRow() {
+    void normalizesQuotedTeamLetterSuffixesToOneTeamRow() {
         BcnesaMatchReportContext quoted = fixtureContext(0, "CLUB ARIEL \"A\"", "CLUB ARIEL ''B''");
         BcnesaMatchReportContext bare = fixtureContext(1, "CLUB ARIEL A", "CLUB ARIEL B");
 
         run(quoted);
         run(bare);
 
-        assertEquals(2, clubs.byId.size());
-        assertTrue(clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "CLUB ARIEL A").isPresent());
-        assertTrue(clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "CLUB ARIEL B").isPresent());
+        assertEquals(2, teams.byId.size());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("CLUB ARIEL A", Season.of(2020),
+                ImportSource.BCNESA).isPresent());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("CLUB ARIEL B", Season.of(2020),
+                ImportSource.BCNESA).isPresent());
     }
 
     @Test
-    void storesOnePlayerPerSinglesParticipantAcrossBothFixtures() {
+    void storesOneSeasonRegistrationPerSinglesParticipantAcrossBothFixtures() {
         run(firstFixture());
         run(secondFixture());
 
         // 2 games per fixture, 2 distinct participants per game, no overlap between fixtures.
-        assertEquals(8, players.byId.size());
-        assertEquals(8, canonicalPlayers.byId.size());
+        // FederatedPlayer/Player rows are not created by the acta import; only the season
+        // registration is.
         assertEquals(8, playerSeasons.byId.size());
         assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.BCNESA, "7026", Season.of(2020)).isPresent());
         assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.BCNESA, "878", Season.of(2020)).isPresent());

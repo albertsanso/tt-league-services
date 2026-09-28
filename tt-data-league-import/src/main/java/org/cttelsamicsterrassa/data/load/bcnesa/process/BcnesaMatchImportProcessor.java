@@ -150,6 +150,9 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             return Match.builder()
                     .id(id)
                     .source(ImportSource.BCNESA)
+                    // Only the fixture named by equipos owns the file's id_partido; an inferred
+                    // later fixture of a multi-fixture file never borrows it (FEAT-00083).
+                    .sourceFixtureId(context.fixtureIndex() == 0 ? acta.matchId() : null)
                     .competition(competition)
                     .season(season)
                     .groupNumber(groupNumber)
@@ -184,6 +187,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             Match.MatchBuilder builder = Match.builder()
                     .id(id)
                     .source(ImportSource.BCNESA)
+                    .sourceFixtureId(context.fixtureIndex() == 0 ? acta.matchId() : null)
                     .competition(competition)
                     .season(season)
                     .groupNumber(groupNumber)

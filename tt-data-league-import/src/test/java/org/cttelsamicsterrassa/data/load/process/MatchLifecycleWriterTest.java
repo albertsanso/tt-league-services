@@ -107,6 +107,35 @@ class MatchLifecycleWriterTest {
         assertTrue(source.playedBuilds.isEmpty(), "a played match is never rewritten");
     }
 
+    @Test
+    void upgradeWithIncomingNullFixtureIdKeepsTheStoredOne() {
+        UUID storedId = UUID.randomUUID();
+        matches.saveMatch(scheduledBuilder(storedId, DATE_A, "city", "venue", "referee")
+                .sourceFixtureId("ES_03_26_0001111_0001").createNew());
+        FakeSource source = new FakeSource(DATE_B, "other", "other venue", "other referee");
+
+        MatchLifecycleOutcome outcome = writer.apply(classification(ActaCompleteness.PLAYED),
+                matches.findMatchById(storedId), source);
+
+        assertEquals(MatchLifecycleOutcome.UPGRADED_TO_PLAYED, outcome);
+        Match match = matches.saved.getFirst();
+        assertEquals(MatchStatus.PLAYED, match.getStatus());
+        assertEquals("ES_03_26_0001111_0001", match.getSourceFixtureId());
+    }
+
+    @Test
+    void upgradeWithIncomingFixtureIdOverwritesAStoredNull() {
+        UUID storedId = storeScheduled(DATE_A, "city", "venue", "referee");
+        FakeSource source = new FakeSource(DATE_B, "other", "other venue", "other referee");
+        source.playedSourceFixtureId = "ES_03_26_0002222_0001";
+
+        MatchLifecycleOutcome outcome = writer.apply(classification(ActaCompleteness.PLAYED),
+                matches.findMatchById(storedId), source);
+
+        assertEquals(MatchLifecycleOutcome.UPGRADED_TO_PLAYED, outcome);
+        assertEquals("ES_03_26_0002222_0001", matches.saved.getFirst().getSourceFixtureId());
+    }
+
     // --- PENDING -------------------------------------------------------------------------
 
     @Test
@@ -315,6 +344,7 @@ class MatchLifecycleWriterTest {
         private final String referee;
         private final List<UUID> playedBuilds = new java.util.ArrayList<>();
         private boolean scheduledBuilt;
+        private String playedSourceFixtureId;
 
         private FakeSource(ZonedDateTime date, String city, String venue, String referee) {
             this.date = date;
@@ -335,6 +365,7 @@ class MatchLifecycleWriterTest {
             Match.MatchBuilder builder = Match.builder()
                     .id(id)
                     .source(ImportSource.RFETM)
+                    .sourceFixtureId(playedSourceFixtureId)
                     .competition("divisio-honor-masculino")
                     .season(SEASON)
                     .groupNumber(0)
