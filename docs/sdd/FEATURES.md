@@ -71,27 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00084] Jornada progress query and exposure
-- **Status:** idea
-- **Priority:** medium
-- **Effort:** small
-- **Depends on:** FEAT-00077, FEAT-00081
-
-#### Goal
-Track the current and last complete jornada per source, season, competition, group and phase derived from match statuses.
-
-#### Acceptance Criteria
-- [ ] MatchRepository.findRoundProgress(source, season) returns current round, last complete round and scheduled/played counts per competition/group/phase
-- [ ] Progress is exposed in the import run result, the import-resource read model and the CLI summary
-- [ ] Progress is informational and never used to skip files
-- [ ] Test with the FCTT 2026-2027 tercera-nacional/G1 shape yields current jornada 1 and no last complete jornada
-- [ ] README documents the progress output
-
-#### Feature Details
-→ See [FEAT-00084-DETAILS.md](./FEAT-00084-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00085] Natural-key stability guard
 - **Status:** idea
 - **Priority:** medium
@@ -267,6 +246,27 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00084] Jornada progress query and exposure
+- **Status:** done
+- **Priority:** medium
+- **Effort:** small
+- **Depends on:** FEAT-00077, FEAT-00081
+
+#### Goal
+Track the current and last complete jornada per source, season, competition, group and phase derived from match statuses.
+
+#### Acceptance Criteria
+- [x] MatchRepository.findRoundProgress(source, season) returns current round, last complete round and scheduled/played counts per competition/group/phase
+- [x] Progress is exposed in the import run result, the import-resource read model and the CLI summary
+- [x] Progress is informational and never used to skip files
+- [x] Test with the FCTT 2026-2027 tercera-nacional/G1 shape yields current jornada 1 and no last complete jornada
+- [x] README documents the progress output
+
+#### Feature Details
+→ See [FEAT-00084-DETAILS.md](./FEAT-00084-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00083] Persist source fixture id (id_partido)
 - **Status:** done

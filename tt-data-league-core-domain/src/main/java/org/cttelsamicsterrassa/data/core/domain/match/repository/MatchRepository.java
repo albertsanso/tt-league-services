@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
@@ -134,4 +135,21 @@ public interface MatchRepository {
      * @throws IllegalStateException if no match with {@code matchId} exists or it is not SCHEDULED
      */
     void updateSchedule(UUID matchId, MatchSchedule schedule);
+
+    /**
+     * Jornada progress of every competition, group and phase that has stored matches in the given
+     * source and season (FEAT-00084): the current round, the last complete round and the
+     * scheduled/played match counts.
+     *
+     * <p>The rule is defined by {@link org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgressCalculator},
+     * which every adapter must reuse: an adapter only reads grouped counts, it never re-implements the
+     * definition. The lookup is always source-scoped and counts matches of every status, so an empty
+     * list means the source and season hold no matches at all.</p>
+     *
+     * <p>The result is informational only: it is a read model for operators and must never be used to
+     * decide whether an import file is skipped.</p>
+     *
+     * @throws NullPointerException if {@code source} or {@code season} is {@code null}
+     */
+    List<RoundProgress> findRoundProgress(ImportSource source, Season season);
 }

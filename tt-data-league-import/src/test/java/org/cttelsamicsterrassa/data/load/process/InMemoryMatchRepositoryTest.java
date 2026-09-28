@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -215,7 +216,55 @@ class InMemoryMatchRepositoryTest {
         assertEquals("KEEP-1", matches.findMatchById(scheduled.getId()).orElseThrow().getSourceFixtureId());
     }
 
+    @Test
+    void findRoundProgressGroupsTheStoredMatchesOfOneSourceAndSeason() {
+        Season progressSeason = Season.of(2026);
+        storedFcttMatch(progressSeason, 1, MatchStatus.PLAYED);
+        storedFcttMatch(progressSeason, 1, MatchStatus.PLAYED);
+        storedFcttMatch(progressSeason, 1, MatchStatus.PLAYED);
+        storedFcttMatch(progressSeason, 1, MatchStatus.SCHEDULED);
+        storedFcttMatch(progressSeason, 1, MatchStatus.SCHEDULED);
+        storedFcttMatch(progressSeason, 1, MatchStatus.SCHEDULED);
+        for (int pending = 0; pending < 6; pending++) {
+            storedFcttMatch(progressSeason, 2, MatchStatus.SCHEDULED);
+        }
+        storedFcttMatch(Season.of(2025), 1, MatchStatus.PLAYED);
+        savedScheduled(UUID.randomUUID(), 3);
+
+        List<RoundProgress> progress = matches.findRoundProgress(ImportSource.FCTT, progressSeason);
+
+        assertEquals(1, progress.size(), "the other season and the RFETM match are out of scope");
+        RoundProgress row = progress.getFirst();
+        assertEquals("tercera-nacional-masculino", row.competition());
+        assertEquals(1, row.groupNumber());
+        assertEquals("1a Fase", row.phase());
+        assertEquals(1, row.currentRound());
+        assertNull(row.lastCompleteRound());
+        assertEquals(9, row.scheduledMatches());
+        assertEquals(3, row.playedMatches());
+    }
+
+    @Test
+    void findRoundProgressRejectsNullArguments() {
+        assertThrows(NullPointerException.class, () -> matches.findRoundProgress(null, SEASON));
+        assertThrows(NullPointerException.class, () -> matches.findRoundProgress(ImportSource.RFETM, null));
+    }
+
     // --- fixtures ----------------------------------------------------------------------------
+
+    private void storedFcttMatch(Season season, int round, MatchStatus status) {
+        Team home = Team.createExisting(UUID.randomUUID(), ImportSource.FCTT, "G1 HOME " + UUID.randomUUID(),
+                season, null);
+        Team away = Team.createExisting(UUID.randomUUID(), ImportSource.FCTT, "G1 AWAY " + UUID.randomUUID(),
+                season, null);
+        Match.MatchBuilder builder = Match.builder().id(UUID.randomUUID()).source(ImportSource.FCTT)
+                .competition("tercera-nacional-masculino").season(season).groupNumber(1).round(round)
+                .phase("1a Fase").homeTeam(home).awayTeam(away);
+        if (status == MatchStatus.PLAYED) {
+            builder.homeGamesWon(5).awayGamesWon(2).winnerTeam(home);
+        }
+        matches.saveMatch(builder.status(status).createExisting());
+    }
 
     private Match savedScheduled(UUID id, int round) {
         Match match = Match.builder().id(id).source(ImportSource.RFETM).competition(COMPETITION)

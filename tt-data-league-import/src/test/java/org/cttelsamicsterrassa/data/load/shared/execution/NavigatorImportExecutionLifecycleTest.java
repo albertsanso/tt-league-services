@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus;
+import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchImportProcessor;
@@ -36,11 +40,14 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -226,6 +233,200 @@ class NavigatorImportExecutionLifecycleTest {
         assertTrue(regression.issues().isEmpty());
     }
 
+    @Test
+    void theGroupOneSnapshotOfFcttTerceraNacionalReportsRoundOneAsCurrentAndIncomplete() throws Exception {
+        writeFcttGroupOneSnapshot();
+
+        ImportExecutionResult result = service.execute(fcttRequest(), ImportExecutionOptions.defaults());
+
+        assertEquals(ImportProcessStatus.SUCCESS, result.status());
+        assertEquals(1, result.roundProgress().size(), "one competition, group and phase was imported");
+        RoundProgress row = result.roundProgress().getFirst();
+        assertEquals("tercera-nacional-masculino", row.competition());
+        assertEquals(1, row.groupNumber());
+        assertEquals("1a Fase", row.phase());
+        assertEquals(1, row.currentRound());
+        assertNull(row.lastCompleteRound(), "jornada 1 still holds three pending actas");
+        assertEquals(9, row.scheduledMatches());
+        assertEquals(3, row.playedMatches());
+    }
+
+    @Test
+    void publishingThePendingFixturesOfRoundOneMakesThatRoundComplete() throws Exception {
+        writeFcttGroupOneSnapshot();
+        service.execute(fcttRequest(), ImportExecutionOptions.defaults());
+
+        publishFcttRoundOnePendingFixtures();
+        ImportExecutionResult result = service.execute(fcttRequest(), ImportExecutionOptions.defaults());
+
+        assertEquals(ImportProcessStatus.SUCCESS, result.status());
+        RoundProgress row = result.roundProgress().getFirst();
+        assertEquals(1, row.currentRound());
+        assertEquals(1, row.lastCompleteRound(), "jornada 1 is fully played, jornada 2 is not");
+        assertEquals(6, row.scheduledMatches());
+        assertEquals(6, row.playedMatches());
+    }
+
+    @Test
+    void progressIsInformationalAndNeverSkipsFilesOfACompleteRound() throws Exception {
+        writeFcttGroupOneSnapshot();
+        ImportExecutionResult first = service.execute(fcttRequest(), ImportExecutionOptions.defaults());
+
+        publishFcttRoundOnePendingFixtures();
+        ImportExecutionResult second = service.execute(fcttRequest(), ImportExecutionOptions.defaults());
+        ImportExecutionResult third = service.execute(fcttRequest(), ImportExecutionOptions.defaults());
+
+        assertEquals(12, second.metrics().filesSeen(), "a complete round does not shorten the traversal");
+        assertEquals(second.metrics().filesSeen(), third.metrics().filesSeen());
+        assertEquals(second.metrics().itemsDispatched(), third.metrics().itemsDispatched());
+        assertEquals(second.metrics().skipped(), third.metrics().skipped());
+        assertEquals(second.roundProgress(), third.roundProgress(), "the same snapshot yields the same progress");
+    }
+
+    @Test
+    void aRunWithoutASeasonComputesNoProgressInsteadOfGuessingOne() throws Exception {
+        writeFcttGroupOneSnapshot();
+
+        ImportExecutionResult result = service.execute(
+                new ImportExecutionRequest(ImportSource.FCTT, baseFolder, Optional.empty()),
+                ImportExecutionOptions.defaults());
+
+        assertEquals(ImportProcessStatus.SUCCESS, result.status());
+        assertTrue(result.roundProgress().isEmpty(), "no season means no implicit season is selected");
+    }
+
+    @Test
+    void aFailingProgressQueryIsReportedAsAFailureInsteadOfAnEmptyProgress() {
+        NavigatorImportExecutionService failing = new NavigatorImportExecutionService(
+                new RfetmActasDirectoryNavigator(rfetmProcessors, new ActaParser()),
+                new BcnesaActasDirectoryNavigator(List.of(), new ActaParser()),
+                new FcttActasDirectoryNavigator(List.of(), new ActaParser()),
+                rfetmProcessors, List.of(), List.of(), null, null, null, null, new ThrowingProgressMatches());
+
+        ImportExecutionResult result = failing.execute(rfetmRequest(), ImportExecutionOptions.defaults());
+
+        assertEquals(ImportProcessStatus.FAILURE, result.status());
+        assertEquals(1, result.issues().size());
+        assertEquals("round-progress", result.issues().getFirst().processor());
+        assertEquals("progress query failed", result.issues().getFirst().message());
+        assertTrue(result.roundProgress().isEmpty());
+    }
+
+    private ImportExecutionRequest fcttRequest() {
+        return new ImportExecutionRequest(ImportSource.FCTT, baseFolder, Optional.of(Season.of(2026)));
+    }
+
+    /**
+     * The real FCTT 2026-2027 {@code male/tercera-nacional/G1} shape: jornada 1 with three published
+     * and three pending actas, jornada 2 with six pending ones.
+     */
+    private void writeFcttGroupOneSnapshot() throws IOException {
+        for (int partido = 1; partido <= 3; partido++) {
+            writeFcttActa(publishedFcttActa(1, partido), 1, partido);
+        }
+        for (int partido = 4; partido <= 6; partido++) {
+            writeFcttActa(pendingFcttActa(1, partido), 1, partido);
+        }
+        for (int partido = 1; partido <= 6; partido++) {
+            writeFcttActa(pendingFcttActa(2, partido), 2, partido);
+        }
+    }
+
+    private void publishFcttRoundOnePendingFixtures() throws IOException {
+        for (int partido = 4; partido <= 6; partido++) {
+            writeFcttActa(publishedFcttActa(1, partido), 1, partido);
+        }
+    }
+
+    private ObjectNode pendingFcttActa(int jornada, int partido) {
+        return annotatedFcttActa(fixture("acta_fctt_unpublished.json"), jornada, partido);
+    }
+
+    private ObjectNode publishedFcttActa(int jornada, int partido) {
+        return annotatedFcttActa(fixture("acta_fctt_2026_published.json"), jornada, partido);
+    }
+
+    private static ObjectNode annotatedFcttActa(ObjectNode acta, int jornada, int partido) {
+        acta.put("id_partido", "2026-2027_tercera-nacional_G1_1aFase_R" + jornada + "P" + partido);
+        acta.put("jornada", jornada);
+        ObjectNode equipos = (ObjectNode) acta.get("equipos");
+        ((ObjectNode) equipos.get("local")).put("id", "home-" + partido).put("nombre", "PROG HOME " + partido);
+        ((ObjectNode) equipos.get("visitante")).put("id", "away-" + partido).put("nombre", "PROG AWAY " + partido);
+        return acta;
+    }
+
+    private Path writeFcttActa(ObjectNode acta, int jornada, int partido) throws IOException {
+        Path folder = Files.createDirectories(baseFolder.resolve("2026-2027").resolve("male")
+                .resolve("tercera-nacional").resolve("G1"));
+        Path file = folder.resolve("jornada-" + jornada + "-partido-" + partido + ".json");
+        Files.writeString(file, acta.toString());
+        return file;
+    }
+
+    /** The progress query is a read that may fail; the run must report that instead of hiding it. */
+    private static final class ThrowingProgressMatches
+            implements org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository {
+
+        @Override
+        public List<RoundProgress> findRoundProgress(ImportSource source, Season season) {
+            throw new IllegalStateException("progress query failed");
+        }
+
+        @Override
+        public Optional<Match> findMatchById(UUID id) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<Match> findMatchByExternalId(String externalId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<Match> findMatchByNaturalKey(String competition, Season season, Integer groupNumber,
+                                                     int round, String phase, UUID homeTeamId, UUID awayTeamId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public Optional<Match> findBySourceFixtureId(ImportSource source, String sourceFixtureId) {
+            return Optional.empty();
+        }
+
+        @Override
+        public List<Match> findAllMatchesByTeamIds(Collection<UUID> teamIds) {
+            return List.of();
+        }
+
+        @Override
+        public List<Match> findAllMatchesByTeamIdsAndSource(Collection<UUID> teamIds, ImportSource source) {
+            return List.of();
+        }
+
+        @Override
+        public List<Match> findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(Collection<UUID> teamIds,
+                                                                                  ImportSource source,
+                                                                                  Season season,
+                                                                                  String competition) {
+            return List.of();
+        }
+
+        @Override
+        public void saveMatch(Match match) {
+            throw new UnsupportedOperationException("not needed by this test");
+        }
+
+        @Override
+        public void replaceMatchContent(MatchContent content) {
+            throw new UnsupportedOperationException("not needed by this test");
+        }
+
+        @Override
+        public void updateSchedule(UUID matchId, MatchSchedule schedule) {
+            throw new UnsupportedOperationException("not needed by this test");
+        }
+    }
+
     private NavigatorImportExecutionService serviceWithoutConsolidation(
             List<FcttMatchReportProcessor> fcttProcessors,
             List<BcnesaMatchReportProcessor> bcnesaProcessors) {
@@ -233,7 +434,8 @@ class NavigatorImportExecutionLifecycleTest {
                 new RfetmActasDirectoryNavigator(rfetmProcessors, new ActaParser()),
                 new BcnesaActasDirectoryNavigator(bcnesaProcessors, new ActaParser()),
                 new FcttActasDirectoryNavigator(fcttProcessors, new ActaParser()),
-                rfetmProcessors, bcnesaProcessors, fcttProcessors);
+                rfetmProcessors, bcnesaProcessors, fcttProcessors,
+                null, null, null, null, matches);
     }
 
     private ImportExecutionRequest rfetmRequest() {

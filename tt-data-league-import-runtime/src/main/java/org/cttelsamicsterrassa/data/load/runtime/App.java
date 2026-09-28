@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
 import org.cttelsamicsterrassa.data.core.domain.match.model.ScheduledMatchBackfillCandidate;
 import org.cttelsamicsterrassa.data.core.domain.match.model.ScheduledMatchBackfillWriteResult;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.ScheduledMatchBackfillRepository;
@@ -28,6 +29,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import java.nio.file.Path;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @SpringBootApplication(scanBasePackages = {"org.cttelsamicsterrassa", "org.albertsanso.commons"})
@@ -121,9 +123,36 @@ public class App implements CommandLineRunner {
                 arguments.rfetmTeamsFolder() == null ? null : Path.of(arguments.rfetmTeamsFolder()), 50);
         ImportExecutionResult result = executionService.execute(request, options);
         LOGGER.info("{} import finished: {}", source, result);
+        logRoundProgress(source, request.season(), result.roundProgress());
         if (result.status() == org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus.FAILURE) {
             throw new IllegalStateException("Import failed: " + result.issues());
         }
+    }
+
+    /**
+     * FEAT-00084: one line per competition, group and phase so an operator can read the jornada state
+     * straight from the run log. The progress is informational and never changes what was imported;
+     * a run without {@code --season} computes nothing rather than guessing a season.
+     */
+    private static void logRoundProgress(ImportSource source, Optional<Season> season,
+                                         List<RoundProgress> roundProgress) {
+        if (season.isEmpty()) {
+            LOGGER.info("{} round progress not computed: run without --season", source);
+            return;
+        }
+        if (roundProgress.isEmpty()) {
+            LOGGER.info("{}/{} round progress: no stored matches", source, season.get());
+            return;
+        }
+        roundProgress.forEach(row -> LOGGER.info(
+                "{}/{} progress {} G{} {}: current round {}, last complete round {}, scheduled {}, played {}",
+                source, season.get(), dash(row.competition()), dash(row.groupNumber()), dash(row.phase()),
+                dash(row.currentRound()), dash(row.lastCompleteRound()), row.scheduledMatches(),
+                row.playedMatches()));
+    }
+
+    private static String dash(Object value) {
+        return value == null ? "-" : value.toString();
     }
 
     /**

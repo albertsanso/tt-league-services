@@ -1,5 +1,7 @@
 package org.cttelsamicsterrassa.data.core.domain.load.model;
 
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
+
 import java.util.List;
 
 public record ImportProcessResult(
@@ -14,13 +16,14 @@ public record ImportProcessResult(
         long persistenceWrites,
         List<String> executionIssues,
         List<String> postProcessingOutcomes,
-        ImportLifecycleCounters lifecycle) {
+        ImportLifecycleCounters lifecycle,
+        List<RoundProgress> roundProgress) {
 
     public ImportProcessResult(ImportProcessStatus status, List<ImportPreviewFinding> findings,
                                List<ImportPreviewProcessingError> processingErrors, long filesSeen,
                                long itemsPersisted, long skipped, long processorFailures) {
         this(status, findings, processingErrors, filesSeen, itemsPersisted, skipped, processorFailures,
-                0, 0, List.of(), List.of(), ImportLifecycleCounters.ZERO);
+                0, 0, List.of(), List.of(), ImportLifecycleCounters.ZERO, List.of());
     }
 
     public ImportProcessResult(ImportProcessStatus status, List<ImportPreviewFinding> findings,
@@ -30,7 +33,16 @@ public record ImportProcessResult(
                                List<String> postProcessingOutcomes) {
         this(status, findings, processingErrors, filesSeen, itemsPersisted, skipped, processorFailures,
                 elapsedMillis, persistenceWrites, executionIssues, postProcessingOutcomes,
-                ImportLifecycleCounters.ZERO);
+                ImportLifecycleCounters.ZERO, List.of());
+    }
+
+    public ImportProcessResult(ImportProcessStatus status, List<ImportPreviewFinding> findings,
+                               List<ImportPreviewProcessingError> processingErrors, long filesSeen,
+                               long itemsPersisted, long skipped, long processorFailures, long elapsedMillis,
+                               long persistenceWrites, List<String> executionIssues,
+                               List<String> postProcessingOutcomes, ImportLifecycleCounters lifecycle) {
+        this(status, findings, processingErrors, filesSeen, itemsPersisted, skipped, processorFailures,
+                elapsedMillis, persistenceWrites, executionIssues, postProcessingOutcomes, lifecycle, List.of());
     }
 
     public ImportProcessResult {
@@ -39,6 +51,7 @@ public record ImportProcessResult(
         executionIssues = executionIssues == null ? List.of() : List.copyOf(executionIssues);
         postProcessingOutcomes = postProcessingOutcomes == null ? List.of() : List.copyOf(postProcessingOutcomes);
         lifecycle = lifecycle == null ? ImportLifecycleCounters.ZERO : lifecycle;
+        roundProgress = roundProgress == null ? List.of() : List.copyOf(roundProgress);
     }
 
     public static ImportProcessResult success(List<ImportPreviewFinding> findings,

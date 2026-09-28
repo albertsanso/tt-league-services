@@ -273,6 +273,22 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
             @Param("source") Source source, @Param("season") String season);
 
     /**
+     * FEAT-00084 jornada progress counts: how many matches each round of a competition, group and
+     * phase holds per status, scoped by source and season. Only the grouped rows are read here; the
+     * current-round / last-complete-round rule lives in the domain {@code RoundProgressCalculator}.
+     * Served by {@code idx_match_source_season_competition_status}.
+     */
+    @Query("""
+            select new org.cttelsamicsterrassa.data.core.repository.jpa.match.impl.RoundStatusCountProjection(
+                m.competition, m.groupNumber, m.phase, m.round, m.status, count(m))
+            from MatchJPA m
+            where m.source = :source and m.season = :season
+            group by m.competition, m.groupNumber, m.phase, m.round, m.status
+            """)
+    List<RoundStatusCountProjection> countByRoundAndStatus(
+            @Param("source") Source source, @Param("season") String season);
+
+    /**
      * Same candidate rule, restricted to {@code matchIds}. Used by {@code markScheduled} to re-check
      * every id inside the write transaction before mutating anything.
      */

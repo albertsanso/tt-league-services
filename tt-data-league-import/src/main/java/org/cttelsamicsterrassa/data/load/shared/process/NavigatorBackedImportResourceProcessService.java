@@ -74,7 +74,8 @@ public class NavigatorBackedImportResourceProcessService
                 result.metrics().elapsedMillis(), result.metrics().persistenceWrites(),
                 result.issues().stream().map(issue -> issue.processor() + ": " + issue.message()).toList(),
                 result.postProcessing().stream().map(Object::toString).toList(),
-                result.metrics().lifecycle());
+                result.metrics().lifecycle(),
+                result.roundProgress());
     }
 
     private ImportExecutionOptions effectiveOptions() {

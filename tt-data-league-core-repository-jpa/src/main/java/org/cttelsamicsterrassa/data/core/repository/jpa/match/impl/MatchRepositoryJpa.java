@@ -11,6 +11,9 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
 import org.cttelsamicsterrassa.data.core.domain.match.model.PlayerLocation;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgressCalculator;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundStatusCount;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
@@ -307,5 +310,29 @@ public class MatchRepositoryJpa implements MatchRepository {
             throw new IllegalStateException(
                     "Only SCHEDULED matches can be rescheduled, match " + matchId + " is PLAYED");
         }
+    }
+
+    /**
+     * FEAT-00084. Reads the grouped per-round/per-status counts of one source and season and hands
+     * them to the domain calculator: the current-round and last-complete-round rule is never
+     * duplicated in JPQL. Read-only, and informational for callers - it is not an import-skip signal.
+     */
+    @Override
+    public List<RoundProgress> findRoundProgress(ImportSource source, Season season) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(season, "season");
+        List<RoundStatusCount> counts = matchRepositoryHelper
+                .countByRoundAndStatus(Source.valueOf(source.name()), season.toString())
+                .stream()
+                .map(MatchRepositoryJpa::toStatusCount)
+                .toList();
+        return RoundProgressCalculator.compute(source, season, counts);
+    }
+
+    private static RoundStatusCount toStatusCount(RoundStatusCountProjection projection) {
+        return new RoundStatusCount(projection.competition(), projection.groupNumber(), projection.phase(),
+                projection.round(),
+                org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus.valueOf(projection.status().name()),
+                projection.matches());
     }
 }

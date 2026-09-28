@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.core.application.importresource.preview.dto.
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.dto.ImportPreviewProcessingErrorDto;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.dto.ImportProcessResultDto;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.dto.ImportRunStatusDto;
+import org.cttelsamicsterrassa.data.core.application.importresource.shared.dto.RoundProgressDtoMapper;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessResult;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunSnapshot;
@@ -62,6 +63,7 @@ final class ImportRunStatusDtoMapper {
                 result.postProcessingOutcomes(),
                 result.lifecycle().scheduledCreated(), result.lifecycle().upgradedToPlayed(),
                 result.lifecycle().rescheduled(), result.lifecycle().partialActas(),
-                result.lifecycle().invalidActas(), result.lifecycle().unresolvedPendingFixtures());
+                result.lifecycle().invalidActas(), result.lifecycle().unresolvedPendingFixtures(),
+                RoundProgressDtoMapper.toDtos(result.roundProgress()));
     }
 }

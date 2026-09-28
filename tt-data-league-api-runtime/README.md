@@ -114,6 +114,18 @@ unresolved-placeholder outcomes as `warning` findings. The run registry is in-me
 (`InMemoryImportRunRegistry`); it prevents two
 accepted runs for the same import resource but does not persist run history across restarts.
 
+The terminal `process_status` result also carries `roundProgress`: one row per
+competition, group and phase of the resource's source and season, with
+`competition`, `groupNumber`, `phase`, `currentRound`, `lastCompleteRound`,
+`scheduledMatches` and `playedMatches`. `currentRound` is the highest round with
+at least one played match and `lastCompleteRound` the highest stored round with
+no scheduled match at or below it; both are `null` when nothing is played and
+when the lowest stored round is still pending. `GET
+/api/v1/administration/import/list_by_source` returns the same rows per
+resource, derived live from the stored matches. Progress is informational: it
+never changes which files an import reads, and a season that holds no stored
+match has an empty list.
+
 At startup, `ImportFolderSettingStartupInitializer` ensures the `IMPORT/repository-folder`
 administrator setting exists, creating it with the default value `c:\tt-repository`
 only when it is absent. Provisioning is idempotent: it never overwrites an

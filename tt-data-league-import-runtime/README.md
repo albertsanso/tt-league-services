@@ -176,6 +176,45 @@ are surfaced to the administration API as `warning` findings on the terminal
 result. `lastProcessedDate` on the import resource is set at the end of every
 run, including failures and rejected submissions.
 
+### Jornada progress
+
+Along with the counters, a run reports the jornada progress of the imported
+season: per source, season, competition, group and phase it states the current
+round, the last complete round and the scheduled/played match counts. Both
+rounds are derived from what is already stored:
+
+- the *current round* is the highest round holding at least one `PLAYED` match,
+  and is `-` while nothing of that competition, group and phase has been played;
+- the *last complete round* is the highest stored round with no `SCHEDULED`
+  match at or below it, and is `-` while the lowest stored round is still
+  pending. Only stored rounds count: a gap in round numbers is not a pending
+  match, and no total number of rounds is inferred because a source export is a
+  sliding window over the season;
+- *scheduled* and *played* are the per-status match counts.
+
+A postponed early fixture therefore keeps the last complete round low while the
+current round advances, which is what an operator needs to see. For the FCTT
+2026-2027 `male/tercera-nacional/G1` shape (jornada 1 with three published and
+three pending actas, jornada 2 with six pending ones) the run logs one line per
+competition, group and phase:
+
+```text
+FCTT/2026-2027 progress tercera-nacional-masculino G1 1a Fase: current round 1, last complete round -, scheduled 9, played 3
+```
+
+`--season` is required for progress. A run without it logs
+`<source> round progress not computed: run without --season` instead of silently
+choosing a season, and a season without stored matches logs
+`<source>/<season> round progress: no stored matches`. The administration API
+exposes the same rows as `roundProgress` in the `process_status` terminal result
+and in the `list_by_source` rows.
+
+The progress is informational only. It is computed after the traversal from the
+stored state and never decides which files are read, so a complete round does
+not shorten a later import: every run still traverses the whole requested
+season. If the progress query itself fails, the run ends `FAILURE` with a
+`round-progress` issue rather than reporting success with no progress.
+
 ## Launch modes
 
 ### Backfill legacy empty and decided 0-0 matches

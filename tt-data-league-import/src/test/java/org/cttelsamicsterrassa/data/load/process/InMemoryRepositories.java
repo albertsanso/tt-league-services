@@ -15,6 +15,9 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgressCalculator;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundStatusCount;
 import org.cttelsamicsterrassa.data.core.domain.match.model.ScheduledMatchBackfillCandidate;
 import org.cttelsamicsterrassa.data.core.domain.match.model.ScheduledMatchBackfillWriteResult;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -580,6 +583,35 @@ public final class InMemoryRepositories {
                 }
             }
             throw new IllegalStateException("Match not found: " + matchId);
+        }
+
+        /**
+         * FEAT-00084: groups the stored matches of one source and season exactly as the JPA adapter
+         * groups its rows and delegates the definition to {@link RoundProgressCalculator}, so the
+         * in-memory and persisted rules cannot drift apart.
+         */
+        @Override
+        public List<RoundProgress> findRoundProgress(ImportSource source, Season season) {
+            Objects.requireNonNull(source, "source");
+            Objects.requireNonNull(season, "season");
+            Map<RoundRowKey, Long> countsByRow = new LinkedHashMap<>();
+            for (Match match : saved) {
+                if (!source.equals(match.getSource()) || !season.equals(match.getSeason())) {
+                    continue;
+                }
+                countsByRow.merge(new RoundRowKey(match.getCompetition(), match.getGroupNumber(),
+                        match.getPhase(), match.getRound(), match.getStatus()), 1L, Long::sum);
+            }
+            List<RoundStatusCount> counts = countsByRow.entrySet().stream()
+                    .map(entry -> new RoundStatusCount(entry.getKey().competition(), entry.getKey().groupNumber(),
+                            entry.getKey().phase(), entry.getKey().round(), entry.getKey().status(),
+                            entry.getValue()))
+                    .toList();
+            return RoundProgressCalculator.compute(source, season, counts);
+        }
+
+        private record RoundRowKey(String competition, Integer groupNumber, String phase, int round,
+                                   MatchStatus status) {
         }
     }
 
