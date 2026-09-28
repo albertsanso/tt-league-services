@@ -11,6 +11,7 @@ import org.cttelsamicsterrassa.data.core.application.importresource.preview.Star
 import org.cttelsamicsterrassa.data.core.application.importresource.process.FindImportRunStatusQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.StartImportProcessCommand;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ResourceUploadService;
+import org.cttelsamicsterrassa.data.core.domain.load.service.SnapshotShrinkException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -36,16 +37,23 @@ public class ImportResourceController {
     @Autowired
     private ResourceUploadService resourceUploadService;
 
-    @Operation(summary = "Upload a ZIP import resource")
+    @Operation(summary = "Upload a ZIP import resource",
+            description = "Snapshot upload of a season. Rejects a shrinking published-acta snapshot "
+                    + "with 409 unless allowPublishedShrink=true is given.")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<?> uploadZipFile(@RequestParam("file") MultipartFile file) {
+    public ResponseEntity<?> uploadZipFile(@RequestParam("file") MultipartFile file,
+                                           @RequestParam(value = "allowPublishedShrink", defaultValue = "false")
+                                           boolean allowPublishedShrink) {
         if (file == null || file.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of("message", "ZIP file is required"));
         }
         try {
-            resourceUploadService.uploadAndTriggerAsyncLoad(file.getOriginalFilename(), file.getBytes());
+            resourceUploadService.uploadAndTriggerAsyncLoad(
+                    file.getOriginalFilename(), file.getBytes(), allowPublishedShrink);
             return ResponseEntity.status(HttpStatus.ACCEPTED)
                     .body(Map.of("message", "ZIP file accepted for processing"));
+        } catch (SnapshotShrinkException exception) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of("message", exception.getMessage()));
         } catch (IllegalArgumentException exception) {
             return ResponseEntity.badRequest().body(Map.of("message", exception.getMessage()));
         } catch (IOException exception) {

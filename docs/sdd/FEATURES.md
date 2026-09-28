@@ -71,26 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00087] Snapshot upload contract and shrink check
-- **Status:** idea
-- **Priority:** medium
-- **Effort:** small
-- **Depends on:** —
-
-#### Goal
-Formalise the full-season snapshot upload contract and reject truncated snapshots that would wipe good acta files.
-
-#### Acceptance Criteria
-- [ ] Snapshot mode (season folder replaced on upload) is documented as the default contract
-- [ ] An upload with fewer published actas than the stored season folder is rejected unless an explicit override is given
-- [ ] A moving FCTT window with at least as many published actas is still accepted
-- [ ] Tests cover accepted, rejected and overridden uploads
-
-#### Feature Details
-→ See [FEAT-00087-DETAILS.md](./FEAT-00087-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00088] Preview classification for incremental uploads
 - **Status:** idea
 - **Priority:** medium
@@ -207,6 +187,26 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00087] Snapshot upload contract and shrink check
+- **Status:** done
+- **Priority:** medium
+- **Effort:** small
+- **Depends on:** —
+
+#### Goal
+Formalise the full-season snapshot upload contract and reject truncated snapshots that would wipe good acta files.
+
+#### Acceptance Criteria
+- [x] Snapshot mode (season folder replaced on upload) is documented as the default contract
+- [x] An upload with fewer published actas than the stored season folder is rejected unless an explicit override is given
+- [x] A moving FCTT window with at least as many published actas is still accepted
+- [x] Tests cover accepted, rejected and overridden uploads
+
+#### Feature Details
+→ See [FEAT-00087-DETAILS.md](./FEAT-00087-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00086] Snapshot reconciliation report
 - **Status:** done

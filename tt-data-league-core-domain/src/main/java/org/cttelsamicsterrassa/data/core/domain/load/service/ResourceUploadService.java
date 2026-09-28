@@ -26,9 +26,11 @@ public class ResourceUploadService {
         this.backgroundExecutor = backgroundExecutor;
     }
 
-    public void uploadAndTriggerAsyncLoad(String filename, byte[] content) {
+    public void uploadAndTriggerAsyncLoad(String filename, byte[] content, boolean allowPublishedShrink) {
         ResourceZipService.validateFile(filename, content);
-        triggerAsyncLoad(resourceZipService.extractZipAndGetManifest(content));
+        ImportManifest importManifest = resourceZipService.extractZipAndGetManifest(content);
+        resourceRepositoryLoaderService.verifyPublishedActasNotShrinking(importManifest, allowPublishedShrink);
+        triggerAsyncLoad(importManifest);
     }
 
     private void triggerAsyncLoad(ImportManifest importManifest) {

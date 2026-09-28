@@ -10,15 +10,20 @@ import org.cttelsamicsterrassa.data.core.application.importresource.preview.Find
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.StartImportPreviewCommand;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.FindImportRunStatusQuery;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.StartImportProcessCommand;
+import org.cttelsamicsterrassa.data.core.domain.load.service.ResourceUploadService;
+import org.cttelsamicsterrassa.data.core.domain.load.service.SnapshotShrinkException;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -117,10 +122,78 @@ class ImportResourceControllerTest {
         assertEquals(404, response.getStatusCode().value());
     }
 
+    @Test
+    void uploadForwardsTheDefaultNoShrinkFlagAndReturnsAccepted() {
+        ResourceUploadService resourceUploadService = mock(ResourceUploadService.class);
+        ImportResourceController controller = controller(mock(QueryBus.class), mock(CommandBus.class),
+                resourceUploadService);
+        MockMultipartFile file = new MockMultipartFile("file", "season.zip",
+                "multipart/form-data", new byte[]{1});
+
+        var response = controller.uploadZipFile(file, false);
+
+        assertEquals(202, response.getStatusCode().value());
+        verify(resourceUploadService).uploadAndTriggerAsyncLoad("season.zip", new byte[]{1}, false);
+    }
+
+    @Test
+    void uploadForwardsThePublishedShrinkOverride() {
+        ResourceUploadService resourceUploadService = mock(ResourceUploadService.class);
+        ImportResourceController controller = controller(mock(QueryBus.class), mock(CommandBus.class),
+                resourceUploadService);
+        MockMultipartFile file = new MockMultipartFile("file", "season.zip",
+                "multipart/form-data", new byte[]{1});
+
+        var response = controller.uploadZipFile(file, true);
+
+        assertEquals(202, response.getStatusCode().value());
+        verify(resourceUploadService).uploadAndTriggerAsyncLoad("season.zip", new byte[]{1}, true);
+    }
+
+    @Test
+    void uploadMapsAShrinkRejectionToConflictWithTheMessage() {
+        ResourceUploadService resourceUploadService = mock(ResourceUploadService.class);
+        ImportResourceController controller = controller(mock(QueryBus.class), mock(CommandBus.class),
+                resourceUploadService);
+        MockMultipartFile file = new MockMultipartFile("file", "season.zip",
+                "multipart/form-data", new byte[]{1});
+        SnapshotShrinkException rejection = new SnapshotShrinkException(
+                List.of(new SnapshotShrinkException.SeasonShrink("FCTT", "2026-2027", 76, 70)));
+        doThrow(rejection).when(resourceUploadService)
+                .uploadAndTriggerAsyncLoad("season.zip", new byte[]{1}, false);
+
+        var response = controller.uploadZipFile(file, false);
+
+        assertEquals(409, response.getStatusCode().value());
+        assertEquals(Map.of("message", rejection.getMessage()), response.getBody());
+    }
+
+    @Test
+    void uploadKeepsBadRequestForMalformedUploads() {
+        ResourceUploadService resourceUploadService = mock(ResourceUploadService.class);
+        ImportResourceController controller = controller(mock(QueryBus.class), mock(CommandBus.class),
+                resourceUploadService);
+        MockMultipartFile file = new MockMultipartFile("file", "season.zip",
+                "multipart/form-data", new byte[]{1});
+        doThrow(new IllegalArgumentException("Only ZIP files are supported")).when(resourceUploadService)
+                .uploadAndTriggerAsyncLoad("season.zip", new byte[]{1}, false);
+
+        var response = controller.uploadZipFile(file, false);
+
+        assertEquals(400, response.getStatusCode().value());
+        assertEquals(Map.of("message", "Only ZIP files are supported"), response.getBody());
+    }
+
     private static ImportResourceController controller(QueryBus queryBus, CommandBus commandBus) {
+        return controller(queryBus, commandBus, mock(ResourceUploadService.class));
+    }
+
+    private static ImportResourceController controller(QueryBus queryBus, CommandBus commandBus,
+                                                       ResourceUploadService resourceUploadService) {
         ImportResourceController controller = new ImportResourceController();
         ReflectionTestUtils.setField(controller, "queryBus", queryBus);
         ReflectionTestUtils.setField(controller, "commandBus", commandBus);
+        ReflectionTestUtils.setField(controller, "resourceUploadService", resourceUploadService);
         return controller;
     }
 }

@@ -95,6 +95,41 @@ ZIP import uploads accept files up to 100 MB by default. Override
 different deployment limit is required; the request limit must be at least as
 large as the file limit.
 
+## ZIP import upload contract
+
+`POST /api/v1/administration/import/upload` accepts a ZIP whose root contains a
+`manifest.json` with exactly three keys: `source` (`RFETM`, `FCTT` or `BCNESA`),
+`seasons` (non-empty `YYYY-YYYY` list) and `assets` (a map of asset name,
+`ACTAS` or `TEAMS`, to an object holding only a `files` array). Each asset
+supports two file layouts: an empty `files` list moves the extracted
+`<season>/` folder wholesale, or explicit entries laid out as
+`actas-json/<season>/...` for ACTAS and `equipos-json/...` for TEAMS.
+
+**Snapshot mode is the default and only mode.** Every upload replaces the
+stored `import-<source>/<asset>/<season>` folder: delete first, then move the
+extracted content in. Each ZIP must therefore hold the complete season as
+currently exported, with both published and unpublished actas. An upload that
+holds a subset will wipe the rest of the stored season.
+
+To protect against truncated snapshots, the upload runs a synchronous,
+read-only **shrink check** before the asynchronous load is scheduled, for the
+ACTAS asset of every manifest season. A file counts as a *published acta* when
+it is a `.json` file whose JSON root is an object and whose `acta_publicada`
+field is absent or is not the boolean `false` (RFETM and BCNESA never send the
+field, so all of their actas count). Unreadable or invalid JSON files count as
+not published. If the incoming published count is at least the stored count,
+the upload is accepted — file names do not have to match, so an FCTT window
+that drops old jornadas is accepted as long as the published count does not
+fall. If it is lower, the upload is rejected with `409 Conflict` and a message
+naming each shrinking season, its stored and incoming counts, and the override.
+Retry with `allowPublishedShrink=true` (form field on the same endpoint,
+default `false`) to replace the stored season anyway; a warning naming the
+counts is logged. The check never touches the stored folder, and TEAMS-only
+manifests are never checked. Malformed ZIPs keep returning `400`.
+
+Delta uploads (merging into the stored season instead of replacing it) are not
+supported yet; see FEAT-00090.
+
 Import execution is configured server-side under `tt.league.import.execution`.
 Club and player consolidation run in `WRITE` mode by default; use
 `IMPORT_EXECUTION_CLUB_CONSOLIDATION` or
