@@ -1,13 +1,16 @@
 package org.cttelsamicsterrassa.data.core.domain.load.service;
 
 import org.cttelsamicsterrassa.data.core.domain.resource.model.ImportManifest;
+import org.cttelsamicsterrassa.data.core.domain.resource.model.UploadMode;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InOrder;
 
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -55,7 +58,7 @@ class ResourceUploadServiceTest {
         ImportManifest manifest = new ImportManifest(
                 "FCTT", List.of("2026-2027"), Map.of("ACTAS", List.of()), null);
         when(resourceZipService.extractZipAndGetManifest(new byte[]{1})).thenReturn(manifest);
-        doThrow(new SnapshotShrinkException(
+        doThrow(new SnapshotShrinkException(UploadMode.SNAPSHOT,
                 List.of(new SnapshotShrinkException.SeasonShrink("FCTT", "2026-2027", 3, 2))))
                 .when(resourceRepositoryLoaderService).verifyPublishedActasNotShrinking(manifest, false);
 
@@ -89,6 +92,30 @@ class ResourceUploadServiceTest {
         service.uploadAndTriggerAsyncLoad("resource.zip", new byte[]{1}, true);
 
         verify(resourceRepositoryLoaderService).verifyPublishedActasNotShrinking(manifest, true);
+    }
+
+    @Test
+    void uploadSchedulesADeltaLoadWithItsModeUnchanged() {
+        ResourceZipService resourceZipService = mock(ResourceZipService.class);
+        ResourceRepositoryLoaderService resourceRepositoryLoaderService = mock(ResourceRepositoryLoaderService.class);
+        ImportManifest manifest = new ImportManifest(
+                "FCTT", List.of("2026-2027"), Map.of("ACTAS", List.of()), null, UploadMode.DELTA);
+        when(resourceZipService.extractZipAndGetManifest(new byte[]{1})).thenReturn(manifest);
+
+        AtomicReference<Runnable> scheduledTask = new AtomicReference<>();
+        ResourceUploadService service = new ResourceUploadService(
+                resourceRepositoryLoaderService,
+                resourceZipService,
+                scheduledTask::set);
+
+        service.uploadAndTriggerAsyncLoad("resource.zip", new byte[]{1}, false);
+
+        verify(resourceRepositoryLoaderService).verifyPublishedActasNotShrinking(manifest, false);
+
+        scheduledTask.get().run();
+        ArgumentCaptor<ImportManifest> capturedManifest = ArgumentCaptor.forClass(ImportManifest.class);
+        verify(resourceRepositoryLoaderService).loadIntoRepository(capturedManifest.capture());
+        assertEquals(UploadMode.DELTA, capturedManifest.getValue().mode());
     }
 
     @Test

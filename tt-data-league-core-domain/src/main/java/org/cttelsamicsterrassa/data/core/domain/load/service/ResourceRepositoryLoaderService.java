@@ -8,6 +8,7 @@ import org.cttelsamicsterrassa.data.core.domain.resource.model.ImportManifest;
 import org.cttelsamicsterrassa.data.core.domain.resource.model.Resource;
 import org.cttelsamicsterrassa.data.core.domain.resource.model.ResourceKeys;
 import org.cttelsamicsterrassa.data.core.domain.resource.model.ResourceType;
+import org.cttelsamicsterrassa.data.core.domain.resource.model.UploadMode;
 import org.cttelsamicsterrassa.data.core.domain.resource.repository.ResourceRepository;
 import org.cttelsamicsterrassa.data.core.domain.resource.service.ResourceCreationService;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -19,6 +20,7 @@ import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -26,13 +28,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
 
 @Named
 public class ResourceRepositoryLoaderService {
 
     public static String IMPORT_FOLDER_TEMPLATE = "import-%s/%s";
+
+    public static String UPLOAD_ROLLBACK_FOLDER_TEMPLATE = "upload-rollback/%s/%s";
 
     private static final String ACTAS_ASSET = "ACTAS";
 
@@ -79,9 +85,15 @@ public class ResourceRepositoryLoaderService {
                     List<SeasonFileMove> moves = resolveSeasonFileMoves(importManifest, asset.getValue(), season,
                             resolveDestinationPathToRemoveForAssetType(assetType, season));
 
-                    deleteRecursively(seasonFolder);
-                    Files.createDirectory(seasonFolder);
-                    moveSeasonContent(moves, seasonFolder);
+                    if (importManifest.mode() == UploadMode.DELTA) {
+                        keepRollbackCopy(importFolder, importManifest.source(), assetType, season, seasonFolder);
+                        Files.createDirectories(seasonFolder);
+                        mergeSeasonContent(moves, seasonFolder);
+                    } else {
+                        deleteRecursively(seasonFolder);
+                        Files.createDirectory(seasonFolder);
+                        moveSeasonContent(moves, seasonFolder);
+                    }
                 }
             } catch (IOException exception) {
                 throw new IllegalArgumentException("Unable to store extracted ZIP content", exception);
@@ -127,8 +139,10 @@ public class ResourceRepositoryLoaderService {
                 throw new UncheckedIOException("Unable to inspect uploaded actas for the shrink check", exception);
             }
 
-            int incoming = publishedActaCounter.countPublished(
-                    moves.stream().map(SeasonFileMove::source).toList());
+            int incoming = importManifest.mode() == UploadMode.DELTA
+                    ? projectedMergedPublishedCount(targetFolder, moves)
+                    : publishedActaCounter.countPublished(
+                            moves.stream().map(SeasonFileMove::source).toList());
             int stored = publishedActaCounter.countPublishedIn(targetFolder);
 
             if (incoming < stored) {
@@ -149,7 +163,33 @@ public class ResourceRepositoryLoaderService {
             }
             return;
         }
-        throw new SnapshotShrinkException(shrinks);
+        throw new SnapshotShrinkException(importManifest.mode(), shrinks);
+    }
+
+    /**
+     * Projects the published-acta count the stored season folder would hold after a delta merge:
+     * published stored files whose relative path is not a move destination, plus the published
+     * incoming files. Read-only: it never touches the stored folder.
+     */
+    private int projectedMergedPublishedCount(Path seasonFolder, List<SeasonFileMove> moves) {
+        Set<Path> destinations = moves.stream()
+                .map(SeasonFileMove::relativeDestination)
+                .collect(Collectors.toSet());
+        List<Path> keptStoredFiles = new ArrayList<>();
+        if (Files.isDirectory(seasonFolder)) {
+            try (var entries = Files.walk(seasonFolder)) {
+                for (Path file : entries.filter(Files::isRegularFile).toList()) {
+                    if (!destinations.contains(seasonFolder.relativize(file))) {
+                        keptStoredFiles.add(file);
+                    }
+                }
+            } catch (IOException exception) {
+                throw new UncheckedIOException("Unable to inspect stored actas for the shrink check", exception);
+            }
+        }
+        int publishedIncoming = publishedActaCounter.countPublished(
+                moves.stream().map(SeasonFileMove::source).toList());
+        return publishedActaCounter.countPublished(keptStoredFiles) + publishedIncoming;
     }
 
     private Path resolveSeasonFolder(Path importFolder, String source, String assetType, String season) {
@@ -163,6 +203,19 @@ public class ResourceRepositoryLoaderService {
             throw new IllegalArgumentException("Invalid season folder: " + season);
         }
         return seasonFolder;
+    }
+
+    private Path resolveRollbackFolder(Path importFolder, String source, String assetType, String season) {
+        Path targetFolder = importFolder.resolve(
+                String.format(UPLOAD_ROLLBACK_FOLDER_TEMPLATE,
+                        source.toLowerCase(Locale.ROOT),
+                        assetType.toLowerCase(Locale.ROOT))
+        );
+        Path rollbackFolder = targetFolder.resolve(season).normalize();
+        if (!rollbackFolder.startsWith(targetFolder)) {
+            throw new IllegalArgumentException("Invalid season folder: " + season);
+        }
+        return rollbackFolder;
     }
 
     private Path resolveDestinationPathToRemoveForAssetType(String assetType, String season) {
@@ -209,6 +262,47 @@ public class ResourceRepositoryLoaderService {
             Path destination = seasonFolder.resolve(move.relativeDestination()).normalize();
             Files.createDirectories(destination.getParent());
             Files.move(move.source(), destination);
+        }
+    }
+
+    private void mergeSeasonContent(List<SeasonFileMove> moves, Path seasonFolder) throws IOException {
+        for (SeasonFileMove move : moves) {
+            Path destination = seasonFolder.resolve(move.relativeDestination()).normalize();
+            Files.createDirectories(destination.getParent());
+            Files.move(move.source(), destination, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
+    /**
+     * Keeps one rollback copy of the stored season folder for a delta upload, at
+     * {@code <import folder>/upload-rollback/<source>/<asset>/<season>/}, replacing the previous copy
+     * for the same source, asset and season. The copy lives outside every folder an import reads.
+     * With no stored season folder there is nothing to roll back to and no copy is made.
+     */
+    private void keepRollbackCopy(Path importFolder, String source, String assetType, String season,
+                                  Path seasonFolder) throws IOException {
+        if (!Files.isDirectory(seasonFolder)) {
+            LOGGER.log(Level.INFO, "No stored {0} {1} {2} season folder to roll back",
+                    new Object[]{source, assetType, season});
+            return;
+        }
+        Path rollbackFolder = resolveRollbackFolder(importFolder, source, assetType, season);
+        deleteRecursively(rollbackFolder);
+        Files.createDirectories(rollbackFolder.getParent());
+        copyRecursively(seasonFolder, rollbackFolder);
+    }
+
+    private void copyRecursively(Path source, Path destination) throws IOException {
+        try (var entries = Files.walk(source)) {
+            for (Path entry : entries.toList()) {
+                Path target = destination.resolve(source.relativize(entry)).normalize();
+                if (Files.isDirectory(entry)) {
+                    Files.createDirectories(target);
+                } else {
+                    Files.createDirectories(target.getParent());
+                    Files.copy(entry, target);
+                }
+            }
         }
     }
 

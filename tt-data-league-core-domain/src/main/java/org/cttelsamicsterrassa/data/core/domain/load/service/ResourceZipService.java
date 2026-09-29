@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.core.domain.load.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.cttelsamicsterrassa.data.core.domain.resource.model.ImportManifest;
+import org.cttelsamicsterrassa.data.core.domain.resource.model.UploadMode;
 import org.cttelsamicsterrassa.data.core.domain.settings.model.ImportFolderSetting;
 import org.cttelsamicsterrassa.data.core.domain.settings.service.SettingFinderService;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -19,6 +20,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
@@ -85,9 +87,17 @@ public class ResourceZipService {
             if (manifest == null || !manifest.isObject()
                     || !manifest.has("source")
                     || !manifest.has("seasons")
-                    || !manifest.has("assets")
-                    || manifest.size() != 3) {
-                throw new IllegalArgumentException("manifest.json must contain only source, seasons, and assets");
+                    || !manifest.has("assets")) {
+                throw new IllegalArgumentException(
+                        "manifest.json must contain source, seasons, assets and optionally mode");
+            }
+            var manifestFields = manifest.fieldNames();
+            Set<String> allowedFields = Set.of("source", "seasons", "assets", "mode");
+            while (manifestFields.hasNext()) {
+                if (!allowedFields.contains(manifestFields.next())) {
+                    throw new IllegalArgumentException(
+                            "manifest.json must contain source, seasons, assets and optionally mode");
+                }
             }
             JsonNode source = manifest.get("source");
             if (!source.isTextual()) {
@@ -130,7 +140,15 @@ public class ResourceZipService {
                 assets.put(asset.getKey(), readTextArray(
                         asset.getValue().get("files"), "assets." + asset.getKey() + ".files"));
             }
-            return new ImportManifest(sourceValue, seasons, assets, extractionFolder);
+            UploadMode mode = UploadMode.SNAPSHOT;
+            if (manifest.has("mode")) {
+                JsonNode modeNode = manifest.get("mode");
+                if (!modeNode.isTextual()) {
+                    throw new IllegalArgumentException("manifest.json mode must be one of snapshot, delta");
+                }
+                mode = UploadMode.fromManifestValue(modeNode.textValue());
+            }
+            return new ImportManifest(sourceValue, seasons, assets, extractionFolder, mode);
         } catch (IOException exception) {
             throw new IllegalArgumentException("Invalid manifest.json", exception);
         }

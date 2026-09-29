@@ -38,8 +38,9 @@ public class ImportResourceController {
     private ResourceUploadService resourceUploadService;
 
     @Operation(summary = "Upload a ZIP import resource",
-            description = "Snapshot upload of a season. Rejects a shrinking published-acta snapshot "
-                    + "with 409 unless allowPublishedShrink=true is given.")
+            description = "The manifest mode is optional: snapshot (default) replaces the stored "
+                    + "season, delta merges into it and keeps a rollback copy. Rejects a shrinking "
+                    + "published-acta upload with 409 unless allowPublishedShrink=true is given.")
     @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadZipFile(@RequestParam("file") MultipartFile file,
                                            @RequestParam(value = "allowPublishedShrink", defaultValue = "false")

@@ -99,18 +99,47 @@ large as the file limit.
 ## ZIP import upload contract
 
 `POST /api/v1/administration/import/upload` accepts a ZIP whose root contains a
-`manifest.json` with exactly three keys: `source` (`RFETM`, `FCTT` or `BCNESA`),
-`seasons` (non-empty `YYYY-YYYY` list) and `assets` (a map of asset name,
-`ACTAS` or `TEAMS`, to an object holding only a `files` array). Each asset
-supports two file layouts: an empty `files` list moves the extracted
-`<season>/` folder wholesale, or explicit entries laid out as
-`actas-json/<season>/...` for ACTAS and `equipos-json/...` for TEAMS.
+`manifest.json` with three required keys — `source` (`RFETM`, `FCTT` or
+`BCNESA`), `seasons` (non-empty `YYYY-YYYY` list) and `assets` (a map of asset
+name, `ACTAS` or `TEAMS`, to an object holding only a `files` array) — and one
+optional key, `mode`. Each asset supports two file layouts: an empty `files`
+list moves the extracted `<season>/` folder wholesale, or explicit entries laid
+out as `actas-json/<season>/...` for ACTAS and `equipos-json/...` for TEAMS. A
+delta manifest looks like:
 
-**Snapshot mode is the default and only mode.** Every upload replaces the
-stored `import-<source>/<asset>/<season>` folder: delete first, then move the
-extracted content in. Each ZIP must therefore hold the complete season as
-currently exported, with both published and unpublished actas. An upload that
-holds a subset will wipe the rest of the stored season.
+```json
+{
+  "source": "FCTT",
+  "mode": "delta",
+  "seasons": ["2026-2027"],
+  "assets": {
+    "ACTAS": {"files": ["actas-json/2026-2027/jornada-5/acta-1.json"]}
+  }
+}
+```
+
+`mode` accepts exactly the lowercase `snapshot` or `delta`; any other value,
+including `DELTA` or an unknown key, is rejected with `400`. When `mode` is
+absent the upload is a snapshot.
+
+**Snapshot mode (default) replaces the stored season.** Every upload deletes the
+stored `import-<source>/<asset>/<season>` folder first, then moves the extracted
+content in. Each ZIP must therefore hold the complete season as currently
+exported, with both published and unpublished actas; an upload that holds a
+subset wipes the rest of the stored season.
+
+**Delta mode merges into the stored season.** Files are moved into the season
+folder with same-path files overwritten by the incoming copy; stored files that
+the ZIP does not mention are kept, and nothing is deleted from the season
+folder. Delta therefore only adds or replaces files and cannot remove a stored
+acta — upload a complete snapshot to drop files. Before moving anything, a
+delta keeps one rollback copy of the season folder at
+`<import folder>/upload-rollback/<source>/<asset>/<season>/` (the season exactly
+as it was before this delta), replacing the previous copy for the same source,
+asset and season. This path is outside every folder an import reads. To restore
+manually: stop imports, replace the season folder with the rollback copy, then
+start an import for the resource. When no season folder is stored yet there is
+nothing to roll back to and no copy is written.
 
 To protect against truncated snapshots, the upload runs a synchronous,
 read-only **shrink check** before the asynchronous load is scheduled, for the
@@ -125,11 +154,12 @@ fall. If it is lower, the upload is rejected with `409 Conflict` and a message
 naming each shrinking season, its stored and incoming counts, and the override.
 Retry with `allowPublishedShrink=true` (form field on the same endpoint,
 default `false`) to replace the stored season anyway; a warning naming the
-counts is logged. The check never touches the stored folder, and TEAMS-only
-manifests are never checked. Malformed ZIPs keep returning `400`.
-
-Delta uploads (merging into the stored season instead of replacing it) are not
-supported yet; see FEAT-00090.
+counts is logged. In delta mode the check compares the stored count with the
+**projected merged** count — published stored files the ZIP does not overwrite
+plus the published incoming files — so a pure addition is never rejected; only
+overwriting a published acta with an unpublished or invalid copy can be. The
+check never touches the stored folder, and TEAMS-only manifests are never
+checked. Malformed ZIPs keep returning `400`.
 
 Import execution is configured server-side under `tt.league.import.execution`.
 Club and player consolidation run in `WRITE` mode by default; use

@@ -71,26 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00090] Delta upload mode
-- **Status:** idea
-- **Priority:** low
-- **Effort:** medium
-- **Depends on:** FEAT-00087
-
-#### Goal
-Allow uploading only new acta files for a season without deleting previously received ones.
-
-#### Acceptance Criteria
-- [ ] The manifest accepts an optional mode of snapshot or delta, defaulting to snapshot
-- [ ] Delta mode merges files into the season folder without deleting existing ones
-- [ ] A rollback copy of the season folder is kept for delta uploads
-- [ ] README documents the manifest field
-
-#### Feature Details
-→ See [FEAT-00090-DETAILS.md](./FEAT-00090-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00091] BCNESA navigator cleanup for new file naming
 - **Status:** idea
 - **Priority:** low
@@ -148,6 +128,26 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00090] Delta upload mode
+- **Status:** done
+- **Priority:** low
+- **Effort:** medium
+- **Depends on:** FEAT-00087
+
+#### Goal
+Allow uploading only new acta files for a season without deleting previously received ones.
+
+#### Acceptance Criteria
+- [x] The manifest accepts an optional mode of snapshot or delta, defaulting to snapshot
+- [x] Delta mode merges files into the season folder without deleting existing ones
+- [x] A rollback copy of the season folder is kept for delta uploads
+- [x] README documents the manifest field
+
+#### Feature Details
+→ See [FEAT-00090-DETAILS.md](./FEAT-00090-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00089] Amended acta detection
 - **Status:** done

@@ -12,6 +12,7 @@ import org.cttelsamicsterrassa.data.core.application.importresource.process.Find
 import org.cttelsamicsterrassa.data.core.application.importresource.process.StartImportProcessCommand;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ResourceUploadService;
 import org.cttelsamicsterrassa.data.core.domain.load.service.SnapshotShrinkException;
+import org.cttelsamicsterrassa.data.core.domain.resource.model.UploadMode;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.util.ReflectionTestUtils;
@@ -21,6 +22,7 @@ import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.doThrow;
@@ -157,7 +159,7 @@ class ImportResourceControllerTest {
                 resourceUploadService);
         MockMultipartFile file = new MockMultipartFile("file", "season.zip",
                 "multipart/form-data", new byte[]{1});
-        SnapshotShrinkException rejection = new SnapshotShrinkException(
+        SnapshotShrinkException rejection = new SnapshotShrinkException(UploadMode.SNAPSHOT,
                 List.of(new SnapshotShrinkException.SeasonShrink("FCTT", "2026-2027", 76, 70)));
         doThrow(rejection).when(resourceUploadService)
                 .uploadAndTriggerAsyncLoad("season.zip", new byte[]{1}, false);
@@ -166,6 +168,25 @@ class ImportResourceControllerTest {
 
         assertEquals(409, response.getStatusCode().value());
         assertEquals(Map.of("message", rejection.getMessage()), response.getBody());
+    }
+
+    @Test
+    void uploadMapsADeltaShrinkRejectionToConflictWithTheMessage() {
+        ResourceUploadService resourceUploadService = mock(ResourceUploadService.class);
+        ImportResourceController controller = controller(mock(QueryBus.class), mock(CommandBus.class),
+                resourceUploadService);
+        MockMultipartFile file = new MockMultipartFile("file", "season.zip",
+                "multipart/form-data", new byte[]{1});
+        SnapshotShrinkException rejection = new SnapshotShrinkException(UploadMode.DELTA,
+                List.of(new SnapshotShrinkException.SeasonShrink("FCTT", "2026-2027", 3, 2)));
+        doThrow(rejection).when(resourceUploadService)
+                .uploadAndTriggerAsyncLoad("season.zip", new byte[]{1}, false);
+
+        var response = controller.uploadZipFile(file, false);
+
+        assertEquals(409, response.getStatusCode().value());
+        assertEquals(Map.of("message", rejection.getMessage()), response.getBody());
+        assertTrue(rejection.getMessage().contains("after merging"));
     }
 
     @Test
