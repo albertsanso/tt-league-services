@@ -550,6 +550,12 @@ class NavigatorImportExecutionLifecycleTest {
                                                               MatchStatus status) {
             return List.of();
         }
+
+        @Override
+        public List<Match> findMatchesBySourceSeasonAndCompetition(ImportSource source, Season season,
+                                                                   String competition) {
+            return List.of();
+        }
     }
 
     private NavigatorImportExecutionService serviceWithoutConsolidation(

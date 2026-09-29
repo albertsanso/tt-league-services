@@ -30,6 +30,38 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
      */
     List<MatchJPA> findAllBySourceAndSeasonAndStatus(Source source, String season, MatchStatus status);
 
+    /**
+     * FEAT-00092 calendar read: every match of one source, season and competition, regardless of
+     * status. This is the season-calendar read and must not feed statistics or any PLAYED-only view.
+     * Ordered by group, phase, round, date and time (nulls last on group, phase and schedule
+     * columns), served by {@code idx_match_source_season_competition_status}. Every fetch join is
+     * to-one, so rows are never duplicated; {@code distinct} must not be added because PostgreSQL
+     * rejects {@code SELECT DISTINCT} with ORDER BY expressions outside the select list.
+     */
+    @Query("""
+            select m from MatchJPA m
+            join fetch m.homeTeam homeTeam
+            left join fetch homeTeam.federatedClub
+            join fetch m.awayTeam awayTeam
+            left join fetch awayTeam.federatedClub
+            left join fetch m.winnerTeam winnerTeam
+            left join fetch winnerTeam.federatedClub
+            where m.source = :source and m.season = :season and m.competition = :competition
+            order by case when m.groupNumber is null then 1 else 0 end asc,
+                     m.groupNumber asc,
+                     case when m.phase is null then 1 else 0 end asc,
+                     m.phase asc,
+                     m.round asc,
+                     case when m.matchDate is null then 1 else 0 end asc,
+                     m.matchDate asc,
+                     case when m.matchTime is null then 1 else 0 end asc,
+                     m.matchTime asc,
+                     m.id asc
+            """)
+    List<MatchJPA> findAllBySourceAndSeasonAndCompetition(@Param("source") Source source,
+                                                          @Param("season") String season,
+                                                          @Param("competition") String competition);
+
     @Query("""
             select m from MatchJPA m
             where m.source = :source and m.season = :season

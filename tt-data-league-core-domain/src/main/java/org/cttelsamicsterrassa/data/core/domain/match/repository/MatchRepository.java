@@ -188,4 +188,17 @@ public interface MatchRepository {
      * @throws NullPointerException if {@code source}, {@code season} or {@code status} is {@code null}
      */
     List<Match> findMatchesBySourceSeasonAndStatus(ImportSource source, Season season, MatchStatus status);
+
+    /**
+     * Returns every stored match of one source, season and competition, regardless of status
+     * (FEAT-00092). This is the season-calendar read: it must feed the calendar handler only and
+     * never statistics, search, community counts, or any PLAYED-only view (FEAT-00079). The lookup is
+     * always source-scoped and read-only; an empty list means the source, season and competition
+     * hold no match at all.
+     *
+     * @throws NullPointerException     if {@code source}, {@code season} or {@code competition} is
+     *                                  {@code null}
+     * @throws IllegalArgumentException if {@code competition} is blank
+     */
+    List<Match> findMatchesBySourceSeasonAndCompetition(ImportSource source, Season season, String competition);
 }

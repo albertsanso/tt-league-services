@@ -352,6 +352,12 @@ class IncrementalPreviewServiceTest {
         }
 
         @Override
+        public List<Match> findMatchesBySourceSeasonAndCompetition(ImportSource source, Season season,
+                                                                   String competition) {
+            return delegate.findMatchesBySourceSeasonAndCompetition(source, season, competition);
+        }
+
+        @Override
         public void saveMatch(Match match) {
             throw new UnsupportedOperationException("preview must not write");
         }

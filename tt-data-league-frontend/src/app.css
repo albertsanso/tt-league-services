@@ -4505,3 +4505,48 @@ a.club-match-card:hover {
     grid-template-columns: 1fr;
   }
 }
+
+.calendar-group-card {
+  margin-top: 1.25rem;
+  padding: 1.25rem;
+}
+
+.calendar-group-meta,
+.calendar-group-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  margin-top: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.calendar-rounds {
+  margin: 1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.calendar-round {
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--border-default);
+}
+
+.calendar-round:last-child {
+  border-bottom: 0;
+}
+
+.calendar-round h3 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+}
+
+.calendar-match-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}

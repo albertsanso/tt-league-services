@@ -3,7 +3,13 @@ package org.cttelsamicsterrassa.data.api.rest.match;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import org.albertsanso.commons.command.CommandBus;
+import org.albertsanso.commons.command.DomainCommandResponse;
 import org.albertsanso.commons.query.QueryBus;
+import org.cttelsamicsterrassa.data.core.application.match.calendar.FindSeasonCalendarQuery;
+import org.cttelsamicsterrassa.data.core.application.match.calendar.dto.SeasonCalendarReadModel;
+import org.cttelsamicsterrassa.data.core.application.match.calendar.mark.ClearMatchOverdueMarkCommand;
+import org.cttelsamicsterrassa.data.core.application.match.calendar.mark.MarkMatchOverdueCommand;
 import org.cttelsamicsterrassa.data.core.application.match.find.FindMatchDetailsQuery;
 import org.cttelsamicsterrassa.data.core.application.match.find.SearchMatchesQuery;
 import org.cttelsamicsterrassa.data.core.application.match.find.dto.MatchSearchPage;
@@ -17,8 +23,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDate;
@@ -29,6 +38,8 @@ import java.util.UUID;
 public class MatchController {
     @Autowired
     private QueryBus queryBus;
+    @Autowired
+    private CommandBus commandBus;
     @Autowired
     private MatchRepository matchRepository;
 
@@ -97,6 +108,65 @@ public class MatchController {
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage("Match not found: " + id));
     }
 
+    @GetMapping("/calendar")
+    @PreAuthorize("hasAuthority('matches:read')")
+    @Operation(summary = "Get the season calendar",
+            description = "Returns the season calendar of one competition, grouped by group/phase and jornada, "
+                    + "with derived and manual overdue states")
+    public ResponseEntity<?> calendar(
+            @RequestParam(name = "source") String source,
+            @RequestParam(name = "season") String season,
+            @RequestParam(name = "competition") String competition,
+            @RequestParam(name = "group", required = false) String group,
+            @RequestParam(name = "round", required = false) String round) {
+        FindSeasonCalendarQuery query;
+        try {
+            ImportSource parsedSource = parseSource(source);
+            Season parsedSeason = Season.fromFormatted(season.trim());
+            if (competition == null || competition.isBlank()) {
+                return ResponseEntity.badRequest().body(new ErrorMessage("Invalid calendar filters"));
+            }
+            query = new FindSeasonCalendarQuery(parsedSource, parsedSeason, competition.trim(),
+                    parseOptionalInt(group), parseOptionalInt(round));
+        } catch (RuntimeException exception) {
+            return ResponseEntity.badRequest().body(new ErrorMessage("Invalid calendar filters"));
+        }
+        var response = queryBus.push(query);
+        if (!response.isSuccess() || !(response.getResponse() instanceof SeasonCalendarReadModel model)) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorMessage("Season calendar failed"));
+        }
+        return ResponseEntity.ok(SeasonCalendarDto.from(model));
+    }
+
+    @PutMapping("/{id}/overdue-mark")
+    @PreAuthorize("hasAuthority('matches:write')")
+    @Operation(summary = "Mark a scheduled match overdue")
+    public ResponseEntity<?> markOverdue(@PathVariable(name = "id") UUID id, Authentication authentication) {
+        String markedBy = authentication == null ? null : authentication.getName();
+        DomainCommandResponse response = commandBus.push(new MarkMatchOverdueCommand(id, markedBy));
+        if (response.isSuccess()) {
+            return ResponseEntity.noContent().build();
+        }
+        String error = String.valueOf(response.getResponse());
+        if (error.startsWith("Match not found:")) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage(error));
+        }
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorMessage("Only scheduled matches can be marked overdue"));
+    }
+
+    @DeleteMapping("/{id}/overdue-mark")
+    @PreAuthorize("hasAuthority('matches:write')")
+    @Operation(summary = "Clear the overdue mark of a match")
+    public ResponseEntity<?> clearOverdueMark(@PathVariable(name = "id") UUID id) {
+        DomainCommandResponse response = commandBus.push(new ClearMatchOverdueMarkCommand(id));
+        if (response.isSuccess()) {
+            return ResponseEntity.noContent().build();
+        }
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage(String.valueOf(response.getResponse())));
+    }
+
     public record SearchResponse(java.util.List<MatchDto> matches, long total, int page, int pageSize,
                                  boolean hasNext) {
     }
@@ -110,5 +180,16 @@ public class MatchController {
             throw new IllegalArgumentException("source is mandatory");
         }
         return ImportSource.valueOf(value.trim().toUpperCase(Locale.ROOT));
+    }
+
+    private static Integer parseOptionalInt(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        int parsed = Integer.parseInt(value.trim());
+        if (parsed < 1) {
+            throw new IllegalArgumentException("must be at least 1");
+        }
+        return parsed;
     }
 }

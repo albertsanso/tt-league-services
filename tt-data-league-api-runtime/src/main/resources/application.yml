@@ -59,6 +59,8 @@ tt:
         club-consolidation: ${IMPORT_EXECUTION_CLUB_CONSOLIDATION:write}
         player-consolidation: ${IMPORT_EXECUTION_PLAYER_CONSOLIDATION:write}
         amended-acta-detection: ${IMPORT_EXECUTION_AMENDED_ACTA_DETECTION:disabled}
+    calendar:
+      overdue-grace-days: ${CALENDAR_OVERDUE_GRACE_DAYS:7}
 
 security:
   jwt:

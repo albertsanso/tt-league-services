@@ -42,3 +42,37 @@ export function getMatchDetails(id, token, signal, onUnauthorized) {
   if (!id) throw new ApiError('L’identificador del partit no és vàlid.', 400)
   return apiRequest(`/api/v1/match/${encodeURIComponent(id)}`, { token, signal, onUnauthorized })
 }
+
+function normalizeCalendar(value) {
+  const valid = value && typeof value === 'object' && Array.isArray(value.groups)
+    && value.groups.every((group) => group && typeof group === 'object' && Array.isArray(group.rounds)
+      && group.rounds.every((round) => round && typeof round === 'object' && Array.isArray(round.matches)))
+  if (!valid) throw new ApiError('La resposta del calendari no és vàlida.', 502, value)
+  return value
+}
+
+export function getSeasonCalendar(filters, token, signal, onUnauthorized) {
+  const params = new URLSearchParams({
+    source: required(filters.source, 'source'),
+    season: required(filters.season, 'season'),
+    competition: required(filters.competition, 'competition'),
+  })
+  if (filters.group) params.set('group', filters.group)
+  if (filters.round) params.set('round', filters.round)
+  return apiRequest(`/api/v1/match/calendar?${params}`, { token, signal, onUnauthorized })
+    .then(normalizeCalendar)
+}
+
+export function markMatchOverdue(id, token, signal, onUnauthorized) {
+  if (!id) throw new ApiError('L’identificador del partit no és vàlid.', 400)
+  return apiRequest(`/api/v1/match/${encodeURIComponent(id)}/overdue-mark`, {
+    method: 'PUT', token, signal, onUnauthorized,
+  })
+}
+
+export function clearMatchOverdueMark(id, token, signal, onUnauthorized) {
+  if (!id) throw new ApiError('L’identificador del partit no és vàlid.', 400)
+  return apiRequest(`/api/v1/match/${encodeURIComponent(id)}/overdue-mark`, {
+    method: 'DELETE', token, signal, onUnauthorized,
+  })
+}

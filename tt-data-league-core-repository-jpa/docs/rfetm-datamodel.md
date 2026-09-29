@@ -373,6 +373,27 @@ The unique constraint `uk_doubles_pair_game_side_player_source` covers
 `(game_id, side, player_id, source)`. `game` and `player` are lazy
 `@ManyToOne` associations.
 
+### `match_overdue_mark`
+
+The manual overdue mark of a `SCHEDULED` match (FEAT-00092). It records an
+operator's decision, not a computed state: postponed/overdue/awaiting/undated
+states are derived on every read by the domain `CalendarStateResolver` and are
+never stored. This table is the **only** persisted calendar data.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `match_id` | `UUID` | No | Primary key; FK to `match_record` (`fk_match_overdue_mark_match`) |
+| `marked_at` | `TIMESTAMP WITH TIME ZONE` | No | — |
+| `marked_by` | `VARCHAR(255)` | No | — |
+
+`match_id` is both the primary key and a foreign key to `match_record(id)`, so
+one match has at most one mark. There is deliberately **no cascade from
+`match_record`** and no inverse mapping on `MatchJPA`; matches are never
+deleted, so the FK is safe. The mark is operator data kept separate from import
+input: no import processor, reconciler, backfill, or consolidation code reads
+or writes it, and `replaceMatchContent` / `updateSchedule` leave it untouched.
+Once a match is `PLAYED`, the mark is ignored rather than deleted.
+
 ## Authentication tables
 
 ### `AppUser`
@@ -438,12 +459,13 @@ addition to ordinary CRUD operations:
 | `FederatedPlayerRepositoryHelper` | Source-scoped exact name, source-scoped licence, and rows by canonical player id. Counts distinct trimmed, case-insensitive names. The adapter also supports fragment-based searches through specifications. |
 | `TeamRepositoryHelper` | Exact `(name, season, source)`, first team by federated club and season, all teams by federated club (fetching the club), all teams by source, and case-insensitive name searches with optional season/source. Counts distinct federated clubs per season. |
 | `PlayerSeasonRepositoryHelper` | Exact `(source, license, season)`, all rows by source, rows by federated player ids (fetching federated and canonical players), source-scoped players and their competitions for team ids through lineups. Counts distinct federated players per season. |
-| `MatchRepositoryHelper` | Exact external id; natural-key lookup by competition, season, group, round, phase, home team, and away team (null group/phase match null); team-id searches optionally filtered by source, season, and competition — deliberately **not** filtered by status (FEAT-00079 consolidation exception; statistics handlers filter in memory); paginated source/season search with mandatory match-status predicate (default `PLAYED`), competition, date range, club-name and player-name fragments, player id, and home/away location, plus its count; paginated fragment search over team and player names restricted to `PLAYED`; all matches by source restricted to `PLAYED`; distinct seasons (`PLAYED` only overall, all statuses by source for option lists) and competitions by source and season (unfiltered); `PLAYED`-only match count per season and overall (`countAllPlayed`); FEAT-00078 backfill candidates by source and season (with per-match game/lineup counts), the same rule restricted to a match-id collection, and the bulk `SCHEDULED`-marking update; the FEAT-00080 schedule-only update guarded by `status = SCHEDULED`. |
+| `MatchRepositoryHelper` | Exact external id; natural-key lookup by competition, season, group, round, phase, home team, and away team (null group/phase match null); team-id searches optionally filtered by source, season, and competition — deliberately **not** filtered by status (FEAT-00079 consolidation exception; statistics handlers filter in memory); paginated source/season search with mandatory match-status predicate (default `PLAYED`), competition, date range, club-name and player-name fragments, player id, and home/away location, plus its count; paginated fragment search over team and player names restricted to `PLAYED`; all matches by source restricted to `PLAYED`; distinct seasons (`PLAYED` only overall, all statuses by source for option lists) and competitions by source and season (unfiltered); `PLAYED`-only match count per season and overall (`countAllPlayed`); FEAT-00078 backfill candidates by source and season (with per-match game/lineup counts), the same rule restricted to a match-id collection, and the bulk `SCHEDULED`-marking update; the FEAT-00080 schedule-only update guarded by `status = SCHEDULED`; and the FEAT-00092 all-status calendar read by source, season, and competition, ordered by group, phase, round, date, and time, reserved for the season-calendar handler and never for statistics. |
 | `LineupRepositoryHelper` | Rows for a match id (optionally ordered by team and position); rows for match ids or player-season ids (optionally paginated), fetching match, teams, clubs, and players; bulk delete by match ids (FEAT-00078 backfill). |
 | `GameRepositoryHelper` | All games for a match id, or for a collection of match ids, ordered by match and `game_number` ascending; bulk delete by match ids (FEAT-00078 backfill). |
 | `SetScoreRepositoryHelper` | Set scores for a collection of game ids, ordered by game and `set_number`; bulk delete by match ids (FEAT-00078 backfill). |
 | `DoublesPairRepositoryHelper` | All doubles-pair rows for a collection of game ids, ordered by game, side, and id; bulk delete by match ids (FEAT-00078 backfill). |
 | `ScheduledMatchBackfillRepositoryJpa` | Implements the domain `ScheduledMatchBackfillRepository` port by composing the helpers above: read-only candidate listing, and an all-or-nothing `markScheduled` that re-checks every id, deletes child rows in FK order, and updates the match header, chunking ids by 500 per transaction. |
+| `MatchOverdueMarkRepositoryHelper` | Primary-key access to `match_overdue_mark` rows by match id: `findById`, `findAllById`, existence check, save and delete. The port adapter inserts a row or leaves an existing one untouched, and reports whether a delete removed a row. |
 | `UserRepositoryHelper` | Exact username/email lookup and existence checks; paginated case-insensitive username/email search, optionally filtered by active flag; count of active users per role. |
 | `PasswordRecoveryTokenRepositoryHelper` | Active token lookup by hash; atomic conditional consumption by token id or user id. |
 | `SettingRepositoryHelper` | Exact `(category, name)`; all settings in a category. |
@@ -477,6 +499,7 @@ erDiagram
     GAME ||--o{ SET_SCORE : scores
     GAME ||--o{ DOUBLES_PAIR : contains
     PLAYER_SEASON ||--o{ DOUBLES_PAIR : paired
+    MATCH_RECORD ||--o{ MATCH_OVERDUE_MARK : marked
     CONSOLIDATION_ACTION ||--|{ CONSOLIDATION_ACTION_CLUB : involves
     CONSOLIDATION_ACTION_CLUB {
         uuid club_id "snapshot, no FK to CLUB"
@@ -488,7 +511,9 @@ erDiagram
 ```
 
 `SET_SCORE` and `DOUBLES_PAIR` point to `GAME` from their own entities.
-Likewise, `MATCH_RECORD` and `GAME` do not expose inverse collection mappings.
+Likewise, `MATCH_RECORD` and `GAME` do not expose inverse collection mappings,
+and `MATCH_RECORD` exposes no inverse mapping to `MATCH_OVERDUE_MARK` (the mark
+is kept separate from import data).
 Team and player season rows preserve season-specific identity; canonical club
 and player links do not retarget historical match, lineup, game, or doubles
 pair foreign keys.

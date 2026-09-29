@@ -32,6 +32,7 @@ The application reads its configuration from environment variables at startup; d
 | `IMPORT_EXECUTION_CLUB_CONSOLIDATION` | `write` | `write`, `report`, or `disabled` |
 | `IMPORT_EXECUTION_PLAYER_CONSOLIDATION` | `write` | `write`, `report`, or `disabled` |
 | `IMPORT_EXECUTION_AMENDED_ACTA_DETECTION` | `disabled` | `write`, `report`, or `disabled` (amended-acta detection, FEAT-00089) |
+| `CALENDAR_OVERDUE_GRACE_DAYS` | `7` | Days a scheduled match remains pending before it becomes overdue (FEAT-00092); a negative or non-numeric value fails startup |
 
 The HTTP API listens on the default Spring Boot port (`8080`); a separate Actuator management port is exposed on `9090`, including `http://localhost:9090/actuator/health`.
 
@@ -226,6 +227,33 @@ setting to build the absolute teams folder path, so administrator changes to
 either setting take effect without an application restart. This replaces the
 previous `IMPORT_EXECUTION_RFETM_TEAMS_FOLDER` environment variable, which no
 longer exists.
+
+## Season calendar (FEAT-00092)
+
+The runtime exposes a per-competition season calendar that couples the stored
+matches of every status with derived calendar states. The grace period is bound
+from `tt.league.calendar.overdue-grace-days` (`CALENDAR_OVERDUE_GRACE_DAYS`,
+default `7`); an invalid value fails startup with no silent fallback.
+
+- `GET /api/v1/match/calendar?source=&season=&competition=&group=&round=`
+  (`matches:read`) returns the calendar grouped by group/phase and jornada. The
+  response summarizes each group's progress and lists each round's matches.
+- `PUT /api/v1/match/{id}/overdue-mark` (`matches:write`) records a manual
+  overdue mark on a `SCHEDULED` match; `markedBy` is the authenticated user,
+  never the request body. Re-marking is idempotent (the first author/time are
+  kept) and marking a `PLAYED` match is rejected with `409`.
+- `DELETE /api/v1/match/{id}/overdue-mark` (`matches:write`) clears the mark;
+  the operation is idempotent and allowed on a `PLAYED` match.
+
+A `SCHEDULED` match resolves, first rule wins, to: `PLAYED` (the match has been
+played, a leftover mark ignored), `OVERDUE` (a manual mark exists), `POSTPONED`
+(the match's round is below the group's current round), `UNDATED` (no date),
+`OVERDUE` (the date plus the grace period is before today, dates compared in
+Europe/Madrid), `AWAITING_RESULT` (the date passed but is still inside the
+grace period), or otherwise `UPCOMING`. All states are computed on read and
+never stored; the only persisted calendar data is the manual overdue mark in
+`match_overdue_mark`. The `matches:write` permission is granted to `ADMIN`
+only.
 
 # Considerations:
 

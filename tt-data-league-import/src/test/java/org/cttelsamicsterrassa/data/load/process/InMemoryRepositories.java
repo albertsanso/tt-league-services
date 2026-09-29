@@ -649,6 +649,23 @@ public final class InMemoryRepositories {
                     .filter(m -> status == m.getStatus())
                     .toList();
         }
+
+        /** FEAT-00092: source-scoped calendar read returning matches of every status. */
+        @Override
+        public List<Match> findMatchesBySourceSeasonAndCompetition(ImportSource source, Season season,
+                                                                   String competition) {
+            Objects.requireNonNull(source, "source");
+            Objects.requireNonNull(season, "season");
+            Objects.requireNonNull(competition, "competition");
+            if (competition.isBlank()) {
+                throw new IllegalArgumentException("competition must not be blank");
+            }
+            return saved.stream()
+                    .filter(m -> source.equals(m.getSource()))
+                    .filter(m -> season.equals(m.getSeason()))
+                    .filter(m -> competition.equals(m.getCompetition()))
+                    .toList();
+        }
     }
 
     public static final class Lineups implements LineupRepository {

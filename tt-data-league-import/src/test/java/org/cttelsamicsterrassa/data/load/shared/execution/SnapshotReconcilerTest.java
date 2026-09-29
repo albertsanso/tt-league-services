@@ -232,6 +232,12 @@ class SnapshotReconcilerTest {
         }
 
         @Override
+        public List<Match> findMatchesBySourceSeasonAndCompetition(ImportSource source, Season season,
+                                                                   String competition) {
+            return delegate.findMatchesBySourceSeasonAndCompetition(source, season, competition);
+        }
+
+        @Override
         public void saveMatch(Match match) {
             saveCalls++;
             delegate.saveMatch(match);

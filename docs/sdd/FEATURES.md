@@ -71,25 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00092] Season calendar and matchday management
-- **Status:** idea
-- **Priority:** low
-- **Effort:** large
-- **Depends on:** FEAT-00079, FEAT-00084
-
-#### Goal
-Provide an API and UI to manage the season calendar over SCHEDULED and PLAYED matches.
-
-#### Acceptance Criteria
-- [ ] API lists a season calendar per competition/group/jornada with match status
-- [ ] Derived postponed/overdue states are shown without being stored
-- [ ] UI presents the calendar and jornada progress
-
-#### Feature Details
-→ See [FEAT-00092-DETAILS.md](./FEAT-00092-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00093] Automated per-jornada fetch and upload
 - **Status:** idea
 - **Priority:** low
@@ -109,6 +90,27 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00092] Season calendar and matchday management
+- **Status:** done
+- **Priority:** low
+- **Effort:** large
+- **Depends on:** FEAT-00079, FEAT-00084
+
+#### Goal
+Provide an API and UI to manage the season calendar over SCHEDULED and PLAYED matches, with derived and manually forced overdue states.
+
+#### Acceptance Criteria
+- [x] API lists a season calendar per competition/group/jornada with match status
+- [x] Derived postponed/overdue states are computed on read and never stored; only an explicit manual overdue mark is persisted
+- [x] A SCHEDULED match becomes OVERDUE only after a configurable grace period (default 7 days) past its date
+- [x] Users with matches:write can force and clear OVERDUE on a SCHEDULED match from the UI, and the mark records who set it and when
+- [x] UI presents the calendar and jornada progress
+
+#### Feature Details
+→ See [FEAT-00092-DETAILS.md](./FEAT-00092-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00091] BCNESA navigator cleanup for new file naming
 - **Status:** done

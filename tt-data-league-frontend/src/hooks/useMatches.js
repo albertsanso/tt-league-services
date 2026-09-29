@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getMatchDetails } from '../api/matches.js'
+import { getMatchDetails, getSeasonCalendar } from '../api/matches.js'
 import { useAuth } from '../context/useAuth.js'
 
 function useRequest(request, enabled, identity) {
@@ -49,4 +49,21 @@ export function useMatchSummary(matchId) {
     [matchId],
   )
   return useRequest(request, Boolean(matchId), matchId)
+}
+
+export function useSeasonCalendar(filters) {
+  const source = filters?.source ?? ''
+  const season = filters?.season ?? ''
+  const competition = filters?.competition ?? ''
+  const group = filters?.group ?? ''
+  const round = filters?.round ?? ''
+  const enabled = Boolean(source && season && competition)
+  const identity = `${source}|${season}|${competition}|${group}|${round}`
+  const request = useCallback(
+    (token, signal, onUnauthorized) => getSeasonCalendar(
+      { source, season, competition, group, round }, token, signal, onUnauthorized,
+    ),
+    [source, season, competition, group, round],
+  )
+  return useRequest(request, enabled, identity)
 }
