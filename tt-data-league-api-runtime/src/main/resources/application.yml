@@ -58,6 +58,7 @@ tt:
         batch-size: ${IMPORT_EXECUTION_BATCH_SIZE:50}
         club-consolidation: ${IMPORT_EXECUTION_CLUB_CONSOLIDATION:write}
         player-consolidation: ${IMPORT_EXECUTION_PLAYER_CONSOLIDATION:write}
+        amended-acta-detection: ${IMPORT_EXECUTION_AMENDED_ACTA_DETECTION:disabled}
 
 security:
   jwt:

@@ -217,6 +217,23 @@ class InMemoryMatchRepositoryTest {
     }
 
     @Test
+    void recordSourceChecksumUpdatesOnlyAStoredPlayedMatch() {
+        Match played = savedPlayed(UUID.randomUUID(), 1);
+
+        matches.recordSourceChecksum(played.getId(), "v1:abc");
+
+        assertEquals("v1:abc", matches.findMatchById(played.getId()).orElseThrow().getSourceChecksum());
+
+        Match scheduled = savedScheduled(UUID.randomUUID(), 2);
+        assertThrows(IllegalStateException.class,
+                () -> matches.recordSourceChecksum(scheduled.getId(), "v1:abc"));
+        assertThrows(IllegalStateException.class,
+                () -> matches.recordSourceChecksum(UUID.randomUUID(), "v1:abc"));
+        assertThrows(NullPointerException.class, () -> matches.recordSourceChecksum(played.getId(), null));
+        assertThrows(NullPointerException.class, () -> matches.recordSourceChecksum(null, "v1:abc"));
+    }
+
+    @Test
     void findRoundProgressGroupsTheStoredMatchesOfOneSourceAndSeason() {
         Season progressSeason = Season.of(2026);
         storedFcttMatch(progressSeason, 1, MatchStatus.PLAYED);

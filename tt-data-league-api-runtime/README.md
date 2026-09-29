@@ -31,6 +31,7 @@ The application reads its configuration from environment variables at startup; d
 | `IMPORT_EXECUTION_BATCH_SIZE` | `50` | Import batch size |
 | `IMPORT_EXECUTION_CLUB_CONSOLIDATION` | `write` | `write`, `report`, or `disabled` |
 | `IMPORT_EXECUTION_PLAYER_CONSOLIDATION` | `write` | `write`, `report`, or `disabled` |
+| `IMPORT_EXECUTION_AMENDED_ACTA_DETECTION` | `disabled` | `write`, `report`, or `disabled` (amended-acta detection, FEAT-00089) |
 
 The HTTP API listens on the default Spring Boot port (`8080`); a separate Actuator management port is exposed on `9090`, including `http://localhost:9090/actuator/health`.
 
@@ -134,7 +135,10 @@ Import execution is configured server-side under `tt.league.import.execution`.
 Club and player consolidation run in `WRITE` mode by default; use
 `IMPORT_EXECUTION_CLUB_CONSOLIDATION` or
 `IMPORT_EXECUTION_PLAYER_CONSOLIDATION` (`WRITE`, `REPORT`, or `disabled`) to
-override them. The API start endpoint accepts only the stored import-resource
+override them. Amended-acta detection (FEAT-00089) is `disabled` by default; set
+`IMPORT_EXECUTION_AMENDED_ACTA_DETECTION` (`WRITE`, `REPORT`, or `disabled`) to
+detect corrections to already published actas and re-apply them in place. The API
+start endpoint accepts only the stored import-resource
 ID and never a client-supplied path.
 
 The API start endpoint (`POST /api/v1/administration/import/start`) runs the import

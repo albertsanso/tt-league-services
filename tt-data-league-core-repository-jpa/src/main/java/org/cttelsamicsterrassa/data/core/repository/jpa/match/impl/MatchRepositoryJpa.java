@@ -313,6 +313,25 @@ public class MatchRepositoryJpa implements MatchRepository {
     }
 
     /**
+     * FEAT-00089. Records only the checksum of a stored PLAYED match. Mirrors {@link #updateSchedule}'s
+     * failure style: the JPQL guard keeps a SCHEDULED match from receiving a checksum, and the
+     * existence check separates "unknown" from "not played".
+     */
+    @Override
+    public void recordSourceChecksum(UUID matchId, String sourceChecksum) {
+        Objects.requireNonNull(matchId, "matchId");
+        Objects.requireNonNull(sourceChecksum, "sourceChecksum");
+        int updated = matchRepositoryHelper.recordSourceChecksum(matchId, sourceChecksum);
+        if (updated == 0) {
+            if (!matchRepositoryHelper.existsById(matchId)) {
+                throw new IllegalStateException("Cannot record the checksum of unknown match " + matchId);
+            }
+            throw new IllegalStateException(
+                    "Only PLAYED matches can record a source checksum, match " + matchId + " is SCHEDULED");
+        }
+    }
+
+    /**
      * FEAT-00084. Reads the grouped per-round/per-status counts of one source and season and hands
      * them to the domain calculator: the current-round and last-complete-round rule is never
      * duplicated in JPQL. Read-only, and informational for callers - it is not an import-skip signal.

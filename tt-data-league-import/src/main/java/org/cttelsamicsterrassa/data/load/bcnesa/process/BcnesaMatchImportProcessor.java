@@ -121,7 +121,8 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             return;
         }
         MatchLifecycleOutcome outcome = lifecycleWriter.apply(resolved.classification(), resolved.existing(),
-                lifecycleSource(context, resolved));
+                lifecycleSource(context, resolved), context.runContext().amendedActaMode(),
+                context.matchReportFile());
         recordOutcome(context, outcome, resolved.classification().reason());
     }
 
@@ -239,11 +240,12 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
     }
 
     private void recordOutcome(BcnesaMatchReportContext context, MatchLifecycleOutcome outcome, String reason) {
+        String effectiveReason = outcome.amendmentReason() != null ? outcome.amendmentReason() : reason;
         context.runContext().recordMatchOutcome(outcome, getClass().getSimpleName(),
-                context.matchReportFile(), reason);
+                context.matchReportFile(), effectiveReason);
         if (outcome.isReportable()) {
             LOGGER.warn("Match lifecycle {} for fixture {} of {}: {}", outcome, context.fixtureIndex(),
-                    context.matchReportFile(), reason);
+                    context.matchReportFile(), effectiveReason);
         }
     }
 

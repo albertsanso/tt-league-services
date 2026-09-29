@@ -130,4 +130,46 @@ public final class MatchLifecyclePlanner {
         }
         return MatchLifecyclePlan.reschedule(changedOutcome, merged);
     }
+
+    /**
+     * The amended-acta rule for a PLAYED acta whose natural-key match is already stored PLAYED
+     * (FEAT-00089). It stays pure: the caller builds the incoming content, computes its checksum and
+     * passes the result here.
+     *
+     * <ul>
+     *   <li>stored checksum equal to the incoming one → {@code NONE}/{@code PLAYED_KEPT};</li>
+     *   <li>stored checksum {@code null} or not {@code v1:} → baseline adoption: in WRITE the
+     *       checksum is recorded ({@code RECORD_SOURCE_CHECKSUM}) without touching the content, in
+     *       REPORT nothing is written; the outcome stays {@code PLAYED_KEPT} so enabling detection
+     *       never mass-rewrites legacy seasons;</li>
+     *   <li>different checksum → WRITE re-applies the content ({@code REAPPLY_PLAYED}/
+     *       {@code PLAYED_AMENDED}), REPORT only reports ({@code PLAYED_AMENDMENT_REPORTED}).</li>
+     * </ul>
+     *
+     * @throws NullPointerException     if any argument is {@code null}
+     * @throws IllegalArgumentException if {@code stored} is not a PLAYED match
+     */
+    public MatchLifecyclePlan planAmendment(Match stored, String incomingChecksum, AmendedActaMode mode) {
+        Objects.requireNonNull(stored, "stored");
+        Objects.requireNonNull(incomingChecksum, "incomingChecksum");
+        Objects.requireNonNull(mode, "mode");
+        if (!stored.isPlayed()) {
+            throw new IllegalArgumentException("planAmendment requires a stored PLAYED match");
+        }
+
+        String storedChecksum = stored.getSourceChecksum();
+        if (incomingChecksum.equals(storedChecksum)) {
+            return MatchLifecyclePlan.of(MatchLifecycleOutcome.PLAYED_KEPT, MatchLifecycleAction.NONE);
+        }
+        if (storedChecksum == null || !storedChecksum.startsWith(MatchContentChecksum.PREFIX)) {
+            return mode == AmendedActaMode.WRITE
+                    ? MatchLifecyclePlan.of(MatchLifecycleOutcome.PLAYED_KEPT,
+                            MatchLifecycleAction.RECORD_SOURCE_CHECKSUM)
+                    : MatchLifecyclePlan.of(MatchLifecycleOutcome.PLAYED_KEPT, MatchLifecycleAction.NONE);
+        }
+        return mode == AmendedActaMode.WRITE
+                ? MatchLifecyclePlan.of(MatchLifecycleOutcome.PLAYED_AMENDED, MatchLifecycleAction.REAPPLY_PLAYED)
+                : MatchLifecyclePlan.of(MatchLifecycleOutcome.PLAYED_AMENDMENT_REPORTED,
+                        MatchLifecycleAction.NONE);
+    }
 }

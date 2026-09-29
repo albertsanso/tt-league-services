@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.load.runtime;
 
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.cttelsamicsterrassa.data.load.shared.match.backfill.ScheduledMatchBackfillMode;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.AmendedActaMode;
 
 import java.util.Locale;
 import java.util.Optional;
@@ -19,7 +20,8 @@ public record ImportRuntimeArguments(
         boolean consolidatePlayers,
         ConsolidationMode playerConsolidationMode,
         boolean backfillScheduledMatches,
-        ScheduledMatchBackfillMode backfillMode
+        ScheduledMatchBackfillMode backfillMode,
+        AmendedActaMode amendedActaMode
 ) {
     public static ImportRuntimeArguments parse(String... args) {
         String source = valueOf(args, ImportRuntimeCliContract.SOURCE_ARGUMENT);
@@ -31,6 +33,8 @@ public record ImportRuntimeArguments(
         ModeSelection players = parseModeSelection(args, ImportRuntimeCliContract.CONSOLIDATE_PLAYERS_ARGUMENT);
         ModeSelection backfill =
                 parseModeSelection(args, ImportRuntimeCliContract.BACKFILL_SCHEDULED_MATCHES_ARGUMENT);
+        ModeSelection amendedActas =
+                parseModeSelection(args, ImportRuntimeCliContract.DETECT_AMENDED_ACTAS_ARGUMENT);
 
         return new ImportRuntimeArguments(
                 source,
@@ -42,7 +46,11 @@ public record ImportRuntimeArguments(
                 players.enabled(),
                 toConsolidationMode(ImportRuntimeCliContract.CONSOLIDATE_PLAYERS_ARGUMENT, players.rawMode()),
                 backfill.enabled(),
-                toBackfillMode(ImportRuntimeCliContract.BACKFILL_SCHEDULED_MATCHES_ARGUMENT, backfill.rawMode()));
+                toBackfillMode(ImportRuntimeCliContract.BACKFILL_SCHEDULED_MATCHES_ARGUMENT, backfill.rawMode()),
+                amendedActas.enabled()
+                        ? toAmendedActaMode(ImportRuntimeCliContract.DETECT_AMENDED_ACTAS_ARGUMENT,
+                                amendedActas.rawMode())
+                        : null);
     }
 
     public Optional<String> optionalSeason() {
@@ -88,6 +96,15 @@ public record ImportRuntimeArguments(
             case "report" -> ScheduledMatchBackfillMode.REPORT;
             default -> throw new IllegalArgumentException(
                     "Unsupported backfill mode: " + optionName + "=" + rawValue);
+        };
+    }
+
+    private static AmendedActaMode toAmendedActaMode(String optionName, String rawValue) {
+        return switch (rawValue) {
+            case "", "true", "write" -> AmendedActaMode.WRITE;
+            case "report" -> AmendedActaMode.REPORT;
+            default -> throw new IllegalArgumentException(
+                    "Unsupported amended-acta detection mode: " + optionName + "=" + rawValue);
         };
     }
 

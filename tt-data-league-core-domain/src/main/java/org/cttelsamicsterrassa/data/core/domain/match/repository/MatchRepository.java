@@ -130,6 +130,18 @@ public interface MatchRepository {
     void replaceMatchContent(MatchContent content);
 
     /**
+     * Records the source content checksum of an already stored PLAYED match (FEAT-00089), leaving
+     * every other column untouched. Used when detection is enabled and a legacy PLAYED match has no
+     * (current-version) checksum yet: the incoming checksum is adopted as the baseline instead of
+     * re-applying the acta. The checksum is only meaningful on a PLAYED match, so a SCHEDULED match
+     * is rejected.
+     *
+     * @throws NullPointerException  if {@code matchId} or {@code sourceChecksum} is {@code null}
+     * @throws IllegalStateException if no match with {@code matchId} exists or it is not PLAYED
+     */
+    void recordSourceChecksum(UUID matchId, String sourceChecksum);
+
+    /**
      * Rewrites the schedule fields (date, time, city, venue, referee name and license) of a
      * SCHEDULED match (FEAT-00080). Touches nothing else: status, teams, results and children are
      * left alone, and the values are written exactly as given.

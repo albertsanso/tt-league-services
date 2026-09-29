@@ -137,7 +137,8 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         }
         MatchLifecycleOutcome outcome = lifecycleWriter.apply(resolved.classification(), resolved.existing(),
                 new FcttLifecycleSource(context, resolved.season(), resolved.groupNumber(),
-                        homeTeam.get(), awayTeam.get()));
+                        homeTeam.get(), awayTeam.get()), context.runContext().amendedActaMode(),
+                context.matchReportFile());
         recordOutcome(context, outcome, resolved.classification().reason());
     }
 
@@ -255,10 +256,11 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
     }
 
     private void recordOutcome(FcttMatchReportContext context, MatchLifecycleOutcome outcome, String reason) {
+        String effectiveReason = outcome.amendmentReason() != null ? outcome.amendmentReason() : reason;
         context.runContext().recordMatchOutcome(outcome, getClass().getSimpleName(),
-                context.matchReportFile(), reason);
+                context.matchReportFile(), effectiveReason);
         if (outcome.isReportable()) {
-            LOGGER.warn("FCTT match lifecycle {} for {}: {}", outcome, context.matchReportFile(), reason);
+            LOGGER.warn("FCTT match lifecycle {} for {}: {}", outcome, context.matchReportFile(), effectiveReason);
         }
     }
 

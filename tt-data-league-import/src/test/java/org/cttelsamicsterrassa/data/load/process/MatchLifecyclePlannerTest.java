@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompleteness;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.AmendedActaMode;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleAction;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecyclePlan;
@@ -255,6 +256,75 @@ class MatchLifecyclePlannerTest {
                 MatchLifecyclePlanner.planCreation(classification(ActaCompleteness.INVALID)).action());
         assertEquals(MatchLifecycleOutcome.INVALID_REPORTED,
                 MatchLifecyclePlanner.planCreation(classification(ActaCompleteness.INVALID)).outcome());
+    }
+
+    // --- planAmendment (FEAT-00089) ----------------------------------------------------------
+
+    @Test
+    void planAmendmentKeepsWhenTheChecksumsAreEqual() {
+        Match stored = played(DATE_A).withSourceChecksum("v1:abc");
+
+        MatchLifecyclePlan write = planner.planAmendment(stored, "v1:abc", AmendedActaMode.WRITE);
+        MatchLifecyclePlan report = planner.planAmendment(stored, "v1:abc", AmendedActaMode.REPORT);
+
+        assertEquals(MatchLifecycleOutcome.PLAYED_KEPT, write.outcome());
+        assertEquals(MatchLifecycleAction.NONE, write.action());
+        assertEquals(MatchLifecycleOutcome.PLAYED_KEPT, report.outcome());
+        assertEquals(MatchLifecycleAction.NONE, report.action());
+    }
+
+    @Test
+    void planAmendmentAdoptsTheBaselineWhenTheStoredChecksumIsNull() {
+        Match stored = played(DATE_A);
+
+        MatchLifecyclePlan write = planner.planAmendment(stored, "v1:incoming", AmendedActaMode.WRITE);
+        MatchLifecyclePlan report = planner.planAmendment(stored, "v1:incoming", AmendedActaMode.REPORT);
+
+        assertEquals(MatchLifecycleOutcome.PLAYED_KEPT, write.outcome());
+        assertEquals(MatchLifecycleAction.RECORD_SOURCE_CHECKSUM, write.action());
+        assertEquals(MatchLifecycleOutcome.PLAYED_KEPT, report.outcome());
+        assertEquals(MatchLifecycleAction.NONE, report.action());
+        assertFalse(write.outcome().isReportable());
+    }
+
+    @Test
+    void planAmendmentAdoptsTheBaselineWhenTheStoredChecksumHasAForeignPrefix() {
+        Match stored = played(DATE_A).withSourceChecksum("sha256:old");
+
+        assertEquals(MatchLifecycleAction.RECORD_SOURCE_CHECKSUM,
+                planner.planAmendment(stored, "v1:incoming", AmendedActaMode.WRITE).action());
+        assertEquals(MatchLifecycleAction.NONE,
+                planner.planAmendment(stored, "v1:incoming", AmendedActaMode.REPORT).action());
+    }
+
+    @Test
+    void planAmendmentReappliesWhenTheChecksumsDiffer() {
+        Match stored = played(DATE_A).withSourceChecksum("v1:old");
+
+        MatchLifecyclePlan write = planner.planAmendment(stored, "v1:new", AmendedActaMode.WRITE);
+        MatchLifecyclePlan report = planner.planAmendment(stored, "v1:new", AmendedActaMode.REPORT);
+
+        assertEquals(MatchLifecycleOutcome.PLAYED_AMENDED, write.outcome());
+        assertEquals(MatchLifecycleAction.REAPPLY_PLAYED, write.action());
+        assertTrue(write.outcome().isReportable());
+        assertEquals(MatchLifecycleOutcome.PLAYED_AMENDMENT_REPORTED, report.outcome());
+        assertEquals(MatchLifecycleAction.NONE, report.action());
+        assertTrue(report.outcome().isReportable());
+    }
+
+    @Test
+    void planAmendmentRequiresAPlayedMatchAndNonNullArguments() {
+        Match scheduled = scheduled(DATE_A, "city", "venue", "referee");
+        Match played = played(DATE_A);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> planner.planAmendment(scheduled, "v1:a", AmendedActaMode.WRITE));
+        assertThrows(NullPointerException.class,
+                () -> planner.planAmendment(null, "v1:a", AmendedActaMode.WRITE));
+        assertThrows(NullPointerException.class,
+                () -> planner.planAmendment(played, null, AmendedActaMode.WRITE));
+        assertThrows(NullPointerException.class,
+                () -> planner.planAmendment(played, "v1:a", null));
     }
 
     // --- plan record -------------------------------------------------------------------------

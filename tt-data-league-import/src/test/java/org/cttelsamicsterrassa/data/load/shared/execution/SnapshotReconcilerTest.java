@@ -250,6 +250,11 @@ class SnapshotReconcilerTest {
         }
 
         @Override
+        public void recordSourceChecksum(UUID matchId, String sourceChecksum) {
+            delegate.recordSourceChecksum(matchId, sourceChecksum);
+        }
+
+        @Override
         public Optional<Match> findMatchById(UUID id) {
             return delegate.findMatchById(id);
         }

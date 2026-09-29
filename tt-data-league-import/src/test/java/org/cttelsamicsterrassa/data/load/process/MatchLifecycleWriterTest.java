@@ -8,6 +8,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompleteness;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.AmendedActaMode;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleSource;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleWriter;
@@ -24,6 +25,8 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -280,6 +283,126 @@ class MatchLifecycleWriterTest {
                 classification(ActaCompleteness.INVALID), Optional.of(played), source);
 
         assertEquals(MatchLifecycleOutcome.INVALID_REPORTED, outcome);
+    }
+
+    // --- FEAT-00089: amended actas --------------------------------------------------------
+
+    @Test
+    void createAndUpgradeStoreTheContentChecksum() {
+        FakeSource create = new FakeSource(DATE_A, "city", "venue", "referee");
+        writer.apply(classification(ActaCompleteness.PLAYED), Optional.empty(), create);
+        assertTrue(matches.saved.getFirst().getSourceChecksum().startsWith("v1:"));
+
+        UUID storedId = storeScheduled(DATE_A, "city", "venue", "referee");
+        FakeSource upgrade = new FakeSource(DATE_B, "other", "other venue", "other referee");
+        writer.apply(classification(ActaCompleteness.PLAYED), matches.findMatchById(storedId), upgrade);
+
+        Match upgraded = matches.findMatchById(storedId).orElseThrow();
+        assertEquals(MatchStatus.PLAYED, upgraded.getStatus());
+        assertTrue(upgraded.getSourceChecksum().startsWith("v1:"));
+    }
+
+    @Test
+    void detectionDisabledNeverBuildsPlayedContentForAStoredPlayedMatch() {
+        FakeSource source = new FakeSource(DATE_A, "city", "venue", "referee");
+        Match played = source.buildPlayedContent(UUID.randomUUID(), false).match();
+        matches.saveMatch(played);
+        source.playedBuilds.clear();
+
+        MatchLifecycleOutcome outcome = writer.apply(classification(ActaCompleteness.PLAYED),
+                Optional.of(played), source, null, null);
+
+        assertEquals(MatchLifecycleOutcome.PLAYED_KEPT, outcome);
+        assertTrue(source.playedBuilds.isEmpty(), "disabled detection must not build content");
+        assertSame(played, matches.saved.getFirst());
+    }
+
+    @Test
+    void writeModeReappliesAnAmendedActaKeepingIdAndStoredFixtureId() {
+        FakeSource original = new FakeSource(DATE_A, "city", "venue", "referee");
+        original.playedSourceFixtureId = "FIX-1";
+        writer.apply(classification(ActaCompleteness.PLAYED), Optional.empty(), original,
+                AmendedActaMode.WRITE, Path.of("a.json"));
+        Match stored = matches.saved.getFirst();
+        String originalChecksum = stored.getSourceChecksum();
+        assertNotNull(originalChecksum);
+
+        FakeSource amended = new FakeSource(DATE_B, "new city", "new venue", "new referee");
+        MatchLifecycleOutcome outcome = writer.apply(classification(ActaCompleteness.PLAYED),
+                matches.findMatchById(stored.getId()), amended, AmendedActaMode.WRITE, Path.of("b.json"));
+
+        assertEquals(MatchLifecycleOutcome.PLAYED_AMENDED, outcome);
+        assertEquals(1, matches.saved.size(), "a re-apply replaces in place");
+        Match after = matches.saved.getFirst();
+        assertEquals(stored.getId(), after.getId());
+        assertEquals("FIX-1", after.getSourceFixtureId(), "the stored fixture id is kept");
+        assertEquals(DATE_B, after.getDateTime());
+        assertNotEquals(originalChecksum, after.getSourceChecksum());
+    }
+
+    @Test
+    void reportModeDetectsAnAmendmentWithoutWriting() {
+        FakeSource original = new FakeSource(DATE_A, "city", "venue", "referee");
+        writer.apply(classification(ActaCompleteness.PLAYED), Optional.empty(), original,
+                AmendedActaMode.WRITE, Path.of("a.json"));
+        Match stored = matches.saved.getFirst();
+        String originalChecksum = stored.getSourceChecksum();
+
+        FakeSource amended = new FakeSource(DATE_B, "new city", "new venue", "new referee");
+        MatchLifecycleOutcome outcome = writer.apply(classification(ActaCompleteness.PLAYED),
+                matches.findMatchById(stored.getId()), amended, AmendedActaMode.REPORT, Path.of("b.json"));
+
+        assertEquals(MatchLifecycleOutcome.PLAYED_AMENDMENT_REPORTED, outcome);
+        assertTrue(outcome.isReportable());
+        assertSame(stored, matches.saved.getFirst(), "report mode writes nothing");
+        assertEquals(DATE_A, matches.saved.getFirst().getDateTime());
+        assertEquals(originalChecksum, matches.saved.getFirst().getSourceChecksum());
+    }
+
+    @Test
+    void writeModeAdoptsTheBaselineOfALegacyPlayedMatchWithoutTouchingIt() {
+        FakeSource seed = new FakeSource(DATE_A, "city", "venue", "referee");
+        Match legacy = seed.buildPlayedContent(UUID.randomUUID(), false).match();
+        matches.saveMatch(legacy);
+        assertNull(legacy.getSourceChecksum());
+
+        FakeSource incoming = new FakeSource(DATE_B, "new city", "new venue", "new referee");
+        MatchLifecycleOutcome outcome = writer.apply(classification(ActaCompleteness.PLAYED),
+                matches.findMatchById(legacy.getId()), incoming, AmendedActaMode.WRITE, Path.of("x.json"));
+
+        assertEquals(MatchLifecycleOutcome.PLAYED_KEPT, outcome);
+        Match after = matches.saved.getFirst();
+        assertTrue(after.getSourceChecksum().startsWith("v1:"));
+        assertEquals(DATE_A, after.getDateTime(), "baseline adoption never re-applies content");
+    }
+
+    @Test
+    void writeModeEmitsAnAuditLineForAReappliedAmendment() {
+        FakeSource original = new FakeSource(DATE_A, "city", "venue", "referee");
+        writer.apply(classification(ActaCompleteness.PLAYED), Optional.empty(), original,
+                AmendedActaMode.WRITE, Path.of("a.json"));
+        Match stored = matches.saved.getFirst();
+
+        ch.qos.logback.classic.Logger audit =
+                (ch.qos.logback.classic.Logger) org.slf4j.LoggerFactory.getLogger(
+                        "org.cttelsamicsterrassa.data.load.audit.AmendedActa");
+        ch.qos.logback.core.read.ListAppender<ch.qos.logback.classic.spi.ILoggingEvent> appender =
+                new ch.qos.logback.core.read.ListAppender<>();
+        appender.start();
+        audit.addAppender(appender);
+        try {
+            FakeSource amended = new FakeSource(DATE_B, "new city", "new venue", "new referee");
+            writer.apply(classification(ActaCompleteness.PLAYED), matches.findMatchById(stored.getId()),
+                    amended, AmendedActaMode.WRITE, Path.of("b.json"));
+        } finally {
+            audit.detachAppender(appender);
+        }
+
+        assertEquals(1, appender.list.size());
+        String message = appender.list.getFirst().getFormattedMessage();
+        assertTrue(message.startsWith("amended-acta mode=WRITE"));
+        assertTrue(message.contains("match=" + stored.getId()));
+        assertTrue(message.contains("location=b.json"));
     }
 
     // --- ImportRunContext recording --------------------------------------------------------

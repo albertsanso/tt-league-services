@@ -586,6 +586,23 @@ public final class InMemoryRepositories {
         }
 
         /**
+         * FEAT-00089: adopts or records the content checksum of a stored PLAYED match without
+         * touching anything else. A SCHEDULED match is rejected, mirroring the JPA adapter's guard.
+         */
+        @Override
+        public void recordSourceChecksum(UUID matchId, String sourceChecksum) {
+            Objects.requireNonNull(matchId, "matchId");
+            Objects.requireNonNull(sourceChecksum, "sourceChecksum");
+            int index = indexOfMatch(matchId);
+            Match existing = saved.get(index);
+            if (existing.getStatus() != MatchStatus.PLAYED) {
+                throw new IllegalStateException(
+                        "Only PLAYED matches can record a source checksum, match " + matchId + " is SCHEDULED");
+            }
+            saved.set(index, existing.withSourceChecksum(sourceChecksum));
+        }
+
+        /**
          * FEAT-00084: groups the stored matches of one source and season exactly as the JPA adapter
          * groups its rows and delegates the definition to {@link RoundProgressCalculator}, so the
          * in-memory and persisted rules cannot drift apart.

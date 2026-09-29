@@ -38,7 +38,13 @@ public enum MatchLifecycleOutcome {
      * natural-key match already keeps another {@code id_partido}); nothing was written
      * (FEAT-00085).
      */
-    FIXTURE_IDENTITY_CONFLICT;
+    FIXTURE_IDENTITY_CONFLICT,
+
+    /** An amended acta was detected and the stored PLAYED match was re-applied in place (FEAT-00089). */
+    PLAYED_AMENDED,
+
+    /** An amended acta was detected in report mode; nothing was written (FEAT-00089). */
+    PLAYED_AMENDMENT_REPORTED;
 
     /**
      * Whether this outcome must appear in the run's reported issues rather than only in the
@@ -46,6 +52,19 @@ public enum MatchLifecycleOutcome {
      */
     public boolean isReportable() {
         return this == REGRESSION_REPORTED || this == PARTIAL_REPORTED || this == INVALID_REPORTED
-                || this == FIXTURE_IDENTITY_CONFLICT;
+                || this == FIXTURE_IDENTITY_CONFLICT || this == PLAYED_AMENDED
+                || this == PLAYED_AMENDMENT_REPORTED;
+    }
+
+    /**
+     * The warning reason to report for an amended-acta outcome (FEAT-00089), or {@code null} for
+     * every other outcome, whose reason comes from the classifier.
+     */
+    public String amendmentReason() {
+        return switch (this) {
+            case PLAYED_AMENDED -> "amended acta re-applied";
+            case PLAYED_AMENDMENT_REPORTED -> "amended acta detected (report mode)";
+            default -> null;
+        };
     }
 }

@@ -114,7 +114,7 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
         String season = request.season().map(Object::toString).orElse(null);
         List<ImportExecutionIssue> issues = new ArrayList<>();
         Counts counts;
-        ImportRunContext runContext = new ImportRunContext(request.source(), season);
+        ImportRunContext runContext = new ImportRunContext(request.source(), season, effective.amendedActaMode());
         try {
             counts = traverse(request.source(), request.actasFolder(), season, runContext, progressListener);
         } catch (IOException | RuntimeException exception) {

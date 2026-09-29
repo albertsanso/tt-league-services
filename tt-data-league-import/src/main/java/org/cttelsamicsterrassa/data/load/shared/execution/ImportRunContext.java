@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.load.shared.execution;
 
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.AmendedActaMode;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
 
 import java.nio.file.Path;
@@ -23,6 +24,7 @@ import java.util.UUID;
 public final class ImportRunContext {
     private final ImportSource source;
     private final String season;
+    private final AmendedActaMode amendedActaMode;
     private final Map<Object, Object> lookups = new HashMap<>();
     private final Map<MatchLifecycleOutcome, Integer> matchOutcomeCounts =
             new EnumMap<>(MatchLifecycleOutcome.class);
@@ -33,8 +35,17 @@ public final class ImportRunContext {
     private final Map<SnapshotFixtures.Scope, Integer> snapshotHighestRoundByScope = new HashMap<>();
 
     public ImportRunContext(ImportSource source, String season) {
+        this(source, season, null);
+    }
+
+    /**
+     * @param amendedActaMode the amended-acta detection mode (FEAT-00089), or {@code null} when
+     *                        detection is disabled (the default)
+     */
+    public ImportRunContext(ImportSource source, String season, AmendedActaMode amendedActaMode) {
         this.source = Objects.requireNonNull(source, "source");
         this.season = season;
+        this.amendedActaMode = amendedActaMode;
     }
 
     public ImportSource source() {
@@ -43,6 +54,11 @@ public final class ImportRunContext {
 
     public String season() {
         return season;
+    }
+
+    /** The amended-acta detection mode for this run (FEAT-00089); {@code null} when disabled. */
+    public AmendedActaMode amendedActaMode() {
+        return amendedActaMode;
     }
 
     @SuppressWarnings("unchecked")

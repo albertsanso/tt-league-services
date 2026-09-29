@@ -51,10 +51,14 @@ public enum PreviewChange {
             case CREATE_PLAYED -> NEW_PLAYED;
             case UPGRADE_TO_PLAYED -> UPGRADE;
             case UPDATE_SCHEDULE -> RESCHEDULE;
+            case REAPPLY_PLAYED, RECORD_SOURCE_CHECKSUM -> throw new IllegalStateException(
+                    "The preview never plans an amended-acta action: " + plan.action());
             case NONE -> switch (plan.outcome()) {
                 case REGRESSION_REPORTED -> REGRESSION;
                 case INVALID_REPORTED -> INVALID_ON_PLAYED;
                 case PLAYED_KEPT -> PLAYED_KEPT;
+                case PLAYED_AMENDED, PLAYED_AMENDMENT_REPORTED -> throw new IllegalStateException(
+                        "The preview never plans an amended-acta outcome: " + plan.outcome());
                 default -> UNCHANGED;
             };
         };

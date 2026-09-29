@@ -29,6 +29,7 @@ public class MatchJPAToMatchMapper implements Function<MatchJPA, Match> {
                 .source(matchJpa.getSource() != null ? ImportSource.valueOf(matchJpa.getSource().name()) : null)
                 .externalId(matchJpa.getExternalId())
                 .sourceFixtureId(matchJpa.getSourceFixtureId())
+                .sourceChecksum(matchJpa.getSourceChecksum())
                 .competition(matchJpa.getCompetition())
                 .season(matchJpa.getSeason() != null ? Season.fromFormatted(matchJpa.getSeason()) : null)
                 .groupNumber(matchJpa.getGroupNumber())

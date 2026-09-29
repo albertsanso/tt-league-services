@@ -323,11 +323,26 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
     @Query("""
             update MatchJPA m
                set m.homeGamesWon = null, m.awayGamesWon = null, m.homeSetsWon = null, m.awaySetsWon = null,
-                   m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.SCHEDULED
+                   m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.SCHEDULED,
+                   m.sourceChecksum = null
              where m.id in :matchIds
                and m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.PLAYED
             """)
     int markScheduledByIds(@Param("matchIds") Collection<UUID> matchIds);
+
+    /**
+     * FEAT-00089: records only the source content checksum of a PLAYED match. The status guard is
+     * part of the update so a SCHEDULED match can never receive a checksum here; the caller
+     * distinguishes "not found" from "not played" by the returned row count.
+     */
+    @Modifying(clearAutomatically = true)
+    @Query("""
+            update MatchJPA m
+               set m.sourceChecksum = :sourceChecksum
+             where m.id = :matchId
+               and m.status = org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus.PLAYED
+            """)
+    int recordSourceChecksum(@Param("matchId") UUID matchId, @Param("sourceChecksum") String sourceChecksum);
 
     /**
      * FEAT-00080 reschedule: rewrites only the schedule columns of a SCHEDULED match. The status

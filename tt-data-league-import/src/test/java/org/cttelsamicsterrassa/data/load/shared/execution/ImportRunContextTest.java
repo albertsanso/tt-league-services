@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.load.shared.execution;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.AmendedActaMode;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
 import org.junit.jupiter.api.Test;
 
@@ -138,5 +139,14 @@ class ImportRunContextTest {
         assertThrows(NullPointerException.class, () -> runContext.recordSnapshotFixture(
                 null, 1, null, 1, "ID_1", null, null));
         assertTrue(runContext.snapshotFixtures().isEmpty());
+    }
+
+    @Test
+    void amendedActaModeDefaultsToNullAndIsCarriedByTheThreeArgConstructor() {
+        assertEquals(null, new ImportRunContext(ImportSource.RFETM, "2026-2027").amendedActaMode());
+        assertEquals(AmendedActaMode.WRITE,
+                new ImportRunContext(ImportSource.RFETM, "2026-2027", AmendedActaMode.WRITE).amendedActaMode());
+        assertEquals(AmendedActaMode.REPORT,
+                new ImportRunContext(ImportSource.BCNESA, null, AmendedActaMode.REPORT).amendedActaMode());
     }
 }

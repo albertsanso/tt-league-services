@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -68,5 +69,18 @@ class PreviewChangeTest {
         assertTrue(PreviewChange.INVALID_ON_PLAYED.isReportable());
         assertTrue(PreviewChange.IDENTITY_CONFLICT.isReportable());
         assertFalse(PreviewChange.NEW_PLAYED.isReportable());
+    }
+
+    @Test
+    void amendedActaPlansAreNeverProducedByThePreview() {
+        assertThrows(IllegalStateException.class, () -> PreviewChange.of(
+                MatchLifecyclePlan.of(MatchLifecycleOutcome.PLAYED_AMENDED,
+                        MatchLifecycleAction.REAPPLY_PLAYED)));
+        assertThrows(IllegalStateException.class, () -> PreviewChange.of(
+                MatchLifecyclePlan.of(MatchLifecycleOutcome.PLAYED_KEPT,
+                        MatchLifecycleAction.RECORD_SOURCE_CHECKSUM)));
+        assertThrows(IllegalStateException.class, () -> PreviewChange.of(
+                MatchLifecyclePlan.of(MatchLifecycleOutcome.PLAYED_AMENDMENT_REPORTED,
+                        MatchLifecycleAction.NONE)));
     }
 }

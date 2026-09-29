@@ -370,5 +370,10 @@ class IncrementalPreviewServiceTest {
         public void updateSchedule(UUID matchId, MatchSchedule schedule) {
             throw new UnsupportedOperationException("preview must not write");
         }
+
+        @Override
+        public void recordSourceChecksum(UUID matchId, String sourceChecksum) {
+            throw new UnsupportedOperationException("preview must not write");
+        }
     }
 }

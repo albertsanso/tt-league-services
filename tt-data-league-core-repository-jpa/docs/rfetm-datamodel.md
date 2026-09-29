@@ -180,6 +180,7 @@ Top-level team match event.
 | `source` | `VARCHAR(20)` | No | `idx_match_source_season_competition_status` |
 | `external_id` | `VARCHAR(20)` | Yes | Unique; `idx_match_external_id` |
 | `source_fixture_id` | `VARCHAR(100)` | Yes | `uk_match_source_fixture_id` |
+| `source_checksum` | `VARCHAR(80)` | Yes | — |
 | `competition` | `VARCHAR(255)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status` |
 | `season` | `VARCHAR(9)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status` |
 | `group_num` | `INTEGER` | Yes | `idx_match_competition_season_group_round` |
@@ -268,6 +269,21 @@ populated PostgreSQL table under `ddl-auto: update` because multiple `NULL`s nev
 assigns the file's `id_partido` only to fixture index 0 (the fixture named by `equipos`); an
 inferred later fixture of a multi-fixture file never borrows it. The constraint's index also serves
 `MatchRepository.findBySourceFixtureId(source, id_partido)`, which is always source-scoped.
+
+**FEAT-00089 source checksum.** `source_checksum` stores the versioned (`v1:`) SHA-256 of the acta
+*content* last applied to a `PLAYED` match — the canonical rendering of the header, lineups, games,
+set scores, and doubles pairs an import would write, independent of generated UUIDs and child list
+order. It is a content checksum, not a raw-file checksum: BCNESA splits one matchday file into several
+fixtures, so file formatting or renames must never look like a change, while any change a re-apply
+would write must change the value. It is `NULL` for `SCHEDULED` matches (the domain builder rejects a
+`SCHEDULED` match with a checksum) and for legacy rows imported before the feature. A PLAYED match
+created or upgraded by an import stores it; a later import that detects a different checksum for the
+same stored PLAYED match re-applies the content through `replaceMatchContent` (FEAT-00089 amended-acta
+detection), and a stored PLAYED match whose checksum is `NULL` or carries another prefix adopts the
+incoming value as its baseline instead of being rewritten. The FEAT-00078 backfill also nulls it when
+marking a match `SCHEDULED`, keeping the `SCHEDULED` ⇒ `NULL` invariant. The column is nullable, has
+no index and no constraint, and is safe to add to a populated PostgreSQL table under
+`ddl-auto: update`.
 
 `homeTeam`, `awayTeam`, and `winnerTeam` are lazy `@ManyToOne` associations
 to `team`. The winner association is nullable.

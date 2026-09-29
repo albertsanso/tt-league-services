@@ -151,6 +151,7 @@ class ScheduledMatchBackfillRepositoryJpaTest {
         assertNull(match.getAwayGamesWon());
         assertNull(match.getHomeSetsWon());
         assertNull(match.getAwaySetsWon());
+        assertNull(match.getSourceChecksum());
         assertTrue(gameRepository.findGamesByMatchId(matchId).isEmpty());
         assertTrue(lineupRepository.findLineupsByMatchId(matchId).isEmpty());
     }
@@ -169,7 +170,7 @@ class ScheduledMatchBackfillRepositoryJpaTest {
 
     // --- scenario builders -----------------------------------------------------------------
 
-    /** (a) A legacy empty acta: null scores, no winner, no games, no lineups. */
+    /** (a) A legacy empty acta: null scores, no winner, no games, no lineups, with a stale checksum. */
     private Match legacyEmptyMatch() {
         Team home = storedTeam("LEGACY HOME", SEASON, ImportSource.RFETM);
         Team away = storedTeam("LEGACY AWAY", SEASON, ImportSource.RFETM);
@@ -182,6 +183,7 @@ class ScheduledMatchBackfillRepositoryJpaTest {
                 .round(1)
                 .homeTeam(home)
                 .awayTeam(away)
+                .sourceChecksum("v1:legacy")
                 .status(MatchStatus.PLAYED)
                 .createNew();
         matchRepository.saveMatch(match);

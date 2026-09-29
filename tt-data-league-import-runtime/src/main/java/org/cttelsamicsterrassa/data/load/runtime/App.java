@@ -120,7 +120,8 @@ public class App implements CommandLineRunner {
         ImportExecutionOptions options = new ImportExecutionOptions(
                 arguments.consolidateClubs() ? arguments.consolidationMode() : null,
                 arguments.consolidatePlayers() ? arguments.playerConsolidationMode() : null,
-                arguments.rfetmTeamsFolder() == null ? null : Path.of(arguments.rfetmTeamsFolder()), 50);
+                arguments.rfetmTeamsFolder() == null ? null : Path.of(arguments.rfetmTeamsFolder()), 50,
+                arguments.amendedActaMode());
         ImportExecutionResult result = executionService.execute(request, options);
         LOGGER.info("{} import finished: {}", source, result);
         logRoundProgress(source, request.season(), result.roundProgress());
@@ -163,7 +164,8 @@ public class App implements CommandLineRunner {
         if (arguments.actasFolder() != null
                 || arguments.rfetmTeamsFolder() != null
                 || arguments.consolidateClubs()
-                || arguments.consolidatePlayers()) {
+                || arguments.consolidatePlayers()
+                || arguments.amendedActaMode() != null) {
             throw new IllegalArgumentException(
                     ImportRuntimeCliContract.BACKFILL_SCHEDULED_MATCHES_ARGUMENT
                             + " cannot be combined with import arguments");

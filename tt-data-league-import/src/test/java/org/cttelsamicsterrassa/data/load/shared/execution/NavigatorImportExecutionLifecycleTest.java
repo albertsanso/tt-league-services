@@ -115,7 +115,7 @@ class NavigatorImportExecutionLifecycleTest {
                 null, rfetmClubs, canonical, null);
 
         ImportExecutionResult second = withClubs.execute(request, new ImportExecutionOptions(
-                ConsolidationMode.REPORT, null, baseFolder.resolve("rfetm-teams"), 50));
+                ConsolidationMode.REPORT, null, baseFolder.resolve("rfetm-teams"), 50, null));
 
         assertEquals(ImportProcessStatus.SUCCESS, second.status(), "a no-change run is not empty");
         assertEquals(0, second.metrics().lifecycle().scheduledCreated());
@@ -537,6 +537,11 @@ class NavigatorImportExecutionLifecycleTest {
 
         @Override
         public void updateSchedule(UUID matchId, MatchSchedule schedule) {
+            throw new UnsupportedOperationException("not needed by this test");
+        }
+
+        @Override
+        public void recordSourceChecksum(UUID matchId, String sourceChecksum) {
             throw new UnsupportedOperationException("not needed by this test");
         }
 

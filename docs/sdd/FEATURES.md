@@ -71,25 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00089] Amended acta detection
-- **Status:** idea
-- **Priority:** low
-- **Effort:** medium
-- **Depends on:** FEAT-00080
-
-#### Goal
-Detect and re-apply corrections to already published actas via a stored source checksum, as an opt-in behaviour.
-
-#### Acceptance Criteria
-- [ ] match_record.source_checksum stores a checksum of the applied acta and is documented in rfetm-datamodel.md
-- [ ] When enabled and a PLAYED acta's checksum changes, the match is re-applied via replaceMatchContent and an audit line is logged
-- [ ] The behaviour is opt-in and disabled by default
-
-#### Feature Details
-→ See [FEAT-00089-DETAILS.md](./FEAT-00089-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00090] Delta upload mode
 - **Status:** idea
 - **Priority:** low
@@ -167,6 +148,26 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00089] Amended acta detection
+- **Status:** done
+- **Priority:** low
+- **Effort:** large
+- **Depends on:** FEAT-00080
+
+#### Goal
+Detect and re-apply corrections to already published actas via a stored source checksum, as an opt-in behaviour.
+
+#### Acceptance Criteria
+- [x] match_record.source_checksum stores a checksum of the applied acta and is documented in rfetm-datamodel.md
+- [x] When enabled and a PLAYED acta's checksum changes, the match is re-applied via replaceMatchContent and an audit line is logged
+- [x] The behaviour is opt-in and disabled by default
+- [x] Report mode performs the same detection without persistence writes
+
+#### Feature Details
+→ See [FEAT-00089-DETAILS.md](./FEAT-00089-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00088] Preview classification for incremental uploads
 - **Status:** done

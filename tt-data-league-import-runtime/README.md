@@ -103,6 +103,9 @@ The application is launched with `--key=value` parameters:
 | `--backfill-scheduled-matches`          | No | Runs the scheduled-match backfill (see below) in write mode instead of an import. |
 | `--backfill-scheduled-matches=write`    | No | Explicitly runs the backfill in write mode. |
 | `--backfill-scheduled-matches=report`   | No | Runs the same backfill candidate query without saving changes. |
+| `--detect-amended-actas`                | No | Detects amended actas and re-applies them in write mode (see below). |
+| `--detect-amended-actas=write`          | No | Explicitly runs amended-acta detection in write mode. |
+| `--detect-amended-actas=report`         | No | Runs the same detection without saving changes. |
 
 The source value is case-insensitive. Consolidation flags are opt-in and can
 be used independently or together. Unknown consolidation modes fail with an
@@ -277,6 +280,38 @@ java -jar target\tt-data-league-import-runtime.jar `
 
 java -jar target\tt-data-league-import-runtime.jar `
   --source=rfetm --season=2025-2026 --backfill-scheduled-matches
+```
+
+### Detect amended actas
+
+`--detect-amended-actas[=write|report]` makes the import detect corrections to
+already published actas. Every PLAYED match created or upgraded by an import
+stores a content checksum of what was written (`v1:` SHA-256 of the canonical
+header, lineups, games, set scores, and doubles pairs, independent of generated
+ids and child order). When detection is enabled and a PLAYED acta arrives for a
+stored PLAYED match whose checksum differs, the match is re-applied in place
+through the same content replacement path used for upgrades, keeping its id, its
+natural key, and its stored `source_fixture_id`.
+
+The flag is opt-in and disabled by default; bare `--detect-amended-actas` uses
+write mode and `=report` runs the same detection without any persistence write.
+A stored PLAYED match with no checksum yet (legacy rows, or a value from another
+version) adopts the incoming checksum as its baseline instead of being
+rewritten, so enabling detection never mass-rewrites legacy seasons. A pending,
+partial, or invalid acta for a stored PLAYED match is still reported as a
+regression/invalid outcome in every mode: a PLAYED match is never downgraded.
+
+Detected amendments surface as reportable warnings (`amended acta re-applied` /
+`amended acta detected (report mode)`) and as one INFO line on the dedicated
+logger `org.cttelsamicsterrassa.data.load.audit.AmendedActa`
+(`amended-acta mode=… source=… … checksum=<old> -> <new>`); baseline adoption is
+logged at DEBUG only. The flag is an import argument and cannot be combined with
+`--backfill-scheduled-matches`.
+
+```powershell
+java -jar target\tt-data-league-import-runtime.jar `
+  --source=rfetm --season=2025-2026 --actas-folder=C:\data\actas-json `
+  --detect-amended-actas=report
 ```
 
 ## Administration import API

@@ -52,6 +52,13 @@ public class MatchJPA {
     @Column(name = "source_fixture_id", nullable = true, length = 100)
     private String sourceFixtureId;
 
+    /**
+     * FEAT-00089: the versioned content checksum of the acta last applied to this match, or
+     * {@code null} for SCHEDULED matches and legacy rows imported before the feature.
+     */
+    @Column(name = "source_checksum", nullable = true, length = 80)
+    private String sourceChecksum;
+
     @Column(name = "competition", nullable = true, length = 255)
     private String competition;
 

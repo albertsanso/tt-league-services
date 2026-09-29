@@ -84,6 +84,6 @@ public class NavigatorBackedImportResourceProcessService
         }
         return new ImportExecutionOptions(executionOptions.clubConsolidationMode(),
                 executionOptions.playerConsolidationMode(), rfetmTeamsFolderResolver.get(),
-                executionOptions.batchSize());
+                executionOptions.batchSize(), executionOptions.amendedActaMode());
     }
 }

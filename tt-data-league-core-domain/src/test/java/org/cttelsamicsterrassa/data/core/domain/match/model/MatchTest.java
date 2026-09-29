@@ -159,6 +159,51 @@ class MatchTest {
         assertEquals(true, stored.hasSameNaturalKeyAs(none));
     }
 
+    @Test
+    void scheduledMatchWithASourceChecksumIsRejected() {
+        assertThrows(IllegalArgumentException.class,
+                () -> builder().status(MatchStatus.SCHEDULED).sourceChecksum("v1:abc").createNew());
+    }
+
+    @Test
+    void playedMatchStoresAndReturnsSourceChecksum() {
+        Match match = builder().sourceChecksum("v1:abc").createExisting();
+
+        assertEquals("v1:abc", match.getSourceChecksum());
+    }
+
+    @Test
+    void withSourceChecksumPreservesEveryOtherFieldAndPublishesNoEvent() {
+        Match stored = builder().status(MatchStatus.PLAYED).externalId("E1").groupNumber(2).phase("REGULAR")
+                .homeGamesWon(5).awayGamesWon(2).winnerTeam(homeTeam).sourceChecksum("v1:old").createExisting();
+
+        Match updated = stored.withSourceChecksum("v1:new");
+
+        assertEquals("v1:new", updated.getSourceChecksum());
+        assertEquals(stored.getId(), updated.getId());
+        assertEquals(stored.getSource(), updated.getSource());
+        assertEquals(stored.getExternalId(), updated.getExternalId());
+        assertEquals(stored.getSourceFixtureId(), updated.getSourceFixtureId());
+        assertEquals(stored.getCompetition(), updated.getCompetition());
+        assertEquals(stored.getSeason(), updated.getSeason());
+        assertEquals(stored.getGroupNumber(), updated.getGroupNumber());
+        assertEquals(stored.getRound(), updated.getRound());
+        assertEquals(stored.getPhase(), updated.getPhase());
+        assertEquals(stored.getDateTime(), updated.getDateTime());
+        assertEquals(stored.getCity(), updated.getCity());
+        assertEquals(stored.getVenue(), updated.getVenue());
+        assertEquals(stored.getHomeTeam(), updated.getHomeTeam());
+        assertEquals(stored.getAwayTeam(), updated.getAwayTeam());
+        assertEquals(stored.getWinnerTeam(), updated.getWinnerTeam());
+        assertEquals(stored.getRefereeName(), updated.getRefereeName());
+        assertEquals(stored.getRefereeLicense(), updated.getRefereeLicense());
+        assertEquals(stored.getHomeGamesWon(), updated.getHomeGamesWon());
+        assertEquals(stored.getAwayGamesWon(), updated.getAwayGamesWon());
+        assertEquals(stored.isProtested(), updated.isProtested());
+        assertEquals(stored.getStatus(), updated.getStatus());
+        assertEquals(false, updated.hasEvents());
+    }
+
     private Match.MatchBuilder copyBuilder(Match match) {
         return Match.builder().id(match.getId()).source(match.getSource()).externalId(match.getExternalId())
                 .sourceFixtureId(match.getSourceFixtureId())

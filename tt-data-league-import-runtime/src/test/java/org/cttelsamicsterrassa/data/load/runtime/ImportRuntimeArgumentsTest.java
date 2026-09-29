@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.load.runtime;
 
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
 import org.cttelsamicsterrassa.data.load.shared.match.backfill.ScheduledMatchBackfillMode;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.AmendedActaMode;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -119,5 +120,38 @@ class ImportRuntimeArgumentsTest {
                 () -> ImportRuntimeArguments.parse("--backfill-scheduled-matches=preview"));
 
         assertTrue(exception.getMessage().contains("--backfill-scheduled-matches=preview"));
+    }
+
+    @Test
+    void amendedActaDetectionIsDisabledByDefault() {
+        ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
+                "--source=rfetm", "--actas-folder=C:\\data");
+
+        assertNull(arguments.amendedActaMode());
+    }
+
+    @Test
+    void enablesWriteAmendedActaDetectionWithTheBareFlag() {
+        ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
+                "--actas-folder=C:\\data", "--detect-amended-actas");
+
+        assertEquals(AmendedActaMode.WRITE, arguments.amendedActaMode());
+    }
+
+    @Test
+    void enablesAReportOnlyAmendedActaDetection() {
+        ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(
+                "--actas-folder=C:\\data", "--detect-amended-actas=report");
+
+        assertEquals(AmendedActaMode.REPORT, arguments.amendedActaMode());
+    }
+
+    @Test
+    void identifiesTheAmendedActaOptionWithAnInvalidMode() {
+        IllegalArgumentException exception = assertThrows(
+                IllegalArgumentException.class,
+                () -> ImportRuntimeArguments.parse("--detect-amended-actas=preview"));
+
+        assertTrue(exception.getMessage().contains("--detect-amended-actas=preview"));
     }
 }

@@ -26,6 +26,7 @@ public class MatchToMatchJPAMapper implements Function<Match, MatchJPA> {
         matchJPA.setSource(match.getSource() != null ? Source.valueOf(match.getSource().name()) : null);
         matchJPA.setExternalId(match.getExternalId());
         matchJPA.setSourceFixtureId(match.getSourceFixtureId());
+        matchJPA.setSourceChecksum(match.getSourceChecksum());
 
         // The date and time are nullable in the model and absent from some match reports.
         if (match.getDateTime() != null) {

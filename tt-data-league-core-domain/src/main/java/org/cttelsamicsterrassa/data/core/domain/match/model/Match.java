@@ -50,8 +50,9 @@ public class Match extends Entity {
     private final Integer awaySetsWon;
     private final boolean protested;
     private final MatchStatus status;
+    private final String sourceChecksum;
 
-    private Match(UUID id, ImportSource source, String externalId, String sourceFixtureId, String competition, Season season, Integer groupNumber, int round, String phase, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested, MatchStatus status) {
+    private Match(UUID id, ImportSource source, String externalId, String sourceFixtureId, String competition, Season season, Integer groupNumber, int round, String phase, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested, MatchStatus status, String sourceChecksum) {
         this.id = id;
         this.source = source;
         this.externalId = externalId;
@@ -75,6 +76,7 @@ public class Match extends Entity {
         this.awaySetsWon = awaySetsWon;
         this.protested = protested;
         this.status = status;
+        this.sourceChecksum = sourceChecksum;
     }
 
     public static MatchBuilder builder() {
@@ -90,6 +92,9 @@ public class Match extends Entity {
                         || builder.homeSetsWon != null
                         || builder.awaySetsWon != null)) {
             throw new IllegalArgumentException("A SCHEDULED match cannot carry a winner or game/set results");
+        }
+        if (builder.status == MatchStatus.SCHEDULED && builder.sourceChecksum != null) {
+            throw new IllegalArgumentException("A SCHEDULED match cannot carry a source checksum");
         }
         if (builder.sourceFixtureId != null) {
             if (builder.sourceFixtureId.isBlank()) {
@@ -123,7 +128,8 @@ public class Match extends Entity {
                 builder.homeSetsWon,
                 builder.awaySetsWon,
                 builder.protested,
-                builder.status
+                builder.status,
+                builder.sourceChecksum
         );
     }
     private static Match createNew(MatchBuilder matchBuilder) {
@@ -166,6 +172,42 @@ public class Match extends Entity {
                 .awaySetsWon(awaySetsWon)
                 .protested(protested)
                 .status(status)
+                .sourceChecksum(sourceChecksum)
+                .createExisting();
+    }
+
+    /**
+     * A copy of this match with only {@code sourceChecksum} changed (FEAT-00089). Used by the
+     * lifecycle writer and in-memory repositories so a checksum can be adopted or recorded without
+     * rebuilding the header field by field. No event is published. The match id and natural key are
+     * unchanged.
+     */
+    public Match withSourceChecksum(String sourceChecksum) {
+        return Match.builder()
+                .id(id)
+                .source(source)
+                .externalId(externalId)
+                .sourceFixtureId(sourceFixtureId)
+                .competition(competition)
+                .season(season)
+                .groupNumber(groupNumber)
+                .round(round)
+                .phase(phase)
+                .dateTime(dateTime)
+                .city(city)
+                .venue(venue)
+                .homeTeam(homeTeam)
+                .awayTeam(awayTeam)
+                .winnerTeam(winnerTeam)
+                .refereeName(refereeName)
+                .refereeLicense(refereeLicense)
+                .homeGamesWon(homeGamesWon)
+                .awayGamesWon(awayGamesWon)
+                .homeSetsWon(homeSetsWon)
+                .awaySetsWon(awaySetsWon)
+                .protested(protested)
+                .status(status)
+                .sourceChecksum(sourceChecksum)
                 .createExisting();
     }
 
@@ -205,6 +247,7 @@ public class Match extends Entity {
         private Integer awaySetsWon;
         private boolean protested;
         private MatchStatus status = MatchStatus.PLAYED;
+        private String sourceChecksum;
 
         public MatchBuilder id(UUID id) {
             this.id = id;
@@ -321,6 +364,11 @@ public class Match extends Entity {
             return this;
         }
 
+        public MatchBuilder sourceChecksum(String sourceChecksum) {
+            this.sourceChecksum = sourceChecksum;
+            return this;
+        }
+
         public Match createNew() {
             return Match.createNew(this);
         }
@@ -425,6 +473,14 @@ public class Match extends Entity {
 
     public MatchStatus getStatus() {
         return status;
+    }
+
+    /**
+     * The checksum of the acta content last applied to this match (FEAT-00089), or {@code null} for
+     * legacy rows and matches with no stored checksum. Never set on a SCHEDULED match.
+     */
+    public String getSourceChecksum() {
+        return sourceChecksum;
     }
 
     public boolean isPlayed() {
