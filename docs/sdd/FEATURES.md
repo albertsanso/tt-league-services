@@ -71,26 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00088] Preview classification for incremental uploads
-- **Status:** idea
-- **Priority:** medium
-- **Effort:** small
-- **Depends on:** FEAT-00076, FEAT-00084
-
-#### Goal
-Let operators see what an incremental upload will change before importing it, for all three sources.
-
-#### Acceptance Criteria
-- [ ] Preview reports counts of published, unpublished, invalid, partial and unresolved actas for RFETM, BCNESA and FCTT
-- [ ] Preview reports new scheduled matches, upgrades, reschedules and regressions per competition/group
-- [ ] Preview reports the resulting jornada progress
-- [ ] Preview flags duplicate id_partido within a snapshot
-
-#### Feature Details
-→ See [FEAT-00088-DETAILS.md](./FEAT-00088-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00089] Amended acta detection
 - **Status:** idea
 - **Priority:** low
@@ -187,6 +167,26 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00088] Preview classification for incremental uploads
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** FEAT-00076, FEAT-00084
+
+#### Goal
+Let operators see what an incremental upload will change before importing it, for all three sources.
+
+#### Acceptance Criteria
+- [x] Preview reports counts of published, unpublished, invalid, partial and unresolved actas for RFETM, BCNESA and FCTT
+- [x] Preview reports new scheduled matches, upgrades, reschedules and regressions per competition/group
+- [x] Preview reports the resulting jornada progress
+- [x] Preview flags duplicate id_partido within a snapshot
+
+#### Feature Details
+→ See [FEAT-00088-DETAILS.md](./FEAT-00088-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00087] Snapshot upload contract and shrink check
 - **Status:** done

@@ -292,5 +292,11 @@ class SnapshotReconcilerTest {
         public List<RoundProgress> findRoundProgress(ImportSource source, Season season) {
             return delegate.findRoundProgress(source, season);
         }
+
+        @Override
+        public List<org.cttelsamicsterrassa.data.core.domain.match.model.RoundStatusCount>
+                findRoundStatusCounts(ImportSource source, Season season) {
+            return delegate.findRoundStatusCounts(source, season);
+        }
     }
 }

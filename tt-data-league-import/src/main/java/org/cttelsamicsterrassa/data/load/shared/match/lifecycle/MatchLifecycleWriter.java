@@ -6,7 +6,6 @@ import org.cttelsamicsterrassa.data.core.domain.game.repository.SetScoreReposito
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
-import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
 
@@ -15,8 +14,10 @@ import java.util.Optional;
 import java.util.UUID;
 
 /**
- * The shared create/upgrade/reschedule/skip decision of the incremental actas import
- * (FEAT-00081, analysis section 4.3), applied over the per-source {@link MatchLifecycleSource}.
+ * Executes the shared create/upgrade/reschedule/skip decision of the incremental actas import
+ * (FEAT-00081, analysis section 4.3) over the per-source {@link MatchLifecycleSource}. The
+ * decision itself lives in {@link MatchLifecyclePlanner} so the preview can reuse it without
+ * writing anything (FEAT-00088); this writer plans, then executes the planned action.
  *
  * <p>Decision table for a fixture whose stored match is {@code existing}:</p>
  * <table border="1">
@@ -47,6 +48,7 @@ public final class MatchLifecycleWriter {
     private final GameRepository gameRepository;
     private final SetScoreRepository setScoreRepository;
     private final DoublesPairRepository doublesPairRepository;
+    private final MatchLifecyclePlanner planner = new MatchLifecyclePlanner();
 
     public MatchLifecycleWriter(MatchRepository matchRepository,
                                 LineupRepository lineupRepository,
@@ -73,36 +75,28 @@ public final class MatchLifecycleWriter {
     public MatchLifecycleOutcome apply(ActaClassification classification,
                                        Optional<Match> existing,
                                        MatchLifecycleSource source) {
-        Objects.requireNonNull(classification, "classification");
-        Objects.requireNonNull(existing, "existing");
-        Objects.requireNonNull(source, "source");
-
-        return switch (classification.completeness()) {
-            case PLAYED -> applyPlayed(existing, source);
-            case PENDING -> applyPending(existing, source);
-            case PARTIAL -> applyScheduledBranch(existing, source, MatchLifecycleOutcome.PARTIAL_REPORTED);
-            case INVALID -> applyScheduledBranch(existing, source, MatchLifecycleOutcome.INVALID_REPORTED);
-        };
+        MatchLifecyclePlan plan = planner.plan(classification, existing, source);
+        switch (plan.action()) {
+            case CREATE_PLAYED -> createPlayed(source);
+            case CREATE_SCHEDULED -> matchRepository.saveMatch(source.buildScheduledMatch(UUID.randomUUID()));
+            case UPGRADE_TO_PLAYED -> matchRepository.replaceMatchContent(
+                    keepStoredFixtureId(source.buildPlayedContent(existing.get().getId(), true), existing.get()));
+            case UPDATE_SCHEDULE -> matchRepository.updateSchedule(existing.get().getId(), plan.mergedSchedule());
+            case NONE -> {
+            }
+        }
+        return plan.outcome();
     }
 
-    private MatchLifecycleOutcome applyPlayed(Optional<Match> existing, MatchLifecycleSource source) {
-        if (existing.isEmpty()) {
-            MatchContent content = source.buildPlayedContent(UUID.randomUUID(), false);
-            matchRepository.saveMatch(content.match());
-            lineupRepository.saveLineups(content.lineups());
-            gameRepository.saveGames(content.games());
-            if (setScoreRepository != null) {
-                setScoreRepository.saveSetScores(content.setScores());
-            }
-            doublesPairRepository.saveDoublesPairs(content.doublesPairs());
-            return MatchLifecycleOutcome.PLAYED_CREATED;
+    private void createPlayed(MatchLifecycleSource source) {
+        MatchContent content = source.buildPlayedContent(UUID.randomUUID(), false);
+        matchRepository.saveMatch(content.match());
+        lineupRepository.saveLineups(content.lineups());
+        gameRepository.saveGames(content.games());
+        if (setScoreRepository != null) {
+            setScoreRepository.saveSetScores(content.setScores());
         }
-        Match stored = existing.get();
-        if (stored.isPlayed()) {
-            return MatchLifecycleOutcome.PLAYED_KEPT;
-        }
-        matchRepository.replaceMatchContent(keepStoredFixtureId(source.buildPlayedContent(stored.getId(), true), stored));
-        return MatchLifecycleOutcome.UPGRADED_TO_PLAYED;
+        doublesPairRepository.saveDoublesPairs(content.doublesPairs());
     }
 
     /**
@@ -125,54 +119,4 @@ public final class MatchLifecycleWriter {
         return content;
     }
 
-    private MatchLifecycleOutcome applyPending(Optional<Match> existing, MatchLifecycleSource source) {
-        if (existing.isEmpty()) {
-            matchRepository.saveMatch(source.buildScheduledMatch(UUID.randomUUID()));
-            return MatchLifecycleOutcome.SCHEDULED_CREATED;
-        }
-        Match stored = existing.get();
-        if (stored.isPlayed()) {
-            return MatchLifecycleOutcome.REGRESSION_REPORTED;
-        }
-        return reschedule(stored, source);
-    }
-
-    private MatchLifecycleOutcome applyScheduledBranch(Optional<Match> existing,
-                                                       MatchLifecycleSource source,
-                                                       MatchLifecycleOutcome reportOutcome) {
-        if (existing.isEmpty()) {
-            matchRepository.saveMatch(source.buildScheduledMatch(UUID.randomUUID()));
-            return reportOutcome;
-        }
-        Match stored = existing.get();
-        if (stored.isPlayed()) {
-            return reportOutcome == MatchLifecycleOutcome.PARTIAL_REPORTED
-                    ? MatchLifecycleOutcome.REGRESSION_REPORTED
-                    : MatchLifecycleOutcome.INVALID_REPORTED;
-        }
-        reschedule(stored, source);
-        return reportOutcome;
-    }
-
-    /**
-     * The reschedule rule: the incoming schedule comes from the SCHEDULED header, a {@code null}
-     * incoming component keeps the stored value, and {@code updateSchedule} runs only when the
-     * merged schedule differs from the stored one, which keeps re-imports idempotent.
-     */
-    private MatchLifecycleOutcome reschedule(Match stored, MatchLifecycleSource source) {
-        Match incoming = source.buildScheduledMatch(stored.getId());
-        MatchSchedule storedSchedule = new MatchSchedule(stored.getDateTime(), stored.getCity(),
-                stored.getVenue(), stored.getRefereeName(), stored.getRefereeLicense());
-        MatchSchedule merged = new MatchSchedule(
-                incoming.getDateTime() != null ? incoming.getDateTime() : storedSchedule.dateTime(),
-                incoming.getCity() != null ? incoming.getCity() : storedSchedule.city(),
-                incoming.getVenue() != null ? incoming.getVenue() : storedSchedule.venue(),
-                incoming.getRefereeName() != null ? incoming.getRefereeName() : storedSchedule.refereeName(),
-                incoming.getRefereeLicense() != null ? incoming.getRefereeLicense() : storedSchedule.refereeLicense());
-        if (merged.equals(storedSchedule)) {
-            return MatchLifecycleOutcome.UNCHANGED;
-        }
-        matchRepository.updateSchedule(stored.getId(), merged);
-        return MatchLifecycleOutcome.RESCHEDULED;
-    }
 }

@@ -22,9 +22,14 @@ import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard.IncomingFixture;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleAction;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecyclePlan;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecyclePlanner;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleSource;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleWriter;
+import org.cttelsamicsterrassa.data.load.shared.preview.FixturePreview;
+import org.cttelsamicsterrassa.data.load.shared.preview.PreviewChange;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
@@ -76,6 +81,7 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
     private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
     private final MatchLifecycleWriter lifecycleWriter;
     private final MatchFixtureIdentityGuard identityGuard;
+    private final MatchLifecyclePlanner planner = new MatchLifecyclePlanner();
 
     public RfetmMatchImportProcessor(TeamRepository teamRepository,
                                 PlayerSeasonRepository playerSeasonRepository,
@@ -98,41 +104,115 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
 
     @Override
     public void process(MatchReportContext context) {
-        Acta acta = context.acta();
-        if (acta == null) {
+        ResolvedFixture resolved = resolve(context);
+        if (resolved.noPayload()) {
             LOGGER.warn("No payload for {}; nothing to store", context.matchReportFile());
             return;
         }
+        if (resolved.homeTeam().isEmpty()) {
+            LOGGER.warn("Club {} has no entry for season {}; {} not stored",
+                    context.homeTeam(), resolved.season(), context.matchReportFile());
+        }
+        if (resolved.awayTeam().isEmpty()) {
+            LOGGER.warn("Club {} has no entry for season {}; {} not stored",
+                    context.awayTeam(), resolved.season(), context.matchReportFile());
+        }
+        // FEAT-00086: the fixture is "seen" even when a team is unregistered or the identity guard
+        // later rejects it, so snapshot reconciliation cannot report it as absent.
+        context.runContext().recordSnapshotFixture(resolved.competition(), resolved.groupNumber(), null,
+                resolved.round(), resolved.sourceFixtureId(),
+                resolved.homeTeam().map(Team::getId).orElse(null),
+                resolved.awayTeam().map(Team::getId).orElse(null));
+        if (resolved.homeTeam().isEmpty() || resolved.awayTeam().isEmpty()) {
+            return;
+        }
+        if (resolved.conflict().isPresent()) {
+            recordOutcome(context, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT, resolved.conflict().get());
+            return;
+        }
+        MatchLifecycleOutcome outcome = lifecycleWriter.apply(resolved.classification(), resolved.existing(),
+                lifecycleSource(context, resolved));
+        recordOutcome(context, outcome, resolved.classification().reason());
+    }
 
+    /**
+     * FEAT-00088: the read-only projection of {@link #process} for the import preview. It shares the
+     * resolution step (so the natural key and fixture id cannot diverge) and the lifecycle planner,
+     * but never writes, never records a snapshot fixture and never records a match outcome.
+     */
+    public FixturePreview preview(MatchReportContext context) {
+        ResolvedFixture resolved = resolve(context);
+        if (resolved.noPayload()) {
+            return new FixturePreview(ImportSource.RFETM, null, null, null, 0, null, null, null, null,
+                    PreviewChange.NOT_STORED, null, false, "No payload", context.matchReportFile());
+        }
+        if (resolved.homeTeam().isEmpty() || resolved.awayTeam().isEmpty()) {
+            MatchLifecyclePlan plan = MatchLifecyclePlanner.planCreation(resolved.classification());
+            return fixturePreview(resolved, PreviewChange.of(plan), null, true,
+                    resolved.classification().reason());
+        }
+        if (resolved.conflict().isPresent()) {
+            return fixturePreview(resolved, PreviewChange.IDENTITY_CONFLICT, null, false,
+                    resolved.conflict().get());
+        }
+        MatchLifecyclePlan plan = planner.plan(resolved.classification(), resolved.existing(),
+                lifecycleSource(context, resolved));
+        Integer existingRound = plan.action() == MatchLifecycleAction.UPGRADE_TO_PLAYED
+                ? resolved.existing().get().getRound()
+                : null;
+        return fixturePreview(resolved, PreviewChange.of(plan), existingRound, false,
+                resolved.classification().reason());
+    }
+
+    /**
+     * The shared read-only resolution of one report: classification, scope, round (recording the
+     * day-folder fallback on the run context when the payload has no {@code jornada}), both team
+     * lookups, the natural-key match and the identity guard. {@code process} and {@code preview} both
+     * build on it so the key and fixture-id rules cannot diverge.
+     */
+    private ResolvedFixture resolve(MatchReportContext context) {
+        Acta acta = context.acta();
+        if (acta == null) {
+            return ResolvedFixture.noPayloadFixture();
+        }
         ActaClassification classification = classifier.classify(acta);
         Season season = context.toSeason();
         String competition = context.competition();
         int groupNumber = acta.group() != null ? acta.group() : 0;
         int round = resolveRound(acta, context);
-        Optional<Team> homeTeam = resolveTeam(context.homeTeam(), homeTeam(context), season, context);
-        Optional<Team> awayTeam = resolveTeam(context.awayTeam(), awayTeam(context), season, context);
-        // FEAT-00086: the fixture is "seen" even when a team is unregistered or the identity guard
-        // later rejects it, so snapshot reconciliation cannot report it as absent.
-        context.runContext().recordSnapshotFixture(competition, groupNumber, null, round, acta.matchId(),
-                homeTeam.map(Team::getId).orElse(null), awayTeam.map(Team::getId).orElse(null));
-        if (homeTeam.isEmpty() || awayTeam.isEmpty()) {
-            return;
+        String homeTeamName = teamName(context.homeTeam(), homeTeam(context));
+        String awayTeamName = teamName(context.awayTeam(), awayTeam(context));
+        Optional<Team> homeTeam = teamRepository.findTeamByNameAndSeasonAndSource(homeTeamName, season,
+                ImportSource.RFETM);
+        Optional<Team> awayTeam = teamRepository.findTeamByNameAndSeasonAndSource(awayTeamName, season,
+                ImportSource.RFETM);
+        Optional<Match> existing = Optional.empty();
+        Optional<String> conflict = Optional.empty();
+        if (homeTeam.isPresent() && awayTeam.isPresent()) {
+            existing = matchRepository.findMatchByNaturalKey(competition, season, groupNumber, round, null,
+                    homeTeam.get().getId(), awayTeam.get().getId());
+            conflict = identityGuard.conflict(
+                    new IncomingFixture(ImportSource.RFETM, acta.matchId(), competition, season, groupNumber,
+                            round, null),
+                    existing);
         }
+        return new ResolvedFixture(acta, classification, season, competition, groupNumber, round,
+                acta.matchId(), homeTeamName, awayTeamName, homeTeam, awayTeam, existing, conflict,
+                context.matchReportFile(), false);
+    }
 
-        Optional<Match> existing = matchRepository.findMatchByNaturalKey(competition, season, groupNumber,
-                round, null, homeTeam.get().getId(), awayTeam.get().getId());
-        Optional<String> conflict = identityGuard.conflict(
-                new IncomingFixture(ImportSource.RFETM, acta.matchId(), competition, season, groupNumber,
-                        round, null),
-                existing);
-        if (conflict.isPresent()) {
-            recordOutcome(context, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT, conflict.get());
-            return;
-        }
-        MatchLifecycleOutcome outcome = lifecycleWriter.apply(classification, existing,
-                new RfetmLifecycleSource(context, acta, season, competition, groupNumber, round,
-                        homeTeam.get(), awayTeam.get()));
-        recordOutcome(context, outcome, classification.reason());
+    private RfetmLifecycleSource lifecycleSource(MatchReportContext context, ResolvedFixture resolved) {
+        return new RfetmLifecycleSource(context, resolved.acta(), resolved.season(), resolved.competition(),
+                resolved.groupNumber(), resolved.round(), resolved.homeTeam().orElseThrow(),
+                resolved.awayTeam().orElseThrow());
+    }
+
+    private FixturePreview fixturePreview(ResolvedFixture resolved, PreviewChange change, Integer existingRound,
+                                          boolean teamsPendingRegistration, String reason) {
+        return new FixturePreview(ImportSource.RFETM, resolved.competition(), resolved.groupNumber(), null,
+                resolved.round(), resolved.sourceFixtureId(), resolved.homeTeamName(), resolved.awayTeamName(),
+                resolved.classification(), change, existingRound, teamsPendingRegistration, reason,
+                resolved.location());
     }
 
     private void recordOutcome(MatchReportContext context, MatchLifecycleOutcome outcome,
@@ -145,6 +225,30 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
                 context.matchReportFile(), reason);
         if (outcome.isReportable()) {
             LOGGER.warn("Match lifecycle {} for {}: {}", outcome, context.matchReportFile(), reason);
+        }
+    }
+
+    /** The read-only result of resolving one RFETM report, shared by {@code process} and {@code preview}. */
+    private record ResolvedFixture(
+            Acta acta,
+            ActaClassification classification,
+            Season season,
+            String competition,
+            int groupNumber,
+            int round,
+            String sourceFixtureId,
+            String homeTeamName,
+            String awayTeamName,
+            Optional<Team> homeTeam,
+            Optional<Team> awayTeam,
+            Optional<Match> existing,
+            Optional<String> conflict,
+            java.nio.file.Path location,
+            boolean noPayload) {
+
+        private static ResolvedFixture noPayloadFixture() {
+            return new ResolvedFixture(null, null, null, null, 0, 0, null, null, null,
+                    Optional.empty(), Optional.empty(), Optional.empty(), Optional.empty(), null, true);
         }
     }
 
@@ -572,14 +676,9 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
 
     // --- clubs -----------------------------------------------------------------------------
 
-    private Optional<Team> resolveTeam(RfetmClubKey key, ActaTeam team, Season season, MatchReportContext context) {
-        String name = team != null && team.name() != null && !team.name().isBlank() ? team.name() : key.name();
-        Optional<Team> resolvedTeam = teamRepository.findTeamByNameAndSeasonAndSource(name, season, ImportSource.RFETM);
-        if (resolvedTeam.isEmpty()) {
-            LOGGER.warn("Club {} has no entry for season {}; {} not stored",
-                    key, season, context.matchReportFile());
-        }
-        return resolvedTeam;
+    /** The lookup name of one side: the payload team name when present, else the RFETM club key's name. */
+    private static String teamName(RfetmClubKey key, ActaTeam team) {
+        return team != null && team.name() != null && !team.name().isBlank() ? team.name() : key.name();
     }
 
     private static ActaTeam homeTeam(MatchReportContext context) {

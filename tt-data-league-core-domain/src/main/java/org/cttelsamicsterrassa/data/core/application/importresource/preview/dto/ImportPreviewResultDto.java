@@ -14,5 +14,6 @@ public record ImportPreviewResultDto(
         long filesSeen,
         long itemsDispatched,
         long skipped,
-        long processorFailures) {
+        long processorFailures,
+        ImportPreviewClassificationDto classification) {
 }

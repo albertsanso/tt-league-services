@@ -289,6 +289,36 @@ Jobs are bounded to 100 history results and use mapping version `1`. The
 current adapter keeps lifecycle state in memory; deployments requiring restart
 recovery should provide a persistent `ImportJobsPort` adapter.
 
+### Preview classification
+
+The `preview` endpoint response carries a `classification` block (FEAT-00088)
+that projects what an incremental upload of the stored season folder would
+change, without writing anything. It is purely informational: it never changes
+the preview `status`, never skips a file, and never feeds the real import run.
+The block holds:
+
+- `actas`: how the snapshot's actas bucket by completeness — `published`
+  (PLAYED), `unpublished` (PENDING with resolvable teams), `partial`, `invalid`
+  and `unresolved` (pending fixtures without team names, which no natural key
+  can identify). Buckets follow the classifier, so legacy actas without
+  `acta_publicada` are covered.
+- `changes`: one row per competition, group and phase with a count per planned
+  change — `newScheduled`, `newPlayed`, `upgrades`, `reschedules`, `unchanged`,
+  `playedKept`, `regressions`, `invalidOnPlayed`, `identityConflicts` and
+  `notStored`. The counts come from the same lifecycle decision the import run
+  applies, so a preview and the run cannot disagree.
+- `teamsPendingRegistration`: how many fixtures reference a team that is not
+  registered for the season yet; the import run registers teams before storing
+  matches, so these project as creations.
+- `currentProgress` and `projectedProgress`: jornada-progress rows (the same
+  shape as the import run's `roundProgress`) before and after the projected
+  changes. A fixture repeated in the snapshot contributes its delta once, so a
+  duplicated `id_partido` never inflates the projection; a projected count that
+  would go negative is reported as an error rather than silently clamped.
+- `duplicateFixtureIds`: every `id_partido` seen on more than one file of the
+  snapshot, with the file locations. Each duplicate is also surfaced as a
+  `warning` validation finding, as is every fixture identity conflict.
+
 ### Import only
 
 Imports every available season for FCTT without running consolidation:

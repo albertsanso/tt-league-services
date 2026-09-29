@@ -250,6 +250,32 @@ class InMemoryMatchRepositoryTest {
         assertThrows(NullPointerException.class, () -> matches.findRoundProgress(ImportSource.RFETM, null));
     }
 
+    /** FEAT-00088: the raw grouped rows behind the progress, scoped like the JPA adapter. */
+    @Test
+    void findRoundStatusCountsGroupsTheStoredMatchesOfOneSourceAndSeason() {
+        Season progressSeason = Season.of(2026);
+        storedFcttMatch(progressSeason, 1, MatchStatus.PLAYED);
+        storedFcttMatch(progressSeason, 1, MatchStatus.PLAYED);
+        storedFcttMatch(progressSeason, 1, MatchStatus.SCHEDULED);
+        storedFcttMatch(Season.of(2025), 1, MatchStatus.PLAYED);
+        savedScheduled(UUID.randomUUID(), 3);
+
+        List<org.cttelsamicsterrassa.data.core.domain.match.model.RoundStatusCount> counts =
+                matches.findRoundStatusCounts(ImportSource.FCTT, progressSeason);
+
+        assertEquals(2, counts.size(), "round 1 played and round 1 scheduled; other season/source out of scope");
+        org.cttelsamicsterrassa.data.core.domain.match.model.RoundStatusCount played = counts.stream()
+                .filter(row -> row.status() == MatchStatus.PLAYED).findFirst().orElseThrow();
+        assertEquals("tercera-nacional-masculino", played.competition());
+        assertEquals(1, played.groupNumber());
+        assertEquals("1a Fase", played.phase());
+        assertEquals(1, played.round());
+        assertEquals(2, played.matches());
+
+        assertThrows(NullPointerException.class, () -> matches.findRoundStatusCounts(null, SEASON));
+        assertThrows(NullPointerException.class, () -> matches.findRoundStatusCounts(ImportSource.RFETM, null));
+    }
+
     @Test
     void findMatchesBySourceSeasonAndStatusIsScopedAndRejectsNullArguments() {
         Match scheduled = savedScheduled(UUID.randomUUID(), 1);

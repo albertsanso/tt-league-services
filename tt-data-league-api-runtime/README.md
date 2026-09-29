@@ -161,6 +161,19 @@ resource, derived live from the stored matches. Progress is informational: it
 never changes which files an import reads, and a season that holds no stored
 match has an empty list.
 
+The preview endpoint (`POST /api/v1/administration/import/preview`) additionally
+returns a `classification` block (FEAT-00088): the acta buckets
+(`published`/`unpublished`/`partial`/`invalid`/`unresolved`), the planned
+changes per competition, group and phase (`newScheduled`, `newPlayed`,
+`upgrades`, `reschedules`, `unchanged`, `playedKept`, `regressions`,
+`invalidOnPlayed`, `identityConflicts`, `notStored`), the
+`teamsPendingRegistration` count, the `currentProgress` and `projectedProgress`
+jornada rows (same shape as `roundProgress`), and any `duplicateFixtureIds`.
+Duplicated `id_partido`s and fixture identity conflicts are also surfaced as
+`warning` findings. The block is informational: it never changes the preview
+`status` and never writes. See the import-runtime README for the full field
+reference.
+
 At startup, `ImportFolderSettingStartupInitializer` ensures the `IMPORT/repository-folder`
 administrator setting exists, creating it with the default value `c:\tt-repository`
 only when it is absent. Provisioning is idempotent: it never overwrites an

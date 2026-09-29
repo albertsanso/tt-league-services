@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundStatusCount;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -98,6 +99,38 @@ class MatchRoundProgressJpaTest {
                 () -> matchRepository.findRoundProgress(null, SEASON));
         assertThrows(NullPointerException.class,
                 () -> matchRepository.findRoundProgress(ImportSource.FCTT, null));
+    }
+
+    /** FEAT-00088: the raw grouped rows behind the progress, scoped to one source and season. */
+    @Test
+    void findRoundStatusCountsGroupsTheScopedMatchesByRoundAndStatus() {
+        storedGroupOneShape();
+        storedMatch(ImportSource.RFETM, SEASON, TERCERA, 1, "1a Fase", 1, MatchStatus.PLAYED);
+        storedMatch(ImportSource.FCTT, Season.of(2025), TERCERA, 1, "1a Fase", 1, MatchStatus.PLAYED);
+
+        List<RoundStatusCount> counts = matchRepository.findRoundStatusCounts(ImportSource.FCTT, SEASON);
+
+        assertEquals(3, counts.size(), "round 1 played, round 1 scheduled and round 2 scheduled");
+        RoundStatusCount playedOne = counts.stream()
+                .filter(row -> row.round() == 1 && row.status() == MatchStatus.PLAYED)
+                .findFirst().orElseThrow();
+        assertEquals(TERCERA, playedOne.competition());
+        assertEquals(1, playedOne.groupNumber());
+        assertEquals("1a Fase", playedOne.phase());
+        assertEquals(3, playedOne.matches());
+        RoundStatusCount scheduledOne = counts.stream()
+                .filter(row -> row.round() == 1 && row.status() == MatchStatus.SCHEDULED)
+                .findFirst().orElseThrow();
+        assertEquals(3, scheduledOne.matches());
+        RoundStatusCount scheduledTwo = counts.stream()
+                .filter(row -> row.round() == 2 && row.status() == MatchStatus.SCHEDULED)
+                .findFirst().orElseThrow();
+        assertEquals(6, scheduledTwo.matches());
+
+        assertThrows(NullPointerException.class,
+                () -> matchRepository.findRoundStatusCounts(null, SEASON));
+        assertThrows(NullPointerException.class,
+                () -> matchRepository.findRoundStatusCounts(ImportSource.FCTT, null));
     }
 
     // --- fixtures ----------------------------------------------------------------------------

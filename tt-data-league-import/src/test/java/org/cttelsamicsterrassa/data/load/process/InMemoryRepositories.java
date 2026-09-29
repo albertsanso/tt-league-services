@@ -592,6 +592,12 @@ public final class InMemoryRepositories {
          */
         @Override
         public List<RoundProgress> findRoundProgress(ImportSource source, Season season) {
+            return RoundProgressCalculator.compute(source, season, findRoundStatusCounts(source, season));
+        }
+
+        /** FEAT-00088: the grouped rows {@link RoundProgressCalculator} consumes, source-scoped. */
+        @Override
+        public List<RoundStatusCount> findRoundStatusCounts(ImportSource source, Season season) {
             Objects.requireNonNull(source, "source");
             Objects.requireNonNull(season, "season");
             Map<RoundRowKey, Long> countsByRow = new LinkedHashMap<>();
@@ -602,12 +608,11 @@ public final class InMemoryRepositories {
                 countsByRow.merge(new RoundRowKey(match.getCompetition(), match.getGroupNumber(),
                         match.getPhase(), match.getRound(), match.getStatus()), 1L, Long::sum);
             }
-            List<RoundStatusCount> counts = countsByRow.entrySet().stream()
+            return countsByRow.entrySet().stream()
                     .map(entry -> new RoundStatusCount(entry.getKey().competition(), entry.getKey().groupNumber(),
                             entry.getKey().phase(), entry.getKey().round(), entry.getKey().status(),
                             entry.getValue()))
                     .toList();
-            return RoundProgressCalculator.compute(source, season, counts);
         }
 
         private record RoundRowKey(String competition, Integer groupNumber, String phase, int round,

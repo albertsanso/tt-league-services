@@ -481,6 +481,12 @@ class NavigatorImportExecutionLifecycleTest {
         }
 
         @Override
+        public List<org.cttelsamicsterrassa.data.core.domain.match.model.RoundStatusCount>
+                findRoundStatusCounts(ImportSource source, Season season) {
+            throw new IllegalStateException("progress query failed");
+        }
+
+        @Override
         public Optional<Match> findMatchById(UUID id) {
             return Optional.empty();
         }

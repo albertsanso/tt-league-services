@@ -6,6 +6,7 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundStatusCount;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
@@ -153,6 +154,18 @@ public interface MatchRepository {
      * @throws NullPointerException if {@code source} or {@code season} is {@code null}
      */
     List<RoundProgress> findRoundProgress(ImportSource source, Season season);
+
+    /**
+     * The grouped per-round/per-status match counts of one source and season (FEAT-00088): the raw
+     * rows {@link org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgressCalculator}
+     * consumes. Exposed so a caller can project progress over modified counts (for example the
+     * import preview adding its planned deltas) without re-implementing the grouping. The lookup is
+     * always source-scoped and read-only; an empty list means the source and season hold no matches
+     * at all.
+     *
+     * @throws NullPointerException if {@code source} or {@code season} is {@code null}
+     */
+    List<RoundStatusCount> findRoundStatusCounts(ImportSource source, Season season);
 
     /**
      * Returns every stored match of one source, season and status (FEAT-00086). Used by snapshot

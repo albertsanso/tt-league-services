@@ -319,14 +319,24 @@ public class MatchRepositoryJpa implements MatchRepository {
      */
     @Override
     public List<RoundProgress> findRoundProgress(ImportSource source, Season season) {
+        return RoundProgressCalculator.compute(source, season, findRoundStatusCounts(source, season));
+    }
+
+    /**
+     * FEAT-00088. Reads the grouped per-round/per-status counts of one source and season and maps
+     * them to domain {@link RoundStatusCount} rows. Read-only; the progress definition lives in
+     * {@link RoundProgressCalculator}, never in JPQL. Exposed so the import preview can project
+     * progress over modified counts without re-implementing the grouping.
+     */
+    @Override
+    public List<RoundStatusCount> findRoundStatusCounts(ImportSource source, Season season) {
         Objects.requireNonNull(source, "source");
         Objects.requireNonNull(season, "season");
-        List<RoundStatusCount> counts = matchRepositoryHelper
+        return matchRepositoryHelper
                 .countByRoundAndStatus(Source.valueOf(source.name()), season.toString())
                 .stream()
                 .map(MatchRepositoryJpa::toStatusCount)
                 .toList();
-        return RoundProgressCalculator.compute(source, season, counts);
     }
 
     /**
