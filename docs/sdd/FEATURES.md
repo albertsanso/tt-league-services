@@ -71,25 +71,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00091] BCNESA navigator cleanup for new file naming
-- **Status:** idea
-- **Priority:** low
-- **Effort:** small
-- **Depends on:** FEAT-00075, FEAT-00081
-
-#### Goal
-Align the BCNESA navigator with the 2026-2027 file naming and remove obsolete fallbacks.
-
-#### Acceptance Criteria
-- [ ] The Other-group round fallback supports acta_<home>-<away>_<jornada>.json or is replaced by payload jornada with a reported issue instead of a guess
-- [ ] The need for multi-fixture splitting and BcnesaClubIndex is measured and the outcome recorded
-- [ ] Tests cover legacy and new file names
-
-#### Feature Details
-→ See [FEAT-00091-DETAILS.md](./FEAT-00091-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00092] Season calendar and matchday management
 - **Status:** idea
 - **Priority:** low
@@ -128,6 +109,25 @@ Automate fetching extractor snapshots and uploading them each jornada.
 
 ---
 ## Done
+
+### [FEAT-00091] BCNESA navigator cleanup for new file naming
+- **Status:** done
+- **Priority:** low
+- **Effort:** small
+- **Depends on:** FEAT-00075, FEAT-00081
+
+#### Goal
+Align the BCNESA navigator with the 2026-2027 file naming and remove obsolete fallbacks.
+
+#### Acceptance Criteria
+- [x] The Other-group round fallback supports acta_<home>-<away>_<jornada>.json or is replaced by payload jornada with a reported issue instead of a guess
+- [x] The need for multi-fixture splitting and BcnesaClubIndex is measured and the outcome recorded
+- [x] Tests cover legacy and new file names
+
+#### Feature Details
+→ See [FEAT-00091-DETAILS.md](./FEAT-00091-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00090] Delta upload mode
 - **Status:** done

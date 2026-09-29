@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -93,6 +94,47 @@ class BcnesaMatchdaySplitterTest {
         BcnesaMatchdaySplitter.Fixture fixture = splitter.split(acta, BcnesaClubIndex.of(Map.of())).getFirst();
 
         assertFalse(fixture.isResolved());
+    }
+
+    @Test
+    void neverConsultsTheClubIndexForASingleFixtureActa() {
+        Acta acta = acta(game("10", "20"));
+        AtomicInteger builds = new AtomicInteger();
+
+        splitter.split(acta, () -> {
+            builds.incrementAndGet();
+            return BcnesaClubIndex.of(Map.of());
+        });
+
+        assertEquals(0, builds.get());
+    }
+
+    @Test
+    void neverConsultsTheClubIndexForAnActaWithoutGames() {
+        Acta acta = acta();
+        AtomicInteger builds = new AtomicInteger();
+
+        splitter.split(acta, () -> {
+            builds.incrementAndGet();
+            return BcnesaClubIndex.of(Map.of());
+        });
+
+        assertEquals(0, builds.get());
+    }
+
+    @Test
+    void consultsTheClubIndexOnceForATwoFixtureActa() {
+        Acta acta = acta(game("10", "20"), game("30", "40"));
+        AtomicInteger builds = new AtomicInteger();
+
+        List<BcnesaMatchdaySplitter.Fixture> fixtures = splitter.split(acta, () -> {
+            builds.incrementAndGet();
+            return BcnesaClubIndex.of(Map.of("30", "SECOND HOME", "40", "SECOND AWAY"));
+        });
+
+        assertEquals(1, builds.get());
+        assertEquals("SECOND HOME", fixtures.get(1).homeTeamName());
+        assertEquals("SECOND AWAY", fixtures.get(1).awayTeamName());
     }
 
     private static Acta actaWithoutTeams() {

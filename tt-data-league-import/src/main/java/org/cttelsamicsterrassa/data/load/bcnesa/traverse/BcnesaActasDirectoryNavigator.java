@@ -18,6 +18,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -26,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -41,20 +43,23 @@ import java.util.regex.Pattern;
  * files, 2020-2021 to 2025-2026), every file holds exactly one fixture, named by its {@code equipos}.
  * Each file is still split into fixtures via {@link BcnesaMatchdaySplitter}, which also accepts a
  * file holding a whole matchday back to back; the clubs of any fixture after the first are then
- * inferred from licences, which is why every group folder is read twice - once by
- * {@link BcnesaClubIndex#build} to learn which club each licence plays for, and once here to split and
- * dispatch. Which processors run is a parameter of {@link #traverse(Path, List)}, so a caller can run
- * a reporting pass and a persisting pass over the same tree without changing anything here.</p>
+ * inferred from licences. Because no file in the export splits today, {@link BcnesaClubIndex} is no
+ * longer read eagerly for every group folder: it is built lazily, once per group, only for the first
+ * file that actually yields more than one fixture. Which processors run is a parameter of
+ * {@link #traverse(Path, List)}, so a caller can run a reporting pass and a persisting pass over the
+ * same tree without changing anything here.</p>
  *
  * <h2>Report file names are not parsed</h2>
- * <p>A report file is any {@code acta*.json} under a phase folder. In the export, 16,310 files are
- * named {@code acta_<jornada>_page_<n>.json} - one page per fixture of that match day - and 77 are
- * named {@code acta_<n>.json}. The name is never parsed: the match day comes from the payload's
- * {@code jornada}, present in all 16,387 files (and equal to the name's {@code <jornada>} in every
- * {@code _page_} file), and the clubs from {@code equipos}. The one exception is a fixture under a
- * BCNESA Veterans "Other" group (see {@link BcnesaVeteransPhases}): if its payload carries no
- * {@code jornada}, the match day is instead parsed from the file name
- * ({@link #OTHER_GROUP_ROUND_FROM_FILE_NAME}).</p>
+ * <p>A report file is any {@code acta*.json} under a phase folder. Two names exist in the export:
+ * 16,310 legacy files (2020-2021 to 2025-2026) are named {@code acta_<jornada>_page_<n>.json} - one
+ * page per fixture of that match day - and 77 are named {@code acta_<n>.json}, while all 2,882 files
+ * of the unpublished 2026-2027 season are named {@code acta_<homeId>-<awayId>_<jornada>.json}. The
+ * name is never parsed: the match day comes from the payload's {@code jornada}, present in all 16,387
+ * legacy files (and equal to the name's {@code <jornada>} in every {@code _page_} file), and the
+ * clubs from {@code equipos}. The one exception is a fixture under a BCNESA Veterans "Other" group
+ * (see {@link BcnesaVeteransPhases}): if its payload carries no {@code jornada}, the match day is
+ * instead parsed from either file-name pattern and reported through
+ * {@link ImportRunContext#recordRoundFallback} so an operator sees it.</p>
  *
  * <h2>Failure handling</h2>
  * <p>Nothing a single file or fixture can do aborts the run. Folders that do not fit the layout are
@@ -74,14 +79,21 @@ public class BcnesaActasDirectoryNavigator {
     private static final Pattern GROUP_FOLDER_PATTERN = Pattern.compile("G\\d+");
 
     /**
-     * Fallback source for the match day when a payload under a Veterans "Other" group carries no
-     * {@code jornada} (see {@link BcnesaVeteransPhases}): the report file name mirrors the
-     * source PDF's {@code acta_<number>_page_<*>.pdf} naming, where {@code <number>} is the
-     * jornada - true of every {@code _page_} file in the export. The fallback has not yet been
-     * needed: all 2,586 files under "Other" group folders in the export carry {@code jornada}.
+     * Fallback sources for the match day when a payload under a Veterans "Other" group carries no
+     * {@code jornada} (see {@link BcnesaVeteransPhases}). Two report names exist in the export:
+     * <ul>
+     *   <li>legacy {@code acta_<jornada>_page_<n>.json} (up to 2025-2026), where {@code <jornada>}
+     *       mirrors the source PDF's {@code acta_<number>_page_<*>.pdf} naming;</li>
+     *   <li>current {@code acta_<homeId>-<awayId>_<jornada>.json} (2026-2027 onward), whose trailing
+     *       segment is the jornada.</li>
+     * </ul>
+     * Both are tried, legacy first. The fallback has not yet been needed: all 2,586 files under
+     * "Other" group folders in the export carry {@code jornada}.
      */
-    private static final Pattern OTHER_GROUP_ROUND_FROM_FILE_NAME =
+    private static final Pattern OTHER_GROUP_LEGACY_ROUND_FROM_FILE_NAME =
             Pattern.compile("acta_(\\d+)_page_.*\\.json", Pattern.CASE_INSENSITIVE);
+    private static final Pattern OTHER_GROUP_ROUND_FROM_FILE_NAME =
+            Pattern.compile("acta_\\d+-\\d+_(\\d+)\\.json", Pattern.CASE_INSENSITIVE);
 
     private final List<BcnesaMatchReportProcessor> processors;
     private final ActaParser actaParser;
@@ -216,7 +228,7 @@ public class BcnesaActasDirectoryNavigator {
                     LOGGER.warn("Skipping unexpected group folder {}", groupFolder);
                     continue;
                 }
-                BcnesaClubIndex clubIndex = BcnesaClubIndex.build(groupFolder, actaParser);
+                Supplier<BcnesaClubIndex> clubIndex = lazyClubIndex(groupFolder);
                 for (Path phaseFolder : listDirectories(groupFolder)) {
                     String phase = phaseFolder.getFileName().toString();
                     traverseReportFolder(phaseFolder, season, leagueCompetition, group, phase, clubIndex,
@@ -238,12 +250,38 @@ public class BcnesaActasDirectoryNavigator {
                 || BcnesaVeteransPhases.isOtherGroup(leagueCompetition, group);
     }
 
+    /**
+     * A memoizing supplier for one group's {@link BcnesaClubIndex}, built the first time a fixture
+     * actually needs it. The index is consulted only for the second and later fixtures of a
+     * multi-fixture file; no group in the export has one today, so the per-group pre-read is avoided
+     * entirely. {@link BcnesaClubIndex#build} declares {@link IOException}; it is wrapped here and
+     * unwrapped at the call site in {@link #traverseReportFolder} so this class keeps its
+     * {@code throws IOException} contract.
+     */
+    private Supplier<BcnesaClubIndex> lazyClubIndex(Path groupFolder) {
+        return new Supplier<>() {
+            private BcnesaClubIndex index;
+
+            @Override
+            public BcnesaClubIndex get() {
+                if (index == null) {
+                    try {
+                        index = BcnesaClubIndex.build(groupFolder, actaParser);
+                    } catch (IOException e) {
+                        throw new UncheckedIOException(e);
+                    }
+                }
+                return index;
+            }
+        };
+    }
+
     private void traverseReportFolder(Path reportFolder,
                                       String season,
                                       String leagueCompetition,
                                       String group,
                                       String phase,
-                                      BcnesaClubIndex clubIndex,
+                                      Supplier<BcnesaClubIndex> clubIndex,
                                       List<BcnesaMatchReportProcessor> processors,
                                       Counters counters, ImportRunContext runContext,
                                       ImportProgressListener progressListener) throws IOException {
@@ -263,6 +301,10 @@ public class BcnesaActasDirectoryNavigator {
             Integer round = acta.round();
             if (round == null && BcnesaVeteransPhases.isOtherGroup(leagueCompetition, group)) {
                 round = parseRoundFromFileName(reportFile);
+                if (round != null) {
+                    runContext.recordRoundFallback("BcnesaActasDirectoryNavigator", reportFile,
+                            "payload carries no jornada; round " + round + " taken from the file name");
+                }
             }
             if (round == null) {
                 counters.filesSkipped++;
@@ -271,7 +313,12 @@ public class BcnesaActasDirectoryNavigator {
                 continue;
             }
 
-            List<BcnesaMatchdaySplitter.Fixture> fixtures = splitter.split(acta, clubIndex);
+            List<BcnesaMatchdaySplitter.Fixture> fixtures;
+            try {
+                fixtures = splitter.split(acta, clubIndex);
+            } catch (UncheckedIOException e) {
+                throw e.getCause();
+            }
             for (int i = 0; i < fixtures.size(); i++) {
                 counters.fixturesSeen++;
                 dispatchFixture(reportFile, season, leagueCompetition, group, phase, round, i, fixtures.get(i),
@@ -282,14 +329,20 @@ public class BcnesaActasDirectoryNavigator {
     }
 
     /**
-     * Parses the match day out of a Veterans "Other"-group file name, matching
-     * {@link #OTHER_GROUP_ROUND_FROM_FILE_NAME}. Returns {@code null} when the name does not fit,
-     * so the caller falls back to skipping the file exactly as it does when the payload itself
-     * carries no {@code jornada}.
+     * Parses the match day out of a Veterans "Other"-group file name, trying the legacy
+     * {@code acta_<jornada>_page_<n>.json} pattern and then the current
+     * {@code acta_<homeId>-<awayId>_<jornada>.json} pattern. Returns {@code null} when the name fits
+     * neither, so the caller skips the file exactly as it does when the payload itself carries no
+     * {@code jornada}.
      */
     private static Integer parseRoundFromFileName(Path reportFile) {
-        Matcher matcher = OTHER_GROUP_ROUND_FROM_FILE_NAME.matcher(reportFile.getFileName().toString());
-        return matcher.matches() ? Integer.valueOf(matcher.group(1)) : null;
+        String fileName = reportFile.getFileName().toString();
+        Matcher legacy = OTHER_GROUP_LEGACY_ROUND_FROM_FILE_NAME.matcher(fileName);
+        if (legacy.matches()) {
+            return Integer.valueOf(legacy.group(1));
+        }
+        Matcher current = OTHER_GROUP_ROUND_FROM_FILE_NAME.matcher(fileName);
+        return current.matches() ? Integer.valueOf(current.group(1)) : null;
     }
 
     /**

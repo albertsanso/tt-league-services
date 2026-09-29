@@ -13,6 +13,11 @@ import java.util.Objects;
  * describe the walk over the {@code acta*.json} files, {@code fixturesSeen}/{@code fixturesDispatched}/
  * {@code fixturesUnresolved} describe what came out of splitting them.</p>
  *
+ * <p>Measured over the export: the 16,387 legacy files (2020-2021 to 2025-2026), named
+ * {@code acta_<jornada>_page_<n>.json} or {@code acta_<n>.json}, each hold exactly one fixture; the
+ * 2,882 unpublished files of 2026-2027, named {@code acta_<homeId>-<awayId>_<jornada>.json}, hold no
+ * games, so a file yields one fixture there too.</p>
+ *
  * @param filesSeen          match report files encountered under the base folder
  * @param filesSkipped       files skipped because the payload could not be parsed or carried no
  *                           match day

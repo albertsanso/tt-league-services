@@ -29,8 +29,8 @@ import java.util.regex.Pattern;
  * <p>A report's {@code equipos} and {@code alineaciones} describe its first fixture only. A report
  * holding a whole matchday back to back must therefore have the clubs of every later fixture inferred
  * from its players. Measured over the whole export (16,387 files, 2020-2021 to 2025-2026), every report
- * holds exactly one fixture, so the index is built for every group but not consulted for any
- * fixture there.</p>
+ * holds exactly one fixture, so the index is not consulted for any fixture there; it is now built
+ * lazily, once per group, only when a report actually splits into more than one fixture.</p>
  *
  * <p>Every file in the group, including the one being resolved, contributes its header pairing
  * (club name to each licence in its {@code alineaciones}) as one vote. Of the 17,742 licence entries

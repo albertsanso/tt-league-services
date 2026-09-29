@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeams;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Supplier;
 
 /**
  * Splits one BCNESA {@link Acta}'s games into the fixtures they actually belong to.
@@ -23,8 +24,11 @@ import java.util.Objects;
  * SCHEDULED match.</p>
  *
  * <p>The first fixture is named directly, by {@code equipos}; any later fixture's clubs are inferred
- * from its own participants' licences via {@link BcnesaClubIndex}, and are left {@code null} when the
- * index cannot resolve them - callers must treat a fixture with either name {@code null} as
+ * from its own participants' licences via a {@link BcnesaClubIndex} obtained from the supplied
+ * {@link Supplier}. The supplier is consulted only once a fixture after the first is reached, so a
+ * single-fixture or no-games report never builds the index; the supplier is responsible for caching,
+ * so a whole group builds it at most once. A later fixture is left unresolved ({@code null} names)
+ * when the index cannot resolve it - callers must treat a fixture with either name {@code null} as
  * unresolved rather than guessing.</p>
  */
 public final class BcnesaMatchdaySplitter {
@@ -43,7 +47,18 @@ public final class BcnesaMatchdaySplitter {
         }
     }
 
+    /**
+     * Splits {@code acta} using a fixed index, for callers that already have one.
+     */
     public List<Fixture> split(Acta acta, BcnesaClubIndex clubIndex) {
+        return split(acta, () -> clubIndex);
+    }
+
+    /**
+     * Splits {@code acta}, consulting {@code clubIndex} only for the second and later fixtures so a
+     * single-fixture or no-games report never triggers an index build.
+     */
+    public List<Fixture> split(Acta acta, Supplier<BcnesaClubIndex> clubIndex) {
         List<ActaGame> games = acta.games();
         if (games.isEmpty()) {
             return List.of(new Fixture(teamName(acta.teams(), true), teamName(acta.teams(), false),
@@ -60,8 +75,9 @@ public final class BcnesaMatchdaySplitter {
                 home = teamName(acta.teams(), true);
                 away = teamName(acta.teams(), false);
             } else {
-                home = clubIndex.resolve(licensesOf(cycleGames, true)).orElse(null);
-                away = clubIndex.resolve(licensesOf(cycleGames, false)).orElse(null);
+                BcnesaClubIndex index = clubIndex.get();
+                home = index.resolve(licensesOf(cycleGames, true)).orElse(null);
+                away = index.resolve(licensesOf(cycleGames, false)).orElse(null);
             }
             fixtures.add(new Fixture(home, away, cycleGames));
         }
