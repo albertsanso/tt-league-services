@@ -4550,3 +4550,132 @@ a.club-match-card:hover {
   flex-direction: column;
   gap: 0.2rem;
 }
+
+/* FEAT-00093: season calendar (FullCalendar theme driven by the design tokens). */
+.calendar-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.25rem;
+}
+
+.calendar-toolbar-nav,
+.calendar-toolbar-views {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.calendar-toolbar-title {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 1.1rem;
+  text-align: center;
+  text-transform: capitalize;
+}
+
+.calendar-round-select {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.calendar-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 1.25rem;
+  align-items: start;
+  margin-top: 1rem;
+}
+
+.calendar-layout-grid,
+.calendar-detail {
+  min-width: 0;
+}
+
+.calendar-detail h2,
+.calendar-detail h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1rem;
+  text-transform: capitalize;
+}
+
+.calendar-detail-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.match-calendar {
+  --fc-border-color: var(--border-default);
+  --fc-page-bg-color: var(--surface-card);
+  --fc-neutral-bg-color: var(--surface-card-sub);
+  --fc-today-bg-color: var(--accent-light);
+  --fc-list-event-hover-bg-color: var(--accent-light);
+  --fc-event-bg-color: var(--accent-primary);
+  --fc-event-border-color: var(--accent-primary);
+  --fc-event-text-color: var(--text-on-dark);
+  --fc-now-indicator-color: var(--color-error);
+  padding: 0.75rem;
+  border: 1px solid var(--border-default);
+  border-radius: 0.5rem;
+  background: var(--surface-card);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.match-calendar .fc-event {
+  cursor: pointer;
+}
+
+.match-calendar .fc-event:focus-visible,
+.match-calendar .fc-list-event:focus-visible {
+  outline: 2px solid var(--secondary);
+  outline-offset: 1px;
+}
+
+.match-calendar .cal-state-played {
+  --fc-event-bg-color: var(--color-success);
+  --fc-event-border-color: var(--color-success);
+}
+
+.match-calendar .cal-state-upcoming,
+.match-calendar .cal-state-undated {
+  --fc-event-bg-color: var(--secondary);
+  --fc-event-border-color: var(--secondary);
+}
+
+.match-calendar .cal-state-awaiting_result,
+.match-calendar .cal-state-postponed {
+  --fc-event-bg-color: var(--color-warning);
+  --fc-event-border-color: var(--color-warning);
+}
+
+.match-calendar .cal-state-overdue {
+  --fc-event-bg-color: var(--color-error);
+  --fc-event-border-color: var(--color-error);
+}
+
+@media (max-width: 1279px) {
+  .calendar-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .calendar-toolbar-title {
+    flex-basis: 100%;
+    order: -1;
+  }
+
+  .match-calendar {
+    padding: 0.4rem;
+  }
+}

@@ -238,19 +238,37 @@ default `7`); an invalid value fails startup with no silent fallback.
 - `GET /api/v1/match/calendar?source=&season=&competition=&group=&round=`
   (`matches:read`) returns the calendar grouped by group/phase and jornada. The
   response summarizes each group's progress and lists each round's matches.
+- `GET /api/v1/match/calendar/range?source=&season=&from=&to=&competition=&group=&team=`
+  (`matches:read`, FEAT-00093) returns the matches of **every** competition of a
+  source and season whose date is in `[from, to)` (`from`/`to` ISO dates, `to`
+  exclusive), with the same calendar states as the jornada calendar. The optional
+  `competition`, `group` (needs a competition) and `team` (a season-specific team
+  UUID, home or away) parameters filter the matches; the response `facets`
+  (competitions, groups of the selected competition, teams) are computed before
+  filtering, so options never shrink when a filter is applied. The range is
+  limited to 62 days (a six-week month grid); undated matches are never included.
+  Invalid parameters (dates, `from >= to`, more than 62 days, bad team UUID,
+  unknown source) return `400 "Invalid calendar range"`; a handler failure
+  returns `500 "Calendar range failed"`. Every match row also carries
+  `competition`, `groupNumber`, `phase`, `round`, `homeTeamId` and `awayTeamId`
+  (additive fields, also present in the jornada calendar).
 - `PUT /api/v1/match/{id}/overdue-mark` (`matches:write`) records a manual
   overdue mark on a `SCHEDULED` match; `markedBy` is the authenticated user,
   never the request body. Re-marking is idempotent (the first author/time are
-  kept) and marking a `PLAYED` match is rejected with `409`.
+  kept). Marking is allowed only from the day after the match date (Europe/Madrid);
+  marking a `PLAYED` match, an undated match, or one dated today or later is
+  rejected with `409` and the reason in `message`. Each calendar match row
+  carries `overdueMarkable`, which the UI uses to show the mark action.
 - `DELETE /api/v1/match/{id}/overdue-mark` (`matches:write`) clears the mark;
   the operation is idempotent and allowed on a `PLAYED` match.
 
 A `SCHEDULED` match resolves, first rule wins, to: `PLAYED` (the match has been
 played, a leftover mark ignored), `OVERDUE` (a manual mark exists), `POSTPONED`
 (the match's round is below the group's current round), `UNDATED` (no date),
-`OVERDUE` (the date plus the grace period is before today, dates compared in
-Europe/Madrid), `AWAITING_RESULT` (the date passed but is still inside the
-grace period), or otherwise `UPCOMING`. All states are computed on read and
+`OVERDUE` (the grace period, which starts counting the day after the match date,
+has elapsed; with 7 days a match of the 3rd is overdue on the 11th; dates compared
+in Europe/Madrid), `AWAITING_RESULT` (from the day after the match date while
+still inside the grace period), or otherwise `UPCOMING`. All states are computed on read and
 never stored; the only persisted calendar data is the manual overdue mark in
 `match_overdue_mark`. The `matches:write` permission is granted to `ADMIN`
 only.

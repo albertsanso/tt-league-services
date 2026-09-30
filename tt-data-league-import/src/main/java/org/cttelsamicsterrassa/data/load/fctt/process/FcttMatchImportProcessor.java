@@ -45,10 +45,12 @@ import org.springframework.stereotype.Component;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -438,8 +440,9 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         Map<String, PlayerSeason> byName = new LinkedHashMap<>();
         Map<String, Double> rankingByLetter = new LinkedHashMap<>();
         letters.forEach((letter, player) -> {
-            if (player == null || player.license() == null) {
-                LOGGER.warn("FCTT lineup letter {} has no licence in {}", letter, context.matchReportFile());
+            if (player == null || !FcttLicenses.isUsable(player.license())) {
+                LOGGER.warn("FCTT lineup letter {} has no usable licence ({}) in {}; lineup left out", letter,
+                        player == null ? null : player.license(), context.matchReportFile());
                 return;
             }
             playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.FCTT, player.license(), season)
@@ -573,11 +576,20 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         if (participant == null) {
             return;
         }
+        Set<UUID> pairMembers = new HashSet<>();
         for (ActaLineupPlayer player : participant.doublesPlayers()) {
             PlayerSeason playerSeason = playerOf(player, lineup, context.toSeason());
             if (playerSeason == null) {
                 LOGGER.warn("FCTT doubles player \"{}\" with licence {} is unavailable in {}; pair member left out",
                         player == null ? null : player.name(), player == null ? null : player.license(),
+                        context.matchReportFile());
+                continue;
+            }
+            // Some actas name the same player twice in one pair; a second row would break the
+            // (game, side, player, source) unique key, so the repeated member is left out.
+            if (!pairMembers.add(playerSeason.getId())) {
+                LOGGER.warn("FCTT doubles player \"{}\" with licence {} is listed twice on the {} side in {}; "
+                        + "duplicate pair member left out", player.name(), player.license(), side,
                         context.matchReportFile());
                 continue;
             }
@@ -592,7 +604,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
     }
 
     private PlayerSeason playerOf(ActaLineupPlayer player, SideLineup lineup, Season season) {
-        if (player == null || player.name() == null || player.license() == null) {
+        if (player == null || player.name() == null || !FcttLicenses.isUsable(player.license())) {
             return null;
         }
         PlayerSeason inLineup = lineup.byName().get(player.name());

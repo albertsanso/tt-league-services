@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearMatchOverdueMark,
+  getCalendarRange,
   getSeasonCalendar,
   markMatchOverdue,
 } from './matches.js'
@@ -94,5 +95,47 @@ describe('season calendar API boundary', () => {
       '/api/v1/match/match-1/overdue-mark',
       expect.objectContaining({ method: 'DELETE' }),
     )
+  })
+})
+
+describe('calendar range API boundary', () => {
+  beforeEach(() => vi.restoreAllMocks())
+
+  const rangePayload = () => ({
+    matches: [],
+    facets: { competitions: [], groups: [], teams: [] },
+  })
+  const base = { source: 'FCTT', season: '2026-2027', from: '2026-09-14', to: '2026-09-21' }
+
+  it('requires source, season, from and to', () => {
+    expect(() => getCalendarRange({ ...base, source: '' })).toThrow()
+    expect(() => getCalendarRange({ ...base, season: '' })).toThrow()
+    expect(() => getCalendarRange({ ...base, from: '' })).toThrow()
+    expect(() => getCalendarRange({ ...base, to: '' })).toThrow()
+  })
+
+  it('builds the query string and omits empty optional parameters', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true, headers: jsonHeaders, json: async () => rangePayload(),
+    })
+
+    await getCalendarRange({ ...base, competition: '', group: '', team: '' }, 'token')
+    await getCalendarRange({ ...base, competition: 'tercera', group: '2', team: 'team-1' }, 'token')
+
+    expect(fetchMock.mock.calls[0][0]).toBe(
+      '/api/v1/match/calendar/range?source=FCTT&season=2026-2027&from=2026-09-14&to=2026-09-21',
+    )
+    expect(fetchMock.mock.calls[1][0]).toBe(
+      '/api/v1/match/calendar/range?source=FCTT&season=2026-2027&from=2026-09-14&to=2026-09-21'
+      + '&competition=tercera&group=2&team=team-1',
+    )
+  })
+
+  it('rejects a payload without matches or facets with a 502', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true, headers: jsonHeaders, json: async () => ({ matches: [] }),
+    })
+
+    await expect(getCalendarRange(base, 'token')).rejects.toMatchObject({ status: 502 })
   })
 })

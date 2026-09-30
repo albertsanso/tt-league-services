@@ -24,7 +24,8 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus;
                 @Index(name="idx_match_home_team_id", columnList="home_team_id"),
                 @Index(name="idx_match_away_team_id", columnList="away_team_id"),
                 @Index(name="idx_match_winner_team_id", columnList="winner_team_id"),
-                @Index(name="idx_match_source_season_competition_status", columnList="source,season,competition,status")
+                @Index(name="idx_match_source_season_competition_status", columnList="source,season,competition,status"),
+                @Index(name="idx_match_source_season_date", columnList="source,season,match_date")
         },
         uniqueConstraints = {
                 // A round holds one match per pair of teams, so the two teams are part of the key.

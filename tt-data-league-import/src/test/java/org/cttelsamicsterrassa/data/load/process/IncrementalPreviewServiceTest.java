@@ -358,6 +358,13 @@ class IncrementalPreviewServiceTest {
         }
 
         @Override
+        public List<Match> findMatchesBySourceSeasonAndDateRange(ImportSource source, Season season,
+                                                                 java.time.LocalDate fromInclusive,
+                                                                 java.time.LocalDate toExclusive) {
+            return delegate.findMatchesBySourceSeasonAndDateRange(source, season, fromInclusive, toExclusive);
+        }
+
+        @Override
         public void saveMatch(Match match) {
             throw new UnsupportedOperationException("preview must not write");
         }

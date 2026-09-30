@@ -61,6 +61,40 @@ class MarkMatchOverdueCommandHandlerTest {
     }
 
     @Test
+    void aMatchCannotBeMarkedBeforeTheDayAfterItsDate() {
+        Match onTheMarkDay = scheduledOn(NOW.withHour(20));
+        Match undated = scheduledOn(null);
+        MatchRepository matches = mock(MatchRepository.class);
+        when(matches.findMatchById(onTheMarkDay.getId())).thenReturn(Optional.of(onTheMarkDay));
+        when(matches.findMatchById(undated.getId())).thenReturn(Optional.of(undated));
+        MatchOverdueMarkRepository marks = mock(MatchOverdueMarkRepository.class);
+        MarkMatchOverdueCommandHandler handler = new MarkMatchOverdueCommandHandler(matches, marks,
+                Clock.fixed(NOW.toInstant(), Match.COMPETITION_ZONE));
+
+        for (Match match : java.util.List.of(onTheMarkDay, undated)) {
+            DomainCommandResponse response = handler.handle(new MarkMatchOverdueCommand(match.getId(), "admin"));
+
+            assertFalse(response.isSuccess());
+            assertEquals("A match can only be marked overdue from the day after its scheduled date",
+                    String.valueOf(response.getResponse()));
+        }
+        verify(marks, never()).save(any());
+    }
+
+    @Test
+    void aMatchCanBeMarkedOnTheDayAfterItsDate() {
+        Match yesterday = scheduledOn(NOW.minusDays(1).withHour(21));
+        MatchRepository matches = mock(MatchRepository.class);
+        when(matches.findMatchById(yesterday.getId())).thenReturn(Optional.of(yesterday));
+        MatchOverdueMarkRepository marks = mock(MatchOverdueMarkRepository.class);
+        when(marks.findByMatchId(yesterday.getId())).thenReturn(Optional.empty());
+        MarkMatchOverdueCommandHandler handler = new MarkMatchOverdueCommandHandler(matches, marks,
+                Clock.fixed(NOW.toInstant(), Match.COMPETITION_ZONE));
+
+        assertTrue(handler.handle(new MarkMatchOverdueCommand(yesterday.getId(), "admin")).isSuccess());
+    }
+
+    @Test
     void marksAScheduledMatchWithTheClockInstantInTheCompetitionZone() {
         Match scheduled = scheduled();
         MatchRepository matches = mock(MatchRepository.class);
@@ -107,9 +141,14 @@ class MarkMatchOverdueCommandHandlerTest {
     }
 
     private Match scheduled() {
+        return scheduledOn(ZonedDateTime.of(LocalDate.of(2026, 9, 6), LocalTime.of(18, 0), Match.COMPETITION_ZONE));
+    }
+
+    private Match scheduledOn(ZonedDateTime dateTime) {
         Team home = Team.createExisting(UUID.randomUUID(), ImportSource.FCTT, "Home", SEASON, null);
         Team away = Team.createExisting(UUID.randomUUID(), ImportSource.FCTT, "Away", SEASON, null);
         return Match.builder().id(UUID.randomUUID()).source(ImportSource.FCTT).competition("liga").season(SEASON)
-                .round(2).homeTeam(home).awayTeam(away).status(MatchStatus.SCHEDULED).createExisting();
+                .round(2).dateTime(dateTime).homeTeam(home).awayTeam(away).status(MatchStatus.SCHEDULED)
+                .createExisting();
     }
 }

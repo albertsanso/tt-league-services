@@ -177,16 +177,16 @@ Top-level team match event.
 | Column | Type | Null | Key/index |
 | --- | --- | --- | --- |
 | `id` | `UUID` | No | Primary key |
-| `source` | `VARCHAR(20)` | No | `idx_match_source_season_competition_status` |
+| `source` | `VARCHAR(20)` | No | `idx_match_source_season_competition_status`, `idx_match_source_season_date` |
 | `external_id` | `VARCHAR(20)` | Yes | Unique; `idx_match_external_id` |
 | `source_fixture_id` | `VARCHAR(100)` | Yes | `uk_match_source_fixture_id` |
 | `source_checksum` | `VARCHAR(80)` | Yes | — |
 | `competition` | `VARCHAR(255)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status` |
-| `season` | `VARCHAR(9)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status` |
+| `season` | `VARCHAR(9)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status`, `idx_match_source_season_date` |
 | `group_num` | `INTEGER` | Yes | `idx_match_competition_season_group_round` |
 | `round` | `INTEGER` | No | `idx_match_competition_season_group_round` |
 | `phase` | `VARCHAR(255)` | Yes | — |
-| `match_date` | `DATE` | Yes | — |
+| `match_date` | `DATE` | Yes | `idx_match_source_season_date` |
 | `match_time` | `TIME` | Yes | — |
 | `city` | `VARCHAR(255)` | Yes | — |
 | `venue` | `VARCHAR(255)` | Yes | — |
@@ -459,7 +459,7 @@ addition to ordinary CRUD operations:
 | `FederatedPlayerRepositoryHelper` | Source-scoped exact name, source-scoped licence, and rows by canonical player id. Counts distinct trimmed, case-insensitive names. The adapter also supports fragment-based searches through specifications. |
 | `TeamRepositoryHelper` | Exact `(name, season, source)`, first team by federated club and season, all teams by federated club (fetching the club), all teams by source, and case-insensitive name searches with optional season/source. Counts distinct federated clubs per season. |
 | `PlayerSeasonRepositoryHelper` | Exact `(source, license, season)`, all rows by source, rows by federated player ids (fetching federated and canonical players), source-scoped players and their competitions for team ids through lineups. Counts distinct federated players per season. |
-| `MatchRepositoryHelper` | Exact external id; natural-key lookup by competition, season, group, round, phase, home team, and away team (null group/phase match null); team-id searches optionally filtered by source, season, and competition — deliberately **not** filtered by status (FEAT-00079 consolidation exception; statistics handlers filter in memory); paginated source/season search with mandatory match-status predicate (default `PLAYED`), competition, date range, club-name and player-name fragments, player id, and home/away location, plus its count; paginated fragment search over team and player names restricted to `PLAYED`; all matches by source restricted to `PLAYED`; distinct seasons (`PLAYED` only overall, all statuses by source for option lists) and competitions by source and season (unfiltered); `PLAYED`-only match count per season and overall (`countAllPlayed`); FEAT-00078 backfill candidates by source and season (with per-match game/lineup counts), the same rule restricted to a match-id collection, and the bulk `SCHEDULED`-marking update; the FEAT-00080 schedule-only update guarded by `status = SCHEDULED`; and the FEAT-00092 all-status calendar read by source, season, and competition, ordered by group, phase, round, date, and time, reserved for the season-calendar handler and never for statistics. |
+| `MatchRepositoryHelper` | Exact external id; natural-key lookup by competition, season, group, round, phase, home team, and away team (null group/phase match null); team-id searches optionally filtered by source, season, and competition — deliberately **not** filtered by status (FEAT-00079 consolidation exception; statistics handlers filter in memory); paginated source/season search with mandatory match-status predicate (default `PLAYED`), competition, date range, club-name and player-name fragments, player id, and home/away location, plus its count; paginated fragment search over team and player names restricted to `PLAYED`; all matches by source restricted to `PLAYED`; distinct seasons (`PLAYED` only overall, all statuses by source for option lists) and competitions by source and season (unfiltered); `PLAYED`-only match count per season and overall (`countAllPlayed`); FEAT-00078 backfill candidates by source and season (with per-match game/lineup counts), the same rule restricted to a match-id collection, and the bulk `SCHEDULED`-marking update; the FEAT-00080 schedule-only update guarded by `status = SCHEDULED`; and the FEAT-00092 all-status calendar read by source, season, and competition, ordered by group, phase, round, date, and time, reserved for the season-calendar handler and never for statistics; and the FEAT-00093 all-status date-range calendar read by source, season, and `match_date` in `[from, to)` (undated matches never included), ordered by date, time, competition, group, and round, reserved for the calendar range handler and never for statistics. |
 | `LineupRepositoryHelper` | Rows for a match id (optionally ordered by team and position); rows for match ids or player-season ids (optionally paginated), fetching match, teams, clubs, and players; bulk delete by match ids (FEAT-00078 backfill). |
 | `GameRepositoryHelper` | All games for a match id, or for a collection of match ids, ordered by match and `game_number` ascending; bulk delete by match ids (FEAT-00078 backfill). |
 | `SetScoreRepositoryHelper` | Set scores for a collection of game ids, ordered by game and `set_number`; bulk delete by match ids (FEAT-00078 backfill). |

@@ -238,6 +238,13 @@ class SnapshotReconcilerTest {
         }
 
         @Override
+        public List<Match> findMatchesBySourceSeasonAndDateRange(ImportSource source, Season season,
+                                                                 java.time.LocalDate fromInclusive,
+                                                                 java.time.LocalDate toExclusive) {
+            return delegate.findMatchesBySourceSeasonAndDateRange(source, season, fromInclusive, toExclusive);
+        }
+
+        @Override
         public void saveMatch(Match match) {
             saveCalls++;
             delegate.saveMatch(match);

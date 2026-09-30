@@ -46,10 +46,12 @@ import org.springframework.stereotype.Component;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -660,11 +662,20 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
         if (participant == null) {
             return;
         }
+        Set<UUID> pairMembers = new HashSet<>();
         for (ActaLineupPlayer doublesPlayer : participant.doublesPlayers()) {
             PlayerSeason player = playerOf(doublesPlayer, lineup, context.toSeason());
             if (player == null) {
                 LOGGER.warn("Doubles player \"{}\" with licence {} is unavailable in {}; pair member left out",
                         doublesPlayer.name(), doublesPlayer.license(), side, context.matchReportFile());
+                continue;
+            }
+            // A pair naming the same player twice would break the (game, side, player, source)
+            // unique key, so the repeated member is left out.
+            if (!pairMembers.add(player.getId())) {
+                LOGGER.warn("Doubles player \"{}\" with licence {} is listed twice on the {} side in {}; "
+                        + "duplicate pair member left out", doublesPlayer.name(), doublesPlayer.license(), side,
+                        context.matchReportFile());
                 continue;
             }
             pairs.add(DoublesPair.builder()

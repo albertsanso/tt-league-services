@@ -650,6 +650,30 @@ public final class InMemoryRepositories {
                     .toList();
         }
 
+        /** FEAT-00093: source-scoped calendar read of every status dated in {@code [from, to)}. */
+        @Override
+        public List<Match> findMatchesBySourceSeasonAndDateRange(ImportSource source, Season season,
+                                                                 java.time.LocalDate fromInclusive,
+                                                                 java.time.LocalDate toExclusive) {
+            Objects.requireNonNull(source, "source");
+            Objects.requireNonNull(season, "season");
+            Objects.requireNonNull(fromInclusive, "fromInclusive");
+            Objects.requireNonNull(toExclusive, "toExclusive");
+            if (!fromInclusive.isBefore(toExclusive)) {
+                throw new IllegalArgumentException("fromInclusive must be before toExclusive");
+            }
+            return saved.stream()
+                    .filter(m -> source.equals(m.getSource()))
+                    .filter(m -> season.equals(m.getSeason()))
+                    .filter(m -> m.getDateTime() != null)
+                    .filter(m -> {
+                        java.time.LocalDate date = m.getDateTime()
+                                .withZoneSameInstant(Match.COMPETITION_ZONE).toLocalDate();
+                        return !date.isBefore(fromInclusive) && date.isBefore(toExclusive);
+                    })
+                    .toList();
+        }
+
         /** FEAT-00092: source-scoped calendar read returning matches of every status. */
         @Override
         public List<Match> findMatchesBySourceSeasonAndCompetition(ImportSource source, Season season,

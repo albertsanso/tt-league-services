@@ -7,7 +7,6 @@ import org.cttelsamicsterrassa.data.core.application.match.calendar.dto.Calendar
 import org.cttelsamicsterrassa.data.core.application.match.calendar.dto.CalendarRoundReadModel;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.dto.SeasonCalendarReadModel;
 import org.cttelsamicsterrassa.data.core.domain.match.model.CalendarMatchState;
-import org.cttelsamicsterrassa.data.core.domain.match.model.CalendarStateResolver;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchOverdueMark;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
@@ -28,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -43,16 +41,16 @@ public class FindSeasonCalendarQueryHandler
         extends DomainQueryHandler<FindSeasonCalendarQuery, SeasonCalendarReadModel> {
 
     private final MatchRepository matches;
-    private final MatchOverdueMarkRepository marks;
     private final OverdueGracePeriod grace;
     private final Clock clock;
+    private final CalendarMatchAssembler assembler;
 
     public FindSeasonCalendarQueryHandler(MatchRepository matches, MatchOverdueMarkRepository marks,
                                           OverdueGracePeriod grace, Clock clock) {
         this.matches = matches;
-        this.marks = marks;
         this.grace = grace;
         this.clock = clock;
+        this.assembler = new CalendarMatchAssembler(marks, grace);
     }
 
     @Override
@@ -77,13 +75,7 @@ public class FindSeasonCalendarQueryHandler
 
         LocalDate today = LocalDate.now(clock.withZone(Match.COMPETITION_ZONE));
 
-        Map<UUID, MatchOverdueMark> markByMatchId = marks.findByMatchIds(
-                        calendarMatches.stream()
-                                .filter(m -> m.getStatus() == MatchStatus.SCHEDULED)
-                                .map(Match::getId)
-                                .toList())
-                .stream()
-                .collect(Collectors.toMap(MatchOverdueMark::matchId, Function.identity()));
+        Map<UUID, MatchOverdueMark> markByMatchId = assembler.marksFor(calendarMatches);
 
         List<CalendarGroupReadModel> groups = new ArrayList<>();
         for (RoundProgress row : progress) {
@@ -108,9 +100,7 @@ public class FindSeasonCalendarQueryHandler
         long overdueMatches = 0;
         long postponedMatches = 0;
         for (Match match : groupMatches) {
-            boolean marked = match.getStatus() == MatchStatus.SCHEDULED
-                    && markByMatchId.containsKey(match.getId());
-            CalendarMatchState state = CalendarStateResolver.resolve(match, currentRound, marked, today, grace);
+            CalendarMatchState state = assembler.state(match, currentRound, markByMatchId, today);
             stateByMatchId.put(match.getId(), state);
             if (state == CalendarMatchState.OVERDUE) {
                 overdueMatches++;
@@ -155,7 +145,7 @@ public class FindSeasonCalendarQueryHandler
                         .thenComparing(m -> m.getHomeTeam() == null ? null : m.getHomeTeam().getName(),
                                 Comparator.nullsLast(Comparator.naturalOrder()))
                         .thenComparing(Match::getId))
-                .map(m -> toMatchModel(m, stateByMatchId.get(m.getId()), markByMatchId.get(m.getId())))
+                .map(m -> assembler.toReadModel(m, stateByMatchId.get(m.getId()), markByMatchId, today))
                 .toList();
 
         long scheduled = roundMatches.stream().filter(m -> m.getStatus() == MatchStatus.SCHEDULED).count();
@@ -180,18 +170,6 @@ public class FindSeasonCalendarQueryHandler
 
         return new CalendarRoundReadModel(round, firstDate, lastDate, scheduled, played, complete, current,
                 matches);
-    }
-
-    private CalendarMatchReadModel toMatchModel(Match match, CalendarMatchState state,
-                                                MatchOverdueMark mark) {
-        boolean marked = match.getStatus() == MatchStatus.SCHEDULED && mark != null;
-        return new CalendarMatchReadModel(
-                match.getId(), match.getDateTime(), match.getCity(), match.getVenue(),
-                match.getHomeTeam() == null ? null : match.getHomeTeam().getName(),
-                match.getAwayTeam() == null ? null : match.getAwayTeam().getName(),
-                match.getWinnerTeam() == null ? null : match.getWinnerTeam().getName(),
-                match.getHomeGamesWon(), match.getAwayGamesWon(), match.getStatus(), state,
-                marked, marked ? mark.markedAt() : null, marked ? mark.markedBy() : null);
     }
 
     private List<RoundStatusCount> roundStatusCounts(String competition, List<Match> matches) {

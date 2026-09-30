@@ -8,6 +8,9 @@ import org.cttelsamicsterrassa.data.core.application.match.calendar.dto.Calendar
 import org.cttelsamicsterrassa.data.core.application.match.calendar.dto.CalendarMatchReadModel;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.dto.CalendarRoundReadModel;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.dto.SeasonCalendarReadModel;
+import org.cttelsamicsterrassa.data.core.application.match.calendar.range.dto.CalendarRangeFacets;
+import org.cttelsamicsterrassa.data.core.application.match.calendar.range.dto.CalendarRangeReadModel;
+import org.cttelsamicsterrassa.data.core.application.match.calendar.range.dto.CalendarTeamFacet;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.mark.ClearMatchOverdueMarkCommand;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.mark.MarkMatchOverdueCommand;
 import org.cttelsamicsterrassa.data.core.domain.match.model.CalendarMatchState;
@@ -28,6 +31,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -49,7 +53,9 @@ class MatchControllerTest {
                         LocalDate.of(2026, 9, 5), 3, 3, false, true,
                         List.of(new CalendarMatchReadModel(matchId, ZonedDateTime.now(), "city", "venue",
                                 "Home", "Away", null, null, null, MatchStatus.SCHEDULED,
-                                CalendarMatchState.AWAITING_RESULT, false, null, null)))))))));
+                                CalendarMatchState.AWAITING_RESULT, false, null, null,
+                                "tercera", 1, "1a Fase", 1, UUID.randomUUID(), UUID.randomUUID(),
+                                true)))))))));
 
         var response = controller.calendar("FCTT", "2026-2027", "tercera", null, null);
 
@@ -64,6 +70,9 @@ class MatchControllerTest {
         assertFalse(match.overdueMarked());
         assertNull(match.overdueMarkedAt());
         assertNull(match.overdueMarkedBy());
+        assertEquals("tercera", match.competition());
+        assertEquals(1, match.round());
+        assertNotNull(match.homeTeamId());
     }
 
     @Test
@@ -102,6 +111,84 @@ class MatchControllerTest {
     }
 
     @Test
+    void mapsACalendarRangeResponseWithFacetsAndTeamIds() {
+        QueryBus queryBus = mock(QueryBus.class);
+        MatchController controller = controllerWith(queryBus, mock(CommandBus.class), mock(MatchRepository.class));
+        UUID home = UUID.randomUUID();
+        UUID away = UUID.randomUUID();
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(
+                new CalendarRangeReadModel(ImportSource.FCTT, Season.of(2026), LocalDate.of(2026, 9, 14),
+                        LocalDate.of(2026, 9, 21), LocalDate.of(2026, 9, 16), 7,
+                        List.of(new CalendarMatchReadModel(UUID.randomUUID(), ZonedDateTime.now(), "city",
+                                "venue", "Home", "Away", null, null, null, MatchStatus.SCHEDULED,
+                                CalendarMatchState.UPCOMING, false, null, null, "tercera", 1, "1a Fase", 2,
+                                home, away, false)),
+                        new CalendarRangeFacets(List.of("tercera"), List.of(1),
+                                List.of(new CalendarTeamFacet(home, "Home", "tercera"))))));
+
+        var response = controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21",
+                "tercera", "1", home.toString());
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        CalendarRangeDto body = (CalendarRangeDto) response.getBody();
+        assertEquals("FCTT", body.source());
+        assertEquals("2026-2027", body.season());
+        assertEquals(LocalDate.of(2026, 9, 21), body.to());
+        assertEquals("UPCOMING", body.matches().getFirst().calendarState());
+        assertEquals(home, body.matches().getFirst().homeTeamId());
+        assertEquals(List.of("tercera"), body.facets().competitions());
+        assertEquals("Home", body.facets().teams().getFirst().name());
+    }
+
+    @Test
+    void aCalendarRangeAcceptsMissingOptionalParameters() {
+        QueryBus queryBus = mock(QueryBus.class);
+        MatchController controller = controllerWith(queryBus, mock(CommandBus.class), mock(MatchRepository.class));
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(
+                new CalendarRangeReadModel(ImportSource.FCTT, Season.of(2026), LocalDate.of(2026, 9, 14),
+                        LocalDate.of(2026, 9, 21), LocalDate.of(2026, 9, 16), 7, List.of(),
+                        new CalendarRangeFacets(List.of(), List.of(), List.of()))));
+
+        var response = controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21",
+                null, null, null);
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        assertTrue(((CalendarRangeDto) response.getBody()).matches().isEmpty());
+    }
+
+    @Test
+    void anInvalidCalendarRangeIsRejectedWith400() {
+        MatchController controller = controllerWith(mock(QueryBus.class), mock(CommandBus.class),
+                mock(MatchRepository.class));
+
+        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "nope", "2026-09-21", null, null, null));
+        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-21", "2026-09-14", null, null, null));
+        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-21", "2026-09-21", null, null, null));
+        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-01", "2026-12-01", null, null, null));
+        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21", null, null,
+                "not-a-uuid"));
+        assertBadRange(controller.calendarRange("NOPE", "2026-2027", "2026-09-14", "2026-09-21", null, null, null));
+        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21", null, "1", null));
+    }
+
+    @Test
+    void aCalendarRangeHandlerFailureIsAServerError() {
+        QueryBus queryBus = mock(QueryBus.class);
+        MatchController controller = controllerWith(queryBus, mock(CommandBus.class), mock(MatchRepository.class));
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.failResponse(null));
+
+        var response = controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21", null, null, null);
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
+        assertEquals("Calendar range failed", ((MatchController.ErrorMessage) response.getBody()).message());
+    }
+
+    private static void assertBadRange(org.springframework.http.ResponseEntity<?> response) {
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("Invalid calendar range", ((MatchController.ErrorMessage) response.getBody()).message());
+    }
+
+    @Test
     void markingOverduePassesTheAuthenticatedUserNameAndReturnsNoContent() {
         CommandBus commandBus = mock(CommandBus.class);
         when(commandBus.push(any())).thenReturn(DomainCommandResponse.successResponse(true));
@@ -134,6 +221,12 @@ class MatchControllerTest {
                 "Only scheduled matches can be marked overdue"));
         assertEquals(HttpStatus.CONFLICT, controller.markOverdue(UUID.randomUUID(), authentication)
                 .getStatusCode());
+
+        String tooEarly = "A match can only be marked overdue from the day after its scheduled date";
+        when(commandBus.push(any())).thenReturn(DomainCommandResponse.failResponse(tooEarly));
+        var tooEarlyResponse = controller.markOverdue(UUID.randomUUID(), authentication);
+        assertEquals(HttpStatus.CONFLICT, tooEarlyResponse.getStatusCode());
+        assertEquals(new MatchController.ErrorMessage(tooEarly), tooEarlyResponse.getBody());
     }
 
     @Test

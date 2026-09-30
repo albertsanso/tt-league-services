@@ -63,6 +63,32 @@ export function getSeasonCalendar(filters, token, signal, onUnauthorized) {
     .then(normalizeCalendar)
 }
 
+function isObject(value) {
+  return value !== null && typeof value === 'object'
+}
+
+function normalizeCalendarRange(value) {
+  const facets = value?.facets
+  const valid = isObject(value) && Array.isArray(value.matches) && isObject(facets)
+    && Array.isArray(facets.competitions) && Array.isArray(facets.groups) && Array.isArray(facets.teams)
+  if (!valid) throw new ApiError('La resposta del calendari no és vàlida.', 502, value)
+  return value
+}
+
+export function getCalendarRange(filters, token, signal, onUnauthorized) {
+  const params = new URLSearchParams({
+    source: required(filters.source, 'source'),
+    season: required(filters.season, 'season'),
+    from: required(filters.from, 'from'),
+    to: required(filters.to, 'to'),
+  })
+  ;[['competition', filters.competition], ['group', filters.group], ['team', filters.team]].forEach(([key, value]) => {
+    if (value) params.set(key, value)
+  })
+  return apiRequest(`/api/v1/match/calendar/range?${params}`, { token, signal, onUnauthorized })
+    .then(normalizeCalendarRange)
+}
+
 export function markMatchOverdue(id, token, signal, onUnauthorized) {
   if (!id) throw new ApiError('L’identificador del partit no és vàlid.', 400)
   return apiRequest(`/api/v1/match/${encodeURIComponent(id)}/overdue-mark`, {

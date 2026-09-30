@@ -399,6 +399,31 @@ public class MatchRepositoryJpa implements MatchRepository {
                 .toList();
     }
 
+    /**
+     * FEAT-00093. Source-scoped calendar read of every match of one season dated in
+     * {@code [fromInclusive, toExclusive)}, regardless of status. Read-only, and reserved for the
+     * calendar range handler: it must never feed statistics, search, community counts or any
+     * PLAYED-only view (FEAT-00079).
+     */
+    @Override
+    public List<Match> findMatchesBySourceSeasonAndDateRange(
+            ImportSource source, Season season, java.time.LocalDate fromInclusive,
+            java.time.LocalDate toExclusive) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(season, "season");
+        Objects.requireNonNull(fromInclusive, "fromInclusive");
+        Objects.requireNonNull(toExclusive, "toExclusive");
+        if (!fromInclusive.isBefore(toExclusive)) {
+            throw new IllegalArgumentException("fromInclusive must be before toExclusive");
+        }
+        return matchRepositoryHelper
+                .findAllBySourceAndSeasonAndMatchDateRange(Source.valueOf(source.name()), season.toString(),
+                        fromInclusive, toExclusive)
+                .stream()
+                .map(matchJPAToMatchMapper)
+                .toList();
+    }
+
     private static RoundStatusCount toStatusCount(RoundStatusCountProjection projection) {
         return new RoundStatusCount(projection.competition(), projection.groupNumber(), projection.phase(),
                 projection.round(),

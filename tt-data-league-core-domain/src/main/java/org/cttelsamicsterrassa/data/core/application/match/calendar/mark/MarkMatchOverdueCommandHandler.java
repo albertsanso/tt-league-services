@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.core.application.match.calendar.mark;
 
 import org.albertsanso.commons.command.DomainCommandHandler;
 import org.albertsanso.commons.command.DomainCommandResponse;
+import org.cttelsamicsterrassa.data.core.domain.match.model.CalendarStateResolver;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchOverdueMark;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
@@ -11,6 +12,7 @@ import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository
 import javax.inject.Inject;
 import javax.inject.Named;
 import java.time.Clock;
+import java.time.LocalDate;
 import java.time.ZonedDateTime;
 import java.util.Objects;
 import java.util.Optional;
@@ -18,7 +20,8 @@ import java.util.UUID;
 
 /**
  * Records a manual overdue mark on a SCHEDULED match (FEAT-00092). Idempotent: re-marking returns
- * the original author and time. A PLAYED match is rejected rather than marked.
+ * the original author and time. A PLAYED match is rejected rather than marked, and so is an undated
+ * match or one whose scheduled date is today or later (marking opens the day after the match date).
  */
 @Named
 public class MarkMatchOverdueCommandHandler extends DomainCommandHandler<MarkMatchOverdueCommand> {
@@ -46,6 +49,11 @@ public class MarkMatchOverdueCommandHandler extends DomainCommandHandler<MarkMat
         }
         if (match.get().getStatus() == MatchStatus.PLAYED) {
             return DomainCommandResponse.failResponse("Only scheduled matches can be marked overdue");
+        }
+        LocalDate today = LocalDate.now(clock.withZone(Match.COMPETITION_ZONE));
+        if (!CalendarStateResolver.canMarkOverdue(match.get(), today)) {
+            return DomainCommandResponse.failResponse(
+                    "A match can only be marked overdue from the day after its scheduled date");
         }
 
         Optional<MatchOverdueMark> existing = marks.findByMatchId(command.getMatchId());

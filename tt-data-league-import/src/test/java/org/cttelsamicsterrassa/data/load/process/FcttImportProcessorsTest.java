@@ -145,6 +145,45 @@ class FcttImportProcessorsTest {
     }
 
     @Test
+    void placeholderLicencesDoNotCollapseDifferentPlayersIntoOneRegistration() {
+        // Real FCTT extract where every player carries licence "0". Resolving by that value
+        // used to map all six players, and both doubles members, to one PlayerSeason.
+        run(context("acta_fctt_placeholder_licences.json", "G3"));
+
+        assertEquals(1, matches.saved.size());
+        assertEquals(MatchStatus.PLAYED, matches.saved.getFirst().getStatus());
+        assertTrue(playerSeasons.byId.isEmpty());
+        assertEquals(0, lineups.saved.size());
+        assertEquals(0, doublesPairs.saved.size());
+        assertTrue(games.saved.stream().allMatch(game -> game.getHomePlayer() == null
+                && game.getAwayPlayer() == null));
+    }
+
+    @Test
+    void aDoublesPairListingTheSamePlayerTwiceStoresThatPlayerOnce() {
+        // Real FCTT extract (copa-catalana-femenina-2a, partido 2926): the home pair names licence
+        // 19214 twice, which used to insert two identical doubles_pair rows and break
+        // uk_doubles_pair_game_side_player_source.
+        FcttMatchReportContext context = context("acta_fctt_duplicate_doubles_player.json", "female",
+                "copa-catalana-femenina-2a", "G2");
+
+        run(context);
+        run(context);
+
+        assertEquals(1, matches.saved.size());
+        assertEquals(MatchStatus.PLAYED, matches.saved.getFirst().getStatus());
+        assertEquals(List.of("19214"), doublesPairs.saved.stream()
+                .filter(pair -> "HOME".equals(pair.getSide()))
+                .map(pair -> pair.getPlayer().getLicenseId())
+                .toList());
+        assertEquals(List.of("17807", "20277"), doublesPairs.saved.stream()
+                .filter(pair -> "AWAY".equals(pair.getSide()))
+                .map(pair -> pair.getPlayer().getLicenseId())
+                .sorted()
+                .toList());
+    }
+
+    @Test
     void phaseIsStoredAndIsPartOfTheNaturalKeySoReimportStaysIdempotent() {
         FcttMatchReportContext context = context("acta_doubles.json", "G3");
 

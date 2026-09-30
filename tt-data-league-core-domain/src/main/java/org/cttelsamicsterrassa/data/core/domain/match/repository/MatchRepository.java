@@ -201,4 +201,18 @@ public interface MatchRepository {
      * @throws IllegalArgumentException if {@code competition} is blank
      */
     List<Match> findMatchesBySourceSeasonAndCompetition(ImportSource source, Season season, String competition);
+
+    /**
+     * Returns every stored match of one source and season, regardless of status, whose match date is
+     * in {@code [fromInclusive, toExclusive)} (FEAT-00093). Undated matches are never included. This
+     * is a calendar read: it must feed the calendar range handler only and never statistics, search,
+     * community counts, or any PLAYED-only view (FEAT-00079). The lookup is always source-scoped and
+     * read-only.
+     *
+     * @throws NullPointerException     if any argument is {@code null}
+     * @throws IllegalArgumentException if {@code fromInclusive} is not before {@code toExclusive}
+     */
+    List<Match> findMatchesBySourceSeasonAndDateRange(ImportSource source, Season season,
+                                                      java.time.LocalDate fromInclusive,
+                                                      java.time.LocalDate toExclusive);
 }

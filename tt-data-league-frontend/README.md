@@ -39,6 +39,31 @@ Durant el desenvolupament, les peticions `/api` es redirigeixen a
 configuració `VITE_API_PROXY_TARGET`; no hi poseu credencials. En producció les
 peticions continuen sent relatives i same-origin.
 
+## Calendari de la temporada (FEAT-00093)
+
+La pàgina `/calendari` usa FullCalendar (`@fullcalendar/core`, `react`, `daygrid`,
+`timegrid`, `list` i `interaction`, v6, només plugins MIT) i `date-fns`. Ofereix
+les vistes dia, setmana, mes i jornada, filtres per font, temporada, competició,
+grup i equip, ordenació per data, hora o pavelló, i un detall del calendari amb
+enllaç al partit de cada fila. Tot l'estat viu a la URL (sense llibreria d'estat
+global):
+
+| Paràmetre | Significat |
+| --- | --- |
+| `source`, `season` | Font i temporada (obligatoris per carregar). |
+| `view` | `day`, `week` (per defecte), `month` o `jornada`. |
+| `date` | Data àncora `YYYY-MM-DD` (per defecte avui; una data invàlida es tracta com a avui). |
+| `competition`, `group`, `team` | Filtres; la vista jornada requereix competició. |
+| `sort` | `date` (per defecte), `time` o `venue`. |
+| `round` | Jornada seleccionada (vista jornada; per defecte, la jornada actual del grup). |
+| `selected` | Dia seleccionat, que restringeix el detall. |
+
+Les vistes dia, setmana i mes usen `GET /api/v1/match/calendar/range` (totes les
+competicions); la vista jornada usa `GET /api/v1/match/calendar`. El frontend no
+calcula estats, terminis ni jornada actual: mostra el `calendarState` de l'API.
+En pantalles no d'escriptori la setmana es mostra com a llista i el detall queda
+sota el calendari.
+
 ## Idiomes i traduccions
 
 La interfície utilitza i18next i té el català (`ca`) com a idioma predeterminat,

@@ -23,7 +23,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
-- [FEAT-00093: Automated per-jornada fetch and upload](### [FEAT-00093] Automated per-jornada fetch and upload)
+- [FEAT-00093: Calendar UI component redesign](### [FEAT-00093] Calendar UI component redesign)
 
 - [FEAT-00092: Season calendar and matchday management](### [FEAT-00092] Season calendar and matchday management)
 
@@ -71,25 +71,73 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00093] Automated per-jornada fetch and upload
-- **Status:** idea
+No features currently in the backlog.
+## Done
+
+### [FEAT-00093] Calendar UI component redesign
+- **Status:** done
 - **Priority:** low
-- **Effort:** medium
-- **Depends on:** FEAT-00087
+- **Effort:** large
+- **Depends on:** FEAT-00092
 
 #### Goal
-Automate fetching extractor snapshots and uploading them each jornada.
+Redesign the Calendar UI component to improve usability and align with the new design guidelines.
+
+The calendar must allow different timed views:
+- By day: showing all matches scheduled for a specific day
+- By week: showing all matches scheduled for a specific week
+- By jornada: showing all matches scheduled for a specific jornada
+- By Month: showing all matches scheduled for a specific month
+
+Related to the Calendar view, there is a Calendar Detail view that shows the list of matches for the selected day, week, jornada, or month. 
+The Calendar Detail view should be accessible by clicking on a specific date or jornada in the Calendar view.
+
+#### Calendar Views
+Timed Views:
+- **Day View:** Displays all matches scheduled for a specific day, with the ability to navigate to the previous or next day.
+- **Week View:** Displays all matches scheduled for a specific week, with the ability to navigate to the previous or next week.
+- **Jornada View:** Displays all matches scheduled for a specific jornada, with the ability to navigate to the previous or next jornada.
+- **Month View:** Displays all matches scheduled for a specific month, with the ability to navigate to the previous or next month.
+
+Filtering and Sorting:
+- Users should be able to filter matches by competition, group, or team.
+- Users should be able to sort matches by date, time, or venue.
+
+#### Calendar Detail View
+- The Calendar Detail view should display a list of matches for the selected day, week, jornada, or month.
+- Each match in the list should display relevant information, such as the teams playing, match time, and venue.
+- Users should be able to click on a match in the list to view more details about the match, and navigate to the match detail page.
+ 
+#### Technical Stack
+- The calendar component should be built using React in the existing JavaScript/JSX frontend module (decision 2026-09-29: no TypeScript).
+- The calendar state and selected view are kept in URL search params, like the other pages (decision 2026-09-29: no Redux/Zustand; the module forbids a second global state mechanism).
+- The component should use date-fns to handle date calculations and formatting.
+
+#### Calendar Component/Library
+The chosen calendar component/library is FullCalendar, which is a popular and feature-rich calendar library for React. 
+It provides a flexible API and supports various views, including day, week, month, and custom views.
+
+#### Technical Details
+- The calendar should be implemented as a reusable component that can be integrated into different parts of the application.
+- The component should be responsive and adapt to different screen sizes, including mobile devices.
+- The component should support different timed views: by day, by week, by jornada, and by month.
 
 #### Acceptance Criteria
-- [ ] A scheduled job fetches and uploads a snapshot per source and season
-- [ ] Configuration is explicit and environment-driven with no committed secrets
-- [ ] Failures are reported clearly without silent fallback
+- [x] The calendar component should display matches in the selected timed view (day, week, jornada, month).
+- [x] Users should be able to navigate between different timed views and select specific dates or jornadas.
+- [x] The calendar should support filtering and sorting of matches based on competition, group, or team.
+- [x] The Calendar Detail view should display a list of matches for the selected date or jornada, with relevant match information.
+- [x] Users should be able to click on a match in the Calendar Detail view to view more details about the match and navigate to the match detail page.
+- [x] The calendar component should be responsive and adapt to different screen sizes, including mobile devices.
+- [x] The calendar component is implemented in the existing React JavaScript/JSX module, keeps its view/date/filter state in URL search params (no new global state library), and uses date-fns for date calculations.
+- [x] The calendar component should be built using the FullCalendar library and should leverage its features and API for implementing the required functionality.
+- [x] A source- and season-scoped date-range calendar API returns matches of every status in a bounded date range, with the same calendar states (FEAT-00092 rules) as the jornada calendar.
+- [x] The "mark as overdue" action is available and visible only from the day after a SCHEDULED match's date (Europe/Madrid), enforced by the backend and exposed as `overdueMarkable`; the overdue grace period starts counting on that same day after the match date.
 
 #### Feature Details
 → See [FEAT-00093-DETAILS.md](./FEAT-00093-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-## Done
 
 ### [FEAT-00092] Season calendar and matchday management
 - **Status:** done

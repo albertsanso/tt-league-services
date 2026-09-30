@@ -11,7 +11,9 @@ import java.time.ZonedDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * FEAT-00092: the calendar-state rule lives only in {@link CalendarStateResolver}, so every
@@ -109,6 +111,52 @@ class CalendarStateResolverTest {
     }
 
     @Test
+    void theGracePeriodStartsCountingTheDayAfterTheMatch() {
+        Match match = match().dateTime(on(2026, 9, 3)).createExisting();
+        OverdueGracePeriod oneDay = new OverdueGracePeriod(1);
+
+        assertEquals(CalendarMatchState.UPCOMING,
+                CalendarStateResolver.resolve(match, null, false, LocalDate.of(2026, 9, 3), oneDay),
+                "the match day itself does not count towards the grace period");
+        assertEquals(CalendarMatchState.AWAITING_RESULT,
+                CalendarStateResolver.resolve(match, null, false, LocalDate.of(2026, 9, 4), oneDay),
+                "the day after the match is the first grace day");
+        assertEquals(CalendarMatchState.OVERDUE,
+                CalendarStateResolver.resolve(match, null, false, LocalDate.of(2026, 9, 5), oneDay));
+    }
+
+    @Test
+    void aScheduledMatchCanBeMarkedOverdueOnlyFromTheDayAfterItsDate() {
+        Match match = match().dateTime(on(2026, 9, 3)).createExisting();
+
+        assertFalse(CalendarStateResolver.canMarkOverdue(match, LocalDate.of(2026, 9, 2)));
+        assertFalse(CalendarStateResolver.canMarkOverdue(match, LocalDate.of(2026, 9, 3)),
+                "not on the match day");
+        assertTrue(CalendarStateResolver.canMarkOverdue(match, LocalDate.of(2026, 9, 4)),
+                "from the day after the match");
+        assertTrue(CalendarStateResolver.canMarkOverdue(match, LocalDate.of(2026, 9, 20)));
+    }
+
+    @Test
+    void undatedAndPlayedMatchesCannotBeMarkedOverdue() {
+        Match undated = match().dateTime(null).createExisting();
+        Match played = match().status(MatchStatus.PLAYED).dateTime(on(2026, 9, 1)).createExisting();
+
+        assertFalse(CalendarStateResolver.canMarkOverdue(undated, LocalDate.of(2026, 9, 20)));
+        assertFalse(CalendarStateResolver.canMarkOverdue(played, LocalDate.of(2026, 9, 20)));
+    }
+
+    @Test
+    void theMarkWindowUsesTheCompetitionZoneDate() {
+        ZonedDateTime lateMadridEvening = ZonedDateTime.of(
+                LocalDate.of(2026, 9, 3), LocalTime.of(23, 30), Match.COMPETITION_ZONE);
+        Match match = match().dateTime(lateMadridEvening).createExisting();
+
+        assertFalse(CalendarStateResolver.canMarkOverdue(match, LocalDate.of(2026, 9, 3)));
+        assertTrue(CalendarStateResolver.canMarkOverdue(match, LocalDate.of(2026, 9, 4)));
+    }
+
+    @Test
     void nullArgumentsAreRejected() {
         Match match = match().dateTime(on(2026, 9, 3)).createExisting();
         LocalDate today = LocalDate.of(2026, 9, 1);
@@ -119,6 +167,8 @@ class CalendarStateResolverTest {
                 () -> CalendarStateResolver.resolve(match, null, false, null, GRACE));
         assertThrows(NullPointerException.class,
                 () -> CalendarStateResolver.resolve(match, null, false, today, null));
+        assertThrows(NullPointerException.class, () -> CalendarStateResolver.canMarkOverdue(null, today));
+        assertThrows(NullPointerException.class, () -> CalendarStateResolver.canMarkOverdue(match, null));
     }
 
     private ZonedDateTime on(int year, int month, int day) {

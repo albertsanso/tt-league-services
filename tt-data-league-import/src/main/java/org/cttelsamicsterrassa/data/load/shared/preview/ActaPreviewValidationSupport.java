@@ -5,8 +5,10 @@ import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParticipant;
 
 import java.nio.file.Path;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public final class ActaPreviewValidationSupport {
 
@@ -38,10 +40,15 @@ public final class ActaPreviewValidationSupport {
                                               ImportPreviewCollector collector,
                                               Path reportFile,
                                               String source) {
+        Set<String> licences = new HashSet<>();
         for (ActaLineupPlayer player : players) {
             if (player == null || isBlank(player.name()) || isBlank(player.licenseId())) {
                 collector.warning("%s doubles player has no name or licence; it will be skipped."
                                 .formatted(source),
+                        location(reportFile));
+            } else if (!licences.add(player.licenseId())) {
+                collector.warning("%s doubles pair lists player %s (licence %s) twice; the duplicate will be skipped."
+                                .formatted(source, player.name(), player.licenseId()),
                         location(reportFile));
             }
         }

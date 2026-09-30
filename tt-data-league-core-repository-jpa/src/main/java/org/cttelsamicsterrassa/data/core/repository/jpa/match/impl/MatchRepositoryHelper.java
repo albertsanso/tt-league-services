@@ -62,6 +62,31 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                                                           @Param("season") String season,
                                                           @Param("competition") String competition);
 
+    /** FEAT-00093: every match of a source and season whose date is in {@code [from, to)}. */
+    @Query("""
+            select m from MatchJPA m
+            join fetch m.homeTeam homeTeam
+            left join fetch homeTeam.federatedClub
+            join fetch m.awayTeam awayTeam
+            left join fetch awayTeam.federatedClub
+            left join fetch m.winnerTeam winnerTeam
+            left join fetch winnerTeam.federatedClub
+            where m.source = :source and m.season = :season
+              and m.matchDate >= :from and m.matchDate < :to
+            order by m.matchDate asc,
+                     case when m.matchTime is null then 1 else 0 end asc,
+                     m.matchTime asc,
+                     m.competition asc,
+                     case when m.groupNumber is null then 1 else 0 end asc,
+                     m.groupNumber asc,
+                     m.round asc,
+                     m.id asc
+            """)
+    List<MatchJPA> findAllBySourceAndSeasonAndMatchDateRange(@Param("source") Source source,
+                                                             @Param("season") String season,
+                                                             @Param("from") java.time.LocalDate from,
+                                                             @Param("to") java.time.LocalDate to);
+
     @Query("""
             select m from MatchJPA m
             where m.source = :source and m.season = :season

@@ -8,6 +8,8 @@ import org.albertsanso.commons.command.DomainCommandResponse;
 import org.albertsanso.commons.query.QueryBus;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.FindSeasonCalendarQuery;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.dto.SeasonCalendarReadModel;
+import org.cttelsamicsterrassa.data.core.application.match.calendar.range.FindCalendarRangeQuery;
+import org.cttelsamicsterrassa.data.core.application.match.calendar.range.dto.CalendarRangeReadModel;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.mark.ClearMatchOverdueMarkCommand;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.mark.MarkMatchOverdueCommand;
 import org.cttelsamicsterrassa.data.core.application.match.find.FindMatchDetailsQuery;
@@ -139,6 +141,37 @@ public class MatchController {
         return ResponseEntity.ok(SeasonCalendarDto.from(model));
     }
 
+    @GetMapping("/calendar/range")
+    @PreAuthorize("hasAuthority('matches:read')")
+    @Operation(summary = "Get the calendar of a date range",
+            description = "Returns the matches of every competition of a source and season dated in "
+                    + "[from, to), with derived and manual overdue states and the filter facets")
+    public ResponseEntity<?> calendarRange(
+            @RequestParam(name = "source") String source,
+            @RequestParam(name = "season") String season,
+            @RequestParam(name = "from") String from,
+            @RequestParam(name = "to") String to,
+            @RequestParam(name = "competition", required = false) String competition,
+            @RequestParam(name = "group", required = false) String group,
+            @RequestParam(name = "team", required = false) String team) {
+        FindCalendarRangeQuery query;
+        try {
+            query = new FindCalendarRangeQuery(parseSource(source), Season.fromFormatted(season.trim()),
+                    LocalDate.parse(from.trim()), LocalDate.parse(to.trim()),
+                    competition == null || competition.isBlank() ? null : competition.trim(),
+                    parseOptionalInt(group),
+                    team == null || team.isBlank() ? null : UUID.fromString(team.trim()));
+        } catch (RuntimeException exception) {
+            return ResponseEntity.badRequest().body(new ErrorMessage("Invalid calendar range"));
+        }
+        var response = queryBus.push(query);
+        if (!response.isSuccess() || !(response.getResponse() instanceof CalendarRangeReadModel model)) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorMessage("Calendar range failed"));
+        }
+        return ResponseEntity.ok(CalendarRangeDto.from(model));
+    }
+
     @PutMapping("/{id}/overdue-mark")
     @PreAuthorize("hasAuthority('matches:write')")
     @Operation(summary = "Mark a scheduled match overdue")
@@ -152,8 +185,7 @@ public class MatchController {
         if (error.startsWith("Match not found:")) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(new ErrorMessage(error));
         }
-        return ResponseEntity.status(HttpStatus.CONFLICT)
-                .body(new ErrorMessage("Only scheduled matches can be marked overdue"));
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(new ErrorMessage(error));
     }
 
     @DeleteMapping("/{id}/overdue-mark")

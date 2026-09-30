@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { getMatchDetails, getSeasonCalendar } from '../api/matches.js'
+import { getCalendarRange, getMatchDetails, getSeasonCalendar } from '../api/matches.js'
 import { useAuth } from '../context/useAuth.js'
 
 function useRequest(request, enabled, identity) {
@@ -64,6 +64,25 @@ export function useSeasonCalendar(filters) {
       { source, season, competition, group, round }, token, signal, onUnauthorized,
     ),
     [source, season, competition, group, round],
+  )
+  return useRequest(request, enabled, identity)
+}
+
+export function useCalendarRange(filters) {
+  const source = filters?.source ?? ''
+  const season = filters?.season ?? ''
+  const from = filters?.from ?? ''
+  const to = filters?.to ?? ''
+  const competition = filters?.competition ?? ''
+  const group = filters?.group ?? ''
+  const team = filters?.team ?? ''
+  const enabled = Boolean(source && season && from && to)
+  const identity = `${source}|${season}|${from}|${to}|${competition}|${group}|${team}`
+  const request = useCallback(
+    (token, signal, onUnauthorized) => getCalendarRange(
+      { source, season, from, to, competition, group, team }, token, signal, onUnauthorized,
+    ),
+    [source, season, from, to, competition, group, team],
   )
   return useRequest(request, enabled, identity)
 }
