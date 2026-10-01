@@ -48,6 +48,18 @@ class BcnesaClubIndexTest {
         assertTrue(index.resolve(List.of("no-such-licence")).isEmpty());
     }
 
+    @Test
+    void registersHeaderVotesFromFilesWithTheCurrentJornadaFileName() throws IOException {
+        Path phase = Files.createDirectories(groupFolder.resolve("1a Fase"));
+        Files.writeString(phase.resolve("jornada_01_local_team_439_away_team_438.json"),
+                acta("HOME CLUB", "AWAY CLUB", "10", "20", "30", "40"));
+
+        BcnesaClubIndex index = BcnesaClubIndex.build(groupFolder, parser);
+
+        assertEquals(Optional.of("HOME CLUB"), index.resolve(List.of("10", "20")));
+        assertEquals(Optional.of("AWAY CLUB"), index.resolve(List.of("30")));
+    }
+
     private static String acta(String home, String away, String a, String b, String c, String x) {
         return """
                 {

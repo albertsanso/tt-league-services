@@ -4,8 +4,10 @@ import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
+import org.cttelsamicsterrassa.data.core.domain.game.model.SetScore;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.DoublesPairRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.GameRepository;
+import org.cttelsamicsterrassa.data.core.domain.game.repository.SetScoreRepository;
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
@@ -33,6 +35,7 @@ import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParticipant;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaScore;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.Order;
@@ -73,6 +76,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
     private final MatchRepository matchRepository;
     private final LineupRepository lineupRepository;
     private final GameRepository gameRepository;
+    private final SetScoreRepository setScoreRepository;
     private final DoublesPairRepository doublesPairRepository;
     private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
     private final MatchLifecycleWriter lifecycleWriter;
@@ -84,15 +88,17 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
                                       MatchRepository matchRepository,
                                       LineupRepository lineupRepository,
                                       GameRepository gameRepository,
+                                      SetScoreRepository setScoreRepository,
                                       DoublesPairRepository doublesPairRepository) {
         this.teamRepository = teamRepository;
         this.playerSeasonRepository = playerSeasonRepository;
         this.matchRepository = matchRepository;
         this.lineupRepository = lineupRepository;
         this.gameRepository = gameRepository;
+        this.setScoreRepository = setScoreRepository;
         this.doublesPairRepository = doublesPairRepository;
         this.lifecycleWriter = new MatchLifecycleWriter(matchRepository, lineupRepository, gameRepository,
-                doublesPairRepository);
+                setScoreRepository, doublesPairRepository);
         this.identityGuard = new MatchFixtureIdentityGuard(matchRepository);
     }
 
@@ -251,8 +257,9 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
 
     /**
      * The BCNESA callbacks of the shared match lifecycle. The scheduled header never derives
-     * games/set counts or a winner from the fixture's games, and set scores are always empty:
-     * BCNESA stores none.
+     * games/set counts or a winner from the fixture's games. Set scores are stored when the acta
+     * carries them: the PDF-based seasons up to 2025-2026 have none, the HTML-based ones from
+     * 2026-2027 have the points of every set.
      */
     private final class BcnesaLifecycleSource implements MatchLifecycleSource {
 
@@ -310,7 +317,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             SideLineup away = resolveLineup(context.games(), false, season, context);
             List<Lineup> lineups = buildLineups(match, homeTeam, home, awayTeam, away);
             BuiltGames built = buildGames(context, match, home, away);
-            return new MatchContent(match, lineups, built.games(), List.of(), built.doublesPairs());
+            return new MatchContent(match, lineups, built.games(), built.setScores(), built.doublesPairs());
         }
 
         private Match buildPlayedMatch(UUID id, boolean existing) {
@@ -344,8 +351,8 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
         }
     }
 
-    /** Games and doubles pairs built from one fixture, not yet saved. BCNESA stores no set scores. */
-    private record BuiltGames(List<Game> games, List<DoublesPair> doublesPairs) {
+    /** Games, their set scores and doubles pairs built from one fixture, not yet saved. */
+    private record BuiltGames(List<Game> games, List<SetScore> setScores, List<DoublesPair> doublesPairs) {
     }
 
     // --- match -----------------------------------------------------------------------------
@@ -447,6 +454,7 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
 
     private BuiltGames buildGames(BcnesaMatchReportContext context, Match match, SideLineup home, SideLineup away) {
         List<Game> games = new ArrayList<>();
+        List<SetScore> setScores = new ArrayList<>();
         List<DoublesPair> doublesPairs = new ArrayList<>();
 
         for (ActaGame actaGame : context.games()) {
@@ -456,12 +464,13 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             }
             Game game = buildGame(actaGame, match, home, away);
             games.add(game);
+            setScores.addAll(buildSetScores(actaGame, game));
             if (actaGame.isDoubles()) {
                 doublesPairs.addAll(buildDoublesPairs(actaGame, game, home, away, context));
             }
         }
 
-        return new BuiltGames(games, doublesPairs);
+        return new BuiltGames(games, setScores, doublesPairs);
     }
 
     private Game buildGame(ActaGame actaGame, Match match, SideLineup home, SideLineup away) {
@@ -491,6 +500,23 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
                 .notPlayed(actaGame.wasNotPlayed())
                 .reason(actaGame.reason())
                 .createNew();
+    }
+
+    private static List<SetScore> buildSetScores(ActaGame actaGame, Game game) {
+        List<SetScore> scores = new ArrayList<>();
+        for (ActaSet set : actaGame.sets()) {
+            if (set.number() != null && set.homePoints() != null && set.awayPoints() != null) {
+                scores.add(SetScore.builder()
+                        .id(UUID.randomUUID())
+                        .source(ImportSource.BCNESA)
+                        .game(game)
+                        .setNumber(set.number())
+                        .homePoints(set.homePoints())
+                        .awayPoints(set.awayPoints())
+                        .build());
+            }
+        }
+        return scores;
     }
 
     private static String toSide(String actaWinner) {

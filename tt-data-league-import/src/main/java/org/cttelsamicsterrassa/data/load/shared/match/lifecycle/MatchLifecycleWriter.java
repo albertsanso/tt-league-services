@@ -71,18 +71,8 @@ public final class MatchLifecycleWriter {
         this.matchRepository = Objects.requireNonNull(matchRepository, "matchRepository");
         this.lineupRepository = Objects.requireNonNull(lineupRepository, "lineupRepository");
         this.gameRepository = Objects.requireNonNull(gameRepository, "gameRepository");
-        this.setScoreRepository = setScoreRepository;
+        this.setScoreRepository = Objects.requireNonNull(setScoreRepository, "setScoreRepository");
         this.doublesPairRepository = Objects.requireNonNull(doublesPairRepository, "doublesPairRepository");
-    }
-
-    /**
-     * BCNESA stores no set scores, so its writers are built without a {@link SetScoreRepository}.
-     */
-    public MatchLifecycleWriter(MatchRepository matchRepository,
-                                LineupRepository lineupRepository,
-                                GameRepository gameRepository,
-                                DoublesPairRepository doublesPairRepository) {
-        this(matchRepository, lineupRepository, gameRepository, null, doublesPairRepository);
     }
 
     /** Current behaviour, byte-for-byte: amended-acta detection is disabled. */
@@ -123,9 +113,7 @@ public final class MatchLifecycleWriter {
         matchRepository.saveMatch(content.match());
         lineupRepository.saveLineups(content.lineups());
         gameRepository.saveGames(content.games());
-        if (setScoreRepository != null) {
-            setScoreRepository.saveSetScores(content.setScores());
-        }
+        setScoreRepository.saveSetScores(content.setScores());
         doublesPairRepository.saveDoublesPairs(content.doublesPairs());
     }
 

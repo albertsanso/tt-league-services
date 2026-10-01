@@ -19,7 +19,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.regex.Pattern;
 
 /**
  * A licence-to-club map for one {@code (season, league-competition, group)} folder, used to attribute
@@ -40,8 +39,6 @@ import java.util.regex.Pattern;
 public final class BcnesaClubIndex {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BcnesaClubIndex.class);
-
-    private static final Pattern MATCH_REPORT_FILE_PATTERN = Pattern.compile("acta.*\\.json");
 
     private final Map<String, Map<String, Integer>> votesByLicense;
 
@@ -133,12 +130,12 @@ public final class BcnesaClubIndex {
     }
 
     /**
-     * The same opaque {@code acta*.json} rule the navigator walks with, so the pre-pass votes on
+     * The same {@link BcnesaReportFileNames} rule the navigator walks with, so the pre-pass votes on
      * exactly the files that will later be dispatched.
      */
     private static List<Path> listJsonFiles(Path folder) throws IOException {
         return list(folder, path -> Files.isRegularFile(path)
-                && MATCH_REPORT_FILE_PATTERN.matcher(path.getFileName().toString()).matches());
+                && BcnesaReportFileNames.isMatchReport(path.getFileName().toString()));
     }
 
     private static List<Path> list(Path folder, java.util.function.Predicate<Path> accepted) throws IOException {

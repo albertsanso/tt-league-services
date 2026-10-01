@@ -26,11 +26,12 @@ import java.util.Objects;
  * fixture whose clubs could not be attributed carries {@code null} here and must be skipped by
  * processors rather than stored under a wrong club.</p>
  *
- * <p>The report file name is opaque and is never parsed: {@code round} comes from the payload's
+ * <p>The report file name is never parsed here: {@code round} comes from the payload's
  * {@code jornada}.</p>
  *
  * @param season            season folder, in {@code YYYY-YYYY} form (for example {@code 2020-2021})
- * @param leagueCompetition league or competition folder (for example {@code Preferent})
+ * @param leagueCompetition stored competition name: the competition folder, with {@code rtb-*} folders
+ *                          mapped to the legacy names by {@code BcnesaCompetitionNames} (for example {@code Preferent})
  * @param group             group folder (for example {@code G1})
  * @param phase             phase folder (for example {@code 1a Fase})
  * @param round             match day, from the payload's {@code jornada}. Every fixture split from

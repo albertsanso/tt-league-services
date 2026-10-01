@@ -83,7 +83,8 @@ class MatchLifecycleImportProcessorsTest {
         bcnesaProcessors = List.of(
                 new BcnesaTeamImportProcessor(teams),
                 new BcnesaPlayerImportProcessor(playerSeasons),
-                new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games, doublesPairs));
+                new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games, setScores,
+                        doublesPairs));
     }
 
     // --- RFETM -----------------------------------------------------------------------------

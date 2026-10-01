@@ -91,7 +91,8 @@ class NavigatorImportExecutionLifecycleTest {
         List<BcnesaMatchReportProcessor> bcnesaProcessors = List.of(
                 new BcnesaTeamImportProcessor(teams),
                 new BcnesaPlayerImportProcessor(playerSeasons),
-                new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games, doublesPairs));
+                new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games, setScores,
+                        doublesPairs));
 
         service = serviceWithoutConsolidation(fcttProcessors, bcnesaProcessors);
     }
@@ -180,6 +181,20 @@ class NavigatorImportExecutionLifecycleTest {
         assertEquals(1, result.metrics().lifecycle().unresolvedPendingFixtures());
         assertEquals(1, result.warnings().size(), "the placeholder is reported as a warning");
         assertTrue(result.issues().isEmpty(), "warnings never become issues");
+    }
+
+    @Test
+    void anUnmappedBcnesaCompetitionFolderEndsFailureInsteadOfEmptyResult() throws IOException {
+        Path folder = Files.createDirectories(baseFolder.resolve("2026-2027").resolve("rtb-unknown")
+                .resolve("G1").resolve("1a Fase"));
+        Files.writeString(folder.resolve("jornada_01_local_team_1_away_team_2.json"), "{}");
+
+        ImportExecutionResult result = service.execute(
+                new ImportExecutionRequest(ImportSource.BCNESA, baseFolder, Optional.of(Season.of(2026))),
+                ImportExecutionOptions.defaults());
+
+        assertEquals(ImportProcessStatus.FAILURE, result.status());
+        assertEquals(1, result.metrics().skipped());
     }
 
     @Test

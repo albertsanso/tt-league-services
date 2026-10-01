@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.load.bcnesa.traverse;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
+import org.cttelsamicsterrassa.data.load.bcnesa.BcnesaCompetitionNames;
 import org.cttelsamicsterrassa.data.load.bcnesa.BcnesaVeteransPhases;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportContext;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
@@ -26,9 +27,10 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -49,17 +51,22 @@ import java.util.regex.Pattern;
  * {@link #traverse(Path, List)}, so a caller can run a reporting pass and a persisting pass over the
  * same tree without changing anything here.</p>
  *
- * <h2>Report file names are not parsed</h2>
- * <p>A report file is any {@code acta*.json} under a phase folder. Two names exist in the export:
- * 16,310 legacy files (2020-2021 to 2025-2026) are named {@code acta_<jornada>_page_<n>.json} - one
- * page per fixture of that match day - and 77 are named {@code acta_<n>.json}, while all 2,882 files
- * of the unpublished 2026-2027 season are named {@code acta_<homeId>-<awayId>_<jornada>.json}. The
- * name is never parsed: the match day comes from the payload's {@code jornada}, present in all 16,387
- * legacy files (and equal to the name's {@code <jornada>} in every {@code _page_} file), and the
- * clubs from {@code equipos}. The one exception is a fixture under a BCNESA Veterans "Other" group
- * (see {@link BcnesaVeteransPhases}): if its payload carries no {@code jornada}, the match day is
- * instead parsed from either file-name pattern and reported through
+ * <h2>Report file names and competition folders</h2>
+ * <p>Report names are recognised by {@link BcnesaReportFileNames}: the legacy {@code acta*.json}
+ * names (16,310 {@code acta_<jornada>_page_<n>.json} and 77 {@code acta_<n>.json} files in 2020-2021
+ * to 2025-2026, plus the earlier 2026-2027 {@code acta_<homeId>-<awayId>_<jornada>.json}) and the
+ * current {@code jornada_<NN>_local_team_<localId>_away_team_<awayId>.json}. A {@code .json} file
+ * under a phase folder with any other name is counted as skipped and reported as an issue, never
+ * silently ignored. Names are otherwise not parsed: the match day comes from the payload's
+ * {@code jornada} and the clubs from {@code equipos}. The one exception is a fixture under a BCNESA
+ * Veterans "Other" group (see {@link BcnesaVeteransPhases}): if its payload carries no
+ * {@code jornada}, the match day is parsed from the file name and reported through
  * {@link ImportRunContext#recordRoundFallback} so an operator sees it.</p>
+ *
+ * <p>Competition folders are mapped by {@link BcnesaCompetitionNames}: {@code rtb-*} folders of the
+ * 2026-2027 export are stored under the legacy competition names, other folders unchanged. An
+ * {@code rtb-*} folder with no mapping is not traversed; its files are counted as skipped and one
+ * issue names the folder.</p>
  *
  * <h2>Failure handling</h2>
  * <p>Nothing a single file or fixture can do aborts the run. Folders that do not fit the layout are
@@ -74,26 +81,8 @@ public class BcnesaActasDirectoryNavigator {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BcnesaActasDirectoryNavigator.class);
 
-    private static final Pattern MATCH_REPORT_FILE_PATTERN = Pattern.compile("acta.*\\.json");
     private static final Pattern SEASON_FOLDER_PATTERN = Pattern.compile("\\d{4}-\\d{4}");
     private static final Pattern GROUP_FOLDER_PATTERN = Pattern.compile("G\\d+");
-
-    /**
-     * Fallback sources for the match day when a payload under a Veterans "Other" group carries no
-     * {@code jornada} (see {@link BcnesaVeteransPhases}). Two report names exist in the export:
-     * <ul>
-     *   <li>legacy {@code acta_<jornada>_page_<n>.json} (up to 2025-2026), where {@code <jornada>}
-     *       mirrors the source PDF's {@code acta_<number>_page_<*>.pdf} naming;</li>
-     *   <li>current {@code acta_<homeId>-<awayId>_<jornada>.json} (2026-2027 onward), whose trailing
-     *       segment is the jornada.</li>
-     * </ul>
-     * Both are tried, legacy first. The fallback has not yet been needed: all 2,586 files under
-     * "Other" group folders in the export carry {@code jornada}.
-     */
-    private static final Pattern OTHER_GROUP_LEGACY_ROUND_FROM_FILE_NAME =
-            Pattern.compile("acta_(\\d+)_page_.*\\.json", Pattern.CASE_INSENSITIVE);
-    private static final Pattern OTHER_GROUP_ROUND_FROM_FILE_NAME =
-            Pattern.compile("acta_\\d+-\\d+_(\\d+)\\.json", Pattern.CASE_INSENSITIVE);
 
     private final List<BcnesaMatchReportProcessor> processors;
     private final ActaParser actaParser;
@@ -221,7 +210,13 @@ public class BcnesaActasDirectoryNavigator {
                                       Counters counters, ImportRunContext runContext,
                                       ImportProgressListener progressListener) throws IOException {
         for (Path competitionFolder : listDirectories(seasonFolder)) {
-            String leagueCompetition = competitionFolder.getFileName().toString();
+            String folderName = competitionFolder.getFileName().toString();
+            Optional<String> storedName = BcnesaCompetitionNames.storedName(folderName);
+            if (storedName.isEmpty()) {
+                skipUnmappedCompetition(competitionFolder, folderName, counters);
+                continue;
+            }
+            String leagueCompetition = storedName.get();
             for (Path groupFolder : listDirectories(competitionFolder)) {
                 String group = groupFolder.getFileName().toString();
                 if (!isAcceptedGroupFolder(leagueCompetition, group)) {
@@ -288,6 +283,15 @@ public class BcnesaActasDirectoryNavigator {
         for (Path reportFile : listJsonFiles(reportFolder)) {
             counters.filesSeen++;
 
+            if (!BcnesaReportFileNames.isMatchReport(reportFile.getFileName().toString())) {
+                counters.filesSkipped++;
+                counters.issues.add(new ImportExecutionIssue("BcnesaActasDirectoryNavigator",
+                        reportFile.toString(), "unrecognised match report file name"));
+                LOGGER.warn("Skipping {}: unrecognised match report file name", reportFile);
+                reportProgress(counters, progressListener);
+                continue;
+            }
+
             Acta acta;
             try {
                 acta = actaParser.parse(reportFile);
@@ -329,20 +333,40 @@ public class BcnesaActasDirectoryNavigator {
     }
 
     /**
-     * Parses the match day out of a Veterans "Other"-group file name, trying the legacy
-     * {@code acta_<jornada>_page_<n>.json} pattern and then the current
-     * {@code acta_<homeId>-<awayId>_<jornada>.json} pattern. Returns {@code null} when the name fits
-     * neither, so the caller skips the file exactly as it does when the payload itself carries no
+     * Parses the match day out of a Veterans "Other"-group file name (see
+     * {@link BcnesaReportFileNames#roundFromFileName}). Returns {@code null} when the name carries
+     * none, so the caller skips the file exactly as it does when the payload itself carries no
      * {@code jornada}.
      */
     private static Integer parseRoundFromFileName(Path reportFile) {
-        String fileName = reportFile.getFileName().toString();
-        Matcher legacy = OTHER_GROUP_LEGACY_ROUND_FROM_FILE_NAME.matcher(fileName);
-        if (legacy.matches()) {
-            return Integer.valueOf(legacy.group(1));
+        return BcnesaReportFileNames.roundFromFileName(reportFile.getFileName().toString());
+    }
+
+    /**
+     * Counts the files of an unmapped {@code rtb-*} competition folder as seen and skipped, using
+     * the same group and phase walk as a mapped one, and reports one issue for the folder.
+     */
+    private void skipUnmappedCompetition(Path competitionFolder, String folderName, Counters counters)
+            throws IOException {
+        long files = countFolderFiles(competitionFolder, folderName);
+        counters.filesSeen += files;
+        counters.filesSkipped += files;
+        counters.issues.add(new ImportExecutionIssue("BcnesaActasDirectoryNavigator", competitionFolder.toString(),
+                "unmapped BCNESA competition folder " + folderName + "; add it to BcnesaCompetitionNames"));
+        LOGGER.error("Skipping unmapped BCNESA competition folder {}", competitionFolder);
+    }
+
+    private long countFolderFiles(Path competitionFolder, String leagueCompetition) throws IOException {
+        long total = 0;
+        for (Path groupFolder : listDirectories(competitionFolder)) {
+            if (!isAcceptedGroupFolder(leagueCompetition, groupFolder.getFileName().toString())) {
+                continue;
+            }
+            for (Path phaseFolder : listDirectories(groupFolder)) {
+                total += listJsonFiles(phaseFolder).size();
+            }
         }
-        Matcher current = OTHER_GROUP_ROUND_FROM_FILE_NAME.matcher(fileName);
-        return current.matches() ? Integer.valueOf(current.group(1)) : null;
+        return total;
     }
 
     /**
@@ -368,16 +392,9 @@ public class BcnesaActasDirectoryNavigator {
                 continue;
             }
             for (Path competitionFolder : listDirectories(seasonFolder)) {
-                String leagueCompetition = competitionFolder.getFileName().toString();
-                for (Path groupFolder : listDirectories(competitionFolder)) {
-                    String group = groupFolder.getFileName().toString();
-                    if (!isAcceptedGroupFolder(leagueCompetition, group)) {
-                        continue;
-                    }
-                    for (Path phaseFolder : listDirectories(groupFolder)) {
-                        total += listJsonFiles(phaseFolder).size();
-                    }
-                }
+                String folderName = competitionFolder.getFileName().toString();
+                total += countFolderFiles(competitionFolder,
+                        BcnesaCompetitionNames.storedName(folderName).orElse(folderName));
             }
         }
         return total;
@@ -408,7 +425,7 @@ public class BcnesaActasDirectoryNavigator {
 
         BcnesaMatchReportContext context = new BcnesaMatchReportContext(
                 season, leagueCompetition, group, phase, round, fixtureIndex,
-                fixture.homeTeamName(), fixture.awayTeamName(), reportFile,                 acta, fixture.games(), runContext);
+                fixture.homeTeamName(), fixture.awayTeamName(), reportFile, acta, fixture.games(), runContext);
         dispatch(context, processors, counters);
     }
 
@@ -435,7 +452,7 @@ public class BcnesaActasDirectoryNavigator {
 
     private List<Path> listJsonFiles(Path folder) throws IOException {
         return list(folder, path -> Files.isRegularFile(path)
-                && MATCH_REPORT_FILE_PATTERN.matcher(path.getFileName().toString()).matches());
+                && path.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".json"));
     }
 
     private List<Path> list(Path folder, Predicate<Path> accepted) throws IOException {

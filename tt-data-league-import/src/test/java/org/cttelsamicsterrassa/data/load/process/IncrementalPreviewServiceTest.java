@@ -105,7 +105,7 @@ class IncrementalPreviewServiceTest {
         RfetmMatchImportProcessor rfetmPreview = new RfetmMatchImportProcessor(teams, playerSeasons, readOnly,
                 lineups, games, setScores, doublesPairs);
         BcnesaMatchImportProcessor bcnesaPreview = new BcnesaMatchImportProcessor(teams, playerSeasons, readOnly,
-                lineups, games, doublesPairs);
+                lineups, games, setScores, doublesPairs);
         FcttMatchImportProcessor fcttPreview = new FcttMatchImportProcessor(teams, playerSeasons, readOnly,
                 lineups, games, setScores, doublesPairs);
         previewService = new NavigatorBackedImportResourcePreviewService(

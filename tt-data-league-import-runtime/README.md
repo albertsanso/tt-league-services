@@ -114,6 +114,24 @@ error; valid modes are `write`, `true`, or an empty value for write mode, and
 not an alias for `--actas-folder`. RFETM club consolidation reads team-to-club
 relationships from `--rfetm-teams-folder`.
 
+### BCNESA export layout
+
+The BCNESA `actas-json` export is organized as
+`<season>/<competition>/<G<n>|Other>/<phase>/<report>.json`. Report files are
+named `acta*.json` (legacy, up to 2025-2026), or
+`jornada_<NN>_local_team_<localId>_away_team_<awayId>.json` (2026-2027
+onward). The team ids in the name are not used: teams come from the payload.
+
+- The 2026-2027 competition folders are `rtb-*` slugs. They are stored under the
+  legacy competition names through an explicit table (for example
+  `rtb-preferent` is stored as `Preferent` and `rtb-veterans-2aa` as
+  `Vet 2a _A_`); legacy folder names are stored unchanged.
+- An `rtb-*` folder with no mapping is not imported: its files are counted as
+  skipped, an issue names the folder, and the run ends as `FAILURE`. Add the
+  folder to `BcnesaCompetitionNames`.
+- A `.json` file under a phase folder with an unsupported name is counted as
+  skipped and reported as an issue, which also ends the run as `FAILURE`.
+
 ### FCTT folder layout
 
 The FCTT `actas-json` export is organized as

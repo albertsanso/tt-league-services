@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.load.process;
 
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
+import org.cttelsamicsterrassa.data.core.domain.game.model.SetScore;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -35,6 +37,7 @@ class BcnesaImportProcessorsTest {
     private InMemoryRepositories.Matches matches;
     private InMemoryRepositories.Lineups lineups;
     private InMemoryRepositories.Games games;
+    private InMemoryRepositories.SetScores setScores;
     private InMemoryRepositories.DoublesPairs doublesPairs;
 
     private List<BcnesaMatchReportProcessor> processors;
@@ -47,14 +50,14 @@ class BcnesaImportProcessorsTest {
         lineups = new InMemoryRepositories.Lineups(playerSeasons);
         games = new InMemoryRepositories.Games();
         doublesPairs = new InMemoryRepositories.DoublesPairs();
-        matches = new InMemoryRepositories.Matches(lineups, games,
-                new InMemoryRepositories.SetScores(), doublesPairs);
+        setScores = new InMemoryRepositories.SetScores();
+        matches = new InMemoryRepositories.Matches(lineups, games, setScores, doublesPairs);
 
         processors = List.of(
                 new BcnesaTeamImportProcessor(teams),
                 new BcnesaPlayerImportProcessor(playerSeasons),
                 new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
-                        doublesPairs));
+                        setScores, doublesPairs));
 
         acta = new ActaParser().parse(fixture("acta_matchday.json"));
     }
@@ -208,7 +211,7 @@ class BcnesaImportProcessorsTest {
     void skipsAFixtureWhoseClubWasNeverImported() {
         BcnesaMatchReportContext context = firstFixture();
 
-        new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games, doublesPairs)
+        new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games, setScores, doublesPairs)
                 .process(context);
 
         assertTrue(matches.saved.isEmpty());
@@ -242,6 +245,39 @@ class BcnesaImportProcessorsTest {
         assertEquals("HOME", first.getWinnerSide());
         assertEquals(3, first.getHomeSetsWon());
         assertEquals(0, first.getAwaySetsWon());
+    }
+
+    @Test
+    void storesTheSetScoresOfEveryGameFromTheHtmlBasedActas() {
+        // Real 2026-2027 acta: the HTML-based export carries the points of every set, doubles included.
+        Acta published = new ActaParser().parse(fixture("acta_bcnesa_2026_published.json"));
+        run(new BcnesaMatchReportContext("2026-2027", "RTB 1a COMARCAL", "G2", "1a Fase", 1, 0,
+                published.teams().home().name(), published.teams().away().name(),
+                fixture("acta_bcnesa_2026_published.json"), published, published.games()));
+
+        assertEquals(7, games.saved.size());
+        assertEquals(28, setScores.saved.size());
+        setScores.saved.forEach(setScore -> assertEquals(ImportSource.BCNESA, setScore.getSource()));
+
+        Game first = games.saved.stream().filter(g -> g.getGameNumber() == 1).findFirst().orElseThrow();
+        List<SetScore> firstSets = setScores.saved.stream()
+                .filter(setScore -> setScore.getGame() == first)
+                .sorted(Comparator.comparingInt(SetScore::getSetNumber))
+                .toList();
+        assertEquals(4, firstSets.size());
+        assertEquals(13, firstSets.get(1).getHomePoints());
+        assertEquals(15, firstSets.get(1).getAwayPoints());
+
+        Game doubles = games.saved.stream().filter(g -> g.getGameNumber() == 7).findFirst().orElseThrow();
+        assertEquals(5, setScores.saved.stream().filter(setScore -> setScore.getGame() == doubles).count());
+    }
+
+    @Test
+    void storesNoSetScoresForThePdfBasedActasThatHaveNone() {
+        run(firstFixture());
+
+        assertFalse(games.saved.isEmpty());
+        assertTrue(setScores.saved.isEmpty());
     }
 
     private void run(BcnesaMatchReportContext context) {

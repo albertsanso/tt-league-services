@@ -74,7 +74,7 @@ class IncrementalPreviewCollectorTest {
         fcttProcessor = new FcttMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
                 setScores, doublesPairs);
         bcnesaProcessor = new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
-                doublesPairs);
+                setScores, doublesPairs);
     }
 
     // --- buckets -----------------------------------------------------------------------------

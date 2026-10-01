@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00094: BCNESA import support for jornada_local_team_away_team file names](### [FEAT-00094] BCNESA import support for jornada_local_team_away_team file names)
+
 - [FEAT-00093: Calendar UI component redesign](### [FEAT-00093] Calendar UI component redesign)
 
 - [FEAT-00092: Season calendar and matchday management](### [FEAT-00092] Season calendar and matchday management)
@@ -73,6 +75,31 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00094] BCNESA import support for jornada_local_team_away_team file names
+- **Status:** done
+- **Priority:** high
+- **Effort:** large
+- **Depends on:** FEAT-00091
+
+#### Goal
+Make the BCNESA import read the new acta export: files named `jornada_<match day>_local_team_<local team id>_away_team_<away team id>.json` under `rtb-*` competition folders, storing them under the same competition names as earlier seasons.
+
+#### Acceptance Criteria
+- [x] The BCNESA navigator accepts acta files named `jornada_<NN>_local_team_<localId>_away_team_<awayId>.json` and imports them; no file in the 2026-2027 export at `C:\tt-repository\import-bcnesa\actas` is ignored or skipped because of its name
+- [x] Legacy names (`acta_<jornada>_page_<n>.json`, `acta_<n>.json` and `acta_<home>-<away>_<jornada>.json`) keep importing with unchanged results
+- [x] The Veterans "Other" group round fallback recognises the jornada segment of the new name and is still reported through `ImportRunContext.recordRoundFallback`; the payload `jornada` stays authoritative
+- [x] A `.json` file under a phase folder that matches no supported name is counted as skipped and reported as an issue instead of being silently ignored
+- [x] New `rtb-*` competition folders are stored under the legacy competition names through an explicit mapping (for example `rtb-preferent` → `Preferent`, `rtb-veterans-2aa` → `Vet 2a _A_`); legacy folder names are stored unchanged
+- [x] An `rtb-*` competition folder with no mapping is not imported: its files are counted as skipped and an issue is reported, so the run does not end as `SUCCESS`
+- [x] Veterans competitions under the new folder names are still recognised as Veterans (including their "Other" group handling)
+- [x] Tests cover the new, legacy and unrecognised file names, the competition mapping and the unmapped-folder case
+- [x] A BCNESA report-mode import over `C:\tt-repository\import-bcnesa\actas` for `--season=2026-2027` completes without errors, sees all 351 files, skips none, and reports matches only under legacy competition names
+
+#### Feature Details
+→ See [FEAT-00094-DETAILS.md](./FEAT-00094-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00093] Calendar UI component redesign
 - **Status:** done
