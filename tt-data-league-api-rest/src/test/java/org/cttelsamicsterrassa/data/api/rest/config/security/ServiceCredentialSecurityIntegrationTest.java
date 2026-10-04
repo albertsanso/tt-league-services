@@ -5,6 +5,12 @@ import org.albertsanso.commons.command.CommandBus;
 import org.albertsanso.commons.query.DomainQueryResponse;
 import org.albertsanso.commons.query.QueryBus;
 import org.cttelsamicsterrassa.data.api.rest.importjob.ImportJobController;
+import org.cttelsamicsterrassa.data.api.rest.match.MatchController;
+import org.cttelsamicsterrassa.data.core.application.match.roundprogress.FindRoundProgressQuery;
+import org.cttelsamicsterrassa.data.core.application.match.roundprogress.dto.RoundProgressReadModel;
+import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.model.UserRole;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,6 +31,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.servlet.config.annotation.EnableWebMvc;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -44,6 +51,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ServiceCredentialSecurityIntegrationTest {
 
     private static final String JOBS = "/api/v1/administration/import/jobs";
+    private static final String ROUND_PROGRESS = "/api/v1/match/round-progress?source=FCTT&season=2026-2027";
     private static final String MATCH_PROBE = "/api/v1/match/probe";
     private static final String SETTINGS_PROBE = "/api/v1/administration/settings/probe";
 
@@ -96,6 +104,16 @@ class ServiceCredentialSecurityIntegrationTest {
     }
 
     @Test
+    void aServiceKeyWithMatchesReadGetsRoundProgress() throws Exception {
+        mockMvc.perform(get(ROUND_PROGRESS).header("X-API-Key", READER_KEY)).andExpect(status().isOk());
+    }
+
+    @Test
+    void aServiceKeyWithoutMatchesReadIsForbiddenOnRoundProgress() throws Exception {
+        mockMvc.perform(get(ROUND_PROGRESS).header("X-API-Key", IMPORTER_KEY)).andExpect(status().isForbidden());
+    }
+
+    @Test
     void anInvalidKeyIs401() throws Exception {
         mockMvc.perform(get(JOBS).header("X-API-Key", "not-a-configured-key")).andExpect(status().isUnauthorized());
     }
@@ -135,6 +153,9 @@ class ServiceCredentialSecurityIntegrationTest {
         QueryBus queryBus() {
             QueryBus queryBus = mock(QueryBus.class);
             when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(List.of()));
+            when(queryBus.push(any(FindRoundProgressQuery.class))).thenReturn(DomainQueryResponse.sucessResponse(
+                    new RoundProgressReadModel(ImportSource.FCTT, Season.of(2026), null, false,
+                            LocalDate.of(2026, 10, 4), 7, List.of())));
             return queryBus;
         }
 
@@ -174,6 +195,16 @@ class ServiceCredentialSecurityIntegrationTest {
         @Bean
         ImportJobController importJobController() {
             return new ImportJobController();
+        }
+
+        @Bean
+        MatchRepository matchRepository() {
+            return mock(MatchRepository.class);
+        }
+
+        @Bean
+        MatchController matchController() {
+            return new MatchController();
         }
 
         @Bean

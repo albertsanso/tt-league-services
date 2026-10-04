@@ -262,6 +262,24 @@ class InMemoryMatchRepositoryTest {
     }
 
     @Test
+    void findCalendarEntriesProjectsEveryStatusOfOneSourceAndSeason() {
+        Season entriesSeason = Season.of(2026);
+        storedFcttMatch(entriesSeason, 1, MatchStatus.PLAYED);
+        storedFcttMatch(entriesSeason, 2, MatchStatus.SCHEDULED);
+        storedFcttMatch(Season.of(2025), 1, MatchStatus.PLAYED);
+        savedScheduled(UUID.randomUUID(), 3);
+
+        var entries = matches.findCalendarEntries(ImportSource.FCTT, entriesSeason);
+
+        assertEquals(2, entries.size(), "the other season and the RFETM match are out of scope");
+        assertEquals(List.of(MatchStatus.PLAYED, MatchStatus.SCHEDULED),
+                entries.stream().map(entry -> entry.status()).toList());
+        assertEquals(List.of(1, 2), entries.stream().map(entry -> entry.round()).toList());
+        assertThrows(NullPointerException.class, () -> matches.findCalendarEntries(null, entriesSeason));
+        assertThrows(NullPointerException.class, () -> matches.findCalendarEntries(ImportSource.FCTT, null));
+    }
+
+    @Test
     void findRoundProgressRejectsNullArguments() {
         assertThrows(NullPointerException.class, () -> matches.findRoundProgress(null, SEASON));
         assertThrows(NullPointerException.class, () -> matches.findRoundProgress(ImportSource.RFETM, null));

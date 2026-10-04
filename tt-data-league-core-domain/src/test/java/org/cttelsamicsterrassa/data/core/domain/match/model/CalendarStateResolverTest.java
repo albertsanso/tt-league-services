@@ -171,6 +171,40 @@ class CalendarStateResolverTest {
         assertThrows(NullPointerException.class, () -> CalendarStateResolver.canMarkOverdue(match, null));
     }
 
+    @Test
+    void theProjectionOverloadAgreesWithTheMatchOverloadOnEveryBoundary() {
+        for (MatchStatus status : MatchStatus.values()) {
+            for (boolean marked : new boolean[] {false, true}) {
+                for (Integer currentRound : new Integer[] {null, 2, 3, 4}) {
+                    for (int day = 1; day <= 14; day++) {
+                        Match match = match().status(status).dateTime(on(2026, 9, 3)).createExisting();
+                        LocalDate today = LocalDate.of(2026, 9, day);
+                        assertEquals(
+                                CalendarStateResolver.resolve(match, currentRound, marked, today, GRACE),
+                                CalendarStateResolver.resolve(status, 3, LocalDate.of(2026, 9, 3),
+                                        currentRound, marked, today, GRACE));
+                    }
+                }
+            }
+        }
+        Match undated = match().dateTime(null).createExisting();
+        assertEquals(CalendarStateResolver.resolve(undated, null, false, LocalDate.of(2026, 9, 1), GRACE),
+                CalendarStateResolver.resolve(MatchStatus.SCHEDULED, 3, null, null, false,
+                        LocalDate.of(2026, 9, 1), GRACE));
+    }
+
+    @Test
+    void theProjectionOverloadKeepsTheGraceBoundary() {
+        LocalDate matchDate = LocalDate.of(2026, 9, 3);
+
+        assertEquals(CalendarMatchState.AWAITING_RESULT, CalendarStateResolver.resolve(
+                MatchStatus.SCHEDULED, 3, matchDate, null, false, LocalDate.of(2026, 9, 10), GRACE));
+        assertEquals(CalendarMatchState.OVERDUE, CalendarStateResolver.resolve(
+                MatchStatus.SCHEDULED, 3, matchDate, null, false, LocalDate.of(2026, 9, 11), GRACE));
+        assertThrows(NullPointerException.class, () -> CalendarStateResolver.resolve(
+                null, 3, matchDate, null, false, LocalDate.of(2026, 9, 1), GRACE));
+    }
+
     private ZonedDateTime on(int year, int month, int day) {
         return ZonedDateTime.of(LocalDate.of(year, month, day), LocalTime.of(18, 0), Match.COMPETITION_ZONE);
     }

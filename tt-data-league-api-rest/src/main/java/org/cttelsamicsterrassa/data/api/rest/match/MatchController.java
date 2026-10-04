@@ -10,6 +10,8 @@ import org.cttelsamicsterrassa.data.core.application.match.calendar.FindSeasonCa
 import org.cttelsamicsterrassa.data.core.application.match.calendar.dto.SeasonCalendarReadModel;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.range.FindCalendarRangeQuery;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.range.dto.CalendarRangeReadModel;
+import org.cttelsamicsterrassa.data.core.application.match.roundprogress.FindRoundProgressQuery;
+import org.cttelsamicsterrassa.data.core.application.match.roundprogress.dto.RoundProgressReadModel;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.mark.ClearMatchOverdueMarkCommand;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.mark.MarkMatchOverdueCommand;
 import org.cttelsamicsterrassa.data.core.application.match.find.FindMatchDetailsQuery;
@@ -170,6 +172,53 @@ public class MatchController {
                     .body(new ErrorMessage("Calendar range failed"));
         }
         return ResponseEntity.ok(CalendarRangeDto.from(model));
+    }
+
+    @GetMapping("/round-progress")
+    @PreAuthorize("hasAuthority('matches:read')")
+    @Operation(summary = "Get the per-jornada round progress",
+            description = "Returns, per competition/group/phase and jornada, the scheduled, played, postponed, "
+                    + "overdue, awaiting-result and undated counts and the first and last match dates. "
+                    + "onlyOpen=true keeps jornadas with a non-played match or a window overlapping today "
+                    + "plus the overdue grace period")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Round progress"),
+            @ApiResponse(responseCode = "400", description = "Invalid round progress filters"),
+            @ApiResponse(responseCode = "401", description = "Unauthenticated"),
+            @ApiResponse(responseCode = "403", description = "Missing matches:read authority")
+    })
+    public ResponseEntity<?> roundProgress(
+            @RequestParam(name = "source") String source,
+            @RequestParam(name = "season") String season,
+            @RequestParam(name = "competition", required = false) String competition,
+            @RequestParam(name = "onlyOpen", required = false) String onlyOpen) {
+        FindRoundProgressQuery query;
+        try {
+            if (competition != null && competition.isBlank()) {
+                return ResponseEntity.badRequest().body(new ErrorMessage("Invalid round progress filters"));
+            }
+            query = new FindRoundProgressQuery(parseSource(source), Season.fromFormatted(season.trim()),
+                    competition == null ? null : competition.trim(), parseOnlyOpen(onlyOpen));
+        } catch (RuntimeException exception) {
+            return ResponseEntity.badRequest().body(new ErrorMessage("Invalid round progress filters"));
+        }
+        var response = queryBus.push(query);
+        if (!response.isSuccess() || !(response.getResponse() instanceof RoundProgressReadModel model)) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(new ErrorMessage("Round progress failed"));
+        }
+        return ResponseEntity.ok(RoundProgressDto.from(model));
+    }
+
+    private static boolean parseOnlyOpen(String value) {
+        if (value == null) {
+            return false;
+        }
+        return switch (value.trim().toLowerCase(Locale.ROOT)) {
+            case "true" -> true;
+            case "false" -> false;
+            default -> throw new IllegalArgumentException("onlyOpen must be true or false");
+        };
     }
 
     @PutMapping("/{id}/overdue-mark")

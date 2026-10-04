@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.core.domain.match.repository;
 
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchCalendarEntry;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
@@ -215,4 +216,14 @@ public interface MatchRepository {
     List<Match> findMatchesBySourceSeasonAndDateRange(ImportSource source, Season season,
                                                       java.time.LocalDate fromInclusive,
                                                       java.time.LocalDate toExclusive);
+
+    /**
+     * Returns a slim projection of every stored match of one source and season, regardless of status
+     * (FEAT-00102). This is a calendar read for the round-progress handler only: it must never feed
+     * statistics, search, community counts, or any PLAYED-only view (FEAT-00079). The lookup is always
+     * source-scoped and read-only; an empty list means the source and season hold no match at all.
+     *
+     * @throws NullPointerException if {@code source} or {@code season} is {@code null}
+     */
+    List<MatchCalendarEntry> findCalendarEntries(ImportSource source, Season season);
 }

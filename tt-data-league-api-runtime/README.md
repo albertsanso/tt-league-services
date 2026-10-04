@@ -455,6 +455,42 @@ never stored; the only persisted calendar data is the manual overdue mark in
 `match_overdue_mark`. The `matches:write` permission is granted to `ADMIN`
 only.
 
+### Round progress (FEAT-00102)
+
+`GET /api/v1/match/round-progress?source=&season=[&competition=][&onlyOpen=true]`
+(`matches:read`, also available to service credentials holding it) returns the
+jornada-level progress of a source and season, per competition/group/phase, so the
+pipeline orchestrator can decide which jornadas still need actas without reading
+every match. Read-only: nothing is stored, every value is derived on each request.
+
+- `source` and `season` are required (`2026-2027` form). `competition` narrows the
+  groups; `onlyOpen` accepts only `true`/`false` (case-insensitive, absent =
+  `false`). A bad source/season/`onlyOpen` or a blank `competition` returns
+  `400 "Invalid round progress filters"`; a handler failure returns
+  `500 "Round progress failed"`. An unknown competition, or a source and season
+  with no matches, is `200` with empty `groups`.
+- Response: `source`, `season`, `competition`, `onlyOpen`, `today` (Europe/Madrid),
+  `overdueGraceDays` (the same `CALENDAR_OVERDUE_GRACE_DAYS` value as the calendar)
+  and `groups`. Each group has `competition`, `groupNumber`, `phase`,
+  `currentRound`, `lastCompleteRound` (from `MatchRepository.findRoundProgress`,
+  never changed by the filters) and `rounds`.
+- Each round has `round`, `firstDate`/`lastDate` (earliest/latest match date in
+  Europe/Madrid, `null` when every match is undated), `scheduledMatches`,
+  `playedMatches` (together every stored match of the jornada), and the disjoint
+  subsets of `scheduledMatches` `postponedMatches`, `overdueMatches`,
+  `awaitingResultMatches` and `undatedMatches` (the remainder is upcoming), all
+  resolved by the calendar state rule above, including manual overdue marks. It
+  also has `complete` (no scheduled match), `current` (the group's current round)
+  and `open`.
+- `open` is `true` when the jornada has any non-played match, or when today is in
+  `[firstDate, lastDate + overdueGraceDays]`. With 7 days a jornada played on the
+  3rd stays open through the 10th and closes on the 11th. With `onlyOpen=true`
+  only open jornadas are returned and groups left with none are dropped; otherwise
+  every stored jornada is returned. Groups are sorted by competition, group and
+  phase (nulls last), rounds ascending.
+
+New response fields are only ever added, never renamed or removed.
+
 # Considerations:
 
 **JWT_SIGNING_SECRET**: The JWT signing secret is currently hardcoded in the `application.yml` file.

@@ -32,22 +32,36 @@ public final class CalendarStateResolver {
     public static CalendarMatchState resolve(Match match, Integer currentRound, boolean overdueMarked,
                                              LocalDate today, OverdueGracePeriod grace) {
         Objects.requireNonNull(match, "match");
+        LocalDate matchDate = match.getDateTime() == null
+                ? null
+                : match.getDateTime().withZoneSameInstant(Match.COMPETITION_ZONE).toLocalDate();
+        return resolve(match.getStatus(), match.getRound(), matchDate, currentRound, overdueMarked, today, grace);
+    }
+
+    /**
+     * The same ordered rule over primitive inputs, for callers that hold a slim projection instead of a
+     * {@link Match} (FEAT-00102). {@code matchDate} must already be in {@link Match#COMPETITION_ZONE}.
+     */
+    public static CalendarMatchState resolve(MatchStatus status, int round, LocalDate matchDate,
+                                             Integer currentRound, boolean overdueMarked,
+                                             LocalDate today, OverdueGracePeriod grace) {
+        Objects.requireNonNull(status, "status");
         Objects.requireNonNull(today, "today");
         Objects.requireNonNull(grace, "grace");
 
-        if (match.getStatus() == MatchStatus.PLAYED) {
+        if (status == MatchStatus.PLAYED) {
             return CalendarMatchState.PLAYED;
         }
         if (overdueMarked) {
             return CalendarMatchState.OVERDUE;
         }
-        if (currentRound != null && match.getRound() < currentRound) {
+        if (currentRound != null && round < currentRound) {
             return CalendarMatchState.POSTPONED;
         }
-        if (match.getDateTime() == null) {
+        if (matchDate == null) {
             return CalendarMatchState.UNDATED;
         }
-        LocalDate graceStart = dayAfterMatch(match);
+        LocalDate graceStart = matchDate.plusDays(1);
         if (!today.isBefore(graceStart.plusDays(grace.days()))) {
             return CalendarMatchState.OVERDUE;
         }

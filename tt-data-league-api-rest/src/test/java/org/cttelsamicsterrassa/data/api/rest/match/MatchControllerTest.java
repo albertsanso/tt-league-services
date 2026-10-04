@@ -13,6 +13,10 @@ import org.cttelsamicsterrassa.data.core.application.match.calendar.range.dto.Ca
 import org.cttelsamicsterrassa.data.core.application.match.calendar.range.dto.CalendarTeamFacet;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.mark.ClearMatchOverdueMarkCommand;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.mark.MarkMatchOverdueCommand;
+import org.cttelsamicsterrassa.data.core.application.match.roundprogress.FindRoundProgressQuery;
+import org.cttelsamicsterrassa.data.core.application.match.roundprogress.dto.JornadaProgressReadModel;
+import org.cttelsamicsterrassa.data.core.application.match.roundprogress.dto.RoundProgressGroupReadModel;
+import org.cttelsamicsterrassa.data.core.application.match.roundprogress.dto.RoundProgressReadModel;
 import org.cttelsamicsterrassa.data.core.domain.match.model.CalendarMatchState;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
@@ -241,6 +245,77 @@ class MatchControllerTest {
 
         when(commandBus.push(any())).thenReturn(DomainCommandResponse.failResponse("Match not found: x"));
         assertEquals(HttpStatus.NOT_FOUND, controller.clearOverdueMark(id).getStatusCode());
+    }
+
+    @Test
+    void mapsARoundProgressResponseAndPassesTheFiltersToTheQuery() {
+        QueryBus queryBus = mock(QueryBus.class);
+        MatchController controller = controllerWith(queryBus, mock(CommandBus.class), mock(MatchRepository.class));
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(
+                new RoundProgressReadModel(ImportSource.FCTT, Season.of(2026), "TERCERA", true,
+                        LocalDate.of(2026, 10, 4), 7, List.of(new RoundProgressGroupReadModel("TERCERA", 2,
+                        "1a Fase", 3, 2, List.of(new JornadaProgressReadModel(3, LocalDate.of(2026, 9, 26),
+                        LocalDate.of(2026, 9, 27), 2, 4, 0, 1, 1, 0, false, true, true)))))));
+
+        var response = controller.roundProgress("FCTT", "2026-2027", " TERCERA ", "TRUE");
+
+        assertEquals(HttpStatus.OK, response.getStatusCode());
+        RoundProgressDto body = (RoundProgressDto) response.getBody();
+        assertEquals("FCTT", body.source());
+        assertEquals("2026-2027", body.season());
+        assertTrue(body.onlyOpen());
+        assertEquals(7, body.overdueGraceDays());
+        RoundProgressDto.JornadaProgressDto round = body.groups().getFirst().rounds().getFirst();
+        assertEquals(3, round.round());
+        assertEquals(1, round.overdueMatches());
+        assertEquals(1, round.awaitingResultMatches());
+        assertTrue(round.open());
+        ArgumentCaptor<FindRoundProgressQuery> captor = ArgumentCaptor.forClass(FindRoundProgressQuery.class);
+        verify(queryBus).push(captor.capture());
+        assertEquals("TERCERA", captor.getValue().getCompetition());
+        assertTrue(captor.getValue().isOnlyOpen());
+    }
+
+    @Test
+    void roundProgressDefaultsOnlyOpenToFalseAndNoCompetition() {
+        QueryBus queryBus = mock(QueryBus.class);
+        MatchController controller = controllerWith(queryBus, mock(CommandBus.class), mock(MatchRepository.class));
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.sucessResponse(
+                new RoundProgressReadModel(ImportSource.FCTT, Season.of(2026), null, false,
+                        LocalDate.of(2026, 10, 4), 7, List.of())));
+
+        assertEquals(HttpStatus.OK, controller.roundProgress("FCTT", "2026-2027", null, null).getStatusCode());
+
+        ArgumentCaptor<FindRoundProgressQuery> captor = ArgumentCaptor.forClass(FindRoundProgressQuery.class);
+        verify(queryBus).push(captor.capture());
+        assertNull(captor.getValue().getCompetition());
+        assertFalse(captor.getValue().isOnlyOpen());
+    }
+
+    @Test
+    void invalidRoundProgressFiltersAreRejected() {
+        QueryBus queryBus = mock(QueryBus.class);
+        MatchController controller = controllerWith(queryBus, mock(CommandBus.class), mock(MatchRepository.class));
+
+        assertEquals(HttpStatus.BAD_REQUEST,
+                controller.roundProgress("FCTT", "2026-2027", null, "yes").getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST,
+                controller.roundProgress("FCTT", "2026-2027", "  ", null).getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST,
+                controller.roundProgress("NOPE", "2026-2027", null, null).getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST,
+                controller.roundProgress("FCTT", "bad", null, null).getStatusCode());
+        org.mockito.Mockito.verifyNoInteractions(queryBus);
+    }
+
+    @Test
+    void aRoundProgressHandlerFailureIsAServerError() {
+        QueryBus queryBus = mock(QueryBus.class);
+        MatchController controller = controllerWith(queryBus, mock(CommandBus.class), mock(MatchRepository.class));
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.failResponse(null));
+
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR,
+                controller.roundProgress("FCTT", "2026-2027", null, null).getStatusCode());
     }
 
     private static MatchController controllerWith(QueryBus queryBus, CommandBus commandBus,

@@ -674,6 +674,21 @@ public final class InMemoryRepositories {
                     .toList();
         }
 
+        /** FEAT-00102: slim projection of every stored match, date in Europe/Madrid. */
+        @Override
+        public List<org.cttelsamicsterrassa.data.core.domain.match.model.MatchCalendarEntry> findCalendarEntries(ImportSource source, Season season) {
+            Objects.requireNonNull(source, "source");
+            Objects.requireNonNull(season, "season");
+            return saved.stream()
+                    .filter(m -> source.equals(m.getSource()))
+                    .filter(m -> season.equals(m.getSeason()))
+                    .map(m -> new org.cttelsamicsterrassa.data.core.domain.match.model.MatchCalendarEntry(m.getId(), m.getCompetition(), m.getGroupNumber(),
+                            m.getPhase(), m.getRound(), m.getStatus(),
+                            m.getDateTime() == null ? null
+                                    : m.getDateTime().withZoneSameInstant(Match.COMPETITION_ZONE).toLocalDate()))
+                    .toList();
+        }
+
         /** FEAT-00092: source-scoped calendar read returning matches of every status. */
         @Override
         public List<Match> findMatchesBySourceSeasonAndCompetition(ImportSource source, Season season,

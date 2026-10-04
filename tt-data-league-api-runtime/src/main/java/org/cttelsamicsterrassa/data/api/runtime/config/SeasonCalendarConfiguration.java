@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.api.runtime.config;
 
 import org.cttelsamicsterrassa.data.core.application.match.calendar.FindSeasonCalendarQueryHandler;
 import org.cttelsamicsterrassa.data.core.application.match.calendar.range.FindCalendarRangeQueryHandler;
+import org.cttelsamicsterrassa.data.core.application.match.roundprogress.FindRoundProgressQueryHandler;
 import org.cttelsamicsterrassa.data.core.domain.match.model.OverdueGracePeriod;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchOverdueMarkRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
@@ -31,6 +32,15 @@ public class SeasonCalendarConfiguration {
             MatchOverdueMarkRepository markRepository,
             OverdueGracePeriod gracePeriod) {
         return new FindSeasonCalendarQueryHandler(matchRepository, markRepository, gracePeriod,
+                Clock.systemDefaultZone());
+    }
+
+    @Bean
+    FindRoundProgressQueryHandler findRoundProgressQueryHandler(
+            MatchRepository matchRepository,
+            MatchOverdueMarkRepository markRepository,
+            OverdueGracePeriod gracePeriod) {
+        return new FindRoundProgressQueryHandler(matchRepository, markRepository, gracePeriod,
                 Clock.systemDefaultZone());
     }
 

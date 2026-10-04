@@ -54,27 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00102] Round progress and open match-day query endpoint
-- **Status:** idea
-- **Priority:** high
-- **Effort:** medium
-- **Depends on:** —
-
-#### Goal
-Expose per source and season which match days are open, with their date window and match status counts, so the orchestrator can decide what to refresh from the domain model.
-
-#### Acceptance Criteria
-- [ ] `GET /api/v1/match/round-progress?source=&season=` returns, per competition/group/phase and jornada, the counts of scheduled, played, derived postponed and overdue matches, and the first and last scheduled dates
-- [ ] Counts reuse `MatchRepository.findRoundProgress` and the calendar's derived postponed/overdue rules; no state is stored
-- [ ] Optional `competition` and `onlyOpen=true` filters narrow the result; `onlyOpen` keeps jornadas with any non-played match or a window overlapping today plus the grace period
-- [ ] The endpoint needs `matches:read` and is available to the service credential
-- [ ] Domain, JPA and controller tests cover the FCTT 2026-2027 shape and an overdue match
-
-#### Feature Details
-→ See [FEAT-00102-DETAILS.md](./FEAT-00102-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00103] Orchestrator pipeline run model and persistence
 - **Status:** idea
 - **Priority:** high
@@ -362,6 +341,27 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00102] Round progress and open match-day query endpoint
+- **Status:** done
+- **Priority:** high
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Expose per source and season which match days are open, with their date window and match status counts, so the orchestrator can decide what to refresh from the domain model.
+
+#### Acceptance Criteria
+- [x] `GET /api/v1/match/round-progress?source=&season=` returns, per competition/group/phase and jornada, the counts of scheduled, played, derived postponed and overdue matches, and the first and last scheduled dates
+- [x] Counts reuse `MatchRepository.findRoundProgress` and the calendar's derived postponed/overdue rules; no state is stored
+- [x] Optional `competition` and `onlyOpen=true` filters narrow the result; `onlyOpen` keeps jornadas with any non-played match or a window overlapping today plus the grace period
+- [x] The endpoint needs `matches:read` and is available to the service credential
+- [x] Domain, JPA and controller tests cover the FCTT 2026-2027 shape and an overdue match
+
+#### Feature Details
+→ See [FEAT-00102-DETAILS.md](./FEAT-00102-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00101] Service credentials for platform-to-platform API calls
 - **Status:** done

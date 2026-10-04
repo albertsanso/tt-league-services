@@ -352,6 +352,20 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
             @Param("source") Source source, @Param("season") String season);
 
     /**
+     * FEAT-00102. Slim calendar projection of every match of one source and season, regardless of
+     * status. No joins or fetches; served by the leading columns of
+     * {@code idx_match_source_season_competition_status}.
+     */
+    @Query("""
+            select new org.cttelsamicsterrassa.data.core.repository.jpa.match.impl.MatchCalendarEntryProjection(
+                m.id, m.competition, m.groupNumber, m.phase, m.round, m.status, m.matchDate)
+            from MatchJPA m
+            where m.source = :source and m.season = :season
+            """)
+    List<MatchCalendarEntryProjection> findCalendarEntries(
+            @Param("source") Source source, @Param("season") String season);
+
+    /**
      * Same candidate rule, restricted to {@code matchIds}. Used by {@code markScheduled} to re-check
      * every id inside the write transaction before mutating anything.
      */

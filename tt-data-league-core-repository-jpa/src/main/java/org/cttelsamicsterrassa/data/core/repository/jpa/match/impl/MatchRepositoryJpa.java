@@ -424,6 +424,27 @@ public class MatchRepositoryJpa implements MatchRepository {
                 .toList();
     }
 
+    /**
+     * FEAT-00102. Slim, source-scoped, read-only calendar projection of every match of a season,
+     * regardless of status. {@code matchDate} is a plain date, so no zone conversion is needed.
+     */
+    @Override
+    public List<org.cttelsamicsterrassa.data.core.domain.match.model.MatchCalendarEntry> findCalendarEntries(
+            ImportSource source, Season season) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(season, "season");
+        return matchRepositoryHelper
+                .findCalendarEntries(Source.valueOf(source.name()), season.toString())
+                .stream()
+                .map(projection -> new org.cttelsamicsterrassa.data.core.domain.match.model.MatchCalendarEntry(
+                        projection.matchId(), projection.competition(), projection.groupNumber(),
+                        projection.phase(), projection.round(),
+                        org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus
+                                .valueOf(projection.status().name()),
+                        projection.matchDate()))
+                .toList();
+    }
+
     private static RoundStatusCount toStatusCount(RoundStatusCountProjection projection) {
         return new RoundStatusCount(projection.competition(), projection.groupNumber(), projection.phase(),
                 projection.round(),

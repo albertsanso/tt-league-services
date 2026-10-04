@@ -548,6 +548,12 @@ class NavigatorImportExecutionLifecycleTest {
         }
 
         @Override
+        public List<org.cttelsamicsterrassa.data.core.domain.match.model.MatchCalendarEntry> findCalendarEntries(
+                ImportSource source, Season season) {
+            return List.of();
+        }
+
+        @Override
         public void saveMatch(Match match) {
             throw new UnsupportedOperationException("not needed by this test");
         }

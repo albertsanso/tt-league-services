@@ -245,6 +245,11 @@ class SnapshotReconcilerTest {
         }
 
         @Override
+        public List<org.cttelsamicsterrassa.data.core.domain.match.model.MatchCalendarEntry> findCalendarEntries(ImportSource source, Season season) {
+            return delegate.findCalendarEntries(source, season);
+        }
+
+        @Override
         public void saveMatch(Match match) {
             saveCalls++;
             delegate.saveMatch(match);
