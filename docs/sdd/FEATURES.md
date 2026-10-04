@@ -54,29 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00100] Machine-friendly asynchronous import jobs API
-- **Status:** ready
-- **Priority:** high
-- **Effort:** large
-- **Depends on:** FEAT-00099
-
-#### Goal
-Let an automated client submit an upload ZIP and follow the resulting import to completion through one job id, with idempotency and a structured change report.
-
-#### Acceptance Criteria
-- [ ] `POST /api/v1/administration/import/jobs` (multipart `file`, optional `runId`, `allowPublishedShrink`) validates the ZIP synchronously (400 invalid, 409 published-acta shrink) and returns `202 {importJobId, status}`
-- [ ] A job stores the ZIP content and then imports every ACTAS season of its manifest, moving through `QUEUED`, `STORING`, `IMPORTING` and ending `SUCCEEDED`, `PARTIAL` or `FAILED`
-- [ ] `GET /api/v1/administration/import/jobs/{id}` returns the job with, per season, the import run id, status and `ImportProcessResult` (counters, lifecycle counters, round progress); `GET /api/v1/administration/import/jobs?source=&from=&to=&limit=` lists jobs, most recent first
-- [ ] When the manifest has `contentSha256`, submitting the same source and hash as a `SUCCEEDED`/`PARTIAL` or active job returns that job with 200 and no new import; without `contentSha256` there is no deduplication
-- [ ] Jobs run one at a time system-wide; a job waits (bounded, configurable) while a manually started import is active and fails with a clear reason after the timeout
-- [ ] Jobs are persisted in `import_job` and `import_job_season`; after a restart `QUEUED` jobs resume and `STORING`/`IMPORTING` jobs end `FAILED` with an interruption reason; `rfetm-datamodel.md` documents both tables
-- [ ] The existing upload, preview and start endpoints behave as before, and the unused `ImportJobsPort`/`shared.model.ImportJob*` types are removed
-
-#### Feature Details
-→ See [FEAT-00100-DETAILS.md](./FEAT-00100-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00101] Service credentials for platform-to-platform API calls
 - **Status:** ready
 - **Priority:** high
@@ -407,6 +384,29 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00100] Machine-friendly asynchronous import jobs API
+- **Status:** done
+- **Priority:** high
+- **Effort:** large
+- **Depends on:** FEAT-00099
+
+#### Goal
+Let an automated client submit an upload ZIP and follow the resulting import to completion through one job id, with idempotency and a structured change report.
+
+#### Acceptance Criteria
+- [x] `POST /api/v1/administration/import/jobs` (multipart `file`, optional `runId`, `allowPublishedShrink`) validates the ZIP synchronously (400 invalid, 409 published-acta shrink) and returns `202 {importJobId, status}`
+- [x] A job stores the ZIP content and then imports every ACTAS season of its manifest, moving through `QUEUED`, `STORING`, `IMPORTING` and ending `SUCCEEDED`, `PARTIAL` or `FAILED`
+- [x] `GET /api/v1/administration/import/jobs/{id}` returns the job with, per season, the import run id, status and `ImportProcessResult` (counters, lifecycle counters, round progress); `GET /api/v1/administration/import/jobs?source=&from=&to=&limit=` lists jobs, most recent first
+- [x] When the manifest has `contentSha256`, submitting the same source and hash as a `SUCCEEDED`/`PARTIAL` or active job returns that job with 200 and no new import; without `contentSha256` there is no deduplication
+- [x] Jobs run one at a time system-wide; a job waits (bounded, configurable) while a manually started import is active and fails with a clear reason after the timeout
+- [x] Jobs are persisted in `import_job` and `import_job_season`; after a restart `QUEUED` jobs resume and `STORING`/`IMPORTING` jobs end `FAILED` with an interruption reason, returning the import resource they left `PROCESSING` to `ERROR`; `rfetm-datamodel.md` documents both tables
+- [x] The existing upload, preview and start endpoints behave as before, and the unused `ImportJobsPort`/`shared.model.ImportJob*` types are removed
+
+#### Feature Details
+→ See [FEAT-00100-DETAILS.md](./FEAT-00100-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00099] Upload ZIP provenance manifest and package retrieval
 - **Status:** done

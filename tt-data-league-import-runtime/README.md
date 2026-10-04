@@ -342,8 +342,9 @@ lifecycle used by the administration panel. All endpoints require the `ADMIN`
 role. Supported source IDs are configured with `tt.league.import.sources`
 (default `RFETM,BCNESA,FCTT`); arbitrary paths and URLs are never accepted.
 Jobs are bounded to 100 history results and use mapping version `1`. The
-current adapter keeps lifecycle state in memory; deployments requiring restart
-recovery should provide a persistent `ImportJobsPort` adapter.
+current adapter keeps lifecycle state in memory and does not survive a restart.
+The persisted, restart-safe import jobs API is served by the API runtime (see
+`tt-data-league-api-runtime/README.md`, FEAT-00100).
 
 ### Preview classification
 

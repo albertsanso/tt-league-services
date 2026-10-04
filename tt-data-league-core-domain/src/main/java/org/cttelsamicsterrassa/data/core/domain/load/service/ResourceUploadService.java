@@ -27,10 +27,33 @@ public class ResourceUploadService {
     }
 
     public void uploadAndTriggerAsyncLoad(String filename, byte[] content, boolean allowPublishedShrink) {
-        ResourceZipService.validateFile(filename, content);
-        ImportManifest importManifest = resourceZipService.extractZipAndGetManifest(content);
-        resourceRepositoryLoaderService.verifyPublishedActasNotShrinking(importManifest, allowPublishedShrink);
+        ImportManifest importManifest = validateUpload(filename, content, allowPublishedShrink);
         triggerAsyncLoad(importManifest);
+    }
+
+    /**
+     * Validates an upload without storing it: the file, the ZIP, the manifest (including a declared
+     * {@code contentSha256}) and the published-acta shrink check.
+     *
+     * @return the manifest, whose extraction folder still holds the extracted content
+     * @throws IllegalArgumentException when the file, ZIP or manifest is invalid
+     * @throws SnapshotShrinkException when the upload shrinks published actas and no override is given
+     */
+    public ImportManifest validateUpload(String filename, byte[] content, boolean allowPublishedShrink) {
+        ImportManifest importManifest = readManifest(filename, content);
+        resourceRepositoryLoaderService.verifyPublishedActasNotShrinking(importManifest, allowPublishedShrink);
+        return importManifest;
+    }
+
+    /**
+     * Validates the file and the ZIP and returns its manifest, without the published-acta shrink check.
+     *
+     * @return the manifest, whose extraction folder holds the extracted content
+     * @throws IllegalArgumentException when the file, ZIP or manifest is invalid
+     */
+    public ImportManifest readManifest(String filename, byte[] content) {
+        ResourceZipService.validateFile(filename, content);
+        return resourceZipService.extractZipAndGetManifest(content);
     }
 
     private void triggerAsyncLoad(ImportManifest importManifest) {

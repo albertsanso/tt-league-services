@@ -59,6 +59,11 @@ tt:
         club-consolidation: ${IMPORT_EXECUTION_CLUB_CONSOLIDATION:write}
         player-consolidation: ${IMPORT_EXECUTION_PLAYER_CONSOLIDATION:write}
         amended-acta-detection: ${IMPORT_EXECUTION_AMENDED_ACTA_DETECTION:disabled}
+      jobs:
+        # ISO-8601 durations: how often a waiting import job re-checks, and how long it may wait
+        # while another import is active before it fails.
+        busy-retry-interval: ${IMPORT_JOBS_BUSY_RETRY_INTERVAL:PT10S}
+        busy-timeout: ${IMPORT_JOBS_BUSY_TIMEOUT:PT2H}
     calendar:
       overdue-grace-days: ${CALENDAR_OVERDUE_GRACE_DAYS:7}
 

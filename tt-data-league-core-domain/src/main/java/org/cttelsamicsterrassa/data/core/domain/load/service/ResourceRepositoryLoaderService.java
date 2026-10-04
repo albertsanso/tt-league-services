@@ -63,13 +63,21 @@ public class ResourceRepositoryLoaderService {
         this.publishedActaCounter = new PublishedActaCounter(objectMapper);
     }
 
-    public void loadIntoRepository(ImportManifest importManifest) {
+    /**
+     * Stores the extracted content of {@code importManifest} in the import folder and creates or re-opens the
+     * ACTAS import resources of its seasons.
+     *
+     * @return the ACTAS import resources of the manifest's seasons, in manifest season order; empty when the
+     *         manifest has no ACTAS asset
+     */
+    public List<ImportResource> loadIntoRepository(ImportManifest importManifest) {
 
         Path importFolder = Path.of(resourceZipService.getFolderFromSetting());
         if (!Files.isDirectory(importFolder)) {
             throw new IllegalArgumentException("Configured import folder must exist: " + importFolder);
         }
 
+        List<ImportResource> actasResources = new ArrayList<>();
         for (Map.Entry<String, List<String>> asset : importManifest.assets().entrySet()) {
             String assetType = asset.getKey();
             Path targetFolder = importFolder.resolve(
@@ -100,9 +108,10 @@ public class ResourceRepositoryLoaderService {
             }
 
             if (ACTAS_ASSET.equalsIgnoreCase(assetType)) {
-                createResourcesAndStartProcessing(importManifest, assetType, targetFolder);
+                actasResources.addAll(createResourcesAndStartProcessing(importManifest, assetType, targetFolder));
             }
         }
+        return List.copyOf(actasResources);
     }
 
     /**
@@ -309,10 +318,11 @@ public class ResourceRepositoryLoaderService {
     private record SeasonFileMove(Path source, Path relativeDestination) {
     }
 
-    private void createResourcesAndStartProcessing(ImportManifest importManifest,
-                                                   String assetType,
-                                                   Path targetFolder) {
+    private List<ImportResource> createResourcesAndStartProcessing(ImportManifest importManifest,
+                                                                   String assetType,
+                                                                   Path targetFolder) {
         Resource resolvedResource = createOrGetResource(importManifest, assetType, targetFolder);
+        List<ImportResource> importResources = new ArrayList<>();
         importManifest.seasons()
             .forEach(season -> {
                 ImportResource importResource = createOrGetImportResourceForResource(
@@ -323,7 +333,9 @@ public class ResourceRepositoryLoaderService {
                         importResourceRepository.save(importResource);
                     }
                 });
+                importResources.add(importResource);
             });
+        return importResources;
     }
 
     private Resource createOrGetResource(ImportManifest importManifest,

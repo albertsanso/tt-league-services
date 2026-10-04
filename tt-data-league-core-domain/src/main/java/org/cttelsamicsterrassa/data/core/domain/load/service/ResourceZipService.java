@@ -15,9 +15,11 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -65,6 +67,26 @@ public class ResourceZipService {
             return manifest;
         } catch (IOException exception) {
             throw new IllegalArgumentException("Unable to extract ZIP file", exception);
+        }
+    }
+
+    /**
+     * Deletes the temporary extraction folder of a manifest and everything left in it. A missing folder is
+     * ignored, since storing the content moves files out of it.
+     *
+     * @throws UncheckedIOException when the folder cannot be deleted
+     */
+    public void deleteExtractionFolder(ImportManifest manifest) {
+        Path folder = manifest.extractionFolder();
+        if (folder == null || !Files.exists(folder)) {
+            return;
+        }
+        try (var entries = Files.walk(folder)) {
+            for (Path entry : entries.sorted(Comparator.reverseOrder()).toList()) {
+                Files.delete(entry);
+            }
+        } catch (IOException exception) {
+            throw new UncheckedIOException("Unable to delete the extraction folder " + folder, exception);
         }
     }
 

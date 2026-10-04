@@ -397,6 +397,11 @@ class StartImportProcessCommandHandlerTest {
             return Optional.ofNullable(activeByResource.get(importResourceId)).flatMap(this::findByRunId);
         }
 
+        @Override
+        public boolean hasActiveRun() {
+            return !activeByResource.isEmpty();
+        }
+
         private Optional<ImportRunSnapshot> update(UUID runId, java.util.function.UnaryOperator<ImportRunSnapshot> mutator) {
             ImportRunSnapshot current = runs.get(runId);
             if (current == null) {

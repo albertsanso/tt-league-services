@@ -176,6 +176,11 @@ class FindImportRunStatusQueryHandlerTest {
             public Optional<ImportRunSnapshot> findActiveByImportResourceId(UUID importResourceId) {
                 throw new UnsupportedOperationException();
             }
+
+            @Override
+            public boolean hasActiveRun() {
+                throw new UnsupportedOperationException();
+            }
         };
     }
 }

@@ -139,4 +139,39 @@ class ResourceUploadServiceTest {
         scheduledTask.get().run();
         ordered.verify(resourceRepositoryLoaderService).loadIntoRepository(manifest);
     }
+
+    @Test
+    void validateUploadReturnsTheManifestAfterTheShrinkCheckWithoutStoringIt() {
+        ResourceZipService resourceZipService = mock(ResourceZipService.class);
+        ResourceRepositoryLoaderService resourceRepositoryLoaderService = mock(ResourceRepositoryLoaderService.class);
+        ImportManifest manifest = new ImportManifest(
+                "FCTT", List.of("2026-2027"), Map.of("ACTAS", List.of()), null);
+        when(resourceZipService.extractZipAndGetManifest(new byte[]{1})).thenReturn(manifest);
+        AtomicReference<Runnable> scheduledTask = new AtomicReference<>();
+        ResourceUploadService service = new ResourceUploadService(
+                resourceRepositoryLoaderService, resourceZipService, scheduledTask::set);
+
+        assertSame(manifest, service.validateUpload("resource.zip", new byte[]{1}, true));
+
+        verify(resourceRepositoryLoaderService).verifyPublishedActasNotShrinking(manifest, true);
+        verify(resourceRepositoryLoaderService, never()).loadIntoRepository(manifest);
+        assertNull(scheduledTask.get());
+    }
+
+    @Test
+    void readManifestSkipsTheShrinkCheckAndRejectsAnInvalidFile() {
+        ResourceZipService resourceZipService = mock(ResourceZipService.class);
+        ResourceRepositoryLoaderService resourceRepositoryLoaderService = mock(ResourceRepositoryLoaderService.class);
+        ImportManifest manifest = new ImportManifest(
+                "FCTT", List.of("2026-2027"), Map.of("ACTAS", List.of()), null);
+        when(resourceZipService.extractZipAndGetManifest(new byte[]{1})).thenReturn(manifest);
+        ResourceUploadService service = new ResourceUploadService(
+                resourceRepositoryLoaderService, resourceZipService, Runnable::run);
+
+        assertSame(manifest, service.readManifest("resource.zip", new byte[]{1}));
+        assertThrows(IllegalArgumentException.class, () -> service.readManifest("resource.txt", new byte[]{1}));
+
+        verify(resourceRepositoryLoaderService, never()).verifyPublishedActasNotShrinking(manifest, false);
+        verify(resourceRepositoryLoaderService, never()).verifyPublishedActasNotShrinking(manifest, true);
+    }
 }

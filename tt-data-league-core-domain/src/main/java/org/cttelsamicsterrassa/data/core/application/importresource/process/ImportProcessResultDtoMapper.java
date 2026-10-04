@@ -12,13 +12,18 @@ import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResource;
 import java.util.List;
 import java.util.UUID;
 
-final class ImportProcessResultDtoMapper {
+public final class ImportProcessResultDtoMapper {
     private ImportProcessResultDtoMapper() {
     }
 
-    static ImportProcessResultDto toDto(ImportResource resource, ImportProcessResult result) {
+    public static ImportProcessResultDto toDto(ImportResource resource, ImportProcessResult result) {
         return dto(resource.getId(), resource.getSource().name(), resource.getSeason().toString(),
                 resource.getType().name(), result);
+    }
+
+    public static ImportProcessResultDto toDto(UUID importResourceId, String source, String season,
+                                               String resourceType, ImportProcessResult result) {
+        return dto(importResourceId, source, season, resourceType, result);
     }
 
     static ImportProcessResultDto missingResource(UUID id) {

@@ -11,10 +11,11 @@ tables.
   No entity configures `@GeneratedValue`.
 - Enum fields use `@Enumerated(EnumType.STRING)`.
 - Every `@ManyToOne` association is lazy and owns its explicit join column.
-- The only `@OneToMany` collection is `ConsolidationActionJPA.clubs` (see
-  [Consolidation audit tables](#consolidation-audit-tables)). League entities
-  declare none: `MATCH` and `GAME` children are loaded through their
-  repositories.
+- The only `@OneToMany` collections are `ConsolidationActionJPA.clubs` (see
+  [Consolidation audit tables](#consolidation-audit-tables)) and
+  `ImportJobJPA.seasonResults` (see [Import job tables](#import-job-tables)).
+  League entities declare none: `MATCH` and `GAME` children are loaded through
+  their repositories.
 - Unless a column is explicitly marked otherwise below, its nullability and
   length are those declared by the entity.
 - `source` is stored as a string enum with the values `RFETM`, `BCNESA`, and
@@ -36,6 +37,9 @@ tables.
 | `SettingCategory` | `GENERAL`, `IMPORT`, `NOTIFICATIONS` |
 | `ConsolidationActionType` | `MERGE`, `SPLIT`, `RENAME` |
 | `ConsolidationActionClubRole` | `SOURCE`, `TARGET` |
+| `ImportJobStatus` | `QUEUED`, `STORING`, `IMPORTING`, `SUCCEEDED`, `PARTIAL`, `FAILED` |
+| `ImportRunStatus` | `QUEUED`, `RUNNING`, `SUCCESS`, `EMPTY_RESULT`, `FAILURE` |
+| `UploadMode` | `SNAPSHOT`, `DELTA` |
 
 ## League tables
 
@@ -504,6 +508,11 @@ erDiagram
     CONSOLIDATION_ACTION_CLUB {
         uuid club_id "snapshot, no FK to CLUB"
     }
+    IMPORT_JOB ||--o{ IMPORT_JOB_SEASON : imports
+    IMPORT_JOB_SEASON {
+        uuid import_resource_id "snapshot, no FK to IMPORT_RESOURCE"
+        uuid import_run_id "in-memory run id, no FK"
+    }
     APP_USER ||--o{ APP_USER_ROLE : has
     PASSWORD_RECOVERY_TOKEN {
         uuid user_id "scalar, no FK to APP_USER"
@@ -527,6 +536,8 @@ foreign keys:
   usually deletes; see [Consolidation audit tables](#consolidation-audit-tables).
 - `PasswordRecoveryToken.user_id` is a scalar UUID with no JPA association to
   `UserJPA`; see [`PasswordRecoveryToken`](#passwordrecoverytoken).
+- `import_job_season.import_resource_id` and `import_job_season.import_run_id`
+  record what an import job ran; see [Import job tables](#import-job-tables).
 
 ## Settings
 
@@ -592,3 +603,71 @@ asymmetry is intended and is what makes the record useful.
 cascade = ALL, orphanRemoval = true)` collection, initialized to an empty list;
 `ConsolidationActionClubJPA.action` is the owning lazy `@ManyToOne`. Saving an
 action therefore persists its club rows, and deleting it removes them.
+
+## Import job tables
+
+The machine-friendly import API (`/api/v1/administration/import/jobs`,
+FEAT-00100) persists one `import_job` row per submitted upload ZIP and one
+`import_job_season` row per ACTAS season the job imported, so a client can
+follow a job by its id across restarts. The manual upload, preview and start
+endpoints do not write to these tables.
+
+### `import_job`
+
+| Column | Type | Nullability | Notes |
+|---|---|---|---|
+| `id` | uuid | not null | Primary key; the `importJobId` returned to the client |
+| `source` | varchar | not null | `Source` enum string, from the manifest |
+| `seasons` | text | not null | The manifest seasons, comma-separated in manifest order |
+| `upload_mode` | varchar | not null | `UploadMode` enum string, from the manifest |
+| `content_sha256` | varchar(64) | nullable | The manifest `contentSha256` (verified against the ZIP); the deduplication key |
+| `client_run_id` | varchar(64) | nullable | The caller's `runId` request parameter |
+| `manifest_run_id` | varchar(64) | nullable | The manifest `runId` (the producing ingest run) |
+| `allow_published_shrink` | boolean | not null | The override given at submission, re-applied when the job stores the ZIP |
+| `staged_zip_path` | varchar(1024) | not null | `<import folder>/import-jobs/<id>.zip`; the file is deleted once the job is terminal |
+| `requested_by` | varchar(255) | not null | The authenticated principal name |
+| `status` | varchar | not null | `ImportJobStatus` enum string; `idx_import_job_status` |
+| `error_detail` | text | nullable | Why the job failed (busy timeout, storage error, restart interruption) |
+| `created_at` | timestamptz | not null | `idx_import_job_created`; history is listed newest first |
+| `started_at` | timestamptz | nullable | When the job started storing |
+| `finished_at` | timestamptz | nullable | When the job reached a terminal status |
+
+`idx_import_job_source_sha` covers `(source, content_sha256)` for the
+deduplication lookup: a submission whose manifest `contentSha256` matches a
+job of the same source that is `QUEUED`, `STORING`, `IMPORTING`, `SUCCEEDED`
+or `PARTIAL` returns that job. There is no unique constraint, because a
+`FAILED` job may be resubmitted with the same content; submissions are
+serialized in the API runtime instead.
+
+### `import_job_season`
+
+| Column | Type | Nullability | Notes |
+|---|---|---|---|
+| `id` | uuid | not null | Primary key |
+| `import_job_id` | uuid | not null | FK to `import_job`; `idx_import_job_season_job_id` |
+| `season_index` | int | not null | Position of the season within the job |
+| `season` | varchar | not null | `YYYY-YYYY` |
+| `import_resource_id` | uuid | not null | The import resource the season ran; no FK, see below |
+| `import_run_id` | uuid | nullable | The import run id; null when the season failed before a run was registered |
+| `status` | varchar | not null | `ImportRunStatus` enum string |
+| `error_detail` | text | nullable | The run's or the season's failure reason |
+| `result_json` | text | nullable | The run's `ImportProcessResult` (counters, findings, lifecycle counters, round progress) as JSON; null without a run result |
+
+`import_resource_id` is deliberately not a foreign key: a season row is a
+snapshot of what the job ran and must not block or follow changes to
+`import_resource`. `import_run_id` refers to the in-memory import run registry,
+which has no table. The restart recovery reads `import_resource_id` of an
+interrupted job's unfinished seasons to return that import resource from
+`PROCESSING` to `ERROR`.
+
+`result_json` uses a storage shape owned by `ImportProcessResultJsonCodec`
+(status, findings, processing errors, counters, execution issues,
+post-processing outcomes, lifecycle counters and round progress with the
+season as `YYYY-YYYY`). An unreadable value fails the read with an error that
+names the job and season.
+
+`ImportJobJPA.seasonResults` is a lazy `@OneToMany(mappedBy = "job",
+cascade = ALL, orphanRemoval = true)` collection ordered by `season_index` and
+initialized to an empty list; `ImportJobSeasonJPA.job` is the owning lazy
+`@ManyToOne`. Saving a job therefore persists and updates its season rows, and
+deleting it removes them. No retention or pruning of old jobs is implemented.

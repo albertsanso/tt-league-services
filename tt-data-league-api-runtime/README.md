@@ -34,6 +34,8 @@ The application reads its configuration from environment variables at startup; d
 | `IMPORT_EXECUTION_CLUB_CONSOLIDATION` | `write` | `write`, `report`, or `disabled` |
 | `IMPORT_EXECUTION_PLAYER_CONSOLIDATION` | `write` | `write`, `report`, or `disabled` |
 | `IMPORT_EXECUTION_AMENDED_ACTA_DETECTION` | `disabled` | `write`, `report`, or `disabled` (amended-acta detection, FEAT-00089) |
+| `IMPORT_JOBS_BUSY_RETRY_INTERVAL` | `PT10S` | ISO-8601 duration an import job sleeps between checks while another import is active (FEAT-00100) |
+| `IMPORT_JOBS_BUSY_TIMEOUT` | `PT2H` | ISO-8601 duration an import job may wait for another import before it fails; a zero, negative or malformed value fails startup |
 | `CALENDAR_OVERDUE_GRACE_DAYS` | `7` | Days a scheduled match remains pending before it becomes overdue (FEAT-00092); a negative or non-numeric value fails startup |
 
 The HTTP API listens on the default Spring Boot port (`8080`); a separate Actuator management port is exposed on `9090`, including `http://localhost:9090/actuator/health`.
@@ -90,7 +92,7 @@ Notes for a deployment target:
 - The target database must be reachable and match the schema managed by `tt-data-league-core-repository-jpa`; `ddl-auto: update` is not a substitute for the reviewed migrations under `docs/migrations/`. Apply any pending migration before starting the service.
 - `ImportFolderSettingStartupInitializer` provisions the `IMPORT/repository-folder` administrator setting at startup if absent, defaulting to `c:\tt-repository`; a persistence failure here fails application boot. Ensure the configured import folder exists as a directory before launch, or set it afterwards through the System settings panel.
 - `InitialUserStartupInitializer` seeds two fixed ADMIN accounts (`albert`/`albert`, `oscar`/`Oscar&1234`) at startup if an account with that username or email does not already exist; a persistence failure here fails application boot. These credentials are hardcoded in source (not env-configurable) and do not meet the normal password-strength rules enforced elsewhere. Change or remove these accounts before exposing any non-development environment.
-- The run registry backing the async import endpoints is in-memory per JVM; it does not survive a restart or a multi-instance deployment. Run a single instance, or provide a persistent `ImportJobsPort`/run-registry adapter before scaling out.
+- The run registry backing the async import endpoints is in-memory per JVM; it does not survive a restart or a multi-instance deployment. Import jobs (`import_job`, `import_job_season`) are persisted and recovered at startup, but they rely on that registry and on a per-JVM submission lock, so run a single instance.
 - Run the process as a long-lived service (for example, a Windows service via NSSM, or a systemd unit on Linux) so it restarts on failure and on host reboot; there is no bundled service unit in this repository.
 - Monitor `http://<host>:9090/actuator/health` for liveness once deployed.
 
@@ -164,9 +166,9 @@ one buffer. `contentSha256` is the lowercase hex SHA-256 of that buffer, so it
 does not depend on ZIP timestamps, compression or entry order. The upload
 recomputes it from the received ZIP (`ContentHash`) and rejects a mismatch with
 `400` (`manifest.json contentSha256 does not match the ZIP content`). A ZIP with
-two entries of the same name is rejected as well. The provenance is
-informational for now: the upload and import behave the same with or without
-it.
+two entries of the same name is rejected as well. The upload endpoint treats
+the provenance as informational; the [import jobs API](#import-jobs-api-feat-00100)
+uses `contentSha256` as its deduplication key and records `runId`.
 
 **Snapshot mode (default) replaces the stored season.** Every upload deletes the
 stored `import-<source>/<asset>/<season>` folder first, then moves the extracted
@@ -272,6 +274,71 @@ setting to build the absolute teams folder path, so administrator changes to
 either setting take effect without an application restart. This replaces the
 previous `IMPORT_EXECUTION_RFETM_TEAMS_FOLDER` environment variable, which no
 longer exists.
+
+## Import jobs API (FEAT-00100)
+
+The jobs API lets an automated client submit an upload ZIP and follow the
+resulting import to completion through one id. It accepts the same ZIP and
+manifest as `/upload` and requires the `ADMIN` role. The manual upload,
+preview and start endpoints are unchanged.
+
+| Endpoint | Result |
+|---|---|
+| `POST /api/v1/administration/import/jobs` (multipart `file`, optional `runId`, `allowPublishedShrink`, default `false`) | `202 {importJobId, status, created: true}` for a new job; `200` with the same shape and `created: false` for an existing job of the same content; `400` for an invalid file, ZIP, manifest, `contentSha256` or `runId`; `409` when the upload shrinks published actas (see the shrink check above) |
+| `GET /api/v1/administration/import/jobs/{id}` | `200` with the job, or `404` |
+| `GET /api/v1/administration/import/jobs?source=&from=&to=&limit=` | `200` with jobs, newest first; `from`/`to` are inclusive UTC dates (`YYYY-MM-DD`) on the creation time, `limit` defaults to 50 and must be 1–200; an unknown `source`, `from` after `to` or an out-of-range `limit` is `400` |
+
+`runId` is the caller's own run id (1–64 characters among `A-Z`, `a-z`,
+`0-9`, `.`, `_`, `-`) and is returned as `runId`; the manifest `runId` is
+returned as `manifestRunId`.
+
+**Lifecycle.** The submission is validated synchronously, the ZIP bytes are
+staged at `<import folder>/import-jobs/<importJobId>.zip`, and the job is
+`QUEUED`. Jobs then run one at a time on a dedicated thread: `STORING`
+re-extracts the staged ZIP, repeats the shrink check against the data stored
+now and stores the content exactly like `/upload`; `IMPORTING` runs one import
+per ACTAS season of the manifest, in manifest order, through the same import
+run machinery as `/start`. The staged ZIP is deleted once the job is terminal.
+
+| Status | Meaning |
+|---|---|
+| `SUCCEEDED` | Every season ended `success` or `empty-result` with no processor failures or execution issues (also a TEAMS-only ZIP, which has no season to import) |
+| `PARTIAL` | At least one season succeeded, but another failed or reported processor failures or execution issues |
+| `FAILED` | No season succeeded, or the job failed before importing (`errorDetail` says why) |
+
+`GET /jobs/{id}` returns `importJobId`, `status`, `source`, `seasons`, `mode`,
+`contentSha256`, `runId`, `manifestRunId`, `allowPublishedShrink`,
+`requestedBy`, `errorDetail`, `createdAt`, `startedAt`, `finishedAt` and
+`seasonResults`. Each season result has `season`, `importResourceId`,
+`importRunId`, `status` (the import run status values), `errorDetail` and
+`result`: the same `ImportProcessResult` shape as the terminal
+`process_status` result, with its counters, lifecycle counters and
+`roundProgress`.
+
+**Deduplication.** When the manifest carries `contentSha256` and a job of the
+same source with that hash is `QUEUED`, `STORING`, `IMPORTING`, `SUCCEEDED` or
+`PARTIAL`, the submission returns that job with `200` and starts nothing; this
+check runs before the shrink check. After a `FAILED` job the same content can
+be resubmitted. Manifests without `contentSha256` are never deduplicated.
+
+**One import at a time.** Imports are single-run system-wide. A job waits
+before storing, and again before each season's run, while another import (for
+example one started manually with `/start`) is active, re-checking every
+`IMPORT_JOBS_BUSY_RETRY_INTERVAL`. When a wait exceeds
+`IMPORT_JOBS_BUSY_TIMEOUT`, the job (before storing) or that season (while
+importing) fails with `Timed out after <timeout> waiting for another import to
+finish`. The wait before storing is a check, not a reservation: a manual
+`/start` in the moments between the check and the storing behaves as it does
+with `/upload` today.
+
+**Restarts.** Jobs are persisted in `import_job` and `import_job_season` (see
+the JPA data model). At startup, before the web server accepts requests, every
+`STORING` or `IMPORTING` job ends `FAILED` with `Interrupted by a platform restart`, the
+import resource it left `PROCESSING` returns to `ERROR` so the season can be
+imported again, and every `QUEUED` job is resumed in creation order. A job still
+waiting to start storing when the application stops stays `QUEUED` and resumes.
+A recovery failure fails startup. Run a single instance: the run registry and
+the submission lock are per JVM.
 
 ## Season calendar (FEAT-00092)
 

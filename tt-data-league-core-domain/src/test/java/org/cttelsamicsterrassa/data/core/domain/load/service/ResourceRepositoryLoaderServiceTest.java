@@ -441,6 +441,51 @@ class ResourceRepositoryLoaderServiceTest {
     }
 
     @Test
+    void returnsTheActasImportResourcesInManifestSeasonOrder(@TempDir Path workDir) throws Exception {
+        Path importFolder = Files.createDirectory(workDir.resolve("import-folder"));
+        Path extractionFolder = Files.createDirectory(workDir.resolve("extracted"));
+        writeActa(extractionFolder, "2026-2027", "a.json", true);
+        writeActa(extractionFolder, "2025-2026", "b.json", true);
+
+        TestDoubles doubles = new TestDoubles();
+        when(doubles.resourceZipService.getFolderFromSetting()).thenReturn(importFolder.toString());
+        when(doubles.resourceRepository.findByLogicPathAndName(any(), any()))
+                .thenReturn(Optional.of(mock(Resource.class)));
+        ImportResource processed = ImportResource.createExisting(UUID.randomUUID(), mock(Resource.class),
+                Optional.empty(), ResourceType.ACTAS, ZonedDateTime.now(), Optional.empty(),
+                Season.fromFormatted("2025-2026"), ImportSource.FCTT, ImportResourceStatus.PROCESSED);
+        when(doubles.importResourceRepository.findBySourceAndTypeAndSeason("FCTT", "ACTAS", "2025-2026"))
+                .thenReturn(Optional.of(processed));
+        when(doubles.importResourceRepository.findBySourceAndTypeAndSeason("FCTT", "ACTAS", "2026-2027"))
+                .thenReturn(Optional.empty());
+
+        List<ImportResource> resources = doubles.service().loadIntoRepository(
+                actasManifest(extractionFolder, "FCTT", List.of("2026-2027", "2025-2026")));
+
+        assertEquals(List.of("2026-2027", "2025-2026"),
+                resources.stream().map(resource -> resource.getSeason().toString()).toList());
+        assertEquals(ImportResourceStatus.PENDING, resources.get(0).getStatus());
+        assertEquals(processed, resources.get(1));
+        assertEquals(ImportResourceStatus.PENDING, processed.getStatus());
+    }
+
+    @Test
+    void returnsNoImportResourcesForATeamsOnlyManifest(@TempDir Path workDir) throws Exception {
+        Path importFolder = Files.createDirectory(workDir.resolve("import-folder"));
+        Path extractionFolder = Files.createDirectory(workDir.resolve("extracted"));
+        Files.createDirectories(extractionFolder.resolve("2026-2027"));
+        Files.writeString(extractionFolder.resolve("2026-2027/team.json"), "{}");
+        TestDoubles doubles = new TestDoubles();
+        ResourceRepositoryLoaderService service = serviceWithFolders(importFolder, doubles);
+
+        List<ImportResource> resources = service.loadIntoRepository(new ImportManifest("FCTT",
+                List.of("2026-2027"), Map.of("TEAMS", List.of()), extractionFolder));
+
+        assertTrue(resources.isEmpty());
+        verifyNoInteractions(doubles.importResourceRepository);
+    }
+
+    @Test
     void snapshotUploadStillDeletesStoredFilesAndWritesNoRollback(@TempDir Path workDir) throws Exception {
         Path importFolder = Files.createDirectory(workDir.resolve("import-folder"));
         Path stored = Files.createDirectories(importFolder.resolve("import-fctt/actas").resolve("2026-2027"));

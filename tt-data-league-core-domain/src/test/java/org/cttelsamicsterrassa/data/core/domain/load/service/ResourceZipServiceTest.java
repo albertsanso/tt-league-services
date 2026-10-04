@@ -52,6 +52,21 @@ class ResourceZipServiceTest {
     }
 
     @Test
+    void deletesTheExtractionFolderAndIgnoresAMissingOne(@TempDir Path workDir) throws Exception {
+        Path extractionFolder = Files.createDirectories(workDir.resolve("extracted/2026-2027"))
+                .getParent();
+        Files.writeString(extractionFolder.resolve("2026-2027/a.json"), "{}");
+        ImportManifest manifest = new ImportManifest("FCTT", List.of("2026-2027"),
+                Map.of("ACTAS", List.of()), extractionFolder);
+        ResourceZipService service = new ResourceZipService(mock(SettingFinderService.class), new ObjectMapper());
+
+        service.deleteExtractionFolder(manifest);
+        service.deleteExtractionFolder(manifest);
+
+        assertTrue(Files.notExists(extractionFolder));
+    }
+
+    @Test
     void defaultsToSnapshotWhenModeIsAbsent(@TempDir Path extractionFolder) throws Exception {
         writeManifest(extractionFolder, """
                 {
