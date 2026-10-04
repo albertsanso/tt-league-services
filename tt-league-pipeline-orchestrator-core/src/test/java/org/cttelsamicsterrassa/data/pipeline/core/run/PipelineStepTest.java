@@ -70,4 +70,23 @@ class PipelineStepTest {
         assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.SUCCEEDED, T0, null,
                 null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void attachesExternalRefOnceWhileRunning() {
+        PipelineStep step = PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), StepKind.INGEST, 1, T0, null)
+                .withExternalRef("ingest-1");
+
+        assertThat(step.externalRef()).isEqualTo("ingest-1");
+        assertThat(step.status()).isEqualTo(StepStatus.RUNNING);
+        assertThatThrownBy(() -> step.withExternalRef("again")).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void externalRefIsRejectedWhenBlankTooLongOrStepFinished() {
+        PipelineStep fresh = PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), StepKind.INGEST, 1, T0, null);
+        assertThatThrownBy(() -> fresh.withExternalRef(" ")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> fresh.withExternalRef("x".repeat(65))).isInstanceOf(IllegalStateException.class);
+        PipelineStep finished = fresh.succeed(T0.plusSeconds(1), "OK");
+        assertThatThrownBy(() -> finished.withExternalRef("late")).isInstanceOf(IllegalStateException.class);
+    }
 }

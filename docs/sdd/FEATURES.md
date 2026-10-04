@@ -54,28 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00104] Orchestrator run executor with ingest and import gateways
-- **Status:** idea
-- **Priority:** high
-- **Effort:** large
-- **Depends on:** FEAT-00097, FEAT-00099, FEAT-00100, FEAT-00101, FEAT-00103
-
-#### Goal
-Drive one pipeline run end to end (ingest, package retrieval, import, report) without user assistance, with timeouts and bounded retries for transient failures.
-
-#### Acceptance Criteria
-- [ ] `IngestServiceJobRunner` starts a `tt-league-ingest-rest` run (`download`, `parse`, `package`) for the run's source and scope, polls it and maps its `outcome` to `NO_CHANGES`, `PACKED` or `FAILED`
-- [ ] On `PACKED`, the ZIP is fetched, its SHA-256 verified and stored in a configured artifact directory (`run_artifact` row), then submitted to the platform import jobs API
-- [ ] The import job is polled to completion; its counters are stored in `import_report` and the run ends `SUCCEEDED`, `PARTIAL` or `FAILED`
-- [ ] Every step has a configurable timeout; `SOURCE_UNAVAILABLE` and HTTP 5xx are retried up to 3 times with exponential back-off, other failures are not
-- [ ] An ingest run that disappears (ingest restarted, 404) fails the step with a clear, retryable error
-- [ ] Tests use stubbed HTTP servers (no network) for success, no-change, retry, timeout and import-failure paths
-
-#### Feature Details
-→ See [FEAT-00104-DETAILS.md](./FEAT-00104-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00105] Orchestrator runs API with manual trigger and live events
 - **Status:** idea
 - **Priority:** high
@@ -320,6 +298,28 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00104] Orchestrator run executor with ingest and import gateways
+- **Status:** done
+- **Priority:** high
+- **Effort:** large
+- **Depends on:** FEAT-00097, FEAT-00099, FEAT-00100, FEAT-00101, FEAT-00103
+
+#### Goal
+Drive one pipeline run end to end (ingest, package retrieval, import, report) without user assistance, with timeouts and bounded retries for transient failures.
+
+#### Acceptance Criteria
+- [x] `IngestServiceJobRunner` starts a `tt-league-ingest-rest` run (`download`, `parse`, `package`) for the run's source and scope, polls it and maps its `outcome` to `NO_CHANGES`, `PACKED` or `FAILED`
+- [x] On `PACKED`, the ZIP is fetched, its SHA-256 verified and stored in a configured artifact directory (`run_artifact` row), then submitted to the platform import jobs API
+- [x] The import job is polled to completion; its counters are stored in `import_report` and the run ends `SUCCEEDED`, `PARTIAL` or `FAILED`
+- [x] Every step has a configurable timeout; `SOURCE_UNAVAILABLE` and HTTP 5xx are retried up to 3 times with exponential back-off, other failures are not
+- [x] An ingest run that disappears (ingest restarted, 404) fails the step with a clear, retryable error
+- [x] Tests use stubbed HTTP servers (no network) for success, no-change, retry, timeout and import-failure paths
+
+#### Feature Details
+→ See [FEAT-00104-DETAILS.md](./FEAT-00104-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00103] Orchestrator pipeline run model and persistence
 - **Status:** done

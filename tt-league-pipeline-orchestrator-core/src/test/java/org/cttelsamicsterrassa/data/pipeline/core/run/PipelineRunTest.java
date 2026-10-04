@@ -166,4 +166,31 @@ class PipelineRunTest {
                 T1, null, null, ERROR, 3);
         assertThat(run.version()).isEqualTo(3);
     }
+
+    @Test
+    void restartIngestReplacesIngestRunIdWithoutChangingStatusOrVersion() {
+        PipelineRun running = queued().startIngest("first", T1);
+
+        PipelineRun restarted = running.restartIngest("second", T2);
+
+        assertThat(restarted.ingestRunId()).isEqualTo("second");
+        assertThat(restarted.status()).isEqualTo(RunStatus.RUNNING_INGEST);
+        assertThat(restarted.startedAt()).isEqualTo(T1);
+        assertThat(restarted.version()).isEqualTo(running.version());
+    }
+
+    @Test
+    void restartIngestIsOnlyAllowedWhileRunningIngest() {
+        assertThatThrownBy(() -> queued().restartIngest("x", T1)).isInstanceOf(IllegalRunTransitionException.class);
+        assertThatThrownBy(() -> queued().startIngest("a", T1).packed(T2).restartIngest("x", T3))
+                .isInstanceOf(IllegalRunTransitionException.class);
+    }
+
+    @Test
+    void restartIngestValidatesTheId() {
+        PipelineRun running = queued().startIngest("first", T1);
+        assertThatThrownBy(() -> running.restartIngest(" ", T2)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> running.restartIngest("x".repeat(65), T2))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 }

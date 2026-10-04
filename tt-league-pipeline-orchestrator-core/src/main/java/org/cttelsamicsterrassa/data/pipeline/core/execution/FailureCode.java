@@ -1,0 +1,26 @@
+package org.cttelsamicsterrassa.data.pipeline.core.execution;
+
+/** The {@code RunError.code} values written by the run executor. */
+public enum FailureCode {
+    INGEST_UNAVAILABLE,
+    INGEST_BUSY,
+    INGEST_REJECTED,
+    INGEST_RUN_LOST,
+    SOURCE_UNAVAILABLE,
+    INGEST_FAILED,
+    INGEST_NO_PACKAGE,
+    PACKAGE_UNAVAILABLE,
+    PACKAGE_GONE,
+    PACKAGE_CHECKSUM_MISMATCH,
+    ARTIFACT_STORE_FAILED,
+    PLATFORM_UNAVAILABLE,
+    IMPORT_REJECTED,
+    IMPORT_SHRINK,
+    IMPORT_JOB_LOST,
+    IMPORT_FAILED,
+    STEP_TIMEOUT,
+    PROTOCOL_ERROR,
+    INTERRUPTED,
+    DISPATCH_FAILED,
+    INTERNAL_ERROR
+}

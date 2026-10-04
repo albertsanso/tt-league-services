@@ -101,6 +101,21 @@ public final class PipelineRun {
         return move(RunStatus.RUNNING_INGEST, at, at, null, ingestRunId, importJobId, null);
     }
 
+    /**
+     * Points the run at a new ingest run when an INGEST step is retried. Not a status transition: the run stays
+     * RUNNING_INGEST with its start time and version.
+     */
+    public PipelineRun restartIngest(String newIngestRunId, Instant at) {
+        Checks.nonBlankMax(newIngestRunId, "ingestRunId", 64);
+        Checks.required(at, "at");
+        if (status != RunStatus.RUNNING_INGEST) {
+            throw new IllegalRunTransitionException(id, status, RunStatus.RUNNING_INGEST);
+        }
+        return new PipelineRun(
+                id, source, season, scope, trigger, requestedBy, retryOfRunId, status, createdAt, startedAt,
+                finishedAt, newIngestRunId, importJobId, error, version);
+    }
+
     public PipelineRun noChanges(Instant at) {
         return move(RunStatus.NO_CHANGES, at, startedAt, at, ingestRunId, importJobId, null);
     }

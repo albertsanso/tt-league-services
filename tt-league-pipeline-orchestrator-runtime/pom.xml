@@ -52,6 +52,13 @@
             <scope>runtime</scope>
         </dependency>
         <dependency>
+            <groupId>org.cttelsamicsterrassa</groupId>
+            <artifactId>tt-league-pipeline-orchestrator-core</artifactId>
+            <version>${project.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>

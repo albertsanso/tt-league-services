@@ -16,7 +16,18 @@ and the Flyway/JPA persistence of the run model (later features add security).
   reached over HTTP only. Never read or write platform tables.
 - Configuration lives in `PipelineOrchestratorProperties`
   (`tt.pipeline.*`, validated). Required values have no defaults in
-  `application.yml`, so a missing variable fails startup. Do not add defaults.
+  `application.yml` (database, platform and ingest URLs and keys, artifact
+  directory), so a missing variable fails startup. Do not add defaults. Only
+  the tuning values documented in the README (poll intervals, retry, timeouts,
+  concurrency, recovery) have defaults.
+- HTTP calls to the platform and ingest go only through the gateways in
+  `gateway` (`IngestServiceJobRunner`, `HttpImportGateway`); never log or echo
+  an `X-API-Key` value or put one in a `RunError` message.
+- The run dispatcher (`ExecutorRunDispatcher`) owns a private pool and must
+  never be an `Executor`/`TaskExecutor` bean: Boot `applicationTaskExecutor`
+  backs off when one exists.
+- Artifacts are written only through `FileSystemArtifactStore`; the artifact
+  directory must exist and be writable at startup.
 - Flyway, JPA and Testcontainers are in place; Spring Security waits for
   FEAT-00105.
 - Schema `pipeline` changes only through new `db/migration/V<n>__*.sql`

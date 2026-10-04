@@ -110,6 +110,36 @@ Result of the platform import job of a run; at most one per run.
 | `raw_report` | `jsonb` NOT NULL | platform job JSON as received |
 | `received_at` | `timestamptz` NOT NULL | |
 
+## Written by the run executor
+
+No migration: the columns above already fit every value written by FEAT-00104.
+
+- **Steps.** One row per attempt; the attempt number is the highest stored
+  attempt of that kind plus 1. Kinds: `INGEST`, `FETCH_PACKAGE`, `IMPORT`.
+- **`pipeline_step.external_ref`.** The ingest run id for `INGEST` (set once the
+  ingest `POST` answered, so it is null while the call is in flight) and
+  `FETCH_PACKAGE`; the platform import job UUID for `IMPORT`.
+- **`pipeline_step.outcome`.** `INGEST`: the ingest outcome (`NO_CHANGES`,
+  `SUCCEEDED`, `COMPLETED_WITH_ISSUES`, `SOURCE_UNAVAILABLE`, `FAILED`);
+  `FETCH_PACKAGE`: `STORED`; `IMPORT`: `SUCCEEDED`, `PARTIAL` or `FAILED`. Null
+  when the attempt failed before an outcome existed.
+- **`error_code`** (steps and runs): the `FailureCode` names `INGEST_UNAVAILABLE`,
+  `INGEST_BUSY`, `INGEST_REJECTED`, `INGEST_RUN_LOST`, `SOURCE_UNAVAILABLE`,
+  `INGEST_FAILED`, `INGEST_NO_PACKAGE`, `PACKAGE_UNAVAILABLE`, `PACKAGE_GONE`,
+  `PACKAGE_CHECKSUM_MISMATCH`, `ARTIFACT_STORE_FAILED`, `PLATFORM_UNAVAILABLE`,
+  `IMPORT_REJECTED`, `IMPORT_SHRINK`, `IMPORT_JOB_LOST`, `IMPORT_FAILED`,
+  `STEP_TIMEOUT`, `PROTOCOL_ERROR`, `INTERRUPTED`, `DISPATCH_FAILED`,
+  `INTERNAL_ERROR`. Messages never contain keys.
+- **`pipeline_run.ingest_run_id`.** The ingest run currently followed: a retried
+  `INGEST` step replaces it without a status change.
+- **`run_artifact.storage_key`.** `<source lower-case>/<season>/<runId>/ingest-<ingestRunId>.zip`
+  for the package ZIP, relative to the configured artifact directory.
+- **`import_report`.** Derived from the finished platform job: counters summed
+  over the seasons that have a result; `issues` are the job `errorDetail`, then
+  each season `errorDetail` as `<season>: <detail>`, then each season
+  `executionIssues` as `<season>: <issue>`; `import_status` is the job status
+  and `raw_report` the job JSON as received.
+
 ## Migration history
 
 | Version | File | Content |

@@ -100,6 +100,19 @@ public final class PipelineStep {
                 logRef);
     }
 
+    /** Attaches the external id once it is known; allowed once, while the step is RUNNING. */
+    public PipelineStep withExternalRef(String ref) {
+        requireRunning(StepStatus.RUNNING);
+        if (externalRef != null) {
+            throw new IllegalStateException("Step " + id + " already has an external reference");
+        }
+        if (ref == null || ref.isBlank() || ref.length() > 64) {
+            throw new IllegalStateException("externalRef must be non-blank and at most 64 characters");
+        }
+        return new PipelineStep(
+                id, runId, kind, attempt, status, startedAt, null, ref, outcome, retryable, null, logRef);
+    }
+
     private void requireRunning(StepStatus target) {
         if (status != StepStatus.RUNNING) {
             throw new IllegalStateException("Step " + id + " is " + status + " and cannot move to " + target);

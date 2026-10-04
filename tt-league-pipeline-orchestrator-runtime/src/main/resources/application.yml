@@ -24,10 +24,36 @@ server:
 tt:
   pipeline:
     platform:
-      base-url: ${PIPELINE_PLATFORM_URL:jdbc:postgresql://localhost:5432/ttleaguedata}
+      base-url: ${PIPELINE_PLATFORM_URL:http://localhost:8090}
+      # Service credential from the platform (FEAT-00101) with the imports:write scope.
+      api-key: ${PIPELINE_PLATFORM_API_KEY}
+      connect-timeout: PT10S
+      # The platform validates the uploaded ZIP synchronously before answering.
+      read-timeout: PT5M
+      poll-interval: ${PIPELINE_IMPORT_POLL_INTERVAL:PT10S}
     ingest:
-      base-url: ${PIPELINE_INGEST_URL:jdbc:postgresql://localhost:5432/ttleaguedata}
+      base-url: ${PIPELINE_INGEST_URL:http://localhost:8091}
       api-key: ${PIPELINE_INGEST_API_KEY}
+      connect-timeout: PT10S
+      read-timeout: PT1M
+      poll-interval: ${PIPELINE_INGEST_POLL_INTERVAL:PT15S}
+    artifacts:
+      # Existing, writable directory; packages are stored as <dir>/<source>/<season>/<runId>/ingest-<id>.zip.
+      dir: ${PIPELINE_ARTIFACTS_DIR:D:/tmp/pipeline-artifacts}
+    execution:
+      max-retries: ${PIPELINE_MAX_RETRIES:3}
+      initial-backoff: ${PIPELINE_INITIAL_BACKOFF:PT30S}
+      backoff-multiplier: ${PIPELINE_BACKOFF_MULTIPLIER:2}
+      max-backoff: ${PIPELINE_MAX_BACKOFF:PT5M}
+      timeouts:
+        # Counted from the first attempt of the step, retries and back-off included. Ingest runs one
+        # ingestion at a time, so an ingest run can queue behind another source's run.
+        ingest: ${PIPELINE_INGEST_TIMEOUT:PT3H}
+        fetch-package: ${PIPELINE_FETCH_PACKAGE_TIMEOUT:PT10M}
+        # Longer than the platform's default PT2H busy wait.
+        import-job: ${PIPELINE_IMPORT_TIMEOUT:PT3H}
+      max-concurrent-runs: ${PIPELINE_MAX_CONCURRENT_RUNS:3}
+      recover-on-startup: ${PIPELINE_RECOVER_ON_STARTUP:true}
     security:
       jwt-secret: ${JWT_SIGNING_SECRET}
 

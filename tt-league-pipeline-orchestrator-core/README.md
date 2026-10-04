@@ -9,6 +9,18 @@ state machine (illegal transitions throw `IllegalRunTransitionException`), the
 `PipelineStep`, `RunArtifact` and `ImportReport` values, and the repository
 ports in `run.port`.
 
+The `execution` package drives a run: the ports to ingest, the platform and the
+artifact store (`execution.port`: `IngestGateway`, `ImportGateway`,
+`ArtifactStore`, `RunDispatcher`, `RunClock`, `RunObserver`, `GatewayException`),
+the settings (`RetryPolicy`, `StepTimeouts`, `PollIntervals`), `RunExecutor`,
+`RunLauncher` (the single trigger path) and `RunRecovery`. It uses JDK types
+only and logs through `System.Logger`. Time and sleeping go through `RunClock`,
+so tests never wait.
+
+The test sources publish the in-memory repositories, scripted gateways, fake
+clock and `ExecutorHarness` (`execution.testing`) as the module's `test-jar`;
+the runtime tests reuse them.
+
 This module has no Spring, JPA or HTTP-client dependency and no dependency on
 `tt-data-league-*` modules; a test enforces it.
 
