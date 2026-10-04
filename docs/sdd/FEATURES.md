@@ -54,28 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00105] Orchestrator runs API with manual trigger and live events
-- **Status:** idea
-- **Priority:** high
-- **Effort:** medium
-- **Depends on:** FEAT-00103, FEAT-00104
-
-#### Goal
-Let operators start a run on demand and follow runs and their steps live, through the same path the scheduler uses.
-
-#### Acceptance Criteria
-- [ ] `POST /api/pipeline/runs` (`source` or `ALL`, scope `OPEN_MATCH_DAYS`/`GROUP`/`FULL_SEASON`, `force`) creates `MANUAL` runs recording the user id
-- [ ] A trigger for a source with an active run is rejected with 409 and a clear message (configurable to queue instead)
-- [ ] `GET /api/pipeline/runs` (filters: source, status, from/to; paged) and `GET /api/pipeline/runs/{id}` return runs with steps, durations, issues and import report
-- [ ] `GET /api/pipeline/events` streams run and step transitions as Server-Sent Events
-- [ ] Platform JWTs are validated; viewing needs authentication and triggering needs `matches:write`
-- [ ] Controller and security tests cover validation, 409, permissions and the event stream
-
-#### Feature Details
-→ See [FEAT-00105-DETAILS.md](./FEAT-00105-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00106] Orchestrator fixed-schedule trigger
 - **Status:** idea
 - **Priority:** high
@@ -298,6 +276,29 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00105] Orchestrator runs API with manual trigger and live events
+- **Status:** done
+- **Priority:** high
+- **Effort:** large
+- **Depends on:** FEAT-00103, FEAT-00104
+
+#### Goal
+Let operators start a run on demand and follow runs and their steps live, through the same path the scheduler uses.
+
+#### Acceptance Criteria
+- [x] `POST /api/pipeline/runs` (`source` or `ALL`, required `season`, scope `OPEN_MATCH_DAYS`/`GROUP`/`FULL_SEASON` with filters for `GROUP`, `force`) creates one `MANUAL` run per source through the shared `TriggerRun` path, records the JWT subject as `requestedBy` and passes `force` to the ingest run
+- [x] `OPEN_MATCH_DAYS` is resolved through a core `OpenMatchDayScopeResolver` port; until FEAT-00108 provides a resolver it is answered with 422 `SCOPE_UNAVAILABLE`
+- [x] A trigger for a source with an active run is rejected with 409 and a clear message; with `conflict-mode: QUEUE` it is stored as the source's single persisted pending trigger (202), launched when the active run ends or at startup, and a second pending trigger for the source is rejected with 409
+- [x] `GET /api/pipeline/runs` (filters: source, status, from/to; paged, newest first) and `GET /api/pipeline/runs/{id}` return runs with steps, durations, issues and import report
+- [x] `GET /api/pipeline/events` streams run creation, run and step transitions and pending-trigger changes as Server-Sent Events without blocking run execution
+- [x] Platform JWTs are validated with the shared secret (HS256/HS384/HS512 by secret length); viewing needs authentication and triggering needs `matches:write`
+- [x] Controller, security, persistence and integration tests cover validation, 409, queueing and draining, permissions and the event stream
+
+#### Feature Details
+→ See [FEAT-00105-DETAILS.md](./FEAT-00105-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00104] Orchestrator run executor with ingest and import gateways
 - **Status:** done

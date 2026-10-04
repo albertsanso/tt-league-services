@@ -23,6 +23,7 @@ One execution of the pipeline for a source and season.
 | `source` | `varchar(16)` NOT NULL | `RFETM`, `BCNESA`, `FCTT` |
 | `season` | `varchar(9)` NOT NULL | `^[0-9]{4}-[0-9]{4}$` |
 | `scope` | `jsonb` NOT NULL | `{"scopes":[{category, group, phase, territory, gender, matchDays}]}`, nulls omitted; `{"scopes":[]}` is the whole season |
+| `force` | `boolean` NOT NULL DEFAULT false | passed to the ingest run (bypasses its no-change skip); added by `V2` |
 | `trigger` | `varchar(16)` NOT NULL | `SCHEDULED`, `MANUAL`, `RETRY` |
 | `requested_by` | `varchar(128)` NOT NULL | user id, or `system:scheduler` |
 | `retry_of_run_id` | `uuid` NULL | FK `pipeline_run(id)`; set exactly when `trigger = 'RETRY'` |
@@ -140,8 +141,26 @@ No migration: the columns above already fit every value written by FEAT-00104.
   `executionIssues` as `<season>: <issue>`; `import_status` is the job status
   and `raw_report` the job JSON as received.
 
+## `pending_trigger`
+
+At most one waiting trigger per source (primary key `source`), written by `TriggerRun` in queue conflict mode and
+deleted when it is launched or dropped. It stores the request, not the resolved scope.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `source` | `varchar(16)` PK | `RFETM`, `BCNESA`, `FCTT` |
+| `season` | `varchar(9)` NOT NULL | `^[0-9]{4}-[0-9]{4}$` |
+| `scope_type` | `varchar(16)` NOT NULL | `OPEN_MATCH_DAYS`, `GROUP`, `FULL_SEASON` |
+| `filters` | `jsonb` NOT NULL | same `{"scopes":[...]}` layout as `pipeline_run.scope` |
+| `force` | `boolean` NOT NULL | |
+| `requested_by` | `varchar(128)` NOT NULL | JWT subject |
+| `requested_at` | `timestamptz` NOT NULL | |
+
+Extra index on `pipeline_run`: `ix_pipeline_run_created (created_at DESC, id)` for the unfiltered run list.
+
 ## Migration history
 
 | Version | File | Content |
 | --- | --- | --- |
 | `V1` | `V1__pipeline_run_model.sql` | `pipeline_run`, `pipeline_step`, `run_artifact`, `import_report`, active-run partial index |
+| `V2` | `V2__manual_triggers.sql` | `pipeline_run.force`, `ix_pipeline_run_created`, `pending_trigger` |

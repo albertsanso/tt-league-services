@@ -17,8 +17,13 @@ the settings (`RetryPolicy`, `StepTimeouts`, `PollIntervals`), `RunExecutor`,
 only and logs through `System.Logger`. Time and sleeping go through `RunClock`,
 so tests never wait.
 
+The `trigger` package holds `TriggerRun`, the single path that creates manual and scheduled runs (one outcome per
+source: created, queued, rejected or unavailable), the one-per-source `PendingTrigger` with its repository port, the
+`OpenMatchDayScopeResolver` port and `PendingTriggerDrainer`. `CompositeRunObserver` fans a change out to several
+observers; it logs and swallows an observer failure, the one deliberate broad catch, so a side channel never fails a run.
+
 The test sources publish the in-memory repositories, scripted gateways, fake
-clock and `ExecutorHarness` (`execution.testing`) as the module's `test-jar`;
+clock, `ExecutorHarness`, the pending-trigger repository, scope-resolver stub and event recorder (`execution.testing`) as the module's `test-jar`;
 the runtime tests reuse them.
 
 This module has no Spring, JPA or HTTP-client dependency and no dependency on

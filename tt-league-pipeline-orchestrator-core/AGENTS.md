@@ -11,7 +11,9 @@ tracker rules, polling policy, scope builder and the ports (`IngestGateway`,
 `run` package holds the run state machine (`RunStatus`, `PipelineRun`), the step,
 artifact and import-report values, and the repository ports with their
 exceptions. The `execution` package holds the execution ports, `RunExecutor`,
-`RunLauncher` and `RunRecovery`; later features add tracker rules and the
+`RunLauncher` and `RunRecovery`. The `trigger` package holds `TriggerRun`, the
+single path that creates manual and scheduled runs, with the pending-trigger
+and open-match-day scope ports; later features add tracker rules and the
 remaining ports.
 
 ## Boundaries
@@ -37,6 +39,17 @@ remaining ports.
 - `src/test/java/.../execution/testing` is published as the core `test-jar`
   (`maven-jar-plugin` `test-jar`, a build plugin, so the POM still has only
   test-scoped dependencies). Keep those fixtures in step with the ports.
+
+## Trigger package and observers
+
+- `TriggerRun` is the only caller of `RunLauncher` for new runs. Sources are
+  processed independently; a pending trigger stores the request, not the
+  resolved scope.
+- `CompositeRunObserver` (and the pending-trigger listener calls in
+  `TriggerRun`) are the only broad `RuntimeException` catches: observers are
+  side channels, so every failure is logged and never reaches the executor.
+- New fixtures in the `test-jar`: `InMemoryPendingTriggerRepository`,
+  `StubOpenMatchDayScopeResolver` and `RecordingPendingTriggerEvents`.
 
 ## Validation
 

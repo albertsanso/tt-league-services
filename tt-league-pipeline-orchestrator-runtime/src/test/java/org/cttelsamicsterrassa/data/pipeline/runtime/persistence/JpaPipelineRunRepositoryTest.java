@@ -29,9 +29,9 @@ class JpaPipelineRunRepositoryTest extends AbstractPersistenceTest {
                 new ScopeFilter("DH", "A", "1", "BCN", "M", List.of(3, 4)),
                 new ScopeFilter(null, null, null, null, "F", List.of())));
         PipelineRun original = runs.create(PipelineRun.queue(UUID.randomUUID(), PipelineSource.BCNESA, "2025-2026",
-                scope, RunTrigger.MANUAL, "user-1", null, T0));
+                scope, false, RunTrigger.MANUAL, "user-1", null, T0));
         PipelineRun retry = PipelineRun.queue(UUID.randomUUID(), PipelineSource.FCTT, "2025-2026", scope,
-                RunTrigger.RETRY, "user-2", original.id(), T0);
+                false, RunTrigger.RETRY, "user-2", original.id(), T0);
         runs.update(original.fail(new RunError("E", "boom"), T0.plusSeconds(1)));
 
         PipelineRun stored = runs.create(retry);
@@ -101,7 +101,7 @@ class JpaPipelineRunRepositoryTest extends AbstractPersistenceTest {
     void findsActiveRunAndOrdersByStatusOldestFirst() {
         PipelineRun older = runs.create(queued(PipelineSource.RFETM));
         PipelineRun newer = runs.create(PipelineRun.queue(UUID.randomUUID(), PipelineSource.BCNESA, "2025-2026",
-                RunScope.fullSeason(), RunTrigger.SCHEDULED, "system:scheduler", null, T0.plusSeconds(60)));
+                RunScope.fullSeason(), false, RunTrigger.SCHEDULED, "system:scheduler", null, T0.plusSeconds(60)));
 
         assertThat(runs.findActiveBySource(PipelineSource.RFETM)).map(PipelineRun::id).contains(older.id());
         assertThat(runs.findActiveBySource(PipelineSource.FCTT)).isEmpty();

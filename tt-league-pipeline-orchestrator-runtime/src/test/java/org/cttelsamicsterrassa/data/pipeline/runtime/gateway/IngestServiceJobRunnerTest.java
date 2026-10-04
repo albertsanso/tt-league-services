@@ -44,7 +44,7 @@ class IngestServiceJobRunnerTest {
     }
 
     private static IngestRunRequest fullSeason() {
-        return new IngestRunRequest(PipelineSource.RFETM, "2025-2026", IngestMode.SNAPSHOT, RunScope.fullSeason());
+        return new IngestRunRequest(PipelineSource.RFETM, "2025-2026", IngestMode.SNAPSHOT, RunScope.fullSeason(), false);
     }
 
     private static GatewayException failureOf(Runnable call) {
@@ -72,13 +72,24 @@ class IngestServiceJobRunnerTest {
     }
 
     @Test
+    void sendsForceWhenTheRunIsForced() {
+        server.on("POST", RUNS, Response.json(202, "{\"runId\":\"r1\"}"));
+
+        gateway.startRun(new IngestRunRequest(PipelineSource.RFETM, "2025-2026", IngestMode.SNAPSHOT,
+                RunScope.fullSeason(), true));
+
+        assertThat(server.requests.get(0).bodyText()).contains("\"force\":true")
+                .contains("\"allowPublishedShrink\":false");
+    }
+
+    @Test
     void startsAScopedDeltaRunWithScopesAndNoNullKeys() {
         server.on("POST", RUNS, Response.json(202, "{\"runId\":\"r1\"}"));
         RunScope scope = new RunScope(List.of(
                 new ScopeFilter("CAT", null, "FASE1", null, null, List.of(3, 4)),
                 new ScopeFilter(null, "G1", null, null, "F", List.of())));
 
-        gateway.startRun(new IngestRunRequest(PipelineSource.BCNESA, "2025-2026", IngestMode.DELTA, scope));
+        gateway.startRun(new IngestRunRequest(PipelineSource.BCNESA, "2025-2026", IngestMode.DELTA, scope, false));
 
         assertThat(server.requests.get(0).bodyText()).isEqualTo("{\"source\":\"BCNESA\",\"season\":\"2025-2026\","
                 + "\"stages\":[\"download\",\"parse\",\"package\"],\"mode\":\"delta\",\"force\":false,"

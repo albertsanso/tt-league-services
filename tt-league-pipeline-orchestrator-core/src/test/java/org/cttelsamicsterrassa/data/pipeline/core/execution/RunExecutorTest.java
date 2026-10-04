@@ -118,6 +118,16 @@ class RunExecutorTest {
     }
 
     @Test
+    void forceIsPassedToTheIngestStart() {
+        ingest.start("a").poll(finished("a", "NO_CHANGES", false));
+        execute(h.queueRun(PipelineSource.RFETM, RunScope.fullSeason(), true));
+        ingest.start("b").poll(finished("b", "NO_CHANGES", false));
+        execute(h.queueRun(PipelineSource.BCNESA, RunScope.fullSeason(), false));
+
+        assertThat(ingest.startRequests).extracting(IngestRunRequest::force).containsExactly(true, false);
+    }
+
+    @Test
     void noChangesEndsTheRunWithoutFetchOrImport() {
         ingest.start("ing1").poll(finished("ing1", "NO_CHANGES", false));
 

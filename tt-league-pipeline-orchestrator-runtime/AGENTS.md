@@ -28,8 +28,15 @@ and the Flyway/JPA persistence of the run model (later features add security).
   backs off when one exists.
 - Artifacts are written only through `FileSystemArtifactStore`; the artifact
   directory must exist and be writable at startup.
-- Flyway, JPA and Testcontainers are in place; Spring Security waits for
-  FEAT-00105.
+- Flyway, JPA and Testcontainers are in place. Security is stateless bearer
+  JWT (platform tokens, algorithm by secret length); never log, echo or store
+  a token, key or the signing secret, and accept tokens only in the
+  `Authorization` header.
+- Controllers (`api/`) only translate HTTP to the core `TriggerRun` and
+  `RunQueryService`; new runs are created only through `TriggerRun`.
+- Run observers never throw into the executor (`CompositeRunObserver` isolates
+  them). The `RunEventBroadcaster` sends on its own private pool, which is not
+  an `Executor` bean, and never on a run thread.
 - Schema `pipeline` changes only through new `db/migration/V<n>__*.sql`
   migrations; never edit an applied one. `ddl-auto` stays `validate`. Update
   `docs/pipeline-datamodel.md` with every migration, and never reference

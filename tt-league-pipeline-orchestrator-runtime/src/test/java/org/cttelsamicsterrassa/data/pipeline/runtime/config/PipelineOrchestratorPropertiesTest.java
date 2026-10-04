@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.cttelsamicsterrassa.data.pipeline.core.execution.ExecutionSettings;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -60,7 +61,61 @@ class PipelineOrchestratorPropertiesTest {
 
     @Test
     void failsWhenJwtSecretIsTooShort() {
-        assertFails(replace("tt.pipeline.security.jwt-secret", "short"), "jwtSecret");
+        assertFails(replace("tt.pipeline.security.jwt-secret", "short"), "jwt-secret");
+        // the rule counts UTF-8 bytes: 15 two-byte characters are 30 bytes, 16 are 32
+        assertFails(replace("tt.pipeline.security.jwt-secret", "é".repeat(15)), "jwt-secret");
+    }
+
+    @Test
+    void acceptsAMultiByteSecretOfAtLeast32Bytes() {
+        runner.withPropertyValues(replace("tt.pipeline.security.jwt-secret", "é".repeat(16))
+                .toArray(String[]::new)).run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
+    void bindsCorsOriginsTriggersAndEvents() {
+        runner.withPropertyValues(replace("tt.pipeline.security.cors-allowed-origins",
+                "http://localhost:5173,https://ops.example.org").toArray(String[]::new)).run(context -> {
+                    PipelineOrchestratorProperties properties =
+                            context.getBean(PipelineOrchestratorProperties.class);
+                    assertThat(properties.security().corsAllowedOrigins())
+                            .containsExactly("http://localhost:5173", "https://ops.example.org");
+                    assertThat(properties.triggers().conflictMode()).isEqualTo(ConflictMode.REJECT);
+                    assertThat(properties.events().heartbeatInterval()).isEqualTo(Duration.ofSeconds(15));
+                    assertThat(properties.events().emitterTimeout()).isEqualTo(Duration.ofMinutes(30));
+                    assertThat(properties.events().maxSubscribers()).isEqualTo(50);
+                });
+    }
+
+    @Test
+    void anEmptyCorsOriginListMeansNoOrigins() {
+        runner.withPropertyValues(replace("tt.pipeline.security.cors-allowed-origins", "").toArray(String[]::new))
+                .run(context -> assertThat(
+                        context.getBean(PipelineOrchestratorProperties.class).security().corsAllowedOrigins())
+                                .isEmpty());
+    }
+
+    @Test
+    void failsOnACorsOriginThatIsNotAnHttpOrigin() {
+        assertFails(replace("tt.pipeline.security.cors-allowed-origins", "ftp://example.org"),
+                "cors-allowed-origins");
+        assertFails(replace("tt.pipeline.security.cors-allowed-origins", "example.org"), "cors-allowed-origins");
+        assertFails(replace("tt.pipeline.security.cors-allowed-origins", "https://example.org/app"),
+                "cors-allowed-origins");
+    }
+
+    @Test
+    void failsOnAnUnknownConflictModeOrMissingTriggers() {
+        assertFails(replace("tt.pipeline.triggers.conflict-mode", "WAIT"), "conflict-mode");
+        assertFails(without("tt.pipeline.triggers.conflict-mode"), "triggers");
+    }
+
+    @Test
+    void failsOnInvalidEventSettings() {
+        assertFails(replace("tt.pipeline.events.heartbeat-interval", "PT0S"), "events.heartbeat-interval");
+        assertFails(replace("tt.pipeline.events.emitter-timeout", "-PT1S"), "events.emitter-timeout");
+        assertFails(replace("tt.pipeline.events.max-subscribers", "0"), "events.max-subscribers");
+        assertFails(replace("tt.pipeline.events.max-subscribers", "1001"), "events.max-subscribers");
     }
 
     @Test
@@ -144,7 +199,11 @@ class PipelineOrchestratorPropertiesTest {
                 "tt.pipeline.execution.timeouts.import-job=PT3H",
                 "tt.pipeline.execution.max-concurrent-runs=3",
                 "tt.pipeline.execution.recover-on-startup=true",
-                "tt.pipeline.security.jwt-secret=" + VALID_SECRET));
+                "tt.pipeline.security.jwt-secret=" + VALID_SECRET,
+                "tt.pipeline.triggers.conflict-mode=REJECT",
+                "tt.pipeline.events.heartbeat-interval=PT15S",
+                "tt.pipeline.events.emitter-timeout=PT30M",
+                "tt.pipeline.events.max-subscribers=50"));
     }
 
     private static List<String> replace(String key, String value) {

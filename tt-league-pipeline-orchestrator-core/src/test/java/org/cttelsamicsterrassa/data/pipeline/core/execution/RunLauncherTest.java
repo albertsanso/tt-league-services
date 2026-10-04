@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.RunLauncher.LaunchRe
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.FakeRunClock;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryPipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.RecordingDispatcher;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.RecordingObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
@@ -19,10 +20,12 @@ class RunLauncherTest {
 
     private final InMemoryPipelineRunRepository runs = new InMemoryPipelineRunRepository();
     private final RecordingDispatcher dispatcher = new RecordingDispatcher();
-    private final RunLauncher launcher = new RunLauncher(runs, dispatcher, new FakeRunClock());
+    private final RecordingObserver observer = new RecordingObserver();
+    private final RunLauncher launcher = new RunLauncher(runs, dispatcher, new FakeRunClock(), observer);
 
     private static LaunchRequest request(PipelineSource source) {
-        return new LaunchRequest(source, "2025-2026", RunScope.fullSeason(), RunTrigger.MANUAL, "user-1", null);
+        return new LaunchRequest(source, "2025-2026", RunScope.fullSeason(), false, RunTrigger.MANUAL, "user-1",
+                null);
     }
 
     @Test
@@ -32,6 +35,7 @@ class RunLauncherTest {
         assertThat(run.status()).isEqualTo(RunStatus.QUEUED);
         assertThat(runs.findById(run.id())).isPresent();
         assertThat(dispatcher.dispatched).containsExactly(run.id());
+        assertThat(observer.events).containsExactly("run:QUEUED");
     }
 
     @Test
@@ -55,5 +59,6 @@ class RunLauncherTest {
         assertThat(stored.error().code()).isEqualTo("DISPATCH_FAILED");
         assertThat(stored.error().message()).contains("pool is full");
         assertThat(runs.findActiveBySource(PipelineSource.FCTT)).isEmpty();
+        assertThat(observer.events).containsExactly("run:QUEUED", "run:FAILED");
     }
 }

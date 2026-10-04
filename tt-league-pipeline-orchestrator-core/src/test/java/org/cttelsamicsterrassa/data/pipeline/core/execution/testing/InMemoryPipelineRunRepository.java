@@ -2,6 +2,8 @@ package org.cttelsamicsterrassa.data.pipeline.core.execution.testing;
 
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunPage;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunQuery;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.ActiveRunConflictException;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
@@ -41,8 +43,8 @@ public class InMemoryPipelineRunRepository implements PipelineRunRepository {
         if (stored.version() != run.version()) {
             throw new StaleRunException(run.id(), run.version());
         }
-        PipelineRun next = PipelineRun.restore(run.id(), run.source(), run.season(), run.scope(), run.trigger(),
-                run.requestedBy(), run.retryOfRunId(), run.status(), run.createdAt(), run.startedAt(),
+        PipelineRun next = PipelineRun.restore(run.id(), run.source(), run.season(), run.scope(), run.force(),
+                run.trigger(), run.requestedBy(), run.retryOfRunId(), run.status(), run.createdAt(), run.startedAt(),
                 run.finishedAt(), run.ingestRunId(), run.importJobId(), run.error(), run.version() + 1);
         runs.put(run.id(), next);
         return next;
@@ -58,6 +60,21 @@ public class InMemoryPipelineRunRepository implements PipelineRunRepository {
         return runs.values().stream()
                 .filter(run -> run.source() == source && run.status().isActive())
                 .findFirst();
+    }
+
+    @Override
+    public synchronized RunPage find(RunQuery query) {
+        List<PipelineRun> matching = runs.values().stream()
+                .filter(run -> query.sources().isEmpty() || query.sources().contains(run.source()))
+                .filter(run -> query.statuses().isEmpty() || query.statuses().contains(run.status()))
+                .filter(run -> query.createdFrom() == null || !run.createdAt().isBefore(query.createdFrom()))
+                .filter(run -> query.createdTo() == null || run.createdAt().isBefore(query.createdTo()))
+                .sorted(Comparator.comparing(PipelineRun::createdAt).reversed()
+                        .thenComparing(PipelineRun::id, Comparator.reverseOrder()))
+                .toList();
+        int from = (int) Math.min((long) query.page() * query.size(), matching.size());
+        int to = Math.min(from + query.size(), matching.size());
+        return new RunPage(matching.subList(from, to), query.page(), query.size(), matching.size());
     }
 
     @Override

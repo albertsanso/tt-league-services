@@ -4,13 +4,16 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.ExecutionSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.PollIntervals;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RetryPolicy;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.StepTimeouts;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Size;
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -25,7 +28,9 @@ public record PipelineOrchestratorProperties(
         @Valid @NotNull Ingest ingest,
         @Valid @NotNull Artifacts artifacts,
         @Valid @NotNull Execution execution,
-        @Valid @NotNull Security security) {
+        @Valid @NotNull Security security,
+        @Valid @NotNull Triggers triggers,
+        @Valid @NotNull Events events) {
 
     /** Platform REST API; {@code apiKey} is a service credential with {@code imports:write}. */
     public record Platform(
@@ -93,7 +98,58 @@ public record PipelineOrchestratorProperties(
         }
     }
 
-    public record Security(@NotBlank @Size(min = 32) String jwtSecret) {
+    /**
+     * {@code jwtSecret} is the platform's {@code security.jwt.secret}: at least 32 UTF-8 bytes, like the platform
+     * checks. {@code corsAllowedOrigins} are absolute http(s) origins; empty means no CORS headers.
+     */
+    public record Security(@NotBlank String jwtSecret, List<String> corsAllowedOrigins) {
+
+        public Security {
+            required(jwtSecret, "security.jwt-secret");
+            if (jwtSecret.getBytes(StandardCharsets.UTF_8).length < 32) {
+                throw new IllegalArgumentException("security.jwt-secret must be at least 32 UTF-8 bytes");
+            }
+            corsAllowedOrigins = corsAllowedOrigins == null ? List.of() : List.copyOf(corsAllowedOrigins);
+            corsAllowedOrigins.forEach(Security::validOrigin);
+        }
+
+        private static void validOrigin(String origin) {
+            URI uri;
+            try {
+                uri = new URI(origin);
+            } catch (URISyntaxException e) {
+                throw new IllegalArgumentException(
+                        "security.cors-allowed-origins must hold absolute http(s) origins: " + origin, e);
+            }
+            boolean httpScheme = "http".equals(uri.getScheme()) || "https".equals(uri.getScheme());
+            boolean bareOrigin = uri.getHost() != null && uri.getUserInfo() == null && uri.getQuery() == null
+                    && uri.getFragment() == null && (uri.getPath() == null || uri.getPath().isEmpty());
+            if (!httpScheme || !bareOrigin) {
+                throw new IllegalArgumentException(
+                        "security.cors-allowed-origins must hold absolute http(s) origins: " + origin);
+            }
+        }
+    }
+
+    /** What a manual trigger does when its source already has an active run. */
+    public record Triggers(ConflictMode conflictMode) {
+
+        public Triggers {
+            required(conflictMode, "triggers.conflict-mode");
+        }
+    }
+
+    /** Server-Sent Events stream limits. */
+    public record Events(Duration heartbeatInterval, Duration emitterTimeout, Integer maxSubscribers) {
+
+        public Events {
+            positive(heartbeatInterval, "events.heartbeat-interval");
+            positive(emitterTimeout, "events.emitter-timeout");
+            required(maxSubscribers, "events.max-subscribers");
+            if (maxSubscribers < 1 || maxSubscribers > 1000) {
+                throw new IllegalArgumentException("events.max-subscribers must be between 1 and 1000");
+            }
+        }
     }
 
     /** The core settings: retry and timeouts from {@code execution}, poll intervals from the two services. */

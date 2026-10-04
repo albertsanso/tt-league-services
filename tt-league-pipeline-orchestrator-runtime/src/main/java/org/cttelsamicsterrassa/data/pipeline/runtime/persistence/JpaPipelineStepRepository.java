@@ -1,6 +1,10 @@
 package org.cttelsamicsterrassa.data.pipeline.runtime.persistence;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
@@ -41,6 +45,19 @@ class JpaPipelineStepRepository implements PipelineStepRepository {
     @Transactional(readOnly = true)
     public List<PipelineStep> findByRunId(UUID runId) {
         return steps.findByRunIdOrderByStartedAtAscAttemptAsc(runId).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, List<PipelineStep>> findByRunIds(Collection<UUID> runIds) {
+        Map<UUID, List<PipelineStep>> byRun = new LinkedHashMap<>();
+        if (runIds.isEmpty()) {
+            return byRun;
+        }
+        for (PipelineStepEntity entity : steps.findByRunIdInOrderByStartedAtAscAttemptAsc(runIds)) {
+            byRun.computeIfAbsent(entity.runId, id -> new ArrayList<>()).add(toDomain(entity));
+        }
+        return byRun;
     }
 
     private PipelineStep toDomain(PipelineStepEntity entity) {

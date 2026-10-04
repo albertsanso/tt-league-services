@@ -102,7 +102,7 @@ class ExecutorRunDispatcherTest {
 
     private PipelineRun queue(PipelineSource source) {
         return runs.create(PipelineRun.queue(UUID.randomUUID(), source, "2025-2026", RunScope.fullSeason(),
-                RunTrigger.MANUAL, "tester", null, java.time.Instant.now()));
+                false, RunTrigger.MANUAL, "tester", null, java.time.Instant.now()));
     }
 
     private static void await(BooleanSupplier condition) throws InterruptedException {

@@ -50,6 +50,13 @@ class PipelineOrchestratorApplicationTest {
     private TestRestTemplate restTemplate;
 
     @Test
+    void protectedApiNeedsATokenWhileHealthIsPublic() {
+        ResponseEntity<String> response = restTemplate.getForEntity("/api/pipeline/runs", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    }
+
+    @Test
     void contextLoadsAndHealthIsUp() {
         ResponseEntity<String> response = restTemplate.getForEntity("/actuator/health", String.class);
 

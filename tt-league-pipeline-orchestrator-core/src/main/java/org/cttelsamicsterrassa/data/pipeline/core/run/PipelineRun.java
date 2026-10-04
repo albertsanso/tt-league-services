@@ -14,6 +14,7 @@ public final class PipelineRun {
     private final PipelineSource source;
     private final String season;
     private final RunScope scope;
+    private final boolean force;
     private final RunTrigger trigger;
     private final String requestedBy;
     private final UUID retryOfRunId;
@@ -31,6 +32,7 @@ public final class PipelineRun {
             PipelineSource source,
             String season,
             RunScope scope,
+            boolean force,
             RunTrigger trigger,
             String requestedBy,
             UUID retryOfRunId,
@@ -44,8 +46,9 @@ public final class PipelineRun {
             long version) {
         this.id = Checks.required(id, "id");
         this.source = Checks.required(source, "source");
-        this.season = validSeason(season);
+        this.season = requireValidSeason(season);
         this.scope = Checks.required(scope, "scope");
+        this.force = force;
         this.trigger = Checks.required(trigger, "trigger");
         this.requestedBy = Checks.nonBlankMax(requestedBy, "requestedBy", 128);
         this.retryOfRunId = retryOfRunId;
@@ -65,12 +68,13 @@ public final class PipelineRun {
             PipelineSource source,
             String season,
             RunScope scope,
+            boolean force,
             RunTrigger trigger,
             String requestedBy,
             UUID retryOfRunId,
             Instant now) {
         return new PipelineRun(
-                id, source, season, scope, trigger, requestedBy, retryOfRunId, RunStatus.QUEUED, now, null, null,
+                id, source, season, scope, force, trigger, requestedBy, retryOfRunId, RunStatus.QUEUED, now, null, null,
                 null, null, null, 0L);
     }
 
@@ -80,6 +84,7 @@ public final class PipelineRun {
             PipelineSource source,
             String season,
             RunScope scope,
+            boolean force,
             RunTrigger trigger,
             String requestedBy,
             UUID retryOfRunId,
@@ -92,7 +97,7 @@ public final class PipelineRun {
             RunError error,
             long version) {
         return new PipelineRun(
-                id, source, season, scope, trigger, requestedBy, retryOfRunId, status, createdAt, startedAt,
+                id, source, season, scope, force, trigger, requestedBy, retryOfRunId, status, createdAt, startedAt,
                 finishedAt, ingestRunId, importJobId, error, version);
     }
 
@@ -112,7 +117,7 @@ public final class PipelineRun {
             throw new IllegalRunTransitionException(id, status, RunStatus.RUNNING_INGEST);
         }
         return new PipelineRun(
-                id, source, season, scope, trigger, requestedBy, retryOfRunId, status, createdAt, startedAt,
+                id, source, season, scope, force, trigger, requestedBy, retryOfRunId, status, createdAt, startedAt,
                 finishedAt, newIngestRunId, importJobId, error, version);
     }
 
@@ -155,7 +160,7 @@ public final class PipelineRun {
         }
         Checks.required(at, "at");
         return new PipelineRun(
-                id, source, season, scope, trigger, requestedBy, retryOfRunId, next, createdAt, newStartedAt,
+                id, source, season, scope, force, trigger, requestedBy, retryOfRunId, next, createdAt, newStartedAt,
                 newFinishedAt, newIngestRunId, newImportJobId, newError, version);
     }
 
@@ -198,7 +203,8 @@ public final class PipelineRun {
         }
     }
 
-    private static String validSeason(String season) {
+    /** Validates the {@code 2025-2026} season shape (consecutive years) shared by runs and triggers. */
+    public static String requireValidSeason(String season) {
         Checks.required(season, "season");
         Matcher matcher = SEASON.matcher(season);
         if (!matcher.matches() || Integer.parseInt(matcher.group(2)) != Integer.parseInt(matcher.group(1)) + 1) {
@@ -221,6 +227,10 @@ public final class PipelineRun {
 
     public RunScope scope() {
         return scope;
+    }
+
+    public boolean force() {
+        return force;
     }
 
     public RunTrigger trigger() {

@@ -18,18 +18,36 @@ class PipelineRunTest {
 
     private static PipelineRun queued() {
         return PipelineRun.queue(UUID.randomUUID(), PipelineSource.RFETM, "2025-2026", RunScope.fullSeason(),
-                RunTrigger.MANUAL, "user-1", null, T0);
+                false, RunTrigger.MANUAL, "user-1", null, T0);
     }
 
     private static PipelineRun restore(RunStatus status, Instant created, Instant started, Instant finished,
             UUID importJob, RunError error) {
         return PipelineRun.restore(UUID.randomUUID(), PipelineSource.RFETM, "2025-2026", RunScope.fullSeason(),
-                RunTrigger.MANUAL, "u", null, status, created, started, finished, "abc", importJob, error, 0);
+                false, RunTrigger.MANUAL, "u", null, status, created, started, finished, "abc", importJob, error, 0);
     }
 
     private static PipelineRun queue(String season, RunTrigger trigger, String by, UUID retryOf) {
-        return PipelineRun.queue(UUID.randomUUID(), PipelineSource.RFETM, season, RunScope.fullSeason(), trigger,
-                by, retryOf, T0);
+        return PipelineRun.queue(UUID.randomUUID(), PipelineSource.RFETM, season, RunScope.fullSeason(), false,
+                trigger, by, retryOf, T0);
+    }
+
+    @Test
+    void forceIsKeptThroughTransitionsAndRestore() {
+        PipelineRun forced = PipelineRun.queue(UUID.randomUUID(), PipelineSource.RFETM, "2025-2026",
+                RunScope.fullSeason(), true, RunTrigger.MANUAL, "user-1", null, T0);
+        assertThat(forced.force()).isTrue();
+        assertThat(queued().force()).isFalse();
+
+        PipelineRun running = forced.startIngest("first", T1);
+        assertThat(running.force()).isTrue();
+        assertThat(running.restartIngest("second", T2).force()).isTrue();
+        assertThat(running.fail(ERROR, T3).force()).isTrue();
+
+        PipelineRun restored = PipelineRun.restore(forced.id(), forced.source(), forced.season(), forced.scope(),
+                true, forced.trigger(), forced.requestedBy(), null, RunStatus.QUEUED, T0, null, null, null, null,
+                null, 0);
+        assertThat(restored.force()).isTrue();
     }
 
     @Test
@@ -162,7 +180,7 @@ class PipelineRunTest {
     @Test
     void restoreAcceptsFailedWithoutStartAndKeepsVersion() {
         PipelineRun run = PipelineRun.restore(UUID.randomUUID(), PipelineSource.BCNESA, "2025-2026",
-                RunScope.fullSeason(), RunTrigger.SCHEDULED, "system:scheduler", null, RunStatus.FAILED, T0, null,
+                RunScope.fullSeason(), false, RunTrigger.SCHEDULED, "system:scheduler", null, RunStatus.FAILED, T0, null,
                 T1, null, null, ERROR, 3);
         assertThat(run.version()).isEqualTo(3);
     }

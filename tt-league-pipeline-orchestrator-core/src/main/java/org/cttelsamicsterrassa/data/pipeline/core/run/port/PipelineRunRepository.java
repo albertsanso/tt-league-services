@@ -6,6 +6,8 @@ import java.util.Set;
 import java.util.UUID;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunPage;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunQuery;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 
 public interface PipelineRunRepository {
@@ -23,6 +25,9 @@ public interface PipelineRunRepository {
     Optional<PipelineRun> findById(UUID id);
 
     Optional<PipelineRun> findActiveBySource(PipelineSource source);
+
+    /** Newest first ({@code createdAt} descending, then {@code id}). */
+    RunPage find(RunQuery query);
 
     /** Oldest first. */
     List<PipelineRun> findByStatusIn(Set<RunStatus> statuses);

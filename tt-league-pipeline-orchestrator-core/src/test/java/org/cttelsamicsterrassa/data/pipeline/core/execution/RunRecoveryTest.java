@@ -22,7 +22,7 @@ class RunRecoveryTest {
 
     private PipelineRun create(PipelineSource source, Instant createdAt) {
         return runs.create(PipelineRun.queue(UUID.randomUUID(), source, "2025-2026", RunScope.fullSeason(),
-                RunTrigger.MANUAL, "u", null, createdAt));
+                false, RunTrigger.MANUAL, "u", null, createdAt));
     }
 
     @Test

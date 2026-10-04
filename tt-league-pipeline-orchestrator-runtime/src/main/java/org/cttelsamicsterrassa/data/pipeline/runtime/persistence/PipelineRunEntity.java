@@ -33,6 +33,9 @@ class PipelineRunEntity {
     @Column(nullable = false)
     String scope;
 
+    @Column(nullable = false)
+    boolean force;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "trigger", nullable = false, length = 16)
     RunTrigger trigger;

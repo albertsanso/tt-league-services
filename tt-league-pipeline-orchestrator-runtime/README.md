@@ -16,7 +16,7 @@ invalid.
 | `PIPELINE_INGEST_API_KEY` | `tt.pipeline.ingest.api-key` | `X-API-Key` for the ingest service (not blank) |
 | `PIPELINE_PLATFORM_API_KEY` | `tt.pipeline.platform.api-key` | Raw platform service-credential key (FEAT-00101) with the `imports:write` scope, sent as `X-API-Key` (not blank) |
 | `PIPELINE_ARTIFACTS_DIR` | `tt.pipeline.artifacts.dir` | Existing, writable directory for the package ZIPs |
-| `JWT_SIGNING_SECRET` | `tt.pipeline.security.jwt-secret` | Platform HS256 secret, at least 32 characters |
+| `JWT_SIGNING_SECRET` | `tt.pipeline.security.jwt-secret` | Platform `security.jwt.secret`: same value, at least 32 UTF-8 bytes (HS256/HS384/HS512 by length) |
 | `PIPELINE_DB_URL` | `spring.datasource.url` | JDBC URL of the PostgreSQL database holding schema `pipeline` |
 | `PIPELINE_DB_USERNAME` | `spring.datasource.username` | Database user (ideally limited to schema `pipeline`) |
 | `PIPELINE_DB_PASSWORD` | `spring.datasource.password` | Database password |
@@ -102,6 +102,35 @@ ingest run (a 404 after an ingest restart leads to a new attempt), and an
 attempt that was interrupted before its external id was stored is failed as
 `INTERRUPTED` (retryable). On shutdown running executions are interrupted and
 stay active.
+
+## Security
+
+Every `/api/**` request needs a platform JWT in `Authorization: Bearer ...`. The decoder uses the shared secret and
+picks HS256 (32-47 bytes), HS384 (48-63) or HS512 (64+) like the platform. Authorities are the `permissions` claim as
+is plus `ROLE_<role>`; `sub` is the user name. `POST /api/pipeline/runs` needs `matches:write`; everything else needs
+any valid token. Health, info, `/v3/api-docs` and `/swagger-ui` are public. Tokens revoked by a platform logout stay
+valid here until they expire. `PIPELINE_CORS_ALLOWED_ORIGINS` (comma-separated origins, default none) enables CORS
+for those browser origins.
+
+## Runs API
+
+- `POST /api/pipeline/runs` `{source: RFETM|BCNESA|FCTT|ALL, season, scopeType: OPEN_MATCH_DAYS|GROUP|FULL_SEASON,
+  filters, force}`: one MANUAL run per source, `requestedBy` = token subject. `201` when any run was created, `202`
+  when only queued, `409` when rejected (active run, or a pending trigger already exists), `422` when the scope is
+  unavailable (`OPEN_MATCH_DAYS` answers `SCOPE_UNAVAILABLE` until the match-day tracker exists). The body lists each
+  source's outcome under `results`.
+- `GET /api/pipeline/runs` (`source`, `status`, `from`, `to`, `page`, `size` up to 100; newest first) and
+  `GET /api/pipeline/runs/{id}` (steps, artifacts, import report, issues).
+- `GET /api/pipeline/pending-triggers`.
+- Conflict mode `PIPELINE_TRIGGER_CONFLICT_MODE`: `REJECT` (default) or `QUEUE` (one persisted pending trigger per
+  source, launched when the active run ends or at startup).
+
+## Event stream
+
+`GET /api/pipeline/events` (Server-Sent Events): `ready`, `run`, `step` and `pending-trigger` events plus `: keep-alive`
+comments every `PIPELINE_EVENTS_HEARTBEAT` (default PT15S). There is no replay: after reconnecting, refetch
+`GET /api/pipeline/runs`. Native `EventSource` cannot send the `Authorization` header, so use `fetch` streaming.
+Limits: `PIPELINE_EVENTS_TIMEOUT` (PT30M), `PIPELINE_EVENTS_MAX_SUBSCRIBERS` (50, then `503`).
 
 ## Persistence
 

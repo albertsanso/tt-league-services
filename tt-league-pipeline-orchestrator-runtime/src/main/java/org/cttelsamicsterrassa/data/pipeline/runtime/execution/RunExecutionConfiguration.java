@@ -5,6 +5,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.RunExecutor;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RunLauncher;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RunRecovery;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.ArtifactStore;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.port.CompositeRunObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.ImportGateway;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestGateway;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunClock;
@@ -14,19 +15,25 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepositor
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineStepRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunArtifactRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.PendingTriggerDrainer;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun;
 import org.cttelsamicsterrassa.data.pipeline.runtime.artifact.FileSystemArtifactStore;
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
+import org.cttelsamicsterrassa.data.pipeline.runtime.events.RunEventBroadcaster;
 import org.cttelsamicsterrassa.data.pipeline.runtime.gateway.HttpClientsConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.gateway.HttpImportGateway;
 import org.cttelsamicsterrassa.data.pipeline.runtime.gateway.IngestServiceJobRunner;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.context.event.EventListener;
 import org.springframework.web.client.RestClient;
 
@@ -58,8 +65,21 @@ public class RunExecutionConfiguration {
     }
 
     @Bean
-    RunObserver runObserver() {
+    LoggingRunObserver loggingRunObserver() {
         return new LoggingRunObserver();
+    }
+
+    /**
+     * Logging, the event stream and the pending-trigger drainer. The parts are injected by concrete type, so this
+     * primary bean is the only {@link RunObserver} the executor and the launcher see. The drainer gets the trigger
+     * use case lazily: {@code TriggerRun -> RunLauncher -> RunObserver -> drainer -> TriggerRun} would be a cycle.
+     */
+    @Bean
+    @Primary
+    RunObserver runObserver(
+            LoggingRunObserver logging, RunEventBroadcaster broadcaster, ObjectProvider<TriggerRun> triggerRun) {
+        return CompositeRunObserver.of(
+                List.of(logging, broadcaster, new PendingTriggerDrainer(triggerRun::getObject)));
     }
 
     @Bean
@@ -89,8 +109,9 @@ public class RunExecutionConfiguration {
     }
 
     @Bean
-    RunLauncher runLauncher(PipelineRunRepository runs, RunDispatcher dispatcher, RunClock clock) {
-        return new RunLauncher(runs, dispatcher, clock);
+    RunLauncher runLauncher(
+            PipelineRunRepository runs, RunDispatcher dispatcher, RunClock clock, RunObserver observer) {
+        return new RunLauncher(runs, dispatcher, clock, observer);
     }
 
     @Bean
@@ -98,16 +119,21 @@ public class RunExecutionConfiguration {
         return new RunRecovery(runs, dispatcher);
     }
 
-    /** Resumes runs left active by a restart. A run created meanwhile is protected by the in-flight set. */
+    /**
+     * Resumes runs left active by a restart (a run created meanwhile is protected by the in-flight set), then
+     * launches pending triggers whose source has no active run.
+     */
     @EventListener(ApplicationReadyEvent.class)
     void recoverRuns(ApplicationReadyEvent event) {
         PipelineOrchestratorProperties properties = event.getApplicationContext()
                 .getBean(PipelineOrchestratorProperties.class);
-        if (!properties.execution().recoverOnStartup()) {
+        if (properties.execution().recoverOnStartup()) {
+            int count = event.getApplicationContext().getBean(RunRecovery.class).recover();
+            LOG.info("recovered {} active run(s)", count);
+        } else {
             LOG.info("run recovery on startup is disabled");
-            return;
         }
-        int count = event.getApplicationContext().getBean(RunRecovery.class).recover();
-        LOG.info("recovered {} active run(s)", count);
+        int launched = event.getApplicationContext().getBean(TriggerRun.class).drainIdle();
+        LOG.info("launched {} pending trigger(s) of idle sources", launched);
     }
 }

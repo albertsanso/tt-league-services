@@ -121,8 +121,8 @@ public final class IngestServiceJobRunner implements IngestGateway {
             List<ScopeBody> scopes = request.scope().isFullSeason()
                     ? null
                     : request.scope().filters().stream().map(ScopeBody::from).toList();
-            return new StartBody(request.source().name(), request.season(), STAGES, mode(request.mode()), false,
-                    false, scopes);
+            return new StartBody(request.source().name(), request.season(), STAGES, mode(request.mode()),
+                    request.force(), false, scopes);
         }
 
         private static String mode(IngestMode mode) {

@@ -21,12 +21,12 @@ abstract class AbstractPersistenceTest {
 
     @BeforeEach
     void truncateTables() {
-        jdbc.execute("TRUNCATE pipeline.import_report, pipeline.run_artifact, pipeline.pipeline_step, "
+        jdbc.execute("TRUNCATE pipeline.pending_trigger, pipeline.import_report, pipeline.run_artifact, pipeline.pipeline_step, "
                 + "pipeline.pipeline_run CASCADE");
     }
 
     static PipelineRun queued(PipelineSource source) {
-        return PipelineRun.queue(UUID.randomUUID(), source, "2025-2026", RunScope.fullSeason(), RunTrigger.MANUAL,
+        return PipelineRun.queue(UUID.randomUUID(), source, "2025-2026", RunScope.fullSeason(), false, RunTrigger.MANUAL,
                 "user-1", null, T0);
     }
 }

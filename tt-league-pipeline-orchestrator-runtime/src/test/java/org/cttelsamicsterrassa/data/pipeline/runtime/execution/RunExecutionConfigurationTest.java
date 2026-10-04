@@ -13,7 +13,13 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepositor
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineStepRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunArtifactRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunClock;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.port.PendingTriggerRepository;
+import org.cttelsamicsterrassa.data.pipeline.runtime.api.RunDtoMapper;
+import org.cttelsamicsterrassa.data.pipeline.runtime.api.TriggerConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
+import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineSettingsConfiguration;
+import org.cttelsamicsterrassa.data.pipeline.runtime.events.RunEventsConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -35,7 +41,9 @@ class RunExecutionConfigurationTest {
         return new ApplicationContextRunner()
                 .withConfiguration(AutoConfigurations.of(JacksonAutoConfiguration.class,
                         HttpMessageConvertersAutoConfiguration.class, RestClientAutoConfiguration.class))
-                .withUserConfiguration(Repositories.class, RunExecutionConfiguration.class)
+                .withUserConfiguration(Repositories.class, RunExecutionConfiguration.class,
+                        PipelineSettingsConfiguration.class, RunEventsConfiguration.class,
+                        TriggerConfiguration.class)
                 .withPropertyValues(
                         "tt.pipeline.platform.base-url=http://localhost:8080",
                         "tt.pipeline.platform.api-key=platform-key",
@@ -57,7 +65,11 @@ class RunExecutionConfigurationTest {
                         "tt.pipeline.execution.timeouts.import-job=PT3H",
                         "tt.pipeline.execution.max-concurrent-runs=2",
                         "tt.pipeline.execution.recover-on-startup=false",
-                        "tt.pipeline.security.jwt-secret=0123456789abcdef0123456789abcdef");
+                        "tt.pipeline.security.jwt-secret=0123456789abcdef0123456789abcdef",
+                        "tt.pipeline.triggers.conflict-mode=REJECT",
+                        "tt.pipeline.events.heartbeat-interval=PT15S",
+                        "tt.pipeline.events.emitter-timeout=PT30M",
+                        "tt.pipeline.events.max-subscribers=50");
     }
 
     @Test
@@ -100,6 +112,16 @@ class RunExecutionConfigurationTest {
     @Configuration
     @EnableConfigurationProperties(PipelineOrchestratorProperties.class)
     static class Repositories {
+
+        @Bean
+        PendingTriggerRepository pendingTriggers() {
+            return mock(PendingTriggerRepository.class);
+        }
+
+        @Bean
+        RunDtoMapper runDtoMapper(RunClock clock) {
+            return new RunDtoMapper(clock);
+        }
 
         @Bean
         PipelineRunRepository runs() {

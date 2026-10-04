@@ -46,8 +46,12 @@ public class ExecutorHarness {
     }
 
     public PipelineRun queueRun(PipelineSource source, RunScope scope) {
-        return runs.create(PipelineRun.queue(UUID.randomUUID(), source, "2025-2026", scope, RunTrigger.MANUAL,
-                "tester", null, clock.now()));
+        return queueRun(source, scope, false);
+    }
+
+    public PipelineRun queueRun(PipelineSource source, RunScope scope, boolean force) {
+        return runs.create(PipelineRun.queue(UUID.randomUUID(), source, "2025-2026", scope, force,
+                RunTrigger.MANUAL, "tester", null, clock.now()));
     }
 
     public PipelineRun queueRun() {
