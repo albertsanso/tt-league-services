@@ -10,6 +10,9 @@ target/
 tt-data-league-frontend/node_modules/
 tt-data-league-frontend/dist/
 tt-data-league-frontend/target/
+tt-league-pipeline-orchestrator-frontend/node_modules/
+tt-league-pipeline-orchestrator-frontend/dist/
+tt-league-pipeline-orchestrator-frontend/target/
 # Python ingestion workspace
 tt-league-ingest/.venv/
 __pycache__/

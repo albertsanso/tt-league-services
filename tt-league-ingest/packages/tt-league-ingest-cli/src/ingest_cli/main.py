@@ -11,7 +11,7 @@ from pathlib import Path
 from ingest_common.match_days import parse_match_days
 from ingest_common.packaging import MODES
 from ingest_common.pipeline import IngestPipeline, SourceIngestor
-from ingest_common.run import (IngestFilters, IngestRequest, IngestStage, ProgressListener, RunReport, RunStatus,
+from ingest_common.run import (IngestFilters, IngestRequest, IngestStage, ProgressListener, RunOutcome, RunReport,
                                StageReport)
 from ingest_common.season import Season
 from ingest_common.settings import ConfigurationError, IngestSettings
@@ -20,6 +20,8 @@ from ingest_common.source import Source
 EXIT_OK = 0
 EXIT_ISSUES = 1
 EXIT_USAGE = 2
+EXIT_NO_CHANGES = 3
+EXIT_SOURCE_UNAVAILABLE = 4
 
 
 class UsageError(Exception):
@@ -36,7 +38,7 @@ class ConsoleListener:
         pass
 
     def stage_finished(self, report: StageReport) -> None:
-        state = "FAILED" if report.failed else "finished"
+        state = "FAILED" if report.failed else f"skipped ({report.skipped})" if report.skipped else "finished"
         print(f"[{report.stage.value}] {state}", file=sys.stderr)
 
 
@@ -129,15 +131,28 @@ def build_request(args: argparse.Namespace) -> IngestRequest:
         dry_run=getattr(args, "dry_run", False))
 
 
+EXIT_CODES = {
+    RunOutcome.SUCCEEDED: EXIT_OK,
+    RunOutcome.NO_CHANGES: EXIT_NO_CHANGES,
+    RunOutcome.SOURCE_UNAVAILABLE: EXIT_SOURCE_UNAVAILABLE,
+    RunOutcome.COMPLETED_WITH_ISSUES: EXIT_ISSUES,
+    RunOutcome.FAILED: EXIT_ISSUES,
+}
+
+
 def exit_code(report: RunReport) -> int:
-    return EXIT_OK if report.status is RunStatus.SUCCEEDED else EXIT_ISSUES
+    return EXIT_CODES[report.outcome]
 
 
 def format_summary(report: RunReport) -> str:
-    lines = [f"{report.request.source.value} {report.request.season}: {report.status.value}"]
+    lines = [f"{report.request.source.value} {report.request.season}: {report.status.value} "
+             f"(outcome={report.outcome.value}, retryable={str(report.retryable).lower()})"]
+    changes = ", ".join(f"{name}={value}" for name, value in report.changes.items())
+    lines.append(f"  changes: {changes}")
     for stage in report.stages:
         counters = ", ".join(f"{name}={value}" for name, value in stage.counters.items() if value)
-        lines.append(f"  {stage.stage.value}: {counters or 'no counters'}")
+        detail = f"skipped ({stage.skipped})" if stage.skipped else counters or "no counters"
+        lines.append(f"  {stage.stage.value}: {detail}")
         for where, message in stage.issues:
             lines.append(f"    ! {where}: {message}")
     for name, path in report.outputs.items():

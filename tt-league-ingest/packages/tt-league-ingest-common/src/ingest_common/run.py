@@ -29,6 +29,22 @@ class RunStatus(Enum):
     FAILED = "FAILED"
 
 
+class RunOutcome(Enum):
+    """What an unattended caller should do next; ``RunStatus`` is kept unchanged for compatibility."""
+
+    SUCCEEDED = "SUCCEEDED"
+    NO_CHANGES = "NO_CHANGES"
+    COMPLETED_WITH_ISSUES = "COMPLETED_WITH_ISSUES"
+    SOURCE_UNAVAILABLE = "SOURCE_UNAVAILABLE"
+    FAILED = "FAILED"
+
+
+RETRYABLE_OUTCOMES = frozenset({RunOutcome.SOURCE_UNAVAILABLE})
+
+# Marks the issue recorded when a legacy download script exits with code 1 (finished with failures).
+LEGACY_FAILURE_MESSAGE = "the script finished with failures (see its log)"
+
+
 @dataclass(frozen=True)
 class IngestFilters:
     category: str | None = None
@@ -63,6 +79,12 @@ class StageReport:
     counters: dict[str, int] = field(default_factory=lambda: {name: 0 for name in COUNTERS})
     issues: list[tuple[str, str]] = field(default_factory=list)
     failed: bool = False  # the stage itself could not complete (configuration, contract, auth)
+    skipped: str | None = None  # reason the stage was not executed
+    source_unavailable: bool = False  # the federation source could not be reached (DOWNLOAD only)
+
+    @property
+    def legacy_failure(self) -> bool:
+        return any(message == LEGACY_FAILURE_MESSAGE for _, message in self.issues)
 
     def count(self, name: str, amount: int = 1) -> None:
         if name not in self.counters:
@@ -85,26 +107,48 @@ class RunReport:
     stages: list[StageReport] = field(default_factory=list)
     outputs: dict[str, str] = field(default_factory=dict)
     status: RunStatus = RunStatus.SUCCEEDED
+    outcome: RunOutcome = RunOutcome.SUCCEEDED
+    changes: dict[str, int] = field(default_factory=lambda: {"contentChanged": 0, "actasChanged": 0})
+
+    @property
+    def retryable(self) -> bool:
+        return self.outcome in RETRYABLE_OUTCOMES
 
     def finish(self) -> RunStatus:
         self.finished_at = datetime.now(timezone.utc)
+        has_issues = any(stage.issues or stage.counters["invalid"] or stage.counters["failed"]
+                         for stage in self.stages)
         if any(stage.failed for stage in self.stages):
             self.status = RunStatus.FAILED
-        elif any(stage.issues or stage.counters["invalid"] or stage.counters["failed"] for stage in self.stages):
+        elif has_issues:
             self.status = RunStatus.COMPLETED_WITH_ISSUES
         else:
             self.status = RunStatus.SUCCEEDED
+        self.outcome = self._derive_outcome(has_issues)
         return self.status
+
+    def _derive_outcome(self, has_issues: bool) -> RunOutcome:
+        failed = [stage for stage in self.stages if stage.failed]
+        if failed:
+            unavailable = failed[0].stage is IngestStage.DOWNLOAD and failed[0].source_unavailable
+            return RunOutcome.SOURCE_UNAVAILABLE if unavailable else RunOutcome.FAILED
+        if any(stage.skipped for stage in self.stages) and not has_issues:
+            return RunOutcome.NO_CHANGES
+        return RunOutcome.COMPLETED_WITH_ISSUES if has_issues else RunOutcome.SUCCEEDED
 
     def to_dict(self) -> dict[str, object]:
         return {
             "source": self.request.source.value,
             "season": str(self.request.season),
             "status": self.status.value,
+            "outcome": self.outcome.value,
+            "retryable": self.retryable,
+            "changes": dict(self.changes),
             "startedAt": self.started_at.isoformat(),
             "finishedAt": self.finished_at.isoformat() if self.finished_at else None,
             "stages": [
-                {"stage": stage.stage.value, "failed": stage.failed, "counters": dict(stage.counters),
+                {"stage": stage.stage.value, "failed": stage.failed, "skipped": stage.skipped,
+                 "counters": dict(stage.counters),
                  "issues": [{"where": where, "message": message} for where, message in stage.issues]}
                 for stage in self.stages
             ],

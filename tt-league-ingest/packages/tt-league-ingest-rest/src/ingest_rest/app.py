@@ -14,7 +14,8 @@ from pydantic import BaseModel
 
 from ingest_common.match_days import parse_match_days
 from ingest_common.pipeline import IngestPipeline, SourceIngestor, discover_ingestors
-from ingest_common.run import (IngestFilters, IngestRequest, IngestStage, RunReport, RunStatus, StageReport)
+from ingest_common.run import (IngestFilters, IngestRequest, IngestStage, RunOutcome, RunReport, RunStatus,
+                               StageReport)
 from ingest_common.season import Season
 from ingest_common.settings import IngestSettings
 from ingest_common.source import Source
@@ -51,6 +52,7 @@ class RunRecord:
     stages: list[StageReport] = field(default_factory=list)
     report: RunReport | None = None
     error: str | None = None
+    outcome: RunOutcome | None = None  # set when the run ends; FAILED when the pipeline itself raised
 
     def to_dict(self) -> dict[str, Any]:
         stages = self.report.stages if self.report else self.stages
@@ -62,7 +64,10 @@ class RunRecord:
             "currentStage": self.current_stage,
             "createdAt": self.created_at.isoformat(),
             "finishedAt": self.report.finished_at.isoformat() if self.report and self.report.finished_at else None,
-            "stages": [{"stage": s.stage.value, "counters": dict(s.counters),
+            "outcome": self.outcome.value if self.outcome else None,
+            "retryable": bool(self.report and self.report.retryable),
+            "changes": dict(self.report.changes) if self.report else {},
+            "stages": [{"stage": s.stage.value, "skipped": s.skipped, "counters": dict(s.counters),
                         "issues": [{"where": w, "message": m} for w, m in s.issues]} for s in stages],
             "package": self.report.outputs.get("package") if self.report else None,
             "error": self.error,
@@ -130,9 +135,11 @@ def create_app(settings: IngestSettings, api_key: str, ingestors: dict[Source, S
             report = IngestPipeline(settings, available, _RecordListener(record)).run(record.request)
         except Exception as error:  # noqa: BLE001 - the failure is recorded on the run, not swallowed
             record.status = RunStatus.FAILED.value
+            record.outcome = RunOutcome.FAILED
             record.error = f"{type(error).__name__}: {error}"
             return
         record.report = report
+        record.outcome = report.outcome
         record.current_stage = None
         record.status = report.status.value
 

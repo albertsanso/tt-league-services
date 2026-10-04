@@ -22,6 +22,9 @@
         <module>tt-data-league-api-runtime</module>
         <module>tt-data-league-api-graphql</module>
         <module>tt-data-league-frontend</module>
+        <module>tt-league-pipeline-orchestrator-core</module>
+        <module>tt-league-pipeline-orchestrator-runtime</module>
+        <module>tt-league-pipeline-orchestrator-frontend</module>
     </modules>
 
 
@@ -77,6 +80,11 @@
             <dependency>
                 <groupId>org.cttelsamicsterrassa</groupId>
                 <artifactId>tt-data-league-api-mcp</artifactId>
+                <version>0.0.1-SNAPSHOT</version>
+            </dependency>
+            <dependency>
+                <groupId>org.cttelsamicsterrassa</groupId>
+                <artifactId>tt-league-pipeline-orchestrator-core</artifactId>
                 <version>0.0.1-SNAPSHOT</version>
             </dependency>
 

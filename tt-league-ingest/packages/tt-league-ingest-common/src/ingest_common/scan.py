@@ -7,7 +7,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from ingest_common.match_day_status import ScanResult, write_status_report
-from ingest_common.run import IngestStage, StageReport
+from ingest_common.run import LEGACY_FAILURE_MESSAGE, IngestStage, StageReport
 from ingest_common.source import Source
 from ingest_common.validation import ActaValidator
 
@@ -17,14 +17,19 @@ def match_days_argument(days: frozenset[int] | None) -> str | None:
     return ",".join(str(day) for day in sorted(days)) if days else None
 
 
-def record_exit_code(report: StageReport, script: str, code: int) -> None:
-    """Map a legacy script exit code: 0 ok, 1 completed with failures, anything else fails the stage."""
+def record_exit_code(report: StageReport, script: str, code: int) -> bool:
+    """Map a legacy script exit code: 0 ok, 1 completed with failures, anything else fails the stage.
+
+    Returns whether the script reported failures (exit code 1); the issue carries ``LEGACY_FAILURE_MESSAGE`` so the
+    pipeline can tell a failing download apart without reading each script's metrics file.
+    """
     if code == 0:
-        return
+        return False
     if code == 1:
-        report.issue(script, "the script finished with failures (see its log)")
-    else:
-        report.fail(script, f"the script failed with exit code {code}")
+        report.issue(script, LEGACY_FAILURE_MESSAGE)
+        return True
+    report.fail(script, f"the script failed with exit code {code}")
+    return False
 
 
 def count_files(report: StageReport, directory: Path, patterns: tuple[str, ...]) -> None:

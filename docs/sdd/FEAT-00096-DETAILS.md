@@ -1,39 +1,80 @@
 # Build Plan
-
-> Draft outline. Make it concrete (file paths, POM snippets) before moving to `planned`.
-
-1. Add the three modules to the root `pom.xml` `<modules>` list, without changing existing plugin or
-   dependency management (root `AGENTS.md`: avoid unrelated parent-POM changes).
-2. `tt-league-pipeline-orchestrator-core`: package root `org.cttelsamicsterrassa.data.pipeline`; plain Java 21 records/enums; JUnit 5 only.
-   Add a dependency-direction test (reflection/classpath scan with plain JUnit, no new test framework) that
-   fails when `org.springframework`, `jakarta.persistence` or `org.cttelsamicsterrassa.data.core` classes are referenced.
-3. `tt-league-pipeline-orchestrator-runtime`: Spring Boot application (`spring-boot-starter-web`, `-actuator`, `-validation`), depends on
-   `tt-league-pipeline-orchestrator-core`. Explicit, environment-driven configuration properties bound with `@Validated`; startup fails
-   on missing platform URL, ingest URL, ingest API key, datasource or JWT secret. Testcontainers dependency
-   declared for later persistence tests.
-4. `tt-league-pipeline-orchestrator-frontend`: scaffold with Vite + React + TypeScript; Vitest + React Testing Library + jsdom; ESLint;
-   Material UI. Wire `frontend-maven-plugin` the same way as `tt-data-league-frontend/pom.xml`
-   (`npm ci`, `npm run lint`, `npm run build`, `npm test`).
-5. Write `AGENTS.md` and `README.md` for each module; update the root `AGENTS.md` mission/architecture list,
-   the dependency direction rules and the focused build commands.
-6. Run `mvn test` from the root.
+1. **Root reactor (`pom.xml`).** Append `<module>tt-league-pipeline-orchestrator-core</module>`, `<module>tt-league-pipeline-orchestrator-runtime</module>` and
+   `<module>tt-league-pipeline-orchestrator-frontend</module>` after `tt-data-league-frontend`. Add one `dependencyManagement` entry for
+   `org.cttelsamicsterrassa:tt-league-pipeline-orchestrator-core:0.0.1-SNAPSHOT`, as for the existing modules. No other parent-POM change:
+   versions for Spring Boot, JUnit, AssertJ and Mockito come from the imported `spring-boot-dependencies` 3.5.8 BOM.
+   Add `tt-league-pipeline-orchestrator-frontend/node_modules/`, `tt-league-pipeline-orchestrator-frontend/dist/` and `tt-league-pipeline-orchestrator-frontend/target/` to the root `.gitignore`.
+2. **`tt-league-pipeline-orchestrator-core` module.**
+   - `pom.xml`: parent `tt-data-league-services`, packaging `jar`, no compile dependencies; test scope
+     `org.junit.jupiter:junit-jupiter`, `org.assertj:assertj-core` (not `spring-boot-starter-test`, to keep Spring
+     off the module's classpath).
+   - `src/main/java/org/cttelsamicsterrassa/data/pipeline/core/package-info.java` documenting the module's role
+     (state machine, tracker rules, polling policy, ports; filled by later features).
+   - `src/test/java/org/cttelsamicsterrassa/data/pipeline/core/CoreDependencyRulesTest.java`: walks
+     `src/main/java/**/*.java` and fails on any `import` of `org.springframework.`, `jakarta.persistence.`,
+     `org.hibernate.`, `java.net.http.`, `org.cttelsamicsterrassa.data.core.`, `org.cttelsamicsterrassa.data.api.`
+     or `org.cttelsamicsterrassa.data.load.`. It also parses the module `pom.xml` and fails on any
+     non-test dependency (same idea as `tt-league-ingest/tests/test_workspace_layout.py`).
+3. **`tt-league-pipeline-orchestrator-runtime` module.**
+   - `pom.xml`: depends on `tt-league-pipeline-orchestrator-core`, `spring-boot-starter-web`, `spring-boot-starter-actuator`,
+     `spring-boot-starter-validation`; test `spring-boot-starter-test`; `spring-boot-maven-plugin` with `repackage`
+     as in `tt-data-league-api-runtime/pom.xml`. Persistence, security and Testcontainers are added by
+     FEAT-00103/FEAT-00105, not here.
+   - `org/cttelsamicsterrassa/data/pipeline/runtime/PipelineOrchestratorApplication.java` (`@SpringBootApplication`,
+     `@ConfigurationPropertiesScan`).
+   - `config/PipelineOrchestratorProperties.java`: `@ConfigurationProperties("tt.pipeline")` + `@Validated` record with
+     nested records `platform(@NotNull URI baseUrl)`, `ingest(@NotNull URI baseUrl, @NotBlank String apiKey)`,
+     `security(@NotBlank @Size(min = 32) String jwtSecret)`.
+   - `src/main/resources/application.yml`: `server.port: ${PIPELINE_SERVER_PORT:8095}`;
+     `tt.pipeline.platform.base-url: ${PIPELINE_PLATFORM_URL}`, `tt.pipeline.ingest.base-url: ${PIPELINE_INGEST_URL}`,
+     `tt.pipeline.ingest.api-key: ${PIPELINE_INGEST_API_KEY}`, `tt.pipeline.security.jwt-secret: ${JWT_SIGNING_SECRET}`
+     with **no defaults**, so a missing variable fails startup; `management.endpoints.web.exposure.include: health,info`.
+   - Tests: `PipelineOrchestratorApplicationTest` (`@SpringBootTest` with test properties, context loads, health is UP
+     via `TestRestTemplate`); `PipelineOrchestratorPropertiesTest` using `ApplicationContextRunner` to assert startup
+     failure for each missing or invalid property (blank key, short secret, malformed URI).
+4. **`tt-league-pipeline-orchestrator-frontend` module.**
+   - `package.json` (`"type": "module"`): dependencies `react`, `react-dom`, `react-router-dom`, `@mui/material`,
+     `@emotion/react`, `@emotion/styled`; dev dependencies `typescript`, `vite`, `@vitejs/plugin-react`, `vitest`,
+     `jsdom`, `@testing-library/react`, `@testing-library/jest-dom`, `@testing-library/user-event`, `eslint`,
+     `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `eslint-plugin-react-refresh`, `globals`.
+     Use the same React/Vite/Vitest major versions as `tt-data-league-frontend/package.json`. Scripts: `dev`,
+     `build` (`tsc -b && vite build`), `typecheck` (`tsc -b --noEmit`), `lint`, `test` (`vitest run`), `preview`.
+     Commit `package-lock.json`.
+   - `tsconfig.json` / `tsconfig.app.json` / `tsconfig.node.json` (strict), `vite.config.ts`, `vitest.config.ts`
+     (`environment: 'jsdom'`, setup file importing `@testing-library/jest-dom/vitest`), `eslint.config.js`,
+     `index.html`, `.gitignore`.
+   - `src/main.tsx` (MUI `ThemeProvider` + `CssBaseline` + `BrowserRouter`), `src/App.tsx` rendering a placeholder
+     "Pipeline control centre" app bar and empty route outlet, `src/theme.ts`, `src/App.test.tsx`.
+   - `pom.xml`: copy the `frontend-maven-plugin` 1.12.0 setup of `tt-data-league-frontend/pom.xml` (Node v20.19.0,
+     npm 10.2.4, local install under `target/node`) with executions `install-node-and-npm`, `npm ci`,
+     `npm run lint` (phase `test`), `npm test` (phase `test`) and `npm run build` (phase `prepare-package`).
+5. **Module guidance.** `AGENTS.md` and `README.md` for each new module: purpose, dependency direction
+   (`tt-league-pipeline-orchestrator-runtime` -> `tt-league-pipeline-orchestrator-core`; no module depends on `tt-data-league-*`; platform and ingest are reached over HTTP only),
+   configuration table (`PIPELINE_*`, `JWT_SIGNING_SECRET`), build and run commands
+   (`mvn -pl tt-league-pipeline-orchestrator-runtime -am test`, `npm run dev`).
+6. **Root `AGENTS.md`.** Add the three modules to "Mission and architecture" and to the "read the nearest `AGENTS.md`"
+   list; add the rule "orchestrator modules integrate with the platform and `tt-league-ingest` only through their
+   REST APIs and never read or write platform tables"; add the focused build commands.
+7. **Validation.** `mvn -pl tt-league-pipeline-orchestrator-core,tt-league-pipeline-orchestrator-runtime,tt-league-pipeline-orchestrator-frontend -am test`, then the full `mvn test` from the root; review the diff for
+   `target/`, `node_modules/` and `dist/` content.
 
 ## Acceptance Criteria
 
-- [ ] Maven modules `tt-league-pipeline-orchestrator-core`, `tt-league-pipeline-orchestrator-runtime` and `tt-league-pipeline-orchestrator-frontend` are added to the root reactor and `mvn test` builds them
-- [ ] `tt-league-pipeline-orchestrator-core` has no Spring, JPA or HTTP-client dependency and no dependency on `tt-data-league-*` modules, and a test enforces this
-- [ ] `tt-league-pipeline-orchestrator-runtime` is a Spring Boot 3 (Java 21) application with health and Actuator endpoints that fails at startup when required configuration is missing
-- [ ] `tt-league-pipeline-orchestrator-frontend` is a React + TypeScript + Vite application built and tested (Vitest + React Testing Library) through `frontend-maven-plugin`
-- [ ] Each new module has an `AGENTS.md` and README, and the root `AGENTS.md` module list and dependency rules include them
-- [ ] The architecture decisions and the proposal gap analysis are recorded in this feature's details and reflected in the dependent backlog items
+- [x] Maven modules `tt-league-pipeline-orchestrator-core`, `tt-league-pipeline-orchestrator-runtime` and `tt-league-pipeline-orchestrator-frontend` are added to the root reactor and `mvn test` builds and tests them
+- [x] `tt-league-pipeline-orchestrator-core` has no Spring, JPA or HTTP-client dependency and no dependency on `tt-data-league-*` modules, and a test enforces this
+- [x] `tt-league-pipeline-orchestrator-runtime` is a Spring Boot 3.5 (Java 21) application exposing `/actuator/health` that fails at startup when a required `tt.pipeline.*` property is missing or invalid
+- [x] `tt-league-pipeline-orchestrator-frontend` is a React + TypeScript + Material UI application built with Vite, type-checked, linted and tested (Vitest + React Testing Library) through `frontend-maven-plugin`
+- [x] Each new module has an `AGENTS.md` and README, and the root `AGENTS.md` module list, dependency rules and build commands include them
+- [x] The architecture decisions and the proposal gap analysis are recorded in this feature's details and reflected in the dependent backlog items
 
 # Implementation Guidelines
 
-- Out of scope: any orchestration behaviour, persistence tables or UI views; those are separate backlog items.
+- Out of scope: run model, persistence, security, orchestration behaviour and UI views (FEAT-00103 onward).
 - Keep the orchestrator a separate deployable that talks to the platform (`tt-data-league-api-runtime`) and to
   `tt-league-ingest-rest` over HTTP only. Never read or write `tt-data-league-*` tables directly.
 - No shared "common" module between orchestrator and platform: the platform REST contracts are the shared
   surface. Duplicating a few DTOs in the orchestrator is accepted to keep the dependency direction clean.
+- Do not add Testcontainers, Flyway or Spring Security here; their features add them with their first use.
 
 # Notes
 
@@ -118,3 +159,24 @@ the `tt-data-league-*` modules and `tt-league-ingest` (FEAT-00095).
 - Phase 3, match-day tracking: round-progress endpoint, match-day tracker, scoped runs and adaptive polling.
 - Phase 4, control-centre UI: frontend shell, runs view, calendar and match-day detail.
 - Phase 5, history and statistics: notifications, statistics, replay, observability; deployment packaging alongside.
+
+## Planning notes (2026-10-04)
+
+- The existing `tt-data-league-frontend` Maven build runs `lint` and `build` but not its Vitest suite. The new
+  frontend also runs `npm test` in the Maven `test` phase so `mvn test` covers it.
+- `mvn test` will download Node and npm packages for the new frontend, as it already does for
+  `tt-data-league-frontend`.
+- Placeholders without defaults make Spring fail with "Could not resolve placeholder" before binding. That is the
+  intended clear startup failure; the properties test asserts the validation messages for present-but-invalid values.
+
+## Implementation notes (2026-10-04)
+
+- Delivered the three Maven modules, root reactor/`dependencyManagement`/`.gitignore` entries, per-module `AGENTS.md` and
+  README, and the root `AGENTS.md` updates.
+- Validation: `mvn test` from the root passes (core 2 tests, runtime 6 tests, frontend lint + Vitest + build).
+- Deviations from the plan: the runtime properties test uses a blank ingest URL instead of a malformed one, because
+  Spring's `String` -> `URI` conversion percent-encodes illegal characters instead of failing; a missing platform URL
+  fails on the `platform` group. The frontend also declares `@testing-library/dom` (peer of `@testing-library/react`),
+  `@types/node` and `yaml` as dev dependencies, which `npm install` needs to resolve cleanly.
+- The lockfile was generated with `npm install --legacy-peer-deps` followed by `npm install`, because a fresh
+  `npm install` hit npm's `Cannot read properties of null (reading 'edgesOut')` bug on npm 10.2.4 and 10.9.2.

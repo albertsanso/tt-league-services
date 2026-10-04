@@ -48,36 +48,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## In Progress
 
-No features currently in progress.
-## In Review
-
-No features currently in review.
-## Backlog
-
-### [FEAT-00096] Pipeline orchestrator architecture baseline and module skeleton
-- **Status:** idea
-- **Priority:** high
-- **Effort:** large
-- **Depends on:** —
-
-#### Goal
-Establish the pipeline orchestrator's module layout, technology decisions and integration contracts so the other orchestrator features build on one agreed baseline.
-
-#### Acceptance Criteria
-- [ ] Maven modules `tt-league-pipeline-orchestrator-core`, `tt-league-pipeline-orchestrator-runtime` and `tt-league-pipeline-orchestrator-frontend` are added to the root reactor and `mvn test` builds them
-- [ ] `tt-league-pipeline-orchestrator-core` has no Spring, JPA or HTTP-client dependency and no dependency on `tt-data-league-*` modules, and a test enforces this
-- [ ] `tt-league-pipeline-orchestrator-runtime` is a Spring Boot 3 (Java 21) application with health and Actuator endpoints that fails at startup when required configuration is missing
-- [ ] `tt-league-pipeline-orchestrator-frontend` is a React + TypeScript + Vite application built and tested (Vitest + React Testing Library) through `frontend-maven-plugin`
-- [ ] Each new module has an `AGENTS.md` and README, and the root `AGENTS.md` module list and dependency rules include them
-- [ ] The architecture decisions and the proposal gap analysis are recorded in this feature's details and reflected in the dependent backlog items
-
-#### Feature Details
-→ See [FEAT-00096-DETAILS.md](./FEAT-00096-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00097] Ingest run outcome classification for unattended runs
-- **Status:** idea
+- **Status:** in-progress
 - **Priority:** high
 - **Effort:** medium
 - **Depends on:** —
@@ -86,17 +58,22 @@ Establish the pipeline orchestrator's module layout, technology decisions and in
 Let an unattended caller tell a no-change run, a transient source outage and a parse failure apart from the ingest run report instead of a single FAILED status.
 
 #### Acceptance Criteria
-- [ ] The run report has an `outcome` of `SUCCEEDED`, `NO_CHANGES`, `COMPLETED_WITH_ISSUES`, `SOURCE_UNAVAILABLE` or `FAILED`, plus a `retryable` flag; the existing `status` stays for compatibility
-- [ ] When download and parse change no JSON file, `package` and `upload` are skipped and the outcome is `NO_CHANGES` instead of a delta packaging failure
-- [ ] HTTP connection errors, timeouts and 5xx answers from the federation site after the legacy retries give `SOURCE_UNAVAILABLE` with `retryable=true`
-- [ ] Parse and schema-validation failures give `COMPLETED_WITH_ISSUES` or `FAILED` with `retryable=false`
-- [ ] The CLI adds exit code 3 for `NO_CHANGES` and 4 for `SOURCE_UNAVAILABLE`, keeping 0/1/2, and the REST run DTO exposes `outcome` and `retryable`
-- [ ] Tests cover each outcome with fake transports and fixtures; README documents outcomes and exit codes
+- [ ] The run report has an `outcome` of `SUCCEEDED`, `NO_CHANGES`, `COMPLETED_WITH_ISSUES`, `SOURCE_UNAVAILABLE` or `FAILED`, plus a `retryable` flag; the existing `status` stays unchanged for compatibility
+- [ ] The pipeline fingerprints the season's `actas-json` (SHA-256 per file) and `equipos-json` before the first stage and after `PARSE`/`TEAMS`, and reports `actasChanged` and `contentChanged` counts
+- [ ] When the run includes `PARSE`, no JSON changed and `force` is not set, `PACKAGE` and `UPLOAD` are recorded as skipped and the outcome is `NO_CHANGES` instead of a delta packaging failure
+- [ ] A `DOWNLOAD` stage whose legacy script reported failures (exit code 1) while no content file was written gives `SOURCE_UNAVAILABLE` with `retryable=true`
+- [ ] Parse issues, invalid actas and stage failures give `COMPLETED_WITH_ISSUES` or `FAILED` with `retryable=false`
+- [ ] The CLI keeps exit codes 0/1/2 and adds 3 for `NO_CHANGES` and 4 for `SOURCE_UNAVAILABLE`; `--json` and the REST run DTO expose `outcome`, `retryable` and `changes`
+- [ ] Tests cover each outcome with fake ingestors and fixtures (no network); the README documents outcomes, skip rules and exit codes
 
 #### Feature Details
 → See [FEAT-00097-DETAILS.md](./FEAT-00097-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
+## In Review
+
+No features currently in review.
+## Backlog
 
 ### [FEAT-00098] Ingest multi-scope runs and match-day status endpoint
 - **Status:** idea
@@ -121,7 +98,7 @@ Let the orchestrator refresh only the open groups of several competitions in one
 ---
 
 ### [FEAT-00099] Upload ZIP provenance manifest and package retrieval
-- **Status:** idea
+- **Status:** ready
 - **Priority:** high
 - **Effort:** medium
 - **Depends on:** —
@@ -131,11 +108,12 @@ Make every upload ZIP self-describing (run id, generator, content hash, match co
 
 #### Acceptance Criteria
 - [ ] `manifest.json` gains optional `runId`, `generator`, `generatorVersion`, `contentSha256` and `matchCounts` (`expected`, `withResult`, `pending`) fields
-- [ ] `contentSha256` is computed deterministically over the sorted ZIP entries (excluding the manifest), so identical content gives the same hash
-- [ ] `ResourceZipService` accepts the new optional fields, validates their types, and still accepts manifests without them
-- [ ] `GET /api/v1/ingest/runs/{runId}/package` streams the run's ZIP with its SHA-256 in a response header (404 when the run produced none)
-- [ ] The upload manifest section of `tt-data-league-api-runtime/README.md` and `tt-league-ingest/README.md` describe the new fields
-- [ ] Python and Java tests cover hash stability, optional-field parsing and rejection of malformed values
+- [ ] `contentSha256` follows one documented algorithm over the sorted ZIP entries other than `manifest.json`, so identical content always gives the same hash
+- [ ] `ResourceZipService` accepts the new optional fields, validates their format, recomputes `contentSha256` from the extracted files and rejects a mismatch with 400, and still accepts manifests without them
+- [ ] The Java change ships before or with the Python change, because the platform rejects unknown manifest keys today
+- [ ] `GET /api/v1/ingest/runs/{runId}/package` streams the run's ZIP with its SHA-256 in an `X-Content-SHA256` header (404 when the run is unknown or produced no ZIP, 409 while the run is active)
+- [ ] The manifest section of `tt-data-league-api-runtime/README.md` and `tt-league-ingest/README.md` describe the new fields and the hash algorithm
+- [ ] Python and Java tests cover hash stability, optional-field parsing, mismatch rejection and rejection of malformed values
 
 #### Feature Details
 → See [FEAT-00099-DETAILS.md](./FEAT-00099-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
@@ -143,7 +121,7 @@ Make every upload ZIP self-describing (run id, generator, content hash, match co
 ---
 
 ### [FEAT-00100] Machine-friendly asynchronous import jobs API
-- **Status:** idea
+- **Status:** ready
 - **Priority:** high
 - **Effort:** large
 - **Depends on:** FEAT-00099
@@ -152,13 +130,13 @@ Make every upload ZIP self-describing (run id, generator, content hash, match co
 Let an automated client submit an upload ZIP and follow the resulting import to completion through one job id, with idempotency and a structured change report.
 
 #### Acceptance Criteria
-- [ ] `POST /api/v1/administration/import/jobs` (multipart ZIP, optional `runId`, `allowPublishedShrink`) stores the ZIP and starts the import of every affected season, returning `202 {importJobId}`
-- [ ] `GET /api/v1/administration/import/jobs/{id}` returns status `QUEUED`, `STORING`, `IMPORTING`, `SUCCEEDED`, `PARTIAL` or `FAILED` with the `ImportProcessResult` counters, lifecycle counters and round progress per season
-- [ ] `GET /api/v1/administration/import/jobs?source=&from=&to=` lists job history, most recent first
-- [ ] Submitting a ZIP whose manifest `contentSha256` matches a succeeded job returns that job (200) without re-importing
-- [ ] At most one job per source runs at a time; a second submission for the same source is queued and runs in order
-- [ ] Jobs are persisted, survive a restart (an interrupted job ends `FAILED` with a clear reason), and the datamodel document is updated
-- [ ] Shrink-check (409) and invalid-ZIP (400) behaviour matches the existing upload endpoint, which stays unchanged
+- [ ] `POST /api/v1/administration/import/jobs` (multipart `file`, optional `runId`, `allowPublishedShrink`) validates the ZIP synchronously (400 invalid, 409 published-acta shrink) and returns `202 {importJobId, status}`
+- [ ] A job stores the ZIP content and then imports every ACTAS season of its manifest, moving through `QUEUED`, `STORING`, `IMPORTING` and ending `SUCCEEDED`, `PARTIAL` or `FAILED`
+- [ ] `GET /api/v1/administration/import/jobs/{id}` returns the job with, per season, the import run id, status and `ImportProcessResult` (counters, lifecycle counters, round progress); `GET /api/v1/administration/import/jobs?source=&from=&to=&limit=` lists jobs, most recent first
+- [ ] When the manifest has `contentSha256`, submitting the same source and hash as a `SUCCEEDED`/`PARTIAL` or active job returns that job with 200 and no new import; without `contentSha256` there is no deduplication
+- [ ] Jobs run one at a time system-wide; a job waits (bounded, configurable) while a manually started import is active and fails with a clear reason after the timeout
+- [ ] Jobs are persisted in `import_job` and `import_job_season`; after a restart `QUEUED` jobs resume and `STORING`/`IMPORTING` jobs end `FAILED` with an interruption reason; `rfetm-datamodel.md` documents both tables
+- [ ] The existing upload, preview and start endpoints behave as before, and the unused `ImportJobsPort`/`shared.model.ImportJob*` types are removed
 
 #### Feature Details
 → See [FEAT-00100-DETAILS.md](./FEAT-00100-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
@@ -166,7 +144,7 @@ Let an automated client submit an upload ZIP and follow the resulting import to 
 ---
 
 ### [FEAT-00101] Service credentials for platform-to-platform API calls
-- **Status:** idea
+- **Status:** ready
 - **Priority:** high
 - **Effort:** medium
 - **Depends on:** —
@@ -175,11 +153,12 @@ Let an automated client submit an upload ZIP and follow the resulting import to 
 Let the orchestrator and the ingest service call the platform import and read APIs with a dedicated, scoped service credential instead of a user's JWT.
 
 #### Acceptance Criteria
-- [ ] A service credential (API key presented as `Authorization: ApiKey <key>` or `X-API-Key`) is configured from the environment, with an explicit permission set (`imports:write`, `matches:read`)
-- [ ] Requests with a valid service credential reach the import jobs and calendar/round-progress endpoints and nothing outside their permissions
-- [ ] Keys are compared in constant time, stored only as configuration (never logged), and an invalid or missing key is a 401
-- [ ] User JWT authentication is unchanged; startup fails clearly when a configured service credential is malformed
-- [ ] Security tests cover allowed, forbidden and invalid-key cases; the api-runtime README documents the configuration
+- [ ] Service credentials are configured from the environment as `security.service-credentials` entries (`name`, `key-sha256`, `permissions`); a presented `X-API-Key` is hashed and compared in constant time
+- [ ] A new `imports:write` permission is granted to the `ADMIN` role and to service credentials that list it; the import jobs endpoints accept `imports:write` and the match read endpoints keep `matches:read`
+- [ ] A valid service credential authenticates as `service:<name>` with only its configured permissions; an invalid key is a 401, and a request with both `Authorization` and `X-API-Key` is a 400
+- [ ] Startup fails clearly on a malformed entry (blank name, hash that is not 64 hex characters, unknown permission); no credential is configured by default
+- [ ] User JWT authentication and existing role checks are unchanged
+- [ ] Security tests cover allowed, forbidden, invalid-key and ambiguous-header cases; `tt-data-league-api-runtime/README.md` documents the configuration and how to generate a key and its hash
 
 #### Feature Details
 → See [FEAT-00101-DETAILS.md](./FEAT-00101-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
@@ -494,6 +473,28 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00096] Pipeline orchestrator architecture baseline and module skeleton
+- **Status:** done
+- **Priority:** high
+- **Effort:** large
+- **Depends on:** —
+
+#### Goal
+Establish the pipeline orchestrator's module layout, technology decisions and integration contracts so the other orchestrator features build on one agreed baseline.
+
+#### Acceptance Criteria
+- [x] Maven modules `tt-league-pipeline-orchestrator-core`, `tt-league-pipeline-orchestrator-runtime` and `tt-league-pipeline-orchestrator-frontend` are added to the root reactor and `mvn test` builds and tests them
+- [x] `tt-league-pipeline-orchestrator-core` has no Spring, JPA or HTTP-client dependency and no dependency on `tt-data-league-*` modules, and a test enforces this
+- [x] `tt-league-pipeline-orchestrator-runtime` is a Spring Boot 3.5 (Java 21) application exposing `/actuator/health` that fails at startup when a required `tt.pipeline.*` property is missing or invalid
+- [x] `tt-league-pipeline-orchestrator-frontend` is a React + TypeScript + Material UI application built with Vite, type-checked, linted and tested (Vitest + React Testing Library) through `frontend-maven-plugin`
+- [x] Each new module has an `AGENTS.md` and README, and the root `AGENTS.md` module list, dependency rules and build commands include them
+- [x] The architecture decisions and the proposal gap analysis are recorded in this feature's details and reflected in the dependent backlog items
+
+#### Feature Details
+→ See [FEAT-00096-DETAILS.md](./FEAT-00096-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00095] New Workspace module for results and matches data ingestion
 - **Status:** done

@@ -17,6 +17,12 @@ data. The root aggregator is `tt-data-league-services` and currently contains:
   produces the `actas-json`/`equipos-json` exports and upload ZIPs consumed by
   the import and the upload endpoint (RFETM, BCNESA and FCTT current-season
   pipelines, CLI and REST service).
+- `tt-league-pipeline-orchestrator-core`: framework-free orchestrator core
+  (run state machine, tracker rules, polling policy, ports).
+- `tt-league-pipeline-orchestrator-runtime`: Spring Boot orchestrator service
+  that adapts the core ports (REST clients, scheduler, persistence).
+- `tt-league-pipeline-orchestrator-frontend`: React + TypeScript + Material UI
+  pipeline control centre, built through `frontend-maven-plugin`.
 
 Keep dependencies directed inward: domain code must not depend on Spring or
 JPA; import code must not depend on persistence adapters; and runtime modules
@@ -33,12 +39,21 @@ supplement this file:
 - `tt-data-league-import/AGENTS.md`
 - `tt-data-league-import-runtime/AGENTS.md`
 - `tt-league-ingest/AGENTS.md`
+- `tt-league-pipeline-orchestrator-core/AGENTS.md`
+- `tt-league-pipeline-orchestrator-runtime/AGENTS.md`
+- `tt-league-pipeline-orchestrator-frontend/AGENTS.md`
 - `docs/sdd/AGENTS.md` for feature-planning and SDD registry work.
 
 `docs/sdd/` is a documentation/planning module rather than an application
 code module. When working there, follow its feature registry, status workflow,
 ID/link, ordering, and agent-boundary rules. For application code referenced
 by an SDD plan, also follow the nearest application-module `AGENTS.md`.
+
+Orchestrator modules integrate with the platform and `tt-league-ingest` only
+through their REST APIs and never read or write platform tables. They have no
+dependency on any `tt-data-league-*` module, and
+`tt-league-pipeline-orchestrator-core` stays free of Spring, JPA and HTTP
+clients (enforced by `CoreDependencyRulesTest`).
 
 ## Identity and data integrity
 
@@ -130,6 +145,9 @@ mvn -pl tt-data-league-core-domain -am test
 mvn -pl tt-data-league-core-repository-jpa -am test
 mvn -pl tt-data-league-import -am test
 mvn -pl tt-data-league-import-runtime -am test
+mvn -pl tt-league-pipeline-orchestrator-core -am test
+mvn -pl tt-league-pipeline-orchestrator-runtime -am test
+mvn -pl tt-league-pipeline-orchestrator-frontend -am test
 ```
 
 `mvn test` does not cover the Python workspace. For `tt-league-ingest`, run from

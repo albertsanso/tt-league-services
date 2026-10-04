@@ -6,6 +6,7 @@ from importlib.metadata import entry_points
 from pathlib import Path
 from typing import Protocol
 
+from ingest_common.fingerprint import content_fingerprint, count_changes, file_digest, json_fingerprint
 from ingest_common.packaging import PackagingError, package_season
 from ingest_common.run import (STAGE_ORDER, IngestRequest, IngestStage, NoOpListener, ProgressListener, RunReport,
                                StageReport)
@@ -14,6 +15,8 @@ from ingest_common.source import Source
 from ingest_common.upload import PlatformUploader, UploadError
 
 ENTRY_POINT_GROUP = "tt_league_ingest.sources"
+CONTENT_PATTERNS = ("*.html", "*.pdf")
+NO_JSON_CHANGED = "no JSON changed"
 
 
 class SourceIngestor(Protocol):
@@ -72,17 +75,48 @@ class IngestPipeline:
             except ConfigurationError as error:
                 return self._fail_early(report, str(error))
 
+        content_dir = self._settings.content_dir(request.source) / str(request.season)
+        content_before = content_fingerprint(content_dir, CONTENT_PATTERNS)
+        json_before = self._json_snapshot(request)
+
         for stage in STAGE_ORDER:
             if stage not in request.stages:
+                continue
+            if stage in (IngestStage.PACKAGE, IngestStage.UPLOAD) and self._nothing_to_publish(request, report):
+                stage_report = StageReport(stage, skipped=NO_JSON_CHANGED)
+                report.stages.append(stage_report)
+                self._listener.stage_finished(stage_report)
                 continue
             self._listener.stage_started(stage)
             stage_report = self._execute(stage, ingestor, request, report)
             report.stages.append(stage_report)
+            if stage is IngestStage.DOWNLOAD:
+                report.changes["contentChanged"] = count_changes(
+                    content_before, content_fingerprint(content_dir, CONTENT_PATTERNS))
+                if stage_report.legacy_failure and not stage_report.failed and report.changes["contentChanged"] == 0:
+                    stage_report.source_unavailable = True
+                    stage_report.fail(request.source.value, "the download reported failures and wrote no content")
+            elif stage in (IngestStage.PARSE, IngestStage.TEAMS):
+                report.changes["actasChanged"] = count_changes(json_before, self._json_snapshot(request))
             self._listener.stage_finished(stage_report)
             if stage_report.failed:
                 break
         report.finish()
         return report
+
+    def _json_snapshot(self, request: IngestRequest) -> dict[str, str]:
+        """SHA-256 of the season's actas and, when present, its teams file."""
+        snapshot = {f"actas-json/{path}": digest for path, digest in json_fingerprint(
+            self._settings.actas_json_dir(request.source) / str(request.season)).items()}
+        teams_file = self._settings.equipos_json_dir(request.source) / f"{request.season}.json"
+        if teams_file.is_file():
+            snapshot[f"equipos-json/{teams_file.name}"] = file_digest(teams_file)
+        return snapshot
+
+    @staticmethod
+    def _nothing_to_publish(request: IngestRequest, report: RunReport) -> bool:
+        """A run that parsed but changed no JSON has nothing new to package or upload."""
+        return IngestStage.PARSE in request.stages and not request.force and report.changes["actasChanged"] == 0
 
     def _fail_early(self, report: RunReport, message: str) -> RunReport:
         stage = report.request.stages[0] if report.request.stages else IngestStage.DOWNLOAD
