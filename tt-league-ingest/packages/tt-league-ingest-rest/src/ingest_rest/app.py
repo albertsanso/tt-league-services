@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import logging
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
+from ingest_common.fingerprint import file_digest
 from ingest_common.match_day_status import read_status_report, report_for_season
 from ingest_common.match_days import parse_match_days
 from ingest_common.pipeline import IngestPipeline, SourceIngestor, discover_ingestors
@@ -22,7 +26,9 @@ from ingest_common.season import Season
 from ingest_common.settings import IngestSettings
 from ingest_common.source import Source
 
-HISTORY_LIMIT = 50
+LOGGER = logging.getLogger(__name__)
+HISTORY_LIMIT = 50  # also the number of runs whose package ZIP is retained
+ACTIVE_STATUSES = ("QUEUED", "RUNNING")
 
 
 class FiltersBody(BaseModel):
@@ -96,8 +102,8 @@ class RunRegistry:
         self._runs: dict[str, RunRecord] = {}
         self._lock = threading.Lock()
 
-    def add(self, request: IngestRequest) -> RunRecord:
-        record = RunRecord(uuid.uuid4().hex, request)
+    def add(self, run_id: str, request: IngestRequest) -> RunRecord:
+        record = RunRecord(run_id, request)
         with self._lock:
             self._runs[record.run_id] = record
         return record
@@ -110,10 +116,15 @@ class RunRegistry:
         with self._lock:
             return sorted(self._runs.values(), key=lambda r: r.created_at, reverse=True)[:limit]
 
+    def beyond(self, limit: int) -> list[RunRecord]:
+        """Every run except the ``limit`` most recent ones."""
+        with self._lock:
+            return sorted(self._runs.values(), key=lambda r: r.created_at, reverse=True)[limit:]
+
     def active_for(self, source: Source) -> RunRecord | None:
         with self._lock:
             return next((r for r in self._runs.values()
-                         if r.request.source is source and r.status in ("QUEUED", "RUNNING")), None)
+                         if r.request.source is source and r.status in ACTIVE_STATUSES), None)
 
 
 class _RecordListener:
@@ -152,11 +163,25 @@ def create_app(settings: IngestSettings, api_key: str, ingestors: dict[Source, S
             record.status = RunStatus.FAILED.value
             record.outcome = RunOutcome.FAILED
             record.error = f"{type(error).__name__}: {error}"
-            return
-        record.report = report
-        record.outcome = report.outcome
-        record.current_stage = None
-        record.status = report.status.value
+        else:
+            record.report = report
+            record.outcome = report.outcome
+            record.current_stage = None
+            record.status = report.status.value
+        prune_packages()
+
+    def run_package_path(run_id: str, source: Source) -> Path:
+        """Each run packages to its own file, so a later run never replaces an earlier run's ZIP."""
+        return settings.packages_dir(source) / "runs" / f"{run_id}.zip"
+
+    def prune_packages() -> None:
+        """Keep the package ZIPs of the ``HISTORY_LIMIT`` most recent runs only."""
+        for old in registry.beyond(HISTORY_LIMIT):
+            if old.request.zip_path is not None:
+                try:
+                    old.request.zip_path.unlink(missing_ok=True)
+                except OSError as error:  # e.g. still being downloaded on Windows; retried after the next run
+                    LOGGER.warning("cannot delete the package of run %s: %s", old.run_id, error)
 
     def to_request(body: RunBody) -> IngestRequest:
         try:
@@ -189,10 +214,12 @@ def create_app(settings: IngestSettings, api_key: str, ingestors: dict[Source, S
 
     @app.post("/api/v1/ingest/runs", status_code=202, dependencies=[Depends(require_key)])
     def create_run(body: RunBody) -> dict[str, str]:
+        run_id = uuid.uuid4().hex
         request = to_request(body)
         if registry.active_for(request.source) is not None:
             raise HTTPException(status_code=409, detail=f"a run for {request.source.value} is already active")
-        record = registry.add(request)
+        package_path = run_package_path(run_id, request.source) if IngestStage.PACKAGE in request.stages else None
+        record = registry.add(run_id, replace(request, run_id=run_id, zip_path=package_path))
         executor.submit(execute, record)
         return {"runId": record.run_id}
 
@@ -206,6 +233,23 @@ def create_app(settings: IngestSettings, api_key: str, ingestors: dict[Source, S
         if record is None:
             raise HTTPException(status_code=404, detail="unknown run")
         return record.to_dict()
+
+    @app.get("/api/v1/ingest/runs/{run_id}/package", dependencies=[Depends(require_key)],
+             response_class=FileResponse)
+    def get_package(run_id: str) -> FileResponse:
+        record = registry.get(run_id)
+        if record is None:
+            raise HTTPException(status_code=404, detail="unknown run")
+        if record.status in ACTIVE_STATUSES:
+            raise HTTPException(status_code=409, detail="the run is still active")
+        package = record.report.outputs.get("package") if record.report else None
+        if package is None:
+            raise HTTPException(status_code=404, detail="the run produced no package")
+        path = Path(package)
+        if not path.is_file():
+            raise HTTPException(status_code=404, detail="the run's package is no longer retained")
+        return FileResponse(path, media_type="application/zip", filename=path.name,
+                            headers={"X-Content-SHA256": file_digest(path)})
 
     @app.get("/api/v1/ingest/sources/{source}/match-days-status", dependencies=[Depends(require_key)])
     def match_days_status(source: str, season: str | None = None) -> dict[str, Any]:

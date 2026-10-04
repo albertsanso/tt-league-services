@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import threading
 import time
+import zipfile
+from io import BytesIO
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
+
+import ingest_rest.app
 
 from ingest_common.run import IngestStage, StageReport
 from ingest_common.scan import record_exit_code
@@ -163,6 +170,90 @@ def test_pipeline_exception_is_recorded_as_failed_outcome(tmp_path):
     body = wait_for(client, post(client).json()["runId"])
     assert body["status"] == "FAILED" and body["outcome"] == "FAILED" and body["retryable"] is False
     assert "RuntimeError: unexpected" in body["error"]
+
+
+# --------------------------------------------------------------------------- packages
+
+PACKAGE_URL = "/api/v1/ingest/runs/{}/package"
+
+
+def write_acta(tmp_path, payload):
+    acta = IngestSettings(tmp_path).actas_json_dir(Source.FCTT) / "2026-2027" / "g1" / "acta.json"
+    acta.parent.mkdir(parents=True, exist_ok=True)
+    acta.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def packaged_manifest(content: bytes) -> dict:
+    with zipfile.ZipFile(BytesIO(content)) as archive:
+        return json.loads(archive.read("manifest.json"))
+
+
+def package_run(client):
+    run_id = post(client, stages=["package"]).json()["runId"]
+    return run_id, wait_for(client, run_id)
+
+
+def test_package_endpoint_streams_the_runs_zip_with_its_hash(tmp_path):
+    write_acta(tmp_path, {"jornada": 1, "acta_publicada": False})
+    client = client_for(tmp_path, FakeIngestor())
+    run_id, body = package_run(client)
+    assert body["status"] == "SUCCEEDED"
+    assert Path(body["package"]) == IngestSettings(tmp_path).packages_dir(Source.FCTT) / "runs" / f"{run_id}.zip"
+    response = client.get(PACKAGE_URL.format(run_id), headers=KEY)
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/zip"
+    assert response.headers["x-content-sha256"] == hashlib.sha256(response.content).hexdigest()
+    manifest = packaged_manifest(response.content)
+    assert manifest["runId"] == run_id and manifest["generator"] == "tt-league-ingest"
+    assert manifest["matchCounts"] == {"expected": 1, "withResult": 0, "pending": 1}
+
+
+def test_each_run_keeps_its_own_package(tmp_path):
+    write_acta(tmp_path, {"jornada": 1, "acta_publicada": False})
+    client = client_for(tmp_path, FakeIngestor())
+    first, _ = package_run(client)
+    write_acta(tmp_path, {"jornada": 1, "acta_publicada": True})
+    second, _ = package_run(client)
+    first_manifest = packaged_manifest(client.get(PACKAGE_URL.format(first), headers=KEY).content)
+    second_manifest = packaged_manifest(client.get(PACKAGE_URL.format(second), headers=KEY).content)
+    assert first_manifest["runId"] == first and first_manifest["matchCounts"]["pending"] == 1
+    assert second_manifest["runId"] == second and second_manifest["matchCounts"]["pending"] == 0
+    assert first_manifest["contentSha256"] != second_manifest["contentSha256"]
+
+
+def test_package_endpoint_status_codes(tmp_path):
+    ingestor = FakeIngestor()
+    client = client_for(tmp_path, ingestor)
+    assert client.get(PACKAGE_URL.format("nope"), headers=KEY).status_code == 404
+    no_package = post(client).json()["runId"]  # download + parse only
+    wait_for(client, no_package)
+    response = client.get(PACKAGE_URL.format(no_package), headers=KEY)
+    assert response.status_code == 404 and response.json()["detail"] == "the run produced no package"
+    assert client.get(PACKAGE_URL.format(no_package)).status_code == 401
+    ingestor.release.clear()
+    active = post(client, stages=["download", "package"]).json()["runId"]
+    assert client.get(PACKAGE_URL.format(active), headers=KEY).status_code == 409
+    ingestor.release.set()
+    wait_for(client, active)
+
+
+def test_skipped_package_stage_has_no_package(tmp_path):
+    client = client_for(tmp_path, FakeIngestor())
+    run_id = post(client, stages=["download", "parse", "package"]).json()["runId"]
+    assert wait_for(client, run_id)["stages"][-1]["skipped"] == "no JSON changed"
+    assert client.get(PACKAGE_URL.format(run_id), headers=KEY).status_code == 404
+
+
+def test_packages_beyond_the_history_limit_are_deleted(tmp_path, monkeypatch):
+    monkeypatch.setattr(ingest_rest.app, "HISTORY_LIMIT", 1)
+    write_acta(tmp_path, {"jornada": 1})
+    client = client_for(tmp_path, FakeIngestor())
+    first, first_body = package_run(client)
+    second, _ = package_run(client)
+    assert not Path(first_body["package"]).exists()
+    response = client.get(PACKAGE_URL.format(first), headers=KEY)
+    assert response.status_code == 404 and response.json()["detail"] == "the run's package is no longer retained"
+    assert client.get(PACKAGE_URL.format(second), headers=KEY).status_code == 200
 
 
 # --------------------------------------------------------------------------- scopes

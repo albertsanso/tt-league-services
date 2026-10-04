@@ -8,6 +8,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Protocol
 
+from ingest_common.packaging import RUN_ID_PATTERN
 from ingest_common.season import Season
 from ingest_common.source import Source
 
@@ -89,8 +90,11 @@ class IngestRequest:
     zip_path: Path | None = None  # PACKAGE output / UPLOAD input override
     dry_run: bool = False
     scopes: tuple[IngestFilters, ...] = ()  # several filter sets, OR-combined; exclusive with ``filters``
+    run_id: str | None = None  # written to the packaged manifest as ``runId``
 
     def __post_init__(self) -> None:
+        if self.run_id is not None and not RUN_ID_PATTERN.fullmatch(self.run_id):
+            raise ValueError("run id must be 1 to 64 characters among A-Z, a-z, 0-9, '.', '_' and '-'")
         scopes = tuple(dict.fromkeys(self.scopes))  # drop exact duplicates, keep the first-seen order
         object.__setattr__(self, "scopes", scopes)
         if not scopes:

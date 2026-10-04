@@ -159,7 +159,8 @@ class IngestPipeline:
                 source=request.source, season=request.season, actas_dir=actas_dir,
                 teams_file=teams_file if request.source is Source.RFETM and teams_file.is_file() else None,
                 output=output, mode=request.mode, match_days=request.filters.match_days,
-                select=in_scopes if request.scopes else None, force=request.force, dry_run=request.dry_run)
+                select=in_scopes if request.scopes else None, force=request.force, dry_run=request.dry_run,
+                run_id=request.run_id)
         except PackagingError as error:
             stage.fail(str(output), str(error))
             return stage

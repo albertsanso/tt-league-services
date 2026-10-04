@@ -54,29 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00099] Upload ZIP provenance manifest and package retrieval
-- **Status:** ready
-- **Priority:** high
-- **Effort:** medium
-- **Depends on:** —
-
-#### Goal
-Make every upload ZIP self-describing (run id, generator, content hash, match counts) and retrievable from the ingest service, so imports can be deduplicated, traced and replayed.
-
-#### Acceptance Criteria
-- [ ] `manifest.json` gains optional `runId`, `generator`, `generatorVersion`, `contentSha256` and `matchCounts` (`expected`, `withResult`, `pending`) fields
-- [ ] `contentSha256` follows one documented algorithm over the sorted ZIP entries other than `manifest.json`, so identical content always gives the same hash
-- [ ] `ResourceZipService` accepts the new optional fields, validates their format, recomputes `contentSha256` from the extracted files and rejects a mismatch with 400, and still accepts manifests without them
-- [ ] The Java change ships before or with the Python change, because the platform rejects unknown manifest keys today
-- [ ] `GET /api/v1/ingest/runs/{runId}/package` streams the run's ZIP with its SHA-256 in an `X-Content-SHA256` header (404 when the run is unknown or produced no ZIP, 409 while the run is active)
-- [ ] The manifest section of `tt-data-league-api-runtime/README.md` and `tt-league-ingest/README.md` describe the new fields and the hash algorithm
-- [ ] Python and Java tests cover hash stability, optional-field parsing, mismatch rejection and rejection of malformed values
-
-#### Feature Details
-→ See [FEAT-00099-DETAILS.md](./FEAT-00099-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00100] Machine-friendly asynchronous import jobs API
 - **Status:** ready
 - **Priority:** high
@@ -430,6 +407,30 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00099] Upload ZIP provenance manifest and package retrieval
+- **Status:** done
+- **Priority:** high
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Make every upload ZIP self-describing (run id, generator, content hash, match counts) and retrievable from the ingest service, so imports can be deduplicated, traced and replayed.
+
+#### Acceptance Criteria
+- [x] `manifest.json` gains optional `runId`, `generator`, `generatorVersion`, `contentSha256` and `matchCounts` (`expected`, `withResult`, `pending`) fields
+- [x] `contentSha256` follows one documented algorithm over the sorted ZIP entries other than `manifest.json`, so identical content always gives the same hash
+- [x] `ResourceZipService` accepts the new optional fields, validates their format, recomputes `contentSha256` from the ZIP content and rejects a mismatch with 400, and still accepts manifests without them
+- [x] The Java change ships before or with the Python change, because the platform rejects unknown manifest keys today
+- [x] `GET /api/v1/ingest/runs/{runId}/package` streams the run's ZIP with its SHA-256 in an `X-Content-SHA256` header (404 when the run is unknown or produced no ZIP, 409 while the run is active)
+- [x] Each REST run packages to its own ZIP, so a later run never replaces an earlier run's package; packages of runs outside the most recent `HISTORY_LIMIT` are deleted and answer 404
+- [x] The manifest section of `tt-data-league-api-runtime/README.md` and `tt-league-ingest/README.md` describe the new fields and the hash algorithm
+- [x] Python and Java tests cover hash stability, optional-field parsing, mismatch rejection and rejection of malformed values
+
+#### Feature Details
+→ See [FEAT-00099-DETAILS.md](./FEAT-00099-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00098] Ingest multi-scope runs and match-day status endpoint
 - **Status:** done

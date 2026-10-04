@@ -17,6 +17,23 @@ class ImportManifestTest {
                 "RFETM", List.of("2025-2026"), Map.of("TEAMS", List.of()), Path.of("extracted"));
 
         assertEquals(UploadMode.SNAPSHOT, manifest.mode());
+        assertEquals(ManifestProvenance.EMPTY, manifest.provenance());
+    }
+
+    @Test
+    void theFiveArgumentConstructorHasNoProvenance() {
+        ImportManifest manifest = new ImportManifest(
+                "RFETM", List.of("2025-2026"), Map.of("TEAMS", List.of()), Path.of("extracted"), UploadMode.DELTA);
+
+        assertEquals(UploadMode.DELTA, manifest.mode());
+        assertEquals(ManifestProvenance.EMPTY, manifest.provenance());
+    }
+
+    @Test
+    void aNullProvenanceIsRejected() {
+        assertThrows(NullPointerException.class, () -> new ImportManifest(
+                "RFETM", List.of("2025-2026"), Map.of("TEAMS", List.of()), Path.of("extracted"),
+                UploadMode.SNAPSHOT, null));
     }
 
     @Test

@@ -1,14 +1,16 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import threading
 import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from importlib.metadata import version
 from pathlib import Path, PurePosixPath
 
 import pytest
 
-from ingest_common.packaging import PackagingError, build_manifest, package_season
+from ingest_common.packaging import PackagingError, build_manifest, content_sha256, package_season
 from ingest_common.pipeline import IngestPipeline
 from ingest_common.run import (IngestFilters, IngestRequest, IngestStage, RunOutcome, RunStatus,
                                StageReport)
@@ -110,6 +112,127 @@ def test_dry_run_writes_nothing_and_exclude_include(tmp_path):
                             exclude=("g2",), dry_run=True)
     assert not out.exists() and not result.written
     assert result.manifest["assets"]["ACTAS"]["files"] == ["actas-json/2026-2027/x/keep.json"]
+
+
+# Shared with ContentHashTest in tt-data-league-core-domain: both implementations must give this value for the
+# same entries. The two x?.json names sort differently by UTF-16 units than by code points (UTF-8 bytes).
+SHARED_FIXTURE = {
+    "equipos-json/2026-2027.json": b"[]\n",
+    "actas-json/2026-2027/x\U0001F3D3.json": b'{"d": 4}\n',
+    "actas-json/2026-2027/x\uFFFD.json": b'{"c": 3}\n',
+    "actas-json/2026-2027/jornada-1/b.json": b'{"b": 2}\n',
+    "actas-json/2026-2027/a\u00F1o.json": b'{"a": 1}\n',
+}
+SHARED_FIXTURE_HASH = "9784c2c5092b315727efac63ad618c3e4b0bae8c9cfe8bbb914ff654557e77c8"
+
+
+def zip_content_sha256(zip_path: Path) -> str:
+    """Independent reading of the hash algorithm over a written ZIP, as ``ResourceZipService`` does it."""
+    with zipfile.ZipFile(zip_path) as archive:
+        lines = [f"{name}\n{hashlib.sha256(archive.read(name)).hexdigest()}\n"
+                 for name in sorted(archive.namelist()) if name != "manifest.json" and not name.endswith("/")]
+    return hashlib.sha256("".join(lines).encode("utf-8")).hexdigest()
+
+
+def write_fixture(root: Path, files: dict[str, bytes]) -> list[tuple[Path, str]]:
+    entries = []
+    for index, (name, content) in enumerate(files.items()):
+        path = root / f"file-{index}"
+        path.write_bytes(content)
+        entries.append((path, name))
+    return entries
+
+
+def test_content_hash_matches_the_shared_java_fixture(tmp_path):
+    entries = write_fixture(tmp_path, SHARED_FIXTURE)
+    assert content_sha256(entries) == SHARED_FIXTURE_HASH
+    assert content_sha256(list(reversed(entries))) == SHARED_FIXTURE_HASH
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text("{}", encoding="utf-8")
+    assert content_sha256([*entries, (manifest, "manifest.json")]) == SHARED_FIXTURE_HASH
+
+
+def test_content_hash_changes_with_content_and_rejects_duplicates(tmp_path):
+    entries = write_fixture(tmp_path, SHARED_FIXTURE)
+    entries[0][0].write_bytes(b"[ ]\n")
+    assert content_sha256(entries) != SHARED_FIXTURE_HASH
+    with pytest.raises(PackagingError, match="duplicate"):
+        content_sha256([*entries, (entries[0][0], entries[0][1])])
+
+
+def test_packaged_manifest_carries_provenance(tmp_path):
+    season_dir = tmp_path / "actas-json" / "2026-2027"
+    for name, payload in {"g1/a.json": {"jornada": 1, "acta_publicada": True},
+                          "g1/b.json": {"jornada": 1, "acta_publicada": False},
+                          "g1/c.json": {"jornada": 1}}.items():
+        (season_dir / name).parent.mkdir(parents=True, exist_ok=True)
+        (season_dir / name).write_text(json.dumps(payload), encoding="utf-8")
+    teams = tmp_path / "2026-2027.json"
+    teams.write_text("[]", encoding="utf-8")
+    result = package_season(source=Source.RFETM, season=SEASON, actas_dir=season_dir, teams_file=teams,
+                            output=tmp_path / "p.zip", run_id="0f3c9a_run-1.2")
+    with zipfile.ZipFile(result.zip_path) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+    assert manifest == result.manifest
+    assert manifest["runId"] == "0f3c9a_run-1.2"
+    assert manifest["generator"] == "tt-league-ingest"
+    assert manifest["generatorVersion"] == version("tt-league-ingest-common")
+    assert manifest["matchCounts"] == {"expected": 3, "withResult": 2, "pending": 1}
+    assert manifest["contentSha256"] == zip_content_sha256(result.zip_path)
+
+
+def test_content_hash_is_stable_across_builds_and_dry_runs(tmp_path):
+    actas = write_actas(tmp_path / "a", {"x/one.json": 1, "y/two.json": 2})
+    first = package_season(source=Source.FCTT, season=SEASON, actas_dir=actas, teams_file=None,
+                           output=tmp_path / "1.zip")
+    second = package_season(source=Source.FCTT, season=SEASON, actas_dir=actas, teams_file=None,
+                            output=tmp_path / "2.zip")
+    dry = package_season(source=Source.FCTT, season=SEASON, actas_dir=actas, teams_file=None,
+                         output=tmp_path / "3.zip", dry_run=True)
+    assert first.manifest["contentSha256"] == second.manifest["contentSha256"] == dry.manifest["contentSha256"]
+    assert "runId" not in first.manifest
+
+
+def test_delta_match_counts_cover_the_packaged_actas_only(tmp_path):
+    actas = write_actas(tmp_path / "a", {"x/one.json": 3, "x/two.json": 4})
+    result = package_season(source=Source.FCTT, season=SEASON, actas_dir=actas, teams_file=None,
+                            output=tmp_path / "d.zip", mode="delta", match_days=frozenset({3}))
+    assert result.manifest["matchCounts"] == {"expected": 1, "withResult": 1, "pending": 0}
+
+
+def test_teams_only_package_has_no_match_counts(tmp_path):
+    teams = tmp_path / "2026-2027.json"
+    teams.write_text("[]", encoding="utf-8")
+    result = package_season(source=Source.RFETM, season=SEASON, actas_dir=None, teams_file=teams,
+                            output=tmp_path / "t.zip")
+    assert "matchCounts" not in result.manifest
+    assert result.manifest["contentSha256"] == zip_content_sha256(result.zip_path)
+
+
+@pytest.mark.parametrize("payload", ['{"acta_publicada": "yes"}', "[]", "not json"])
+def test_unreadable_acta_fails_packaging(tmp_path, payload):
+    season_dir = tmp_path / "2026-2027"
+    season_dir.mkdir()
+    (season_dir / "bad.json").write_text(payload, encoding="utf-8")
+    with pytest.raises(PackagingError, match="bad.json"):
+        package_season(source=Source.FCTT, season=SEASON, actas_dir=season_dir, teams_file=None,
+                       output=tmp_path / "x.zip")
+    assert not (tmp_path / "x.zip").exists()
+
+
+@pytest.mark.parametrize("run_id", ["", "run id", "run/1", "r" * 65])
+def test_invalid_run_id_is_rejected(tmp_path, run_id):
+    actas = write_actas(tmp_path / "a", {"x/one.json": 1})
+    with pytest.raises(PackagingError, match="run id"):
+        package_season(source=Source.FCTT, season=SEASON, actas_dir=actas, teams_file=None,
+                       output=tmp_path / "x.zip", run_id=run_id)
+    with pytest.raises(ValueError, match="run id"):
+        IngestRequest(Source.FCTT, SEASON, (IngestStage.PACKAGE,), run_id=run_id)
+
+
+def test_build_manifest_rejects_unknown_provenance_keys():
+    with pytest.raises(PackagingError, match="provenance"):
+        build_manifest(Source.FCTT, [SEASON], {"ACTAS": []}, provenance={"runid": "x"})
 
 
 class UploadHandler(BaseHTTPRequestHandler):
@@ -313,6 +436,17 @@ def test_package_only_run_is_never_skipped(tmp_path):
         IngestRequest(Source.FCTT, SEASON, (IngestStage.PACKAGE,)))
     assert report.stages[0].skipped is None and report.outcome is RunOutcome.SUCCEEDED
     assert Path(report.outputs["package"]).is_file()
+
+
+def test_pipeline_writes_the_request_run_id_into_the_manifest(tmp_path):
+    settings = IngestSettings(tmp_path)
+    actas = settings.actas_json_dir(Source.FCTT) / str(SEASON)
+    actas.mkdir(parents=True)
+    (actas / "acta.json").write_text(json.dumps(ACTA), encoding="utf-8")
+    report = IngestPipeline(settings, {Source.FCTT: OutcomeIngestor()}).run(
+        IngestRequest(Source.FCTT, SEASON, (IngestStage.PACKAGE,), run_id="run-7"))
+    with zipfile.ZipFile(report.outputs["package"]) as archive:
+        assert json.loads(archive.read("manifest.json"))["runId"] == "run-7"
 
 
 def test_failed_download_without_content_is_source_unavailable(tmp_path):

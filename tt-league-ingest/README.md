@@ -48,6 +48,26 @@ Federation packages register their `SourceIngestor` under the entry-point group 
 The packaged JSON schemas (`ingest_common/schema/`) are copies of `docs/acta-model-definition.json` and
 `docs/team-model-definition.json`; a drift test keeps them identical.
 
+### Upload ZIP manifest
+
+Besides `source`, `seasons`, `assets` and `mode`, every packaged `manifest.json` carries provenance keys. The
+platform validates them; the contract is owned by `ResourceZipService` and described in the
+`tt-data-league-api-runtime` README ("ZIP import upload contract"). Deploy a platform that accepts these keys
+before this packager, because an older platform rejects unknown manifest keys with `400`.
+
+| Key | Value |
+|---|---|
+| `generator` | always `tt-league-ingest` |
+| `generatorVersion` | installed version of `tt-league-ingest-common` |
+| `contentSha256` | hash of the ZIP content (algorithm below) |
+| `matchCounts` | `{expected, withResult, pending}` over the packaged actas (`acta_publicada: false` is pending, a missing value is published); absent for a TEAMS-only ZIP |
+| `runId` | the run id, when given (`--run-id`, or the REST service's `runId`); 1-64 characters among `A-Za-z0-9._-` |
+
+`contentSha256`: for every entry except `manifest.json`, sorted by name (code-point order, which is the same as
+UTF-8 byte order), append `<name>\n<sha256 hex of the file bytes>\n` to one buffer; the value is the SHA-256 hex
+of that buffer. Identical content always gives the same hash, whatever the ZIP timestamps or compression. An
+acta that is not a JSON object, or whose `acta_publicada` is not a boolean, fails the `PACKAGE` stage.
+
 ## Match-day status file
 
 Every `download` stage ends by rebuilding `<data_dir>/<source>/content/match-days-status.json` from the
@@ -77,7 +97,7 @@ uv run tt-league-ingest download --source rfetm --season 2026-2027 --category di
 uv run tt-league-ingest download --source bcnesa --territory Barcelona --match-day 3
 uv run tt-league-ingest parse    --source bcnesa --season 2026-2027 --match-day 3 --force
 uv run tt-league-ingest teams    --source rfetm --season 2026-2027
-uv run tt-league-ingest package  --source fctt --season 2026-2027 --mode delta --match-day 3 [--dry-run] [--force] [--output FILE]
+uv run tt-league-ingest package  --source fctt --season 2026-2027 --mode delta --match-day 3 [--dry-run] [--force] [--output FILE] [--run-id ID]
 uv run tt-league-ingest upload   --source fctt --zip FILE [--allow-published-shrink]
 uv run tt-league-ingest run      --source fctt --match-day 3 --package --upload --mode delta
 uv run tt-league-ingest run      --source bcnesa --scope-file scopes.json --package --mode delta
@@ -87,7 +107,8 @@ uv run tt-league-ingest run      --source bcnesa --scope-file scopes.json --pack
 download (BCNESA: `Barcelona`, `Girona`, `Lleida`, `Tarragona`; FCTT: territory slug); parsing handles
 whatever was downloaded. Filters a source does not support (`--group`/`--phase`/`--territory` for RFETM,
 `--gender` outside FCTT, ...) fail the run before any network call. `--json`
-prints the run report as JSON.
+prints the run report as JSON. `--run-id` (on `package` and `run`) is written to the manifest as `runId`; an
+invalid value is a usage error.
 
 ### Run outcome and exit codes
 
@@ -186,8 +207,17 @@ curl -H "X-API-Key: $KEY" localhost:8090/api/v1/ingest/runs/<runId>
 
 Endpoints: `POST /api/v1/ingest/runs` (`202 {runId}`, `400` invalid input, `409` same source already running),
 `GET /api/v1/ingest/runs/{runId}` (`404` unknown), `GET /api/v1/ingest/runs` (most recent first, default 50),
-`GET /api/v1/ingest/sources/{source}/match-days-status` (see below), `GET /health` (no key). Runs execute one at
-a time; run history is in memory and lost on restart.
+`GET /api/v1/ingest/runs/{runId}/package` (see below), `GET /api/v1/ingest/sources/{source}/match-days-status`
+(see below), `GET /health` (no key). Runs execute one at a time; run history is in memory and lost on restart.
+
+A REST run that includes `package` writes its own ZIP, `<data_dir>/<source>/packages/runs/<runId>.zip`, with
+`runId` in the manifest, so a later run never replaces an earlier run's package. (CLI runs keep the
+`packages/actas-json-<season>[-<mode>].zip` default.) `GET /api/v1/ingest/runs/{runId}/package` streams that ZIP
+as `application/zip` with an `X-Content-SHA256` header: the SHA-256 of the ZIP file bytes, for checking the
+transfer. This differs from the manifest's `contentSha256`, which identifies the content whatever the packing.
+Status codes: `404` for an unknown run, a run that produced no ZIP (no `package` stage, a skipped or failed one)
+or a ZIP no longer retained; `409` while the run is `QUEUED` or `RUNNING`. Only the ZIPs of the 50 most recent runs
+are kept; older ones are deleted when a run ends, and a restart forgets every run.
 
 The run body takes either `filters` (one filter set) or `scopes` (see [Scoped runs](#scoped-runs)), never both:
 

@@ -64,6 +64,7 @@ def _add_package(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--mode", choices=MODES, default="snapshot", help="Package mode (default: snapshot)")
     parser.add_argument("--dry-run", action="store_true", help="Show what would be packaged without writing")
     parser.add_argument("--output", type=Path, help="ZIP file to write")
+    parser.add_argument("--run-id", help="Run id written to the manifest as runId ([A-Za-z0-9._-], at most 64)")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -150,7 +151,7 @@ def build_request(args: argparse.Namespace) -> IngestRequest:
                                   getattr(args, "territory", None)),
             force=getattr(args, "force", False), delay_seconds=getattr(args, "delay", None), mode=mode,
             allow_published_shrink=getattr(args, "allow_published_shrink", False), zip_path=zip_path,
-            dry_run=getattr(args, "dry_run", False), scopes=scopes)
+            dry_run=getattr(args, "dry_run", False), scopes=scopes, run_id=getattr(args, "run_id", None))
     except ValueError as error:
         raise UsageError(str(error)) from error
 

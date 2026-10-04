@@ -125,6 +125,49 @@ delta manifest looks like:
 including `DELTA` or an unknown key, is rejected with `400`. When `mode` is
 absent the upload is a snapshot.
 
+**Optional provenance keys.** A manifest may also carry the keys below, which
+`tt-league-ingest` writes into every ZIP it packages. Each key is optional, and
+manifests without them import exactly as before. A key that is present must be
+valid (an explicit `null` is not); otherwise the upload is rejected with `400`:
+
+| Key | Rule |
+|---|---|
+| `runId` | 1–64 characters among `A-Z`, `a-z`, `0-9`, `.`, `_`, `-` |
+| `generator` | non-blank string of at most 100 characters |
+| `generatorVersion` | non-blank string of at most 100 characters |
+| `contentSha256` | 64 lowercase hexadecimal characters; must match the ZIP content (see below) |
+| `matchCounts` | object with exactly the integers `expected`, `withResult`, `pending`, all non-negative, and `withResult + pending == expected` |
+
+```json
+{
+  "source": "FCTT",
+  "mode": "delta",
+  "seasons": ["2026-2027"],
+  "assets": {"ACTAS": {"files": ["actas-json/2026-2027/jornada-5/acta-1.json"]}},
+  "runId": "3f2b9c0e8d7a4f1b9e6c5d4a3b2c1d0e",
+  "generator": "tt-league-ingest",
+  "generatorVersion": "0.1.0",
+  "contentSha256": "<64 lowercase hex characters>",
+  "matchCounts": {"expected": 1, "withResult": 1, "pending": 0}
+}
+```
+
+`matchCounts` counts the actas packaged in the ZIP: `pending` are those with
+`acta_publicada: false`, and `withResult` are the rest (a missing
+`acta_publicada` means published).
+
+**`contentSha256` algorithm.** Take every ZIP entry except directory entries
+and the root `manifest.json`. Use each entry name exactly as stored in the ZIP
+(UTF-8, `/` separators) and sort the names by their UTF-8 bytes. For each name,
+append `<name>\n<lowercase hex SHA-256 of the entry's uncompressed bytes>\n` to
+one buffer. `contentSha256` is the lowercase hex SHA-256 of that buffer, so it
+does not depend on ZIP timestamps, compression or entry order. The upload
+recomputes it from the received ZIP (`ContentHash`) and rejects a mismatch with
+`400` (`manifest.json contentSha256 does not match the ZIP content`). A ZIP with
+two entries of the same name is rejected as well. The provenance is
+informational for now: the upload and import behave the same with or without
+it.
+
 **Snapshot mode (default) replaces the stored season.** Every upload deletes the
 stored `import-<source>/<asset>/<season>` folder first, then moves the extracted
 content in. Each ZIP must therefore hold the complete season as currently

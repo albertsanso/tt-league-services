@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import zipfile
 
 import pytest
 
@@ -138,6 +139,23 @@ def test_run_that_produces_json_exits_zero_and_packages(tmp_path, capsys):
     assert code == EXIT_OK and payload["outcome"] == "SUCCEEDED"
     assert payload["changes"] == {"contentChanged": 1, "actasChanged": 1}
     assert list(tmp_path.rglob("*.zip"))
+
+
+def test_run_id_reaches_the_request_and_the_manifest(tmp_path):
+    ingestor = FakeIngestor()
+    ingestor.write_page = ingestor.write_acta = True
+    code, ingestor = run(tmp_path, "run", "--source", "fctt", "--season", "2026-2027", "--package",
+                         "--run-id", "orchestrator-42", ingestor=ingestor)
+    assert code == EXIT_OK and ingestor.requests[0].run_id == "orchestrator-42"
+    (zip_path,) = tmp_path.rglob("*.zip")
+    with zipfile.ZipFile(zip_path) as archive:
+        assert json.loads(archive.read("manifest.json"))["runId"] == "orchestrator-42"
+
+
+def test_invalid_run_id_is_a_usage_error(tmp_path, capsys):
+    code, ingestor = run(tmp_path, "package", "--source", "fctt", "--run-id", "bad id")
+    assert code == EXIT_USAGE and ingestor.requests == []
+    assert "run id" in capsys.readouterr().err
 
 
 def test_failed_download_without_content_exits_four(tmp_path, capsys):

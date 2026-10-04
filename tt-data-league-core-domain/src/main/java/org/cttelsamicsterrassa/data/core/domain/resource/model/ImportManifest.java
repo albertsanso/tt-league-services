@@ -11,13 +11,22 @@ public record ImportManifest(
         List<String> seasons,
         Map<String, List<String>> assets,
         Path extractionFolder,
-        UploadMode mode) {
+        UploadMode mode,
+        ManifestProvenance provenance) {
 
     public ImportManifest(String source,
                           List<String> seasons,
                           Map<String, List<String>> assets,
                           Path extractionFolder) {
         this(source, seasons, assets, extractionFolder, UploadMode.SNAPSHOT);
+    }
+
+    public ImportManifest(String source,
+                          List<String> seasons,
+                          Map<String, List<String>> assets,
+                          Path extractionFolder,
+                          UploadMode mode) {
+        this(source, seasons, assets, extractionFolder, mode, ManifestProvenance.EMPTY);
     }
 
     public ImportManifest {
@@ -27,5 +36,6 @@ public record ImportManifest(
                         Map.Entry::getKey,
                         entry -> List.copyOf(entry.getValue())));
         mode = Objects.requireNonNull(mode, "mode");
+        provenance = Objects.requireNonNull(provenance, "provenance");
     }
 }
