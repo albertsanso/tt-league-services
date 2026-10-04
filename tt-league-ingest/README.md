@@ -67,7 +67,8 @@ a `summary` (counts per status, `matches`, `played`, `reported`, `emptyPages`, `
 `matchDays` list. Each entry has `season`, `category`, `group`, `phase`, `gender`, `territory`, `matchDay`,
 `status`, `matches`, `played`, `reported`, `firstMatchAt`, `lastMatchAt`, `file` (relative to the content
 folder) and `contentUpdatedAt`. Pages that list no matches are only counted in `emptyPages`. The file is
-written atomically, so a reader never sees a half-written file.
+written atomically, so a reader never sees a half-written file. The REST service serves it at
+`GET /api/v1/ingest/sources/{source}/match-days-status` (see [REST service](#rest-service)).
 
 ## CLI
 
@@ -79,6 +80,7 @@ uv run tt-league-ingest teams    --source rfetm --season 2026-2027
 uv run tt-league-ingest package  --source fctt --season 2026-2027 --mode delta --match-day 3 [--dry-run] [--force] [--output FILE]
 uv run tt-league-ingest upload   --source fctt --zip FILE [--allow-published-shrink]
 uv run tt-league-ingest run      --source fctt --match-day 3 --package --upload --mode delta
+uv run tt-league-ingest run      --source bcnesa --scope-file scopes.json --package --mode delta
 ```
 
 `--season` defaults to the current season (a season starts in August). `--territory` restricts the
@@ -129,6 +131,49 @@ Current-jornada delta flow: `run --match-day N --package --mode delta --upload`.
 is one of the requested days and fails when nothing matches. A 409 from the upload (published-acta shrink check)
 fails the stage; `--allow-published-shrink` must be given explicitly to override it.
 
+### Scoped runs
+
+A scoped run refreshes several groups of one source in a single run, for example the open groups of
+several competitions. It replaces the filter options with a list of **scopes**:
+
+```json
+{"scopes": [
+  {"territory": "Girona", "category": "PREFERENT", "group": "G1", "matchDays": [3, 4]},
+  {"category": "RTB PRIMERA", "group": "G2", "phase": "1a Fase", "matchDays": "5"}
+]}
+```
+
+```text
+uv run tt-league-ingest run --source bcnesa --scope-file scopes.json --package --mode delta --upload
+```
+
+- A scope has the optional keys `category`, `group`, `phase`, `territory`, `gender` (the same values as the
+  filter options) and `matchDays` (an array of positive integers, or a selector such as `3`, `1,4`, `2-5`).
+  Keys inside one scope must all match; a run covers every scope. A scope must set at least one key,
+  unknown keys are rejected and identical scopes run once.
+- Supported keys per source, as for the filters: RFETM `category`, `matchDays`; BCNESA `category`, `group`,
+  `phase`, `territory`, `matchDays`; FCTT all six. A key the source does not support fails the run before
+  any network call, naming the scope (`... does not support filter(s): group (scope 2)`).
+- The download and parse scripts run once per scope with that scope's filters (identical argument lists
+  run once, for example two BCNESA scopes that differ only by territory parse once). Between two
+  downloads the run waits the script's own delay (`--delay`, or BCNESA 1 s, FCTT 3 s, RFETM 2 s), so
+  scopes never shorten the pacing. The match-day status file is rebuilt once, after the last scope.
+- A scoped run that packages must use `--mode delta`; a snapshot is the whole season, so a scoped snapshot
+  is rejected (exit code 2, or `400` from the REST service). The delta ZIP holds the actas of the season
+  that belong to any scope, matched on their `actas-json` folders
+  (see [Output contracts](#output-contracts-unchanged-from-the-legacy-extractors)) the way each parser applies
+  its filters, plus the scope's `matchDays` against the payload `jornada`. A
+  scope without `matchDays` takes every match day of its groups. BCNESA reads the territory from the
+  category folder prefix (`rtb` Barcelona, `rtg` Girona, `rtl` Lleida, `rtt` Tarragona); a category folder
+  without one of these prefixes is matched on its other keys only. FCTT ignores `territory` (one territory)
+  and, like its downloader, lets `category`/`gender` select a league by either value.
+- Rows of the [match-day status file](#match-day-status-file) can be turned into scopes. RFETM rows also
+  carry `group` and `gender`, which RFETM scopes do not support: build RFETM scopes from `category` and
+  `matchDay` only.
+- `--scope-file` is only available on `run` and cannot be combined with `--category`, `--group`, `--phase`,
+  `--match-day`, `--gender` or `--territory`. The run report lists the scopes it ran (`scopes`, one
+  object per scope with `matchDays` as a sorted array; a filter run reports its filters as the only scope).
+
 ## REST service
 
 ```text
@@ -141,7 +186,26 @@ curl -H "X-API-Key: $KEY" localhost:8090/api/v1/ingest/runs/<runId>
 
 Endpoints: `POST /api/v1/ingest/runs` (`202 {runId}`, `400` invalid input, `409` same source already running),
 `GET /api/v1/ingest/runs/{runId}` (`404` unknown), `GET /api/v1/ingest/runs` (most recent first, default 50),
-`GET /health` (no key). Runs execute one at a time; run history is in memory and lost on restart.
+`GET /api/v1/ingest/sources/{source}/match-days-status` (see below), `GET /health` (no key). Runs execute one at
+a time; run history is in memory and lost on restart.
+
+The run body takes either `filters` (one filter set) or `scopes` (see [Scoped runs](#scoped-runs)), never both:
+
+```text
+curl -X POST localhost:8090/api/v1/ingest/runs -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"source":"fctt","stages":["download","parse","package"],"mode":"delta",
+       "scopes":[{"category":"tdm","group":"g1","matchDays":[3]},{"gender":"female","matchDays":"2-3"}]}'
+```
+
+Sending both `filters` and `scopes`, an empty `scopes` list, a scope without keys or invalid `matchDays`, or a
+scoped snapshot that packages gives `400`; an unknown scope key is a request validation error (`422`).
+
+`GET /api/v1/ingest/sources/{source}/match-days-status[?season=YYYY-YYYY]` returns the current
+[match-day status file](#match-day-status-file) of the source without scanning anything; it can be read while a
+run is active because the file is written atomically. With `season` it returns only that season's match days,
+with `seasons` set to that season and the match-day counters of `summary` recomputed (`emptyPages` and
+`unreadablePages` stay whole-file counts). `404` when no download has written the file yet or the season has no
+match day in it, `400` for an unknown source or a malformed season.
 
 A run exposes `status`, plus `outcome`, `retryable` and `changes` (`contentChanged`, `actasChanged`) as described
 under [Run outcome and exit codes](#run-outcome-and-exit-codes). `outcome` is `null` and `changes` is empty until

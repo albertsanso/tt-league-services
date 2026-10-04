@@ -13,6 +13,7 @@ from ingest_common.packaging import MODES
 from ingest_common.pipeline import IngestPipeline, SourceIngestor
 from ingest_common.run import (IngestFilters, IngestRequest, IngestStage, ProgressListener, RunOutcome, RunReport,
                                StageReport)
+from ingest_common.scopes import parse_scopes
 from ingest_common.season import Season
 from ingest_common.settings import ConfigurationError, IngestSettings
 from ingest_common.source import Source
@@ -94,6 +95,8 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common(run)
     _add_filters(run)
     run.add_argument("--delay", type=float, help="Minimum seconds between requests")
+    run.add_argument("--scope-file", type=Path,
+                     help='JSON {"scopes": [...]} to run several filter sets at once (replaces the filter options)')
     run.add_argument("--package", action="store_true", dest="do_package", help="Also build the ZIP")
     run.add_argument("--upload", action="store_true", dest="do_upload", help="Also upload the ZIP (implies --package)")
     run.add_argument("--allow-published-shrink", action="store_true")
@@ -101,7 +104,25 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+FILTER_OPTIONS = ("category", "group", "phase", "match_day", "gender", "territory")
+
+
+def read_scope_file(path: Path) -> tuple[IngestFilters, ...]:
+    try:
+        return parse_scopes(json.loads(path.read_text(encoding="utf-8")))
+    except OSError as error:
+        raise UsageError(f"cannot read --scope-file {path}: {error}") from error
+    except ValueError as error:  # also json.JSONDecodeError
+        raise UsageError(f"invalid --scope-file {path}: {error}") from error
+
+
 def build_request(args: argparse.Namespace) -> IngestRequest:
+    scopes: tuple[IngestFilters, ...] = ()
+    if getattr(args, "scope_file", None):
+        used = [f"--{name.replace('_', '-')}" for name in FILTER_OPTIONS if getattr(args, name, None)]
+        if used:
+            raise UsageError(f"--scope-file cannot be combined with {', '.join(used)}")
+        scopes = read_scope_file(args.scope_file)
     try:
         season = Season.parse(args.season) if args.season else Season.current()
         match_days = parse_match_days(args.match_day) if getattr(args, "match_day", None) else None
@@ -118,17 +139,20 @@ def build_request(args: argparse.Namespace) -> IngestRequest:
                + ((IngestStage.UPLOAD,) if args.command == "run" and args.do_upload else ()),
     }[args.command]
     mode = getattr(args, "mode", "snapshot")
-    if mode == "delta" and not match_days:
+    if mode == "delta" and not match_days and not scopes:
         raise UsageError("--mode delta requires --match-day")
     zip_path = getattr(args, "zip_path", None) or getattr(args, "output", None)
-    return IngestRequest(
-        source=Source.parse(args.source), season=season, stages=stages,
-        filters=IngestFilters(getattr(args, "category", None), getattr(args, "group", None),
-                              getattr(args, "phase", None), match_days, getattr(args, "gender", None),
-                              getattr(args, "territory", None)),
-        force=getattr(args, "force", False), delay_seconds=getattr(args, "delay", None), mode=mode,
-        allow_published_shrink=getattr(args, "allow_published_shrink", False), zip_path=zip_path,
-        dry_run=getattr(args, "dry_run", False))
+    try:
+        return IngestRequest(
+            source=Source.parse(args.source), season=season, stages=stages,
+            filters=IngestFilters(getattr(args, "category", None), getattr(args, "group", None),
+                                  getattr(args, "phase", None), match_days, getattr(args, "gender", None),
+                                  getattr(args, "territory", None)),
+            force=getattr(args, "force", False), delay_seconds=getattr(args, "delay", None), mode=mode,
+            allow_published_shrink=getattr(args, "allow_published_shrink", False), zip_path=zip_path,
+            dry_run=getattr(args, "dry_run", False), scopes=scopes)
+    except ValueError as error:
+        raise UsageError(str(error)) from error
 
 
 EXIT_CODES = {
@@ -149,6 +173,8 @@ def format_summary(report: RunReport) -> str:
              f"(outcome={report.outcome.value}, retryable={str(report.retryable).lower()})"]
     changes = ", ".join(f"{name}={value}" for name, value in report.changes.items())
     lines.append(f"  changes: {changes}")
+    if report.request.scopes:
+        lines.append("  scopes: " + "; ".join(scope.describe() for scope in report.request.scopes))
     for stage in report.stages:
         counters = ", ".join(f"{name}={value}" for name, value in stage.counters.items() if value)
         detail = f"skipped ({stage.skipped})" if stage.skipped else counters or "no counters"

@@ -10,12 +10,14 @@ from datetime import datetime, timezone
 from typing import Any
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
+from ingest_common.match_day_status import read_status_report, report_for_season
 from ingest_common.match_days import parse_match_days
 from ingest_common.pipeline import IngestPipeline, SourceIngestor, discover_ingestors
 from ingest_common.run import (IngestFilters, IngestRequest, IngestStage, RunOutcome, RunReport, RunStatus,
                                StageReport)
+from ingest_common.scopes import scopes_from_values
 from ingest_common.season import Season
 from ingest_common.settings import IngestSettings
 from ingest_common.source import Source
@@ -32,11 +34,23 @@ class FiltersBody(BaseModel):
     territory: str | None = None
 
 
+class ScopeBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    category: str | None = None
+    group: str | None = None
+    phase: str | None = None
+    territory: str | None = None
+    gender: str | None = None
+    matchDays: str | list[int] | None = None
+
+
 class RunBody(BaseModel):
     source: str
     season: str | None = None
     stages: list[str]
     filters: FiltersBody = FiltersBody()
+    scopes: list[ScopeBody] | None = None
     force: bool = False
     mode: str = "snapshot"
     allowPublishedShrink: bool = False
@@ -67,6 +81,7 @@ class RunRecord:
             "outcome": self.outcome.value if self.outcome else None,
             "retryable": bool(self.report and self.report.retryable),
             "changes": dict(self.report.changes) if self.report else {},
+            "scopes": [scope.to_dict() for scope in self.request.effective_scopes()],
             "stages": [{"stage": s.stage.value, "skipped": s.skipped, "counters": dict(s.counters),
                         "issues": [{"where": w, "message": m} for w, m in s.issues]} for s in stages],
             "package": self.report.outputs.get("package") if self.report else None,
@@ -150,11 +165,17 @@ def create_app(settings: IngestSettings, api_key: str, ingestors: dict[Source, S
             stages = tuple(IngestStage(stage.upper()) for stage in body.stages)
             if not stages:
                 raise ValueError("stages must not be empty")
+            if body.mode not in ("snapshot", "delta"):
+                raise ValueError("mode must be snapshot or delta")
+            if body.scopes is not None:
+                if "filters" in body.model_fields_set:
+                    raise ValueError("send either filters or scopes, not both")
+                scopes = scopes_from_values(scope.model_dump() for scope in body.scopes)
+                return IngestRequest(source, season, stages, force=body.force, mode=body.mode,
+                                     allow_published_shrink=body.allowPublishedShrink, scopes=scopes)
             filters = IngestFilters(body.filters.category, body.filters.group, body.filters.phase,
                                     parse_match_days(body.filters.matchDays) if body.filters.matchDays else None,
                                     body.filters.gender, body.filters.territory)
-            if body.mode not in ("snapshot", "delta"):
-                raise ValueError("mode must be snapshot or delta")
             if body.mode == "delta" and not filters.match_days:
                 raise ValueError("mode delta requires filters.matchDays")
             return IngestRequest(source, season, stages, filters, body.force, None, body.mode,
@@ -185,5 +206,22 @@ def create_app(settings: IngestSettings, api_key: str, ingestors: dict[Source, S
         if record is None:
             raise HTTPException(status_code=404, detail="unknown run")
         return record.to_dict()
+
+    @app.get("/api/v1/ingest/sources/{source}/match-days-status", dependencies=[Depends(require_key)])
+    def match_days_status(source: str, season: str | None = None) -> dict[str, Any]:
+        try:
+            parsed_source = Source.parse(source)
+            season_key = str(Season.parse(season)) if season else None
+        except ValueError as error:
+            raise HTTPException(status_code=400, detail=str(error)) from error
+        report = read_status_report(settings.content_dir(parsed_source))
+        if report is None:
+            raise HTTPException(status_code=404, detail=f"no match-day status for {parsed_source.value} yet")
+        if season_key is None:
+            return report
+        selected = report_for_season(report, season_key)
+        if selected is None:
+            raise HTTPException(status_code=404, detail=f"no match days of {season_key} in the status")
+        return selected
 
     return app

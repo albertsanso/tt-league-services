@@ -6,6 +6,7 @@ import json
 import os
 import tempfile
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 from pathlib import Path, PurePosixPath
@@ -74,17 +75,19 @@ class PackageResult:
 
 def package_season(*, source: Source, season: Season, actas_dir: Path | None, teams_file: Path | None,
                    output: Path, mode: str = "snapshot", match_days: frozenset[int] | None = None,
+                   select: Callable[[PurePosixPath, int | None], bool] | None = None,
                    include: tuple[str, ...] = (), exclude: tuple[str, ...] = (),
                    force: bool = False, dry_run: bool = False) -> PackageResult:
     """Build the upload ZIP for one season.
 
     ``actas_dir`` is the season folder (``.../actas-json/<season>``); entries are stored under
     ``actas-json/<season>/...``. A delta keeps only actas whose payload ``jornada`` is in
-    ``match_days`` and fails when nothing is selected.
+    ``match_days`` (or, when ``select`` is given, the actas ``select(relative path, jornada)`` accepts)
+    and fails when nothing is selected. A snapshot ignores both.
     """
     if mode not in MODES:
         raise PackagingError(f"mode must be one of {MODES}, got '{mode}'")
-    if mode == "delta" and not match_days:
+    if mode == "delta" and not match_days and select is None:
         raise PackagingError("delta mode requires at least one match day")
     if output.exists() and not force and not dry_run:
         raise PackagingError(f"output already exists: {output} (use force to overwrite)")
@@ -98,8 +101,10 @@ def package_season(*, source: Source, season: Season, actas_dir: Path | None, te
             if relative.name == MANIFEST_NAME or (_patterns_match(relative, exclude)
                                                    and not _patterns_match(relative, include)):
                 continue
-            if mode == "delta" and _payload_match_day(path) not in match_days:
-                continue
+            if mode == "delta":
+                day = _payload_match_day(path)
+                if not (select(relative, day) if select is not None else day in match_days):
+                    continue
             entries.append((path, f"{ACTAS_PREFIX}/{season}/{relative.as_posix()}"))
         if not entries:
             raise PackagingError(f"no actas selected in {actas_dir}")

@@ -163,3 +163,104 @@ def test_pipeline_exception_is_recorded_as_failed_outcome(tmp_path):
     body = wait_for(client, post(client).json()["runId"])
     assert body["status"] == "FAILED" and body["outcome"] == "FAILED" and body["retryable"] is False
     assert "RuntimeError: unexpected" in body["error"]
+
+
+# --------------------------------------------------------------------------- scopes
+
+SCOPES = [{"category": "tdm", "group": "g1", "matchDays": [3, 4]}, {"gender": "female", "matchDays": "2-3"}]
+
+
+def test_scoped_run_is_accepted_and_reports_its_scopes(tmp_path):
+    client = client_for(tmp_path, FakeIngestor())
+    response = post(client, scopes=SCOPES + [SCOPES[0]])
+    assert response.status_code == 202
+    body = wait_for(client, response.json()["runId"])
+    assert body["status"] == "SUCCEEDED"
+    assert body["scopes"] == [
+        {"category": "tdm", "group": "g1", "phase": None, "territory": None, "gender": None, "matchDays": [3, 4]},
+        {"category": None, "group": None, "phase": None, "territory": None, "gender": "female", "matchDays": [2, 3]}]
+
+
+def test_filter_run_reports_its_filters_as_the_only_scope(tmp_path):
+    client = client_for(tmp_path, FakeIngestor())
+    body = wait_for(client, post(client, filters={"group": "g2"}).json()["runId"])
+    assert [scope["group"] for scope in body["scopes"]] == ["g2"]
+
+
+@pytest.mark.parametrize("overrides, message", [
+    ({"filters": {}, "scopes": SCOPES}, "either filters or scopes"),
+    ({"scopes": []}, "must not be empty"),
+    ({"scopes": [{"category": " "}]}, "scope 1"),
+    ({"scopes": [{"group": "g1"}, {"matchDays": "0"}]}, "scope 2"),
+    ({"scopes": SCOPES, "stages": ["parse", "package"]}, "delta"),
+])
+def test_invalid_scopes_are_rejected(tmp_path, overrides, message):
+    response = post(client_for(tmp_path, FakeIngestor()), **overrides)
+    assert response.status_code == 400 and message in response.json()["detail"]
+
+
+def test_unknown_scope_key_is_a_request_validation_error(tmp_path):
+    assert post(client_for(tmp_path, FakeIngestor()), scopes=[{"grup": "g1"}]).status_code == 422
+
+
+def test_scoped_delta_without_match_days_is_accepted(tmp_path):
+    assert post(client_for(tmp_path, FakeIngestor()), scopes=[{"group": "g1"}], mode="delta").status_code == 202
+
+
+def test_unsupported_scope_field_fails_the_run_before_any_stage(tmp_path):
+    client = client_for(tmp_path, FakeIngestor())
+    body = wait_for(client, post(client, scopes=[{"group": "g1"}, {"territory": "catalunya"}]).json()["runId"])
+    assert body["status"] == "FAILED" and body["outcome"] == "FAILED"
+    assert body["stages"][0]["issues"][0]["message"] == "FCTT does not support filter(s): territory (scope 2)"
+
+
+# --------------------------------------------------------------------------- match-day status
+
+STATUS_URL = "/api/v1/ingest/sources/{}/match-days-status"
+
+
+def write_status(tmp_path):
+    from datetime import datetime, timezone
+
+    from ingest_common.match_day_status import MatchDayEntry, MatchState, ScanResult, write_status_report
+
+    def entry(season, day):
+        return MatchDayEntry(season, day, f"{season}/tdm/g1/regular/jornada-{day}.html",
+                             (MatchState(True, True),), datetime(2026, 10, 4, tzinfo=timezone.utc), category="tdm")
+
+    content = IngestSettings(tmp_path).content_dir(Source.FCTT)
+    write_status_report(content, Source.FCTT, ScanResult([entry("2026-2027", 1), entry("2026-2027", 2),
+                                                          entry("2025-2026", 9)]))
+
+
+def test_status_endpoint_returns_the_file_and_filters_by_season(tmp_path):
+    write_status(tmp_path)
+    client = client_for(tmp_path, FakeIngestor())
+    whole = client.get(STATUS_URL.format("fctt"), headers=KEY)
+    assert whole.status_code == 200
+    assert whole.json()["source"] == "FCTT" and whole.json()["summary"]["matchDays"] == 3
+    season = client.get(STATUS_URL.format("FCTT"), params={"season": "2026-2027"}, headers=KEY).json()
+    assert season["seasons"] == ["2026-2027"] and [day["matchDay"] for day in season["matchDays"]] == [1, 2]
+    assert season["summary"]["matchDays"] == 2 and season["summary"]["complete"] == 2
+
+
+def test_status_endpoint_errors(tmp_path):
+    client = client_for(tmp_path, FakeIngestor())
+    assert client.get(STATUS_URL.format("fctt")).status_code == 401
+    assert client.get(STATUS_URL.format("fctt"), headers=KEY).status_code == 404  # no download yet
+    write_status(tmp_path)
+    assert client.get(STATUS_URL.format("fctt"), params={"season": "2024-2025"}, headers=KEY).status_code == 404
+    assert client.get(STATUS_URL.format("fctt"), params={"season": "2026-2028"}, headers=KEY).status_code == 400
+    assert client.get(STATUS_URL.format("nope"), headers=KEY).status_code == 400
+    assert client.get(STATUS_URL.format("rfetm"), headers=KEY).status_code == 404  # other source, no file
+
+
+def test_status_endpoint_answers_while_a_run_is_active(tmp_path):
+    write_status(tmp_path)
+    ingestor = FakeIngestor()
+    ingestor.release.clear()
+    client = client_for(tmp_path, ingestor)
+    run_id = post(client).json()["runId"]
+    assert client.get(STATUS_URL.format("fctt"), headers=KEY).status_code == 200
+    ingestor.release.set()
+    wait_for(client, run_id)

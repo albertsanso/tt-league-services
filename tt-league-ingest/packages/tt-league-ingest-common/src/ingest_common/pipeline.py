@@ -3,13 +3,13 @@
 from __future__ import annotations
 
 from importlib.metadata import entry_points
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Protocol
 
 from ingest_common.fingerprint import content_fingerprint, count_changes, file_digest, json_fingerprint
 from ingest_common.packaging import PackagingError, package_season
-from ingest_common.run import (STAGE_ORDER, IngestRequest, IngestStage, NoOpListener, ProgressListener, RunReport,
-                               StageReport)
+from ingest_common.run import (FILTER_FIELDS, STAGE_ORDER, IngestFilters, IngestRequest, IngestStage, NoOpListener,
+                               ProgressListener, RunReport, StageReport)
 from ingest_common.settings import ConfigurationError, IngestSettings
 from ingest_common.source import Source
 from ingest_common.upload import PlatformUploader, UploadError
@@ -31,6 +31,11 @@ class SourceIngestor(Protocol):
     def parse(self, request: IngestRequest, settings: IngestSettings, listener: ProgressListener) -> StageReport: ...
 
     def teams(self, request: IngestRequest, settings: IngestSettings, listener: ProgressListener) -> StageReport: ...
+
+    def scope_matches(self, scope: IngestFilters, relative: PurePosixPath, match_day: int | None) -> bool:
+        """Whether an ``actas-json/<season>`` file (path relative to the season folder, payload ``jornada``)
+        belongs to ``scope``; used to package scoped delta runs."""
+        ...
 
 
 def discover_ingestors() -> dict[Source, SourceIngestor]:
@@ -64,11 +69,13 @@ class IngestPipeline:
                        and stage not in (IngestStage.PACKAGE, IngestStage.UPLOAD)]
         if unsupported:
             return self._fail_early(report, f"{request.source.value} does not support stage(s): {', '.join(unsupported)}")
-        unsupported_filters = [name for name in ("category", "group", "phase", "match_days", "gender", "territory")
-                               if getattr(request.filters, name) and name not in ingestor.supported_filters]
-        if unsupported_filters:
-            return self._fail_early(
-                report, f'{request.source.value} does not support filter(s): {', '.join(unsupported_filters)}')
+        for index, scope in enumerate(request.effective_scopes(), 1):
+            unsupported_filters = [name for name in FILTER_FIELDS
+                                   if getattr(scope, name) and name not in ingestor.supported_filters]
+            if unsupported_filters:
+                where = f" (scope {index})" if request.scopes else ""
+                names = ", ".join(unsupported_filters)
+                return self._fail_early(report, f"{request.source.value} does not support filter(s): {names}{where}")
         if IngestStage.UPLOAD in request.stages:
             try:
                 self._settings.require_upload()
@@ -135,20 +142,24 @@ class IngestPipeline:
         if stage is IngestStage.TEAMS:
             return ingestor.teams(request, self._settings, self._listener)
         if stage is IngestStage.PACKAGE:
-            return self._package(request, report)
+            return self._package(ingestor, request, report)
         return self._upload(request, report)
 
-    def _package(self, request: IngestRequest, report: RunReport) -> StageReport:
+    def _package(self, ingestor: SourceIngestor, request: IngestRequest, report: RunReport) -> StageReport:
         stage = StageReport(IngestStage.PACKAGE)
         output = request.zip_path or default_zip_path(request, self._settings)
         actas_dir = self._settings.actas_json_dir(request.source) / str(request.season)
         teams_file = self._settings.equipos_json_dir(request.source) / f"{request.season}.json"
+
+        def in_scopes(relative: PurePosixPath, match_day: int | None) -> bool:
+            return any(ingestor.scope_matches(scope, relative, match_day) for scope in request.scopes)
+
         try:
             result = package_season(
                 source=request.source, season=request.season, actas_dir=actas_dir,
                 teams_file=teams_file if request.source is Source.RFETM and teams_file.is_file() else None,
                 output=output, mode=request.mode, match_days=request.filters.match_days,
-                force=request.force, dry_run=request.dry_run)
+                select=in_scopes if request.scopes else None, force=request.force, dry_run=request.dry_run)
         except PackagingError as error:
             stage.fail(str(output), str(error))
             return stage

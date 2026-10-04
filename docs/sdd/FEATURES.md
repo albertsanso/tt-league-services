@@ -54,28 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00098] Ingest multi-scope runs and match-day status endpoint
-- **Status:** idea
-- **Priority:** high
-- **Effort:** medium
-- **Depends on:** —
-
-#### Goal
-Let the orchestrator refresh only the open groups of several competitions in one ingest run and read each source's match-day status without scraping.
-
-#### Acceptance Criteria
-- [ ] `POST /api/v1/ingest/runs` accepts `scopes: [{category, group, phase, territory, gender, matchDays}]`, and a run downloads, parses and packages only the union of the scopes
-- [ ] The existing single `filters` body stays valid; sending both `filters` and `scopes` is a 400
-- [ ] Unsupported scope fields for a source fail the run before any network call, as filters do today
-- [ ] `GET /api/v1/ingest/sources/{source}/match-days-status?season=` returns the current `match-days-status.json` (404 when none exists)
-- [ ] The CLI `run` accepts a `--scope-file` JSON with the same shape
-- [ ] Tests cover scope union, validation and the status endpoint; README documents both
-
-#### Feature Details
-→ See [FEAT-00098-DETAILS.md](./FEAT-00098-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00099] Upload ZIP provenance manifest and package retrieval
 - **Status:** ready
 - **Priority:** high
@@ -452,6 +430,28 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00098] Ingest multi-scope runs and match-day status endpoint
+- **Status:** done
+- **Priority:** high
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Let the orchestrator refresh only the open groups of several competitions in one ingest run and read each source's match-day status without scraping.
+
+#### Acceptance Criteria
+- [x] `POST /api/v1/ingest/runs` accepts `scopes: [{category, group, phase, territory, gender, matchDays}]`, and a run downloads, parses and packages only the union of the scopes
+- [x] The existing single `filters` body stays valid; sending both `filters` and `scopes` is a 400
+- [x] Unsupported scope fields for a source fail the run before any network call, as filters do today
+- [x] `GET /api/v1/ingest/sources/{source}/match-days-status?season=` returns the current `match-days-status.json` (404 when none exists)
+- [x] The CLI `run` accepts a `--scope-file` JSON with the same shape
+- [x] Tests cover scope union, validation and the status endpoint; README documents both
+
+#### Feature Details
+→ See [FEAT-00098-DETAILS.md](./FEAT-00098-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00097] Ingest run outcome classification for unattended runs
 - **Status:** done

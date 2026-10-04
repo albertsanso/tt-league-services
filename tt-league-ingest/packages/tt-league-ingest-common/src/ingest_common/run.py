@@ -45,14 +45,35 @@ RETRYABLE_OUTCOMES = frozenset({RunOutcome.SOURCE_UNAVAILABLE})
 LEGACY_FAILURE_MESSAGE = "the script finished with failures (see its log)"
 
 
+FILTER_FIELDS = ("category", "group", "phase", "match_days", "gender", "territory")
+
+
 @dataclass(frozen=True)
 class IngestFilters:
+    """One filter set; a scoped run combines several of them (each one is a scope)."""
+
     category: str | None = None
     group: str | None = None
     phase: str | None = None
     match_days: frozenset[int] | None = None
     gender: str | None = None
     territory: str | None = None
+
+    @property
+    def is_empty(self) -> bool:
+        return not any(getattr(self, name) for name in FILTER_FIELDS)
+
+    def describe(self) -> str:
+        """``territory=Girona category=PREFERENT group=G2 days=3,4``, used in issue labels."""
+        parts = [f"{name}={getattr(self, name)}" for name in ("territory", "category", "gender", "group", "phase")
+                 if getattr(self, name)]
+        if self.match_days:
+            parts.append("days=" + ",".join(str(day) for day in sorted(self.match_days)))
+        return " ".join(parts) or "all"
+
+    def to_dict(self) -> dict[str, object]:
+        return {"category": self.category, "group": self.group, "phase": self.phase, "territory": self.territory,
+                "gender": self.gender, "matchDays": sorted(self.match_days) if self.match_days else None}
 
 
 @dataclass(frozen=True)
@@ -67,6 +88,24 @@ class IngestRequest:
     allow_published_shrink: bool = False
     zip_path: Path | None = None  # PACKAGE output / UPLOAD input override
     dry_run: bool = False
+    scopes: tuple[IngestFilters, ...] = ()  # several filter sets, OR-combined; exclusive with ``filters``
+
+    def __post_init__(self) -> None:
+        scopes = tuple(dict.fromkeys(self.scopes))  # drop exact duplicates, keep the first-seen order
+        object.__setattr__(self, "scopes", scopes)
+        if not scopes:
+            return
+        if self.filters != IngestFilters():
+            raise ValueError("use either filters or scopes, not both")
+        for index, scope in enumerate(scopes, 1):
+            if scope.is_empty:
+                raise ValueError(f"scope {index} sets no field")
+        if IngestStage.PACKAGE in self.stages and self.mode != "delta":
+            raise ValueError("a scoped run packages in delta mode only (a snapshot is always the whole season)")
+
+    def effective_scopes(self) -> tuple[IngestFilters, ...]:
+        """The scopes of a scoped run, or the single filter set of any other run."""
+        return self.scopes or (self.filters,)
 
 
 COUNTERS = ("seen", "downloaded", "skipped_existing", "parsed", "published", "unpublished",
@@ -144,6 +183,7 @@ class RunReport:
             "outcome": self.outcome.value,
             "retryable": self.retryable,
             "changes": dict(self.changes),
+            "scopes": [scope.to_dict() for scope in self.request.effective_scopes()],
             "startedAt": self.started_at.isoformat(),
             "finishedAt": self.finished_at.isoformat() if self.finished_at else None,
             "stages": [

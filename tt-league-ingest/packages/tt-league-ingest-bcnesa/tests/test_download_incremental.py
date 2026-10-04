@@ -184,3 +184,37 @@ def test_status_scan_classifies_saved_jornadas(tmp_path):
                        "2026-2027/rtb-preferent/G2/1a Fase/jornada_03.html": "partial"}
     first = report["matchDays"][0]
     assert (first["matchDay"], first["category"], first["territory"]) == (3, "rtb-preferent", "Barcelona")
+
+
+def test_status_row_is_a_valid_scope_for_download_parse_and_package(tmp_path):
+    """The orchestrator builds scopes from status rows: each row value must select that same league again."""
+    from datetime import datetime
+    from pathlib import PurePosixPath
+
+    from ingest_bcnesa import parse, status
+    from ingest_bcnesa.ingestor import BcnesaIngestor
+    from ingest_common.match_day_status import build_report
+    from ingest_common.scopes import scope_from_values
+    from ingest_common.source import Source
+
+    league = dl.League("Barcelona", "RTB PREFERENT G1", "RTB PREFERENT", "G1", "1a Fase", LEAGUE.url)
+    content = tmp_path / "content"
+    league_dir = content / "2026-2027" / dl.clean_name(league.category) / league.group / "1a Fase"
+    league_dir.mkdir(parents=True)
+    ctx = dl.Context(FakeFetcher(played_match()), RecordingMetrics(),
+                     argparse.Namespace(season="2026-2027", format="html", skip_pdf=True, force=False), LOGGER,
+                     adaptive=True)
+    dl.process_match_day(ctx, league, "1a Fase", 3, league_dir, None, league.title)
+
+    row = build_report(Source.BCNESA, status.scan(content), datetime(2026, 10, 4, 12, 0))["matchDays"][0]
+    scope = scope_from_values(category=row["category"], group=row["group"], phase=row["phase"],
+                              territory=row["territory"], match_days=[row["matchDay"]])
+
+    assert dl.league_matches_filters(league, argparse.Namespace(territory=scope.territory, category=scope.category,
+                                                                group=scope.group))
+    selected = parse.find_jornada_files(content, argparse.Namespace(
+        season="2026-2027", category=scope.category, group=scope.group, phase=scope.phase,
+        match_day=set(scope.match_days)))
+    assert [path.relative_to(content).as_posix() for path in selected] == [row["file"]]
+    acta = PurePosixPath("rtb-preferent/G1/1a Fase/jornada_03_local_team_10_away_team_20.json")
+    assert BcnesaIngestor().scope_matches(scope, acta, row["matchDay"])

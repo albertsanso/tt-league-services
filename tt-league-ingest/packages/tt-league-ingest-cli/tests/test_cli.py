@@ -170,3 +170,47 @@ def test_help_exits_zero(tmp_path):
     with pytest.raises(SystemExit) as exit_:
         build_parser().parse_args(["--help"])
     assert exit_.value.code == 0
+
+
+def write_scopes(tmp_path, document):
+    path = tmp_path / "scopes.json"
+    path.write_text(document if isinstance(document, str) else json.dumps(document), encoding="utf-8")
+    return str(path)
+
+
+def test_run_with_a_scope_file(tmp_path, capsys):
+    scope_file = write_scopes(tmp_path, {"scopes": [{"category": "tdm", "group": "g1", "matchDays": [3]},
+                                                    {"gender": "female", "matchDays": "1-2"}]})
+    code, ingestor = run(tmp_path, "run", "--source", "fctt", "--scope-file", scope_file)
+    assert code == EXIT_OK
+    request = ingestor.requests[0]
+    assert [(scope.category, scope.group, scope.gender, scope.match_days) for scope in request.scopes] == [
+        ("tdm", "g1", None, frozenset({3})), (None, None, "female", frozenset({1, 2}))]
+    assert "scopes: category=tdm group=g1 days=3; gender=female days=1,2" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("extra, document, message", [
+    (["--group", "g1"], {"scopes": [{"group": "g2"}]}, "cannot be combined with --group"),
+    (["--match-day", "3"], {"scopes": [{"group": "g2"}]}, "cannot be combined with --match-day"),
+    ([], "{not json", "invalid --scope-file"),
+    ([], {"scopes": [{"grup": "g1"}]}, "unknown key"),
+    ([], {"scopes": []}, "must not be empty"),
+    (["--package"], {"scopes": [{"group": "g2"}]}, "delta mode only"),
+])
+def test_invalid_scope_file_is_a_usage_error(tmp_path, capsys, extra, document, message):
+    code, ingestor = run(tmp_path, "run", "--source", "fctt", "--scope-file", write_scopes(tmp_path, document),
+                         *extra)
+    assert code == EXIT_USAGE and ingestor.requests == []
+    assert message in capsys.readouterr().err
+
+
+def test_missing_scope_file_is_a_usage_error(tmp_path, capsys):
+    code, _ = run(tmp_path, "run", "--source", "fctt", "--scope-file", str(tmp_path / "missing.json"))
+    assert code == EXIT_USAGE and "cannot read --scope-file" in capsys.readouterr().err
+
+
+def test_scoped_delta_package_needs_no_match_day_option(tmp_path):
+    scope_file = write_scopes(tmp_path, {"scopes": [{"group": "g1"}]})
+    request = build_request(build_parser().parse_args(
+        ["run", "--source", "fctt", "--scope-file", scope_file, "--package", "--mode", "delta"]))
+    assert request.mode == "delta" and request.scopes[0].group == "g1"

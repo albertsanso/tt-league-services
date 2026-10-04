@@ -14,6 +14,7 @@ Pages that list no matches are not match days; they are only counted (``emptyPag
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -126,6 +127,33 @@ def build_report(source: Source, scan: ScanResult, now: datetime) -> dict[str, A
         },
         "matchDays": rows,
     }
+
+
+def report_for_season(report: dict[str, Any], season: str) -> dict[str, Any] | None:
+    """The report restricted to one season, or ``None`` when it has no match day of that season.
+
+    The match-day counters of ``summary`` are recomputed from the kept rows; ``emptyPages`` and
+    ``unreadablePages`` are not tracked per season and keep their whole-report values.
+    """
+    rows = [row for row in report.get("matchDays", []) if row.get("season") == season]
+    if not rows:
+        return None
+    summary = dict(report.get("summary", {}))
+    summary["matchDays"] = len(rows)
+    for status in STATUSES:
+        summary[status] = sum(row["status"] == status for row in rows)
+    for name in ("matches", "played", "reported"):
+        summary[name] = sum(row[name] for row in rows)
+    return {**report, "seasons": [season], "summary": summary, "matchDays": rows}
+
+
+def read_status_report(content_dir: Path) -> dict[str, Any] | None:
+    """The current ``<content_dir>/match-days-status.json``, or ``None`` when no download has written one."""
+    try:
+        text = (content_dir / STATUS_FILE).read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return None
+    return json.loads(text)
 
 
 def write_status_report(content_dir: Path, source: Source, scan: ScanResult, now: datetime | None = None) -> Path:

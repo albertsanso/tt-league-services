@@ -4,7 +4,7 @@ import json
 import threading
 import zipfile
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 import pytest
 
@@ -64,6 +64,28 @@ def test_delta_selects_by_payload_jornada(tmp_path):
     assert result.manifest["assets"]["ACTAS"]["files"] == ["actas-json/2026-2027/x/acta_1_2.json",
                                                             "actas-json/2026-2027/y/acta_5_6.json"]
     assert result.manifest["mode"] == "delta"
+
+
+def test_delta_select_replaces_the_match_day_rule(tmp_path):
+    actas = write_actas(tmp_path / "a", {"g1/r/acta_1.json": 3, "g1/r/acta_2.json": 4, "g2/r/acta_3.json": 3,
+                                         "g3/r/acta_4.json": 3})
+    seen = []
+
+    def select(relative, day):
+        seen.append((relative, day))
+        return (relative.parts[0], day) in {("g1", 3), ("g2", 3)}
+
+    result = package_season(source=Source.FCTT, season=SEASON, actas_dir=actas, teams_file=None,
+                            output=tmp_path / "d.zip", mode="delta", select=select)
+    assert result.manifest["assets"]["ACTAS"]["files"] == ["actas-json/2026-2027/g1/r/acta_1.json",
+                                                            "actas-json/2026-2027/g2/r/acta_3.json"]
+    assert (PurePosixPath("g1/r/acta_2.json"), 4) in seen
+    snapshot = package_season(source=Source.FCTT, season=SEASON, actas_dir=actas, teams_file=None,
+                              output=tmp_path / "s.zip", select=lambda relative, day: False)
+    assert len(snapshot.manifest["assets"]["ACTAS"]["files"]) == 4  # a snapshot is the whole season
+    with pytest.raises(PackagingError, match="no actas selected"):
+        package_season(source=Source.FCTT, season=SEASON, actas_dir=actas, teams_file=None,
+                       output=tmp_path / "e.zip", mode="delta", select=lambda relative, day: False)
 
 
 def test_empty_delta_and_existing_output_fail(tmp_path):
@@ -350,3 +372,63 @@ def test_report_dict_exposes_outcome_retryable_changes_and_skipped(tmp_path):
 def test_entry_points_resolve_the_three_sources():
     from ingest_common.pipeline import discover_ingestors
     assert set(discover_ingestors()) == {Source.RFETM, Source.BCNESA, Source.FCTT}
+
+
+class ScopedIngestor(OutcomeIngestor):
+    """Writes actas of three groups and matches scopes on the first folder (the group) and the day."""
+
+    supported_filters = frozenset({"group", "match_days"})
+
+    def __init__(self):
+        super().__init__()
+        self.requests = []
+
+    def parse(self, request, settings, listener):
+        self.requests.append(request)
+        report = self._stage(IngestStage.PARSE)
+        season_dir = settings.actas_json_dir(request.source) / str(request.season)
+        for group, day in (("g1", 3), ("g1", 4), ("g2", 3), ("g3", 3)):
+            acta = season_dir / group / "regular" / f"jornada_{day}.json"
+            acta.parent.mkdir(parents=True, exist_ok=True)
+            acta.write_text(json.dumps({"jornada": day, "acta_publicada": True}), encoding="utf-8")
+        return report
+
+    def scope_matches(self, scope, relative, match_day):
+        return ((not scope.group or relative.parts[0] == scope.group)
+                and (not scope.match_days or match_day in scope.match_days))
+
+
+def test_scoped_delta_run_packages_only_the_union_of_the_scopes(tmp_path):
+    ingestor = ScopedIngestor()
+    scopes = (IngestFilters(group="g1", match_days=frozenset({3})), IngestFilters(group="g2"))
+    report = IngestPipeline(IngestSettings(tmp_path), {Source.FCTT: ingestor}).run(
+        IngestRequest(Source.FCTT, SEASON, PUBLISH, mode="delta", scopes=scopes))
+    assert report.outcome is RunOutcome.SUCCEEDED, report.to_dict()
+    with zipfile.ZipFile(report.outputs["package"]) as archive:
+        manifest = json.loads(archive.read("manifest.json"))
+    assert manifest["mode"] == "delta"
+    assert manifest["assets"]["ACTAS"]["files"] == ["actas-json/2026-2027/g1/regular/jornada_3.json",
+                                                    "actas-json/2026-2027/g2/regular/jornada_3.json"]
+    assert ingestor.requests[0].scopes == scopes
+    assert report.to_dict()["scopes"] == [
+        {"category": None, "group": "g1", "phase": None, "territory": None, "gender": None, "matchDays": [3]},
+        {"category": None, "group": "g2", "phase": None, "territory": None, "gender": None, "matchDays": None}]
+
+
+def test_unsupported_field_in_any_scope_fails_before_any_stage(tmp_path):
+    ingestor = ScopedIngestor()
+    scopes = (IngestFilters(group="g1"), IngestFilters(group="g2", category="tdm"))
+    report = IngestPipeline(IngestSettings(tmp_path), {Source.FCTT: ingestor}).run(
+        IngestRequest(Source.FCTT, SEASON, PUBLISH, mode="delta", scopes=scopes))
+    assert report.outcome is RunOutcome.FAILED and ingestor.calls == []
+    assert report.stages[0].issues[0][1] == "FCTT does not support filter(s): category (scope 2)"
+
+
+def test_filter_run_keeps_the_match_day_delta_and_reports_its_filters_as_one_scope(tmp_path):
+    ingestor = ScopedIngestor()
+    report = IngestPipeline(IngestSettings(tmp_path), {Source.FCTT: ingestor}).run(
+        IngestRequest(Source.FCTT, SEASON, PUBLISH, IngestFilters(match_days=frozenset({3})), mode="delta"))
+    with zipfile.ZipFile(report.outputs["package"]) as archive:
+        files = json.loads(archive.read("manifest.json"))["assets"]["ACTAS"]["files"]
+    assert len(files) == 3  # every group's day 3: scope_matches is not consulted
+    assert [scope["matchDays"] for scope in report.to_dict()["scopes"]] == [[3]]

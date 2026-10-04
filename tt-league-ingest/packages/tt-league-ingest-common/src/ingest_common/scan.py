@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Callable
+import time
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from ingest_common.match_day_status import ScanResult, write_status_report
-from ingest_common.run import LEGACY_FAILURE_MESSAGE, IngestStage, StageReport
+from ingest_common.run import LEGACY_FAILURE_MESSAGE, IngestFilters, IngestStage, StageReport
 from ingest_common.source import Source
 from ingest_common.validation import ActaValidator
 
@@ -30,6 +31,27 @@ def record_exit_code(report: StageReport, script: str, code: int) -> bool:
         return True
     report.fail(script, f"the script failed with exit code {code}")
     return False
+
+
+def run_per_scope(report: StageReport, script: str, calls: Sequence[tuple[IngestFilters, list[str]]],
+                  main: Callable[[list[str]], int], delay_seconds: float = 0.0,
+                  sleep: Callable[[float], None] | None = None) -> None:
+    """Run a legacy script once per distinct argument list (one list per scope).
+
+    Identical argument lists run once. ``delay_seconds`` is waited between two calls, so a new scope never sends its
+    first request sooner than the script's own pacing allows. A call that fails the stage stops the loop; exit code 1
+    is recorded and the next scope still runs. With a single call the issue label is ``script``, as before scopes.
+    """
+    distinct: dict[tuple[str, ...], IngestFilters] = {}
+    for scope, args in calls:
+        distinct.setdefault(tuple(args), scope)
+    for position, (args, scope) in enumerate(distinct.items()):
+        if position:
+            (sleep or time.sleep)(delay_seconds)
+        label = script if len(distinct) == 1 else f"{script} [{scope.describe()}]"
+        record_exit_code(report, label, main(list(args)))
+        if report.failed:
+            return
 
 
 def count_files(report: StageReport, directory: Path, patterns: tuple[str, ...]) -> None:

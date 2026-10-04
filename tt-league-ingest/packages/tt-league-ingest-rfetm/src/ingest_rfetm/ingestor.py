@@ -3,21 +3,22 @@
 from __future__ import annotations
 
 import json
+from pathlib import PurePosixPath
 
-from ingest_common.run import IngestRequest, IngestStage, ProgressListener, StageReport
-from ingest_common.scan import count_files, record_exit_code, scan_actas, write_match_day_status
+from ingest_common.run import IngestFilters, IngestRequest, IngestStage, ProgressListener, StageReport
+from ingest_common.scan import count_files, record_exit_code, run_per_scope, scan_actas, write_match_day_status
 from ingest_common.settings import IngestSettings
 from ingest_common.source import Source
 from ingest_common.validation import ActaValidator, TeamsValidator
 from ingest_rfetm import download, parse, status, teams_download, teams_parse
 
 
-def _jornada_args(request: IngestRequest) -> list[str]:
+def _jornada_args(request: IngestRequest, filters: IngestFilters) -> list[str]:
     args: list[str] = []
-    for day in sorted(request.filters.match_days or ()):
+    for day in sorted(filters.match_days or ()):
         args += ["--jornada", str(day)]
-    if request.filters.category:
-        args += ["--category", request.filters.category]
+    if filters.category:
+        args += ["--category", filters.category]
     if request.force:
         args.append("--force")
     return args
@@ -31,22 +32,26 @@ class RfetmIngestor:
 
     def download(self, request: IngestRequest, settings: IngestSettings, listener: ProgressListener) -> StageReport:
         report = StageReport(IngestStage.DOWNLOAD)
-        args = ["--content-dir", str(settings.content_dir(self.source)), "--season", str(request.season)]
-        args += _jornada_args(request)
-        if request.delay_seconds is not None:
-            args += ["--delay", str(request.delay_seconds)]
-        record_exit_code(report, "rfetm download", download.main(args))
+        calls = []
+        for scope in request.effective_scopes():
+            args = ["--content-dir", str(settings.content_dir(self.source)), "--season", str(request.season)]
+            args += _jornada_args(request, scope)
+            if request.delay_seconds is not None:
+                args += ["--delay", str(request.delay_seconds)]
+            calls.append((scope, args))
+        delay = download.DEFAULT_DELAY if request.delay_seconds is None else request.delay_seconds
+        run_per_scope(report, "rfetm download", calls, download.main, delay)
         count_files(report, settings.content_dir(self.source) / str(request.season), ("*.html", "*.pdf"))
         write_match_day_status(report, settings.content_dir(self.source), self.source, status.scan)
         return report
 
     def parse(self, request: IngestRequest, settings: IngestSettings, listener: ProgressListener) -> StageReport:
         report = StageReport(IngestStage.PARSE)
-        args = ["--content-dir", str(settings.content_dir(self.source)),
-                "--json-dir", str(settings.actas_json_dir(self.source)),
-                "--season", str(request.season), "--validate"]
-        args += _jornada_args(request)
-        record_exit_code(report, "rfetm parse", parse.main(args))
+        calls = [(scope, ["--content-dir", str(settings.content_dir(self.source)),
+                          "--json-dir", str(settings.actas_json_dir(self.source)),
+                          "--season", str(request.season), "--validate"] + _jornada_args(request, scope))
+                 for scope in request.effective_scopes()]
+        run_per_scope(report, "rfetm parse", calls, parse.main)
         scan_actas(report, settings.actas_json_dir(self.source) / str(request.season), ActaValidator())
         return report
 
@@ -74,3 +79,11 @@ class RfetmIngestor:
         else:
             report.fail(str(produced), "the teams file was not produced")
         return report
+
+    def scope_matches(self, scope: IngestFilters, relative: PurePosixPath, match_day: int | None) -> bool:
+        """``<category>/<day>/<sex>/acta_*.json``: the category folder as the parser compares it, and the day."""
+        if len(relative.parts) != 4:
+            return False
+        if scope.category and relative.parts[0] != scope.category:
+            return False
+        return not scope.match_days or match_day in scope.match_days

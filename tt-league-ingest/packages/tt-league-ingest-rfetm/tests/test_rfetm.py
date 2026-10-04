@@ -202,3 +202,63 @@ def test_status_scan_of_saved_jornadas(tmp_path):
         "complete", "future"]
     assert [d["status"] for d in build_report(Source.RFETM, status.scan(content), DURING)["matchDays"]] == [
         "complete", "scheduled"]
+
+
+# --------------------------------------------------------------------------- scoped runs
+
+def test_each_scope_runs_download_and_parse_once(tmp_path, monkeypatch):
+    from ingest_common.run import IngestFilters, IngestRequest, IngestStage, NoOpListener
+    from ingest_common.season import Season
+    from ingest_common.settings import IngestSettings
+    from ingest_common.source import Source
+
+    calls = {"download": [], "parse": []}
+    monkeypatch.setattr(download, "main", lambda argv: calls["download"].append(argv) or 0)
+    monkeypatch.setattr(parse, "main", lambda argv: calls["parse"].append(argv) or 0)
+    scopes = (IngestFilters(category="divisio-honor", match_days=frozenset({3, 4})),
+              IngestFilters(category="primera-divisio"))
+    request = IngestRequest(Source.RFETM, Season.parse("2026-2027"), (IngestStage.DOWNLOAD, IngestStage.PARSE),
+                            delay_seconds=0, scopes=scopes)
+    ingestor, settings = RfetmIngestor(), IngestSettings(tmp_path)
+    assert not ingestor.download(request, settings, NoOpListener()).failed
+    assert not ingestor.parse(request, settings, NoOpListener()).failed
+    assert [argv[argv.index("--category") + 1:] for argv in calls["download"]] == [
+        ["divisio-honor", "--delay", "0"], ["primera-divisio", "--delay", "0"]]
+    assert calls["download"][0].count("--jornada") == 2 and "--jornada" not in calls["download"][1]
+    assert [argv[argv.index("--validate") + 1:] for argv in calls["parse"]] == [
+        ["--jornada", "3", "--jornada", "4", "--category", "divisio-honor"], ["--category", "primera-divisio"]]
+
+
+@pytest.mark.parametrize("scope, day, expected", [
+    ({"category": "divisio-honor"}, 1, True),
+    ({"category": "primera-divisio"}, 1, False),
+    ({"match_days": frozenset({1, 2})}, 1, True),
+    ({"category": "divisio-honor", "match_days": frozenset({2})}, 1, False),
+])
+def test_scope_matches_follows_the_actas_layout(scope, day, expected):
+    from pathlib import PurePosixPath
+
+    from ingest_common.run import IngestFilters
+
+    acta = PurePosixPath("divisio-honor/1/femenino/acta_866_1113.json")
+    assert RfetmIngestor().scope_matches(IngestFilters(**scope), acta, day) is expected
+    assert not RfetmIngestor().scope_matches(IngestFilters(**scope), PurePosixPath("divisio-honor/acta.json"), day)
+
+
+def test_status_row_category_and_match_day_are_a_valid_scope():
+    """RFETM rows also carry group and gender, which RFETM scopes do not support: scopes use category and day."""
+    from pathlib import PurePosixPath
+
+    from ingest_common.match_day_status import build_report
+    from ingest_common.scopes import scope_from_values
+    from ingest_common.source import Source
+    from ingest_rfetm import status
+
+    row = build_report(Source.RFETM, status.scan(FIXTURES / "content"), DURING)["matchDays"][0]
+    scope = scope_from_values(category=row["category"], match_days=[row["matchDay"]])
+    assert scope.category in download.LIGA_MAPPING.values()  # accepted by the downloader's --category choices
+    parse.configure(FIXTURES / "content", Path("unused"))
+    found = list(parse.iter_html_files(row["season"], scope.category, sorted(scope.match_days)))
+    assert [path.relative_to(FIXTURES / "content").as_posix() for *_, path in found] == [row["file"]]
+    acta = PurePosixPath(row["category"], str(row["matchDay"]), row["gender"], "acta_866_1113.json")
+    assert RfetmIngestor().scope_matches(scope, acta, row["matchDay"])

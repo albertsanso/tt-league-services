@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from ingest_common.match_day_status import (STATUS_FILE, MatchDayEntry, MatchState, ScanResult, build_report,
-                                            classify, write_status_report)
+                                            classify, read_status_report, report_for_season, write_status_report)
 from ingest_common.source import Source
 
 NOW = datetime(2026, 10, 4, 12, 0)
@@ -40,8 +40,8 @@ def test_classify_rejects_empty_match_day():
         classify((), NOW)
 
 
-def entry(day, matches, **fields):
-    return MatchDayEntry(season="2026-2027", match_day=day, file=f"2026-2027/x/jornada-{day}.html",
+def entry(day, matches, season="2026-2027", **fields):
+    return MatchDayEntry(season=season, match_day=day, file=f"{season}/x/jornada-{day}.html",
                          matches=tuple(matches), content_updated_at=datetime(2026, 10, 4, 9, 0, tzinfo=timezone.utc),
                          **fields)
 
@@ -78,3 +78,24 @@ def test_report_is_rewritten_from_the_current_scan(tmp_path):
 def test_empty_content_gives_an_empty_report(tmp_path):
     report = build_report(Source.RFETM, ScanResult(), NOW)
     assert report["matchDays"] == [] and report["seasons"] == [] and report["summary"]["matchDays"] == 0
+
+
+def test_report_for_season_keeps_its_rows_and_recomputes_the_summary():
+    scan = ScanResult([entry(1, [DONE, DONE]), entry(2, [UPCOMING]), entry(9, [DUE], season="2025-2026")],
+                      empty_pages=2, issues=[("bad.html", "boom")])
+    report = build_report(Source.FCTT, scan, NOW)
+    current = report_for_season(report, "2026-2027")
+    assert current["seasons"] == ["2026-2027"] and current["source"] == "FCTT"
+    assert [day["matchDay"] for day in current["matchDays"]] == [1, 2]
+    assert current["summary"] == {"matchDays": 2, "complete": 1, "partial": 0, "scheduled": 0, "future": 1,
+                                  "matches": 3, "played": 2, "reported": 2, "emptyPages": 2, "unreadablePages": 1}
+    previous = report_for_season(report, "2025-2026")
+    assert previous["summary"]["scheduled"] == 1 and previous["summary"]["matchDays"] == 1
+    assert report_for_season(report, "2027-2028") is None
+    assert report["summary"]["matchDays"] == 3  # the full report is left untouched
+
+
+def test_read_status_report(tmp_path):
+    assert read_status_report(tmp_path) is None
+    write_status_report(tmp_path, Source.RFETM, ScanResult([entry(1, [DONE])]), NOW)
+    assert read_status_report(tmp_path)["matchDays"][0]["status"] == "complete"
