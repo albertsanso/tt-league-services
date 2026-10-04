@@ -3,8 +3,10 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.cttelsamicsterrassa.data.pipeline.core.execution.ExecutionSettings;
+import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
 import java.time.Duration;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -164,6 +166,113 @@ class PipelineOrchestratorPropertiesTest {
     @Test
     void failsWhenRecoverOnStartupIsMissing() {
         assertFails(without("tt.pipeline.execution.recover-on-startup"), "recover-on-startup");
+    }
+
+    @Test
+    void nothingIsScheduledWithoutAnyCron() {
+        runner.withPropertyValues(valid().toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            PipelineOrchestratorProperties.Schedule schedule =
+                    context.getBean(PipelineOrchestratorProperties.class).schedule();
+            assertThat(schedule.scheduledSources()).isEmpty();
+        });
+    }
+
+    @Test
+    void blankCronsSeasonAndZoneMeanNothingIsScheduled() {
+        List<String> properties = valid();
+        properties.addAll(List.of(
+                "tt.pipeline.schedule.season=",
+                "tt.pipeline.schedule.zone=",
+                "tt.pipeline.schedule.lock-at-most-for=PT10M",
+                "tt.pipeline.schedule.lock-at-least-for=PT30S",
+                "tt.pipeline.schedule.sources.RFETM.cron=",
+                "tt.pipeline.schedule.sources.BCNESA.cron=   ",
+                "tt.pipeline.schedule.sources.FCTT.cron="));
+        runner.withPropertyValues(properties.toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(PipelineOrchestratorProperties.class).schedule().scheduledSources()).isEmpty();
+        });
+    }
+
+    @Test
+    void bindsTheScheduledSourcesOnly() {
+        List<String> properties = scheduled();
+        properties.add("tt.pipeline.schedule.sources.FCTT.cron= 0 30 21 * * MON-FRI ");
+        runner.withPropertyValues(properties.toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            PipelineOrchestratorProperties.Schedule schedule =
+                    context.getBean(PipelineOrchestratorProperties.class).schedule();
+            assertThat(schedule.scheduledSources()).containsExactly(PipelineSource.RFETM, PipelineSource.FCTT);
+            assertThat(schedule.cron(PipelineSource.RFETM)).isEqualTo("0 0 7,22 * * *");
+            assertThat(schedule.cron(PipelineSource.FCTT)).isEqualTo("0 30 21 * * MON-FRI");
+            assertThat(schedule.season()).isEqualTo("2025-2026");
+            assertThat(schedule.zoneId()).isEqualTo(ZoneId.of("Europe/Madrid"));
+            assertThat(schedule.lockAtMostFor()).isEqualTo(Duration.ofMinutes(10));
+            assertThat(schedule.lockAtLeastFor()).isEqualTo(Duration.ofSeconds(30));
+        });
+    }
+
+    @Test
+    void failsOnAnInvalidCron() {
+        assertFails(replaceIn(scheduled(), "tt.pipeline.schedule.sources.RFETM.cron", "every morning"),
+                "schedule.sources.RFETM.cron is not a valid cron expression");
+        // Unix five-field cron is not the Spring format
+        assertFails(replaceIn(scheduled(), "tt.pipeline.schedule.sources.RFETM.cron", "0 7 * * *"),
+                "schedule.sources.RFETM.cron");
+    }
+
+    @Test
+    void failsOnAnUnknownSource() {
+        List<String> properties = scheduled();
+        properties.add("tt.pipeline.schedule.sources.XYZ.cron=0 0 7 * * *");
+        assertFails(properties, "XYZ");
+    }
+
+    @Test
+    void failsWhenACronIsSetWithoutAValidSeason() {
+        assertFails(replaceIn(scheduled(), "tt.pipeline.schedule.season", ""), "schedule.season is required");
+        assertFails(withoutIn(scheduled(), "tt.pipeline.schedule.season"), "schedule.season is required");
+        assertFails(replaceIn(scheduled(), "tt.pipeline.schedule.season", "2025-2027"), "schedule.season is invalid");
+    }
+
+    @Test
+    void failsWhenACronIsSetWithoutAValidZone() {
+        assertFails(replaceIn(scheduled(), "tt.pipeline.schedule.zone", " "), "schedule.zone is required");
+        assertFails(replaceIn(scheduled(), "tt.pipeline.schedule.zone", "Mars/Olympus"),
+                "schedule.zone is not a valid time zone");
+    }
+
+    @Test
+    void failsOnInvalidLockDurations() {
+        assertFails(replaceIn(scheduled(), "tt.pipeline.schedule.lock-at-most-for", "PT0S"),
+                "schedule.lock-at-most-for");
+        assertFails(withoutIn(scheduled(), "tt.pipeline.schedule.lock-at-least-for"), "schedule.lock-at-least-for");
+        assertFails(replaceIn(scheduled(), "tt.pipeline.schedule.lock-at-least-for", "PT11M"),
+                "schedule.lock-at-least-for must not exceed");
+    }
+
+    private static List<String> scheduled() {
+        List<String> properties = valid();
+        properties.addAll(List.of(
+                "tt.pipeline.schedule.season=2025-2026",
+                "tt.pipeline.schedule.zone=Europe/Madrid",
+                "tt.pipeline.schedule.lock-at-most-for=PT10M",
+                "tt.pipeline.schedule.lock-at-least-for=PT30S",
+                "tt.pipeline.schedule.sources.RFETM.cron=0 0 7,22 * * *"));
+        return properties;
+    }
+
+    private static List<String> replaceIn(List<String> properties, String key, String value) {
+        List<String> result = withoutIn(properties, key);
+        result.add(key + "=" + value);
+        return result;
+    }
+
+    private static List<String> withoutIn(List<String> properties, String key) {
+        List<String> result = new ArrayList<>(properties);
+        result.removeIf(entry -> entry.startsWith(key + "="));
+        return result;
     }
 
     private void assertFails(List<String> properties, String expectedFragment) {

@@ -45,6 +45,10 @@ remaining ports.
 - `TriggerRun` is the only caller of `RunLauncher` for new runs. Sources are
   processed independently; a pending trigger stores the request, not the
   resolved scope.
+- `ScheduledRunTick` is the only scheduled caller of `TriggerRun`: a
+  full-season, non-forced `SCHEDULED` run with `ConflictMode.REJECT`, so a
+  source with an active run is skipped and never queued. Cron parsing, timers
+  and locks stay in the runtime.
 - `CompositeRunObserver` (and the pending-trigger listener calls in
   `TriggerRun`) are the only broad `RuntimeException` catches: observers are
   side channels, so every failure is logged and never reaches the executor.

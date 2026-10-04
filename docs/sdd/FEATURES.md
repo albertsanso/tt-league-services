@@ -54,26 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00106] Orchestrator fixed-schedule trigger
-- **Status:** idea
-- **Priority:** high
-- **Effort:** medium
-- **Depends on:** FEAT-00104
-
-#### Goal
-Remove manual uploads by triggering full-scope runs per source on an explicitly configured schedule.
-
-#### Acceptance Criteria
-- [ ] Each source has an explicitly configured cron expression; a source without one is never scheduled, and an invalid expression fails startup
-- [ ] Scheduled ticks create `SCHEDULED` runs through the same trigger path as manual runs and skip a source with an active run
-- [ ] ShedLock (JDBC, `pipeline` schema) ensures only one orchestrator instance fires a tick
-- [ ] Tests cover tick handling, skip-when-active and lock behaviour; README documents the configuration
-
-#### Feature Details
-→ See [FEAT-00106-DETAILS.md](./FEAT-00106-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00107] Match-day tracker for open match days and pending matches
 - **Status:** idea
 - **Priority:** medium
@@ -276,6 +256,26 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00106] Orchestrator fixed-schedule trigger
+- **Status:** done
+- **Priority:** high
+- **Effort:** medium
+- **Depends on:** FEAT-00104, FEAT-00105
+
+#### Goal
+Remove manual uploads by triggering full-scope runs per source on an explicitly configured schedule.
+
+#### Acceptance Criteria
+- [x] Each source has an explicitly configured cron expression; a source without one is never scheduled, and an invalid expression fails startup
+- [x] Scheduled ticks create `SCHEDULED` runs through the same trigger path as manual runs and skip a source with an active run
+- [x] ShedLock (JDBC, `pipeline` schema) ensures only one orchestrator instance fires a tick
+- [x] Tests cover tick handling, skip-when-active and lock behaviour; README documents the configuration
+
+#### Feature Details
+→ See [FEAT-00106-DETAILS.md](./FEAT-00106-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00105] Orchestrator runs API with manual trigger and live events
 - **Status:** done

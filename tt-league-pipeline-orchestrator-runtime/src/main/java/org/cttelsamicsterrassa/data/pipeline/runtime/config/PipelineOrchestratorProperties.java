@@ -4,6 +4,8 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.ExecutionSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.PollIntervals;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RetryPolicy;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.StepTimeouts;
+import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
+import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -12,9 +14,15 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.time.DateTimeException;
 import java.time.Duration;
+import java.time.ZoneId;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.scheduling.support.CronExpression;
 import org.springframework.validation.annotation.Validated;
 
 /**
@@ -30,7 +38,12 @@ public record PipelineOrchestratorProperties(
         @Valid @NotNull Execution execution,
         @Valid @NotNull Security security,
         @Valid @NotNull Triggers triggers,
-        @Valid @NotNull Events events) {
+        @Valid @NotNull Events events,
+        Schedule schedule) {
+
+    public PipelineOrchestratorProperties {
+        schedule = schedule == null ? Schedule.none() : schedule;
+    }
 
     /** Platform REST API; {@code apiKey} is a service credential with {@code imports:write}. */
     public record Platform(
@@ -148,6 +161,105 @@ public record PipelineOrchestratorProperties(
             required(maxSubscribers, "events.max-subscribers");
             if (maxSubscribers < 1 || maxSubscribers > 1000) {
                 throw new IllegalArgumentException("events.max-subscribers must be between 1 and 1000");
+            }
+        }
+    }
+
+    /**
+     * Fixed-schedule trigger. A source is scheduled only when its {@code cron} (Spring six-field format) is set;
+     * blank means never. As soon as one source is scheduled, {@code season} and {@code zone} are required and the
+     * ShedLock durations must be positive with {@code lockAtLeastFor <= lockAtMostFor}. {@code sources} keeps only
+     * the scheduled sources, in source order.
+     */
+    public record Schedule(
+            String season,
+            String zone,
+            Duration lockAtMostFor,
+            Duration lockAtLeastFor,
+            Map<PipelineSource, SourceSchedule> sources) {
+
+        public record SourceSchedule(String cron) {
+        }
+
+        public Schedule {
+            Map<PipelineSource, SourceSchedule> scheduled = new EnumMap<>(PipelineSource.class);
+            if (sources != null) {
+                sources.forEach((source, value) -> {
+                    if (value != null && value.cron() != null && !value.cron().isBlank()) {
+                        String cron = value.cron().trim();
+                        validCron(source, cron);
+                        scheduled.put(source, new SourceSchedule(cron));
+                    }
+                });
+            }
+            sources = Collections.unmodifiableMap(scheduled);
+            if (lockAtMostFor != null) {
+                positive(lockAtMostFor, "schedule.lock-at-most-for");
+            }
+            if (lockAtLeastFor != null) {
+                positive(lockAtLeastFor, "schedule.lock-at-least-for");
+            }
+            if (!sources.isEmpty()) {
+                validSeason(season);
+                validZone(zone);
+                positive(lockAtMostFor, "schedule.lock-at-most-for");
+                positive(lockAtLeastFor, "schedule.lock-at-least-for");
+                if (lockAtLeastFor.compareTo(lockAtMostFor) > 0) {
+                    throw new IllegalArgumentException(
+                            "schedule.lock-at-least-for must not exceed schedule.lock-at-most-for");
+                }
+            }
+        }
+
+        static Schedule none() {
+            return new Schedule(null, null, null, null, Map.of());
+        }
+
+        public List<PipelineSource> scheduledSources() {
+            return List.copyOf(sources.keySet());
+        }
+
+        public String cron(PipelineSource source) {
+            SourceSchedule value = sources.get(source);
+            if (value == null) {
+                throw new IllegalArgumentException("Source " + source + " has no schedule");
+            }
+            return value.cron();
+        }
+
+        /** Only valid when a source is scheduled. */
+        public ZoneId zoneId() {
+            return ZoneId.of(zone.trim());
+        }
+
+        private static void validCron(PipelineSource source, String cron) {
+            try {
+                CronExpression.parse(cron);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException(
+                        "schedule.sources." + source + ".cron is not a valid cron expression: " + cron, e);
+            }
+        }
+
+        private static void validSeason(String season) {
+            if (season == null || season.isBlank()) {
+                throw new IllegalArgumentException("schedule.season is required when a source schedule is set");
+            }
+            try {
+                PipelineRun.requireValidSeason(season);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("schedule.season is invalid: " + e.getMessage(), e);
+            }
+        }
+
+        private static void validZone(String zone) {
+            if (zone == null || zone.isBlank()) {
+                throw new IllegalArgumentException("schedule.zone is required when a source schedule is set");
+            }
+            try {
+                ZoneId.of(zone.trim());
+            } catch (DateTimeException e) {
+                throw new IllegalArgumentException("schedule.zone is not a valid time zone: " + zone, e);
             }
         }
     }

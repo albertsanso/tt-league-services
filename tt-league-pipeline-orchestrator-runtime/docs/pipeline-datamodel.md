@@ -158,9 +158,23 @@ deleted when it is launched or dropped. It stores the request, not the resolved 
 
 Extra index on `pipeline_run`: `ix_pipeline_run_created (created_at DESC, id)` for the unfiltered run list.
 
+## `shedlock`
+
+ShedLock JDBC lock table for the fixed-schedule trigger: one row per lock name, written only by ShedLock
+(`JdbcTemplateLockProvider` with the database clock). Lock names are `pipeline-schedule-<SOURCE>`; rows are
+reused, not deleted, when a lock is released.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `name` | `varchar(64)` PK | lock name |
+| `lock_until` | `timestamp(3)` NOT NULL | UTC database time until which the lock is held |
+| `locked_at` | `timestamp(3)` NOT NULL | UTC database time the lock was taken |
+| `locked_by` | `varchar(255)` NOT NULL | host name of the instance that took it |
+
 ## Migration history
 
 | Version | File | Content |
 | --- | --- | --- |
 | `V1` | `V1__pipeline_run_model.sql` | `pipeline_run`, `pipeline_step`, `run_artifact`, `import_report`, active-run partial index |
 | `V2` | `V2__manual_triggers.sql` | `pipeline_run.force`, `ix_pipeline_run_created`, `pending_trigger` |
+| `V3` | `V3__scheduler_lock.sql` | `shedlock` |

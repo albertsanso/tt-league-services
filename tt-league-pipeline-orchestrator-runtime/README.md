@@ -38,6 +38,10 @@ positive (ISO-8601, for example `PT30S`) and invalid values fail startup:
 | `PIPELINE_IMPORT_TIMEOUT` | `PT3H` | IMPORT step deadline (above the platform default `PT2H` busy wait) |
 | `PIPELINE_MAX_CONCURRENT_RUNS` | `3` | Runs executed at once (1 to 3) |
 | `PIPELINE_RECOVER_ON_STARTUP` | `true` | Resume active runs at startup |
+| `PIPELINE_SCHEDULE_LOCK_AT_MOST_FOR` | `PT10M` | Longest a scheduled-tick lock is held if its instance dies |
+| `PIPELINE_SCHEDULE_LOCK_AT_LEAST_FOR` | `PT30S` | Shortest a scheduled-tick lock is held (clock skew between instances; at most the above) |
+
+Scheduled runs are off unless configured; see [Scheduled runs](#scheduled-runs) for the per-source cron variables.
 
 HTTP connect timeouts are `PT10S`; read timeouts are `PT1M` (ingest) and `PT5M`
 (platform, which validates the upload synchronously). They are set in
@@ -124,6 +128,31 @@ for those browser origins.
 - `GET /api/pipeline/pending-triggers`.
 - Conflict mode `PIPELINE_TRIGGER_CONFLICT_MODE`: `REJECT` (default) or `QUEUE` (one persisted pending trigger per
   source, launched when the active run ends or at startup).
+
+## Scheduled runs
+
+Each source can get full-season runs on a fixed schedule. A source is scheduled only when its cron is set; there is
+no default schedule.
+
+| Variable | Property | Description |
+| --- | --- | --- |
+| `PIPELINE_SCHEDULE_RFETM_CRON` | `tt.pipeline.schedule.sources.RFETM.cron` | Cron for RFETM; empty means never |
+| `PIPELINE_SCHEDULE_BCNESA_CRON` | `tt.pipeline.schedule.sources.BCNESA.cron` | Cron for BCNESA; empty means never |
+| `PIPELINE_SCHEDULE_FCTT_CRON` | `tt.pipeline.schedule.sources.FCTT.cron` | Cron for FCTT; empty means never |
+| `PIPELINE_SCHEDULE_SEASON` | `tt.pipeline.schedule.season` | Season of the scheduled runs, e.g. `2025-2026`; required when any cron is set |
+| `PIPELINE_SCHEDULE_ZONE` | `tt.pipeline.schedule.zone` | Time zone of the cron expressions, e.g. `Europe/Madrid`; required when any cron is set |
+
+- Crons use the Spring six-field format (`second minute hour day-of-month month day-of-week`), for example
+  `0 0 7,22 * * *` for 07:00 and 22:00 every day. A five-field Unix cron, an invalid expression, or a cron without
+  a valid season and zone fails startup with the offending setting named.
+- A tick creates a `SCHEDULED` run (`FULL_SEASON`, not forced, `requestedBy` = `system:scheduler`) through the same
+  `TriggerRun` path as `POST /api/pipeline/runs`. A source with an active run is skipped (logged), whatever
+  `PIPELINE_TRIGGER_CONFLICT_MODE` says; ticks never create pending triggers.
+- Ticks missed while the service is down are not caught up. A failed tick is logged and the next one still fires.
+- With several orchestrator instances, ShedLock (table `pipeline.shedlock`, database clock) lets only one fire each
+  tick: the lock `pipeline-schedule-<SOURCE>` is held at least `PIPELINE_SCHEDULE_LOCK_AT_LEAST_FOR` and at most
+  `PIPELINE_SCHEDULE_LOCK_AT_MOST_FOR`. Keep the shortest interval between two ticks of a source above
+  `PIPELINE_SCHEDULE_LOCK_AT_LEAST_FOR`. The active-run index still rejects a duplicate run if two ticks race.
 
 ## Event stream
 

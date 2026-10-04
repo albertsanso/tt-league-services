@@ -3,7 +3,10 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/** Exposes the nested settings as beans so the security, API and event layers do not depend on the whole record. */
+/**
+ * Exposes the nested settings as beans so the security, API, event and schedule layers do not depend on the whole
+ * record.
+ */
 @Configuration(proxyBeanMethods = false)
 public class PipelineSettingsConfiguration {
 
@@ -20,5 +23,10 @@ public class PipelineSettingsConfiguration {
     @Bean
     PipelineOrchestratorProperties.Events eventSettings(PipelineOrchestratorProperties properties) {
         return properties.events();
+    }
+
+    @Bean
+    PipelineOrchestratorProperties.Schedule scheduleSettings(PipelineOrchestratorProperties properties) {
+        return properties.schedule();
     }
 }

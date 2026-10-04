@@ -34,6 +34,12 @@ and the Flyway/JPA persistence of the run model (later features add security).
   `Authorization` header.
 - Controllers (`api/`) only translate HTTP to the core `TriggerRun` and
   `RunQueryService`; new runs are created only through `TriggerRun`.
+- Scheduled runs come only from `ScheduledRunTrigger` (`schedule/`), which calls
+  the core `ScheduledRunTick` under a ShedLock lock taken through
+  `LockingTaskExecutor`. Its scheduler is private and never a bean; do not add
+  `@EnableScheduling` or `@EnableSchedulerLock` (Boot would register a
+  `taskScheduler` `Executor` bean). Schedules are opt-in per source: no
+  default cron, season or zone.
 - Run observers never throw into the executor (`CompositeRunObserver` isolates
   them). The `RunEventBroadcaster` sends on its own private pool, which is not
   an `Executor` bean, and never on a run thread.
