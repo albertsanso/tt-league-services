@@ -41,7 +41,7 @@ import static org.cttelsamicsterrassa.data.api.rest.ControllerConfig.API_BASE_PA
 @RestController
 @RequestMapping(API_BASE_PATH_V1 + "/administration/import/jobs")
 @Tag(name = "Import Jobs API", description = "Submit upload ZIPs as import jobs and follow them to completion")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasAuthority('imports:write')")
 public class ImportJobController {
 
     @Autowired

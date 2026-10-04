@@ -72,6 +72,8 @@ security:
     # Required in every environment; use a random value of at least 32 bytes.
     secret: ${JWT_SIGNING_SECRET:some-random-dev-value-at-least-32-bytes}
     expiration-millis: ${JWT_EXPIRATION_MILLIS:108000000}
+  # security.service-credentials (FEAT-00101) is intentionally not set: no service credential is enabled by default.
+  # See the "Service credentials" section of the module README.
   password-recovery:
     from: ${PASSWORD_RECOVERY_FROM:no-reply@localhost}
     reset-url: ${PASSWORD_RECOVERY_RESET_URL:http://localhost:5173/reset-password}

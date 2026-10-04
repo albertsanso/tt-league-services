@@ -279,8 +279,10 @@ longer exists.
 
 The jobs API lets an automated client submit an upload ZIP and follow the
 resulting import to completion through one id. It accepts the same ZIP and
-manifest as `/upload` and requires the `ADMIN` role. The manual upload,
-preview and start endpoints are unchanged.
+manifest as `/upload` and requires the `imports:write` permission, held by
+the `ADMIN` role and by service credentials that list it (see Service
+credentials below). The manual upload, preview and start endpoints are unchanged
+and still require the `ADMIN` role.
 
 | Endpoint | Result |
 |---|---|
@@ -339,6 +341,74 @@ imported again, and every `QUEUED` job is resumed in creation order. A job still
 waiting to start storing when the application stops stays `QUEUED` and resumes.
 A recovery failure fails startup. Run a single instance: the run registry and
 the submission lock are per JVM.
+
+## Service credentials (FEAT-00101)
+
+Automated callers (the pipeline orchestrator, scripts) can call the import jobs
+API and the read endpoints with a dedicated service credential instead of a
+user's JWT, which expires and is validated against the user table. No credential
+is configured by default.
+
+Each entry of `security.service-credentials` has:
+
+| Property | Rule |
+|---|---|
+| `name` | `[a-z0-9-]{1,40}`, unique; the caller authenticates as `service:<name>` |
+| `key-sha256` | the SHA-256 of the key as 64 hexadecimal characters, unique; only the hash is configured, never the key |
+| `permissions` | one or more of the permission values (`imports:write`, `matches:read`, `clubs:read`, ...) |
+
+**Generate a key and its hash** (keep the key in the caller's secret store, put
+only the hash in the platform configuration):
+
+```bash
+KEY=$(openssl rand -base64 32)
+printf '%s' "$KEY" | sha256sum | cut -d' ' -f1
+```
+
+**Configure** it with environment variables. Spring relaxed binding drops the
+dashes, so the names are:
+
+```text
+SECURITY_SERVICECREDENTIALS_0_NAME=orchestrator
+SECURITY_SERVICECREDENTIALS_0_KEYSHA256=<64 hex characters>
+SECURITY_SERVICECREDENTIALS_0_PERMISSIONS=imports:write,matches:read
+```
+
+The same entry in YAML:
+
+```yaml
+security:
+  service-credentials:
+    - name: orchestrator
+      key-sha256: <64 hex characters>
+      permissions: [imports:write, matches:read]
+```
+
+**Call** with the key in the `X-API-Key` header:
+
+```bash
+curl -H "X-API-Key: $KEY" "http://localhost:8080/api/v1/administration/import/jobs?limit=10"
+```
+
+| Request | Result |
+|---|---|
+| valid key and the endpoint's permission | the request runs as `service:<name>` (an import job records it as `requestedBy`) |
+| valid key without the permission, or an `ADMIN`-role endpoint | `403` |
+| key that matches no configured credential, or no credential configured | `401` |
+| both `Authorization` and `X-API-Key` | `400` |
+
+A service principal holds only its configured permissions and never a role, so
+every endpoint that requires the `ADMIN` role (settings, the manual upload,
+preview and start endpoints, user administration) stays closed to it. User JWT
+authentication is unchanged. The key is hashed and compared in constant time;
+neither the key nor its hash is logged.
+
+Startup fails with a message naming the entry when a name is blank or not
+`[a-z0-9-]{1,40}`, a hash is not 64 hexadecimal characters, a permission is
+unknown or missing, or a name or hash appears twice.
+
+**Rotation:** add a second entry with a new key, switch the caller to it, then
+remove the old entry and restart.
 
 ## Season calendar (FEAT-00092)
 
@@ -432,6 +502,7 @@ For a role check:
 public void deleteUser(...) {
 }
 ```
+The `imports:write` permission (import jobs API) is granted to `ADMIN` and to service credentials.
 Prefer permissions for business capabilities and roles only for broad administrative checks. Backend checks are mandatory; frontend checks are only for UI convenience.
 You can also protect URL patterns in `SecurityConfig`:
 ```java

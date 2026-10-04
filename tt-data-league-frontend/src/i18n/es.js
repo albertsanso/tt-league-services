@@ -231,6 +231,7 @@ es.usersAdmin = {
     'matches:read': 'Leer partidos',
     'matches:write': 'Editar partidos',
     'analytics:read': 'Leer analítica',
+    'imports:write': 'Importar datos',
   },
 }
 

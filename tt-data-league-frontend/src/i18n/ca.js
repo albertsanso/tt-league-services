@@ -650,6 +650,7 @@ export default {
       'matches:read': 'Llegir partits',
       'matches:write': 'Editar partits',
       'analytics:read': 'Llegir analítica',
+      'imports:write': 'Importar dades',
     },
   },
   importPanel: {

@@ -5,7 +5,7 @@ import java.util.Set;
 public enum UserRole {
     ADMIN(Set.of(Permission.USERS_READ, Permission.USERS_WRITE, Permission.CLUBS_READ,
             Permission.CLUBS_WRITE, Permission.PLAYERS_READ, Permission.MATCHES_READ,
-            Permission.MATCHES_WRITE, Permission.ANALYTICS_READ)),
+            Permission.MATCHES_WRITE, Permission.ANALYTICS_READ, Permission.IMPORTS_WRITE)),
     CLUB_MANAGER(Set.of(Permission.CLUBS_READ, Permission.CLUBS_WRITE,
             Permission.PLAYERS_READ, Permission.MATCHES_READ)),
     ANALYST(Set.of(Permission.CLUBS_READ, Permission.PLAYERS_READ,

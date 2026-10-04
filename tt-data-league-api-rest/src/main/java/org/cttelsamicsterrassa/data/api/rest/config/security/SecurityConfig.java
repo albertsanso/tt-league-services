@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.api.rest.config.security;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -16,10 +17,14 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
+@EnableConfigurationProperties(ServiceCredentialProperties.class)
 public class SecurityConfig {
 
     @Autowired
     private JwtAuthenticationFilter jwtFilter;
+
+    @Autowired
+    private ServiceCredentialProperties serviceCredentials;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -61,6 +66,9 @@ public class SecurityConfig {
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+        // Not a bean: it must run only in this chain, ahead of the JWT filter that reads Authorization.
+        http.addFilterBefore(new ServiceCredentialAuthenticationFilter(serviceCredentials),
+                JwtAuthenticationFilter.class);
 
         return http.build();
     }

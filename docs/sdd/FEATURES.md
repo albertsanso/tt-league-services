@@ -54,28 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00101] Service credentials for platform-to-platform API calls
-- **Status:** ready
-- **Priority:** high
-- **Effort:** medium
-- **Depends on:** —
-
-#### Goal
-Let the orchestrator and the ingest service call the platform import and read APIs with a dedicated, scoped service credential instead of a user's JWT.
-
-#### Acceptance Criteria
-- [ ] Service credentials are configured from the environment as `security.service-credentials` entries (`name`, `key-sha256`, `permissions`); a presented `X-API-Key` is hashed and compared in constant time
-- [ ] A new `imports:write` permission is granted to the `ADMIN` role and to service credentials that list it; the import jobs endpoints accept `imports:write` and the match read endpoints keep `matches:read`
-- [ ] A valid service credential authenticates as `service:<name>` with only its configured permissions; an invalid key is a 401, and a request with both `Authorization` and `X-API-Key` is a 400
-- [ ] Startup fails clearly on a malformed entry (blank name, hash that is not 64 hex characters, unknown permission); no credential is configured by default
-- [ ] User JWT authentication and existing role checks are unchanged
-- [ ] Security tests cover allowed, forbidden, invalid-key and ambiguous-header cases; `tt-data-league-api-runtime/README.md` documents the configuration and how to generate a key and its hash
-
-#### Feature Details
-→ See [FEAT-00101-DETAILS.md](./FEAT-00101-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00102] Round progress and open match-day query endpoint
 - **Status:** idea
 - **Priority:** high
@@ -384,6 +362,28 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00101] Service credentials for platform-to-platform API calls
+- **Status:** done
+- **Priority:** high
+- **Effort:** medium
+- **Depends on:** FEAT-00100
+
+#### Goal
+Let the orchestrator and the ingest service call the platform import and read APIs with a dedicated, scoped service credential instead of a user's JWT.
+
+#### Acceptance Criteria
+- [x] Service credentials are configured from the environment as `security.service-credentials` entries (`name`, `key-sha256`, `permissions`); a presented `X-API-Key` is hashed and compared in constant time
+- [x] A new `imports:write` permission is granted to the `ADMIN` role and to service credentials that list it; the import jobs endpoints accept `imports:write` and the match read endpoints keep `matches:read`
+- [x] A valid service credential authenticates as `service:<name>` with only its configured permissions; an invalid key is a 401, and a request with both `Authorization` and `X-API-Key` is a 400
+- [x] Startup fails clearly on a malformed entry (blank name, hash that is not 64 hex characters, unknown permission); no credential is configured by default
+- [x] User JWT authentication and existing role checks are unchanged
+- [x] Security tests cover allowed, forbidden, invalid-key and ambiguous-header cases; `tt-data-league-api-runtime/README.md` documents the configuration and how to generate a key and its hash
+
+#### Feature Details
+→ See [FEAT-00101-DETAILS.md](./FEAT-00101-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00100] Machine-friendly asynchronous import jobs API
 - **Status:** done

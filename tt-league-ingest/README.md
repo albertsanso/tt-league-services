@@ -34,7 +34,7 @@ Federation packages register their `SourceIngestor` under the entry-point group 
 | --- | --- | --- |
 | `TT_INGEST_DATA_DIR` | yes (or `--data-dir`) | Existing directory; each source uses `<data_dir>/<source>/{content,actas-json,equipos-json,packages,logs}` |
 | `TT_LEAGUE_API_URL` | upload stage | Base URL of `tt-data-league-api-runtime` |
-| `TT_LEAGUE_API_TOKEN` | upload stage | Bearer token for the import endpoint (never logged) |
+| `TT_LEAGUE_API_TOKEN` | upload stage | Bearer token (an `ADMIN` user JWT) for the `/import/upload` endpoint (never logged). Platform service credentials (`X-API-Key`, FEAT-00101) apply to the import jobs API only, not to `/import/upload` |
 | `TT_INGEST_REST_API_KEY` | REST service | Value expected in the `X-API-Key` header; startup fails without it |
 | `TT_INGEST_REST_HOST` | no | Default `127.0.0.1` |
 | `TT_INGEST_REST_PORT` | no | Default `8090` |

@@ -8,7 +8,8 @@ public enum Permission {
     PLAYERS_READ("players:read"),
     MATCHES_READ("matches:read"),
     MATCHES_WRITE("matches:write"),
-    ANALYTICS_READ("analytics:read");
+    ANALYTICS_READ("analytics:read"),
+    IMPORTS_WRITE("imports:write");
 
     private final String value;
 

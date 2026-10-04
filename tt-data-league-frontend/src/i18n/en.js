@@ -231,6 +231,7 @@ en.usersAdmin = {
     'matches:read': 'Read matches',
     'matches:write': 'Edit matches',
     'analytics:read': 'Read analytics',
+    'imports:write': 'Write imports',
   },
 }
 
