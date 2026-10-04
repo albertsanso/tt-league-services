@@ -106,7 +106,7 @@ def rebuild_section(registry: str, section: str, blocks: list[str]) -> str:
 def normalize_section_body_for(section: str, body: str, blocks: list[str]) -> str:
     body_without_features = FEATURE_RE.sub("", body)
     body_without_empty_marker = re.sub(
-        r"(?m)^\s*No features currently (?:in progress|in review|in the backlog)\.\s*$",
+        r"(?m)^\s*No features currently (?:in progress|in review|in the backlog|done)\.\s*$",
         "",
         body_without_features,
     )
@@ -129,7 +129,7 @@ def normalize_section_body_for(section: str, body: str, blocks: list[str]) -> st
             "In Progress": "No features currently in progress.",
             "In Review": "No features currently in review.",
             "Backlog": "No features currently in the backlog.",
-            "Done": "No features currently in the backlog.",
+            "Done": "No features currently done.",
         }[section]
     return f"\n{prefix}\n"
 
