@@ -21,6 +21,9 @@ import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestrator
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineSettingsConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.events.RunEventsConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.execution.RunExecutionConfiguration;
+import org.cttelsamicsterrassa.data.pipeline.runtime.tracker.TrackerConfiguration;
+import org.cttelsamicsterrassa.data.pipeline.runtime.tracker.TrackerRecomputeSchedule;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepository;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -45,7 +48,8 @@ class ScheduleConfigurationTest {
                         HttpMessageConvertersAutoConfiguration.class, RestClientAutoConfiguration.class))
                 .withUserConfiguration(Repositories.class, RunExecutionConfiguration.class,
                         PipelineSettingsConfiguration.class, RunEventsConfiguration.class,
-                        TriggerConfiguration.class, ScheduleConfiguration.class)
+                        TriggerConfiguration.class, ScheduleConfiguration.class,
+                        TrackerConfiguration.class)
                 .withPropertyValues(
                         "tt.pipeline.platform.base-url=http://localhost:8080",
                         "tt.pipeline.platform.api-key=platform-key",
@@ -83,6 +87,17 @@ class ScheduleConfigurationTest {
             assertThat(trigger.registeredSources()).isEmpty();
             assertThat(context.getBean(LockProvider.class)).isInstanceOf(JdbcTemplateLockProvider.class);
         });
+    }
+
+    @Test
+    void theTrackerScheduleSharesTheLockExecutorAndStopsWithTheContext() {
+        TrackerRecomputeSchedule[] started = new TrackerRecomputeSchedule[1];
+        runner().run(context -> {
+            assertThat(context).hasNotFailed();
+            started[0] = context.getBean(TrackerRecomputeSchedule.class);
+            assertThat(started[0].isRunning()).isTrue();
+        });
+        assertThat(started[0].isRunning()).isFalse();
     }
 
     @Test
@@ -124,6 +139,11 @@ class ScheduleConfigurationTest {
         @Bean
         DataSource dataSource() {
             return mock(DataSource.class);
+        }
+
+        @Bean
+        MatchDayRepository matchDays() {
+            return mock(MatchDayRepository.class);
         }
 
         @Bean

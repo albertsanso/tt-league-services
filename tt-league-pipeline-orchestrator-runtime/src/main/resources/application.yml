@@ -25,7 +25,7 @@ tt:
   pipeline:
     platform:
       base-url: ${PIPELINE_PLATFORM_URL:http://localhost:8090}
-      # Service credential from the platform (FEAT-00101) with the imports:write scope.
+      # Service credential from the platform (FEAT-00101) with the imports:write and matches:read scopes.
       api-key: ${PIPELINE_PLATFORM_API_KEY}
       connect-timeout: PT10S
       # The platform validates the uploaded ZIP synchronously before answering.
@@ -82,6 +82,12 @@ tt:
           cron: ${PIPELINE_SCHEDULE_BCNESA_CRON:}
         FCTT:
           cron: ${PIPELINE_SCHEDULE_FCTT_CRON:}
+    tracker:
+      # Periodic match-day recompute (fixed delay) for every source/season with unclosed match days and for the
+      # fixed-schedule season; runs that reach a final state also trigger one. ShedLock bounds as for the schedule.
+      recompute-interval: ${PIPELINE_TRACKER_RECOMPUTE_INTERVAL:PT1H}
+      lock-at-most-for: ${PIPELINE_TRACKER_LOCK_AT_MOST_FOR:PT10M}
+      lock-at-least-for: ${PIPELINE_TRACKER_LOCK_AT_LEAST_FOR:PT30S}
 
 management:
   endpoints:

@@ -54,27 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00107] Match-day tracker for open match days and pending matches
-- **Status:** idea
-- **Priority:** medium
-- **Effort:** large
-- **Depends on:** FEAT-00102, FEAT-00104
-
-#### Goal
-Keep an up-to-date set of open match days per source with each match's reporting status, so the orchestrator knows what is still pending and when a match day is complete.
-
-#### Acceptance Criteria
-- [ ] After every final run state and on a periodic recompute, the tracker reads round progress and calendar data from the platform and upserts `match_day` and `match_tracking` rows
-- [ ] Match statuses `SCHEDULED`, `AWAITING_RESULT`, `REPORTED`, `POSTPONED` and `OVERDUE` follow the platform's derived states and grace period; `reported_at` records the first run that saw the result
-- [ ] A match day closes when every match is reported, ignored or postponed out of its window; several match days can be open at once
-- [ ] Operators with `matches:write` can close a match day manually, mark a match ignored and add a note, and each action records who and when
-- [ ] Tests cover window calculation, postponed matches, closing rules and manual actions
-
-#### Feature Details
-→ See [FEAT-00107-DETAILS.md](./FEAT-00107-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00108] Scoped runs and adaptive polling
 - **Status:** idea
 - **Priority:** medium
@@ -256,6 +235,27 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00107] Match-day tracker for open match days and pending matches
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large
+- **Depends on:** FEAT-00102, FEAT-00104
+
+#### Goal
+Keep an up-to-date set of open match days per source with each match's reporting status, so the orchestrator knows what is still pending and when a match day is complete.
+
+#### Acceptance Criteria
+- [x] After every final run state and on a periodic recompute, the tracker reads round progress and calendar data from the platform and upserts `match_day` and `match_tracking` rows
+- [x] Match statuses `SCHEDULED`, `AWAITING_RESULT`, `REPORTED`, `POSTPONED` and `OVERDUE` follow the platform's derived states and grace period; `reported_at` records the first run that saw the result
+- [x] A match day closes when every match is reported, ignored or postponed out of its window; several match days can be open at once
+- [x] Operators with `matches:write` can close a match day manually, mark a match ignored and add a note, and each action records who and when
+- [x] Tests cover window calculation, postponed matches, closing rules and manual actions
+
+#### Feature Details
+→ See [FEAT-00107-DETAILS.md](./FEAT-00107-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00106] Orchestrator fixed-schedule trigger
 - **Status:** done

@@ -40,7 +40,9 @@ public final class StubHttpServer implements AutoCloseable {
         }
     }
 
-    public record Recorded(String method, String path, Map<String, List<String>> headers, byte[] body) {
+    /** {@code query} is the raw (still encoded) query string, or null. */
+    public record Recorded(
+            String method, String path, Map<String, List<String>> headers, byte[] body, String query) {
 
         public String header(String name) {
             for (Map.Entry<String, List<String>> entry : headers.entrySet()) {
@@ -100,7 +102,7 @@ public final class StubHttpServer implements AutoCloseable {
         String method = exchange.getRequestMethod();
         String path = exchange.getRequestURI().getPath();
         Map<String, List<String>> headers = new LinkedHashMap<>(exchange.getRequestHeaders());
-        requests.add(new Recorded(method, path, headers, body));
+        requests.add(new Recorded(method, path, headers, body, exchange.getRequestURI().getRawQuery()));
         String key = key(method, path);
         Deque<Response> queue = queues.get(key);
         Response response = queue == null ? null : queue.poll();

@@ -20,6 +20,12 @@ import org.cttelsamicsterrassa.data.pipeline.runtime.api.TriggerConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineSettingsConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.events.RunEventsConfiguration;
+import org.cttelsamicsterrassa.data.pipeline.runtime.tracker.TrackerConfiguration;
+import org.cttelsamicsterrassa.data.pipeline.runtime.tracker.TrackerRecomputeDispatcher;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayActions;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayTracker;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepository;
+import net.javacrumbs.shedlock.core.LockingTaskExecutor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -43,7 +49,7 @@ class RunExecutionConfigurationTest {
                         HttpMessageConvertersAutoConfiguration.class, RestClientAutoConfiguration.class))
                 .withUserConfiguration(Repositories.class, RunExecutionConfiguration.class,
                         PipelineSettingsConfiguration.class, RunEventsConfiguration.class,
-                        TriggerConfiguration.class)
+                        TriggerConfiguration.class, TrackerConfiguration.class)
                 .withPropertyValues(
                         "tt.pipeline.platform.base-url=http://localhost:8080",
                         "tt.pipeline.platform.api-key=platform-key",
@@ -84,6 +90,16 @@ class RunExecutionConfigurationTest {
     }
 
     @Test
+    void wiresTheTrackerAndItsRecomputeDispatcher() {
+        runner().run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context).hasSingleBean(MatchDayTracker.class);
+            assertThat(context).hasSingleBean(MatchDayActions.class);
+            assertThat(context.getBean(TrackerRecomputeDispatcher.class).isRunning()).isTrue();
+        });
+    }
+
+    @Test
     void theDispatcherPoolIsNotExposedAsAnExecutorBean() {
         runner().run(context -> assertThat(context.getBeansOfType(Executor.class)).isEmpty());
     }
@@ -112,6 +128,16 @@ class RunExecutionConfigurationTest {
     @Configuration
     @EnableConfigurationProperties(PipelineOrchestratorProperties.class)
     static class Repositories {
+
+        @Bean
+        MatchDayRepository matchDays() {
+            return mock(MatchDayRepository.class);
+        }
+
+        @Bean
+        LockingTaskExecutor schedulerLockingTaskExecutor() {
+            return mock(LockingTaskExecutor.class);
+        }
 
         @Bean
         PendingTriggerRepository pendingTriggers() {

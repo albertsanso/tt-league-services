@@ -160,9 +160,10 @@ Extra index on `pipeline_run`: `ix_pipeline_run_created (created_at DESC, id)` f
 
 ## `shedlock`
 
-ShedLock JDBC lock table for the fixed-schedule trigger: one row per lock name, written only by ShedLock
-(`JdbcTemplateLockProvider` with the database clock). Lock names are `pipeline-schedule-<SOURCE>`; rows are
-reused, not deleted, when a lock is released.
+ShedLock JDBC lock table for the fixed-schedule trigger and the periodic tracker recompute: one row per lock
+name, written only by ShedLock (`JdbcTemplateLockProvider` with the database clock). Lock names are
+`pipeline-schedule-<SOURCE>` and `pipeline-tracker-recompute`; rows are reused, not deleted, when a lock is
+released.
 
 | Column | Type | Notes |
 | --- | --- | --- |
@@ -171,6 +172,98 @@ reused, not deleted, when a lock is released.
 | `locked_at` | `timestamp(3)` NOT NULL | UTC database time the lock was taken |
 | `locked_by` | `varchar(255)` NOT NULL | host name of the instance that took it |
 
+## `match_day`
+
+One tracked platform jornada (a round of one group of one competition), written by the match-day tracker
+(`MatchDayTracker` through `TrackerRecomputeDispatcher`) and by the operator actions (`MatchDayActions`). It holds
+operational state only; results stay in the platform.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | |
+| `source` | `varchar(16)` NOT NULL | `RFETM`, `BCNESA`, `FCTT` |
+| `season` | `varchar(9)` NOT NULL | `^[0-9]{4}-[0-9]{4}$` |
+| `competition` | `varchar(255)` NOT NULL | platform competition name |
+| `group_number` | `integer` NULL | `>= 1` when set |
+| `phase` | `varchar(255)` NULL | |
+| `round` | `integer` NOT NULL | `>= 1` |
+| `first_date`, `last_date` | `date` NULL | first and last match date; both null (undated) or both set with `first_date <= last_date` |
+| `grace_days` | `integer` NOT NULL | `>= 0`; the platform overdue grace period at the last recompute |
+| `state` | `varchar(16)` NOT NULL | `UPCOMING`, `OPEN`, `CLOSED` |
+| `close_reason` | `varchar(16)` NULL | `ALL_RESOLVED`, `MANUAL`, `REMOVED` |
+| `closed_at` | `timestamptz` NULL | |
+| `closed_by` | `varchar(128)` NULL | user id, or `system:tracker` |
+| `opened_at` | `timestamptz` NULL | required when `state = 'OPEN'` |
+| `created_at`, `last_recomputed_at` | `timestamptz` NOT NULL | |
+| `version` | `bigint` NOT NULL DEFAULT 0 | optimistic lock, incremented by the JPA adapter |
+
+Constraints: `state = 'CLOSED'` exactly when `close_reason`, `closed_at` and `closed_by` are all set (and all null
+otherwise); the date pair rules above.
+
+Indexes: `ux_match_day_key` - **unique** on `(source, season, competition, COALESCE(group_number, 0),
+COALESCE(phase, ''), round)`, one match day per jornada even when group or phase is absent (an expression index, so
+it also works on servers without `NULLS NOT DISTINCT`); `ix_match_day_source_season_state (source, season, state)`;
+`ix_match_day_first_date (first_date)`.
+
+State rules (all in the core `TrackerRules`; the database only enforces the invariants above):
+
+- A match day is created only for a jornada the platform reports `open` (or one already tracked). Its window is
+  `first_date` to `last_date + grace_days`; an undated jornada has no window.
+- `UPCOMING` becomes `OPEN` when the window started, or earlier once any match is `AWAITING_RESULT`, `OVERDUE` or
+  `REPORTED`.
+- An `OPEN` match day with at least one match closes as `ALL_RESOLVED` when every match is `REPORTED`, `POSTPONED` or
+  ignored. A day closed as `ALL_RESOLVED` reopens when a recompute (or an unignore) finds an unresolved match. A
+  `MANUAL` close is only undone by the reopen action. A tracked jornada that the platform no longer reports is closed
+  as `REMOVED` and its matches are deleted.
+- Several match days of a source can be `OPEN` at once.
+
+## `match_tracking`
+
+One platform match inside a match day. Its status is mapped from the platform calendar state, never derived here.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `match_id` | `uuid` PK | platform match id (plain column, no foreign key) |
+| `match_day_id` | `uuid` NOT NULL | FK `match_day(id)`; changes when the platform moves the match to another round |
+| `status` | `varchar(16)` NOT NULL | `SCHEDULED`, `AWAITING_RESULT`, `REPORTED`, `POSTPONED`, `OVERDUE` |
+| `match_date_time` | `timestamptz` NULL | null for an undated match |
+| `home_team_name`, `away_team_name` | `varchar(255)` NULL | |
+| `first_seen_at`, `status_changed_at`, `last_seen_at` | `timestamptz` NOT NULL | |
+| `reported_at` | `timestamptz` NULL | set when the match first becomes `REPORTED`; cleared when it leaves `REPORTED` |
+| `reported_run_id` | `uuid` NULL | FK `pipeline_run(id)`; the run that saw the result, null for a periodic recompute |
+| `ignored_at`, `ignored_by` | `timestamptz` / `varchar(128)` NULL | both set or both null; an ignored match counts as resolved while its status keeps following the platform |
+| `version` | `bigint` NOT NULL DEFAULT 0 | optimistic lock |
+
+Constraints: `status = 'REPORTED'` exactly when `reported_at` is set; `reported_run_id` needs `reported_at`; the
+ignored pair rule. Index `ix_match_tracking_day (match_day_id)`.
+
+Status mapping from the platform `calendarState`: `PLAYED` -> `REPORTED`, `AWAITING_RESULT` -> `AWAITING_RESULT`,
+`OVERDUE` -> `OVERDUE`, `POSTPONED` -> `POSTPONED`, `UPCOMING` and `UNDATED` -> `SCHEDULED`; any other value is a
+protocol error and the recompute writes nothing. `POSTPONED` matches stay under their original match day after it
+closes and keep being refreshed while the platform reports the jornada open.
+
+## `match_day_event`
+
+Append-only timeline of a match day: every lifecycle change and operator action.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | |
+| `match_day_id` | `uuid` NOT NULL | FK `match_day(id)` |
+| `match_id` | `uuid` NULL | platform match id, **no foreign key** so it survives `MATCH_REMOVED` |
+| `kind` | `varchar(32)` NOT NULL | `OPENED`, `CLOSED`, `REOPENED`, `MATCH_REPORTED`, `MATCH_IGNORED`, `MATCH_UNIGNORED`, `MATCH_REMOVED`, `NOTE` |
+| `actor` | `varchar(128)` NOT NULL | JWT subject, or `system:tracker` for lifecycle changes |
+| `occurred_at` | `timestamptz` NOT NULL | |
+| `run_id` | `uuid` NULL | FK `pipeline_run(id)`; the run whose recompute made the change |
+| `note` | `varchar(2000)` NULL | required (`CHECK`) when `kind = 'NOTE'` |
+
+Index `ix_match_day_event_day (match_day_id, occurred_at)`.
+
+Writers: the tracker recompute writes `match_day`, `match_tracking` and system events in one transaction per
+recompute (`MatchDayRepository.apply`); a version conflict or a concurrently created `ux_match_day_key` row aborts it
+with `StaleMatchDayException` and nothing is written. The operator actions write the changed rows and their event in
+one transaction the same way.
+
 ## Migration history
 
 | Version | File | Content |
@@ -178,3 +271,4 @@ reused, not deleted, when a lock is released.
 | `V1` | `V1__pipeline_run_model.sql` | `pipeline_run`, `pipeline_step`, `run_artifact`, `import_report`, active-run partial index |
 | `V2` | `V2__manual_triggers.sql` | `pipeline_run.force`, `ix_pipeline_run_created`, `pending_trigger` |
 | `V3` | `V3__scheduler_lock.sql` | `shedlock` |
+| `V4` | `V4__match_day_tracker.sql` | `match_day`, `match_tracking`, `match_day_event` |

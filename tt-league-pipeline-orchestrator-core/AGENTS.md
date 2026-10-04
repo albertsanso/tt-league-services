@@ -13,8 +13,8 @@ artifact and import-report values, and the repository ports with their
 exceptions. The `execution` package holds the execution ports, `RunExecutor`,
 `RunLauncher` and `RunRecovery`. The `trigger` package holds `TriggerRun`, the
 single path that creates manual and scheduled runs, with the pending-trigger
-and open-match-day scope ports; later features add tracker rules and the
-remaining ports.
+and open-match-day scope ports. The `tracker` package holds the match-day tracker
+(see below); later features add the polling policy, the scope builder and the remaining ports.
 
 ## Boundaries
 
@@ -60,3 +60,17 @@ remaining ports.
 ```text
 mvn -pl tt-league-pipeline-orchestrator-core -am test
 ```
+
+## Tracker package
+
+- `TrackerRules` is the only place that maps a platform `calendarState` to a `TrackedMatchStatus` and decides when a
+  match day opens, closes or reopens. The tracker never derives postponed, overdue or awaiting-result from dates or
+  rounds: the platform is the only source of match states and the grace period comes from its response.
+- Every platform read is source- and season-scoped; calendars are read only for the competitions of the selected
+  jornadas. No platform DTO is reused: `PlatformMatchGateway` returns plain JDK values.
+- `MatchDayTracker.recompute` reads and decides first and writes one `MatchDayChangeSet` at the end, so an
+  inconsistent or failed recompute writes nothing. No retries, partial writes or fallback to another calendar read.
+- Never store results. Platform match ids are plain references; events keep the match id of a removed match.
+- `MatchDayRepository.apply` is the only write path and checks versions (`StaleMatchDayException`); the aggregates
+  are immutable and every change returns a new instance. Ignoring is a flag next to the status, not a status.
+- `TrackerRunObserver` only requests a recompute (`RecomputeRequests`) and never blocks or throws.

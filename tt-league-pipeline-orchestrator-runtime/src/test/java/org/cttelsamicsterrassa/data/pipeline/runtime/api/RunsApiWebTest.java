@@ -28,6 +28,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayActions;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.PendingTrigger;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ScopeType;
@@ -96,6 +97,10 @@ class RunsApiWebTest {
     PendingTriggerRepository pending;
     @MockitoBean
     RunEventBroadcaster broadcaster;
+    @MockitoBean
+    MatchDayQueryService matchDayQueries;
+    @MockitoBean
+    MatchDayActions matchDayActions;
 
     private static String token(String secret, String subject, List<String> permissions, Instant expires)
             throws Exception {

@@ -169,6 +169,46 @@ class PipelineOrchestratorPropertiesTest {
     }
 
     @Test
+    void trackerSettingsDefaultWhenNothingIsConfigured() {
+        runner.withPropertyValues(valid().toArray(String[]::new)).run(context -> {
+            PipelineOrchestratorProperties.Tracker tracker =
+                    context.getBean(PipelineOrchestratorProperties.class).tracker();
+            assertThat(tracker.recomputeInterval()).isEqualTo(Duration.ofHours(1));
+            assertThat(tracker.lockAtMostFor()).isEqualTo(Duration.ofMinutes(10));
+            assertThat(tracker.lockAtLeastFor()).isEqualTo(Duration.ofSeconds(30));
+        });
+    }
+
+    @Test
+    void bindsTheTrackerSettings() {
+        List<String> properties = valid();
+        properties.add("tt.pipeline.tracker.recompute-interval=PT15M");
+        properties.add("tt.pipeline.tracker.lock-at-most-for=PT5M");
+        properties.add("tt.pipeline.tracker.lock-at-least-for=PT10S");
+
+        runner.withPropertyValues(properties.toArray(String[]::new)).run(context -> {
+            PipelineOrchestratorProperties.Tracker tracker =
+                    context.getBean(PipelineOrchestratorProperties.class).tracker();
+            assertThat(tracker.recomputeInterval()).isEqualTo(Duration.ofMinutes(15));
+            assertThat(tracker.lockAtMostFor()).isEqualTo(Duration.ofMinutes(5));
+            assertThat(tracker.lockAtLeastFor()).isEqualTo(Duration.ofSeconds(10));
+        });
+    }
+
+    @Test
+    void failsWhenATrackerDurationIsNotPositive() {
+        assertFails(withTracker("recompute-interval=PT0S"), "tracker.recompute-interval");
+        assertFails(withTracker("lock-at-most-for=-PT1M"), "tracker.lock-at-most-for");
+        assertFails(withTracker("lock-at-least-for=PT0S"), "tracker.lock-at-least-for");
+    }
+
+    @Test
+    void failsWhenTheTrackerLockAtLeastExceedsAtMost() {
+        assertFails(withTracker("lock-at-most-for=PT10S", "lock-at-least-for=PT1M"),
+                "tracker.lock-at-least-for must not exceed");
+    }
+
+    @Test
     void nothingIsScheduledWithoutAnyCron() {
         runner.withPropertyValues(valid().toArray(String[]::new)).run(context -> {
             assertThat(context).hasNotFailed();
@@ -284,6 +324,14 @@ class PipelineOrchestratorPropertiesTest {
             }
             assertThat(messages.toString()).contains(expectedFragment);
         });
+    }
+
+    private static List<String> withTracker(String... settings) {
+        List<String> properties = valid();
+        for (String setting : settings) {
+            properties.add("tt.pipeline.tracker." + setting);
+        }
+        return properties;
     }
 
     private static List<String> valid() {

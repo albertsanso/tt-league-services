@@ -16,6 +16,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineStepRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunArtifactRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.PendingTriggerDrainer;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.TrackerRunObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun;
 import org.cttelsamicsterrassa.data.pipeline.runtime.artifact.FileSystemArtifactStore;
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
@@ -70,16 +71,19 @@ public class RunExecutionConfiguration {
     }
 
     /**
-     * Logging, the event stream and the pending-trigger drainer. The parts are injected by concrete type, so this
+     * Logging, the event stream, the pending-trigger drainer and the tracker recompute request. The parts are injected by concrete type, so this
      * primary bean is the only {@link RunObserver} the executor and the launcher see. The drainer gets the trigger
      * use case lazily: {@code TriggerRun -> RunLauncher -> RunObserver -> drainer -> TriggerRun} would be a cycle.
      */
     @Bean
     @Primary
     RunObserver runObserver(
-            LoggingRunObserver logging, RunEventBroadcaster broadcaster, ObjectProvider<TriggerRun> triggerRun) {
+            LoggingRunObserver logging,
+            RunEventBroadcaster broadcaster,
+            ObjectProvider<TriggerRun> triggerRun,
+            TrackerRunObserver tracker) {
         return CompositeRunObserver.of(
-                List.of(logging, broadcaster, new PendingTriggerDrainer(triggerRun::getObject)));
+                List.of(logging, broadcaster, new PendingTriggerDrainer(triggerRun::getObject), tracker));
     }
 
     @Bean

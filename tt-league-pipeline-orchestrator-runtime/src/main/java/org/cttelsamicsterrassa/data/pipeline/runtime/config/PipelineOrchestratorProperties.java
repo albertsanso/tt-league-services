@@ -39,10 +39,12 @@ public record PipelineOrchestratorProperties(
         @Valid @NotNull Security security,
         @Valid @NotNull Triggers triggers,
         @Valid @NotNull Events events,
-        Schedule schedule) {
+        Schedule schedule,
+        Tracker tracker) {
 
     public PipelineOrchestratorProperties {
         schedule = schedule == null ? Schedule.none() : schedule;
+        tracker = tracker == null ? Tracker.defaults() : tracker;
     }
 
     /** Platform REST API; {@code apiKey} is a service credential with {@code imports:write}. */
@@ -261,6 +263,31 @@ public record PipelineOrchestratorProperties(
             } catch (DateTimeException e) {
                 throw new IllegalArgumentException("schedule.zone is not a valid time zone: " + zone, e);
             }
+        }
+    }
+
+    /**
+     * Match-day tracker. {@code recomputeInterval} is the fixed delay of the periodic recompute; the ShedLock
+     * durations bound its lock ({@code lockAtLeastFor <= lockAtMostFor}). All are tuning values, so each has a
+     * default and a missing value is not an error.
+     */
+    public record Tracker(Duration recomputeInterval, Duration lockAtMostFor, Duration lockAtLeastFor) {
+
+        public Tracker {
+            recomputeInterval = recomputeInterval == null ? Duration.ofHours(1) : recomputeInterval;
+            lockAtMostFor = lockAtMostFor == null ? Duration.ofMinutes(10) : lockAtMostFor;
+            lockAtLeastFor = lockAtLeastFor == null ? Duration.ofSeconds(30) : lockAtLeastFor;
+            positive(recomputeInterval, "tracker.recompute-interval");
+            positive(lockAtMostFor, "tracker.lock-at-most-for");
+            positive(lockAtLeastFor, "tracker.lock-at-least-for");
+            if (lockAtLeastFor.compareTo(lockAtMostFor) > 0) {
+                throw new IllegalArgumentException(
+                        "tracker.lock-at-least-for must not exceed tracker.lock-at-most-for");
+            }
+        }
+
+        static Tracker defaults() {
+            return new Tracker(null, null, null);
         }
     }
 

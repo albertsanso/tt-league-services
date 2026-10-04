@@ -20,8 +20,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
- * Stateless bearer-token security. Tokens are platform JWTs; viewing needs authentication and triggering a run needs
- * the {@code matches:write} authority. Tokens are never logged or echoed.
+ * Stateless bearer-token security. Tokens are platform JWTs; viewing needs authentication, while triggering a run and
+ * the match-day actions need the {@code matches:write} authority. Tokens are never logged or echoed.
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfiguration {
@@ -39,7 +39,7 @@ public class SecurityConfiguration {
         if (!security.corsAllowedOrigins().isEmpty()) {
             CorsConfiguration cors = new CorsConfiguration();
             cors.setAllowedOrigins(security.corsAllowedOrigins());
-            cors.setAllowedMethods(List.of("GET", "POST"));
+            cors.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE"));
             cors.setAllowedHeaders(List.of("Authorization", "Content-Type", "Last-Event-ID"));
             cors.setAllowCredentials(false);
             cors.setMaxAge(Duration.ofHours(1));
@@ -69,6 +69,13 @@ public class SecurityConfiguration {
                                 "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**", "/error")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/pipeline/runs").hasAuthority(TRIGGER_AUTHORITY)
+                        // Match-day reads fall under anyRequest(); every mutation is an operator action.
+                        .requestMatchers(HttpMethod.POST, "/api/pipeline/match-days/**")
+                        .hasAuthority(TRIGGER_AUTHORITY)
+                        .requestMatchers(HttpMethod.PUT, "/api/pipeline/match-days/**")
+                        .hasAuthority(TRIGGER_AUTHORITY)
+                        .requestMatchers(HttpMethod.DELETE, "/api/pipeline/match-days/**")
+                        .hasAuthority(TRIGGER_AUTHORITY)
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resource -> resource
                         .jwt(jwt -> jwt.decoder(decoder).jwtAuthenticationConverter(

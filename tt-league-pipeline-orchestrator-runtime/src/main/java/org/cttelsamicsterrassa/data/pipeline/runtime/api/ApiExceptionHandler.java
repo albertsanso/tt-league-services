@@ -3,6 +3,9 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.api;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import java.util.List;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.IllegalMatchDayTransitionException;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayNotFoundException;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.StaleMatchDayException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.converter.HttpMessageNotReadableException;
@@ -60,6 +63,29 @@ class ApiExceptionHandler {
     ProblemDetail notFound(RunNotFoundException e) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, e.getMessage());
         problem.setTitle("Not Found");
+        return problem;
+    }
+
+    @ExceptionHandler(MatchDayNotFoundException.class)
+    ProblemDetail matchDayNotFound(MatchDayNotFoundException e) {
+        return coded(HttpStatus.NOT_FOUND, "MATCH_DAY_NOT_FOUND", e.getMessage());
+    }
+
+    @ExceptionHandler(IllegalMatchDayTransitionException.class)
+    ProblemDetail illegalTransition(IllegalMatchDayTransitionException e) {
+        return coded(HttpStatus.CONFLICT, "ILLEGAL_TRANSITION", e.getMessage());
+    }
+
+    @ExceptionHandler(StaleMatchDayException.class)
+    ProblemDetail staleMatchDay(StaleMatchDayException e) {
+        return coded(HttpStatus.CONFLICT, "STALE_MATCH_DAY",
+                "The match day changed while it was being updated; reload it and try again");
+    }
+
+    private static ProblemDetail coded(HttpStatus status, String code, String detail) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);
+        problem.setTitle(status.getReasonPhrase());
+        problem.setProperty("code", code);
         return problem;
     }
 

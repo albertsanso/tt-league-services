@@ -14,7 +14,7 @@ invalid.
 | `PIPELINE_PLATFORM_URL` | `tt.pipeline.platform.base-url` | Base URL of the platform REST API |
 | `PIPELINE_INGEST_URL` | `tt.pipeline.ingest.base-url` | Base URL of `tt-league-ingest-rest` |
 | `PIPELINE_INGEST_API_KEY` | `tt.pipeline.ingest.api-key` | `X-API-Key` for the ingest service (not blank) |
-| `PIPELINE_PLATFORM_API_KEY` | `tt.pipeline.platform.api-key` | Raw platform service-credential key (FEAT-00101) with the `imports:write` scope, sent as `X-API-Key` (not blank) |
+| `PIPELINE_PLATFORM_API_KEY` | `tt.pipeline.platform.api-key` | Raw platform service-credential key (FEAT-00101) with the `imports:write` and `matches:read` scopes, sent as `X-API-Key` (not blank) |
 | `PIPELINE_ARTIFACTS_DIR` | `tt.pipeline.artifacts.dir` | Existing, writable directory for the package ZIPs |
 | `JWT_SIGNING_SECRET` | `tt.pipeline.security.jwt-secret` | Platform `security.jwt.secret`: same value, at least 32 UTF-8 bytes (HS256/HS384/HS512 by length) |
 | `PIPELINE_DB_URL` | `spring.datasource.url` | JDBC URL of the PostgreSQL database holding schema `pipeline` |
@@ -40,6 +40,9 @@ positive (ISO-8601, for example `PT30S`) and invalid values fail startup:
 | `PIPELINE_RECOVER_ON_STARTUP` | `true` | Resume active runs at startup |
 | `PIPELINE_SCHEDULE_LOCK_AT_MOST_FOR` | `PT10M` | Longest a scheduled-tick lock is held if its instance dies |
 | `PIPELINE_SCHEDULE_LOCK_AT_LEAST_FOR` | `PT30S` | Shortest a scheduled-tick lock is held (clock skew between instances; at most the above) |
+| `PIPELINE_TRACKER_RECOMPUTE_INTERVAL` | `PT1H` | Fixed delay of the periodic match-day recompute |
+| `PIPELINE_TRACKER_LOCK_AT_MOST_FOR` | `PT10M` | Longest the periodic recompute lock is held if its instance dies |
+| `PIPELINE_TRACKER_LOCK_AT_LEAST_FOR` | `PT30S` | Shortest the periodic recompute lock is held (at most the above) |
 
 Scheduled runs are off unless configured; see [Scheduled runs](#scheduled-runs) for the per-source cron variables.
 
@@ -111,8 +114,8 @@ stay active.
 
 Every `/api/**` request needs a platform JWT in `Authorization: Bearer ...`. The decoder uses the shared secret and
 picks HS256 (32-47 bytes), HS384 (48-63) or HS512 (64+) like the platform. Authorities are the `permissions` claim as
-is plus `ROLE_<role>`; `sub` is the user name. `POST /api/pipeline/runs` needs `matches:write`; everything else needs
-any valid token. Health, info, `/v3/api-docs` and `/swagger-ui` are public. Tokens revoked by a platform logout stay
+is plus `ROLE_<role>`; `sub` is the user name. `POST /api/pipeline/runs` and every mutation under `/api/pipeline/match-days` (`POST`, `PUT`, `DELETE`) need
+`matches:write`; everything else needs any valid token. Health, info, `/v3/api-docs` and `/swagger-ui` are public. Tokens revoked by a platform logout stay
 valid here until they expire. `PIPELINE_CORS_ALLOWED_ORIGINS` (comma-separated origins, default none) enables CORS
 for those browser origins.
 
@@ -121,7 +124,7 @@ for those browser origins.
 - `POST /api/pipeline/runs` `{source: RFETM|BCNESA|FCTT|ALL, season, scopeType: OPEN_MATCH_DAYS|GROUP|FULL_SEASON,
   filters, force}`: one MANUAL run per source, `requestedBy` = token subject. `201` when any run was created, `202`
   when only queued, `409` when rejected (active run, or a pending trigger already exists), `422` when the scope is
-  unavailable (`OPEN_MATCH_DAYS` answers `SCOPE_UNAVAILABLE` until the match-day tracker exists). The body lists each
+  unavailable (`OPEN_MATCH_DAYS` answers `SCOPE_UNAVAILABLE` until its scope resolver exists). The body lists each
   source's outcome under `results`.
 - `GET /api/pipeline/runs` (`source`, `status`, `from`, `to`, `page`, `size` up to 100; newest first) and
   `GET /api/pipeline/runs/{id}` (steps, artifacts, import report, issues).
@@ -153,6 +156,43 @@ no default schedule.
   tick: the lock `pipeline-schedule-<SOURCE>` is held at least `PIPELINE_SCHEDULE_LOCK_AT_LEAST_FOR` and at most
   `PIPELINE_SCHEDULE_LOCK_AT_MOST_FOR`. Keep the shortest interval between two ticks of a source above
   `PIPELINE_SCHEDULE_LOCK_AT_LEAST_FOR`. The active-run index still rejects a duplicate run if two ticks race.
+
+## Match-day tracker
+
+The tracker keeps operational state for the platform jornadas that are in play: which match days are open and which of
+their matches are still waiting for a result. The platform stays the only source of match states; the tracker never
+derives postponed, overdue or awaiting-result from dates, and stores no results.
+
+- **Triggers.** Every run that reaches a final status (`NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED`) requests a
+  recompute of its source and season, and a periodic recompute (`PIPELINE_TRACKER_RECOMPUTE_INTERVAL`, under the
+  ShedLock lock `pipeline-tracker-recompute`) requests one without a run for every source and season that still has
+  an unclosed match day and for each source with a fixed schedule. Recomputes run only through
+  `TrackerRecomputeDispatcher`, one at a time on a private thread. A failed recompute (platform unavailable, a
+  snapshot where round progress and calendar disagree, a concurrent write) writes nothing, is logged at WARN and is
+  repaired by the next trigger. The first run of a source bootstraps its tracking: with nothing tracked and no
+  schedule the periodic tick does nothing.
+- **Platform reads.** `GET /api/v1/match/round-progress` (without `onlyOpen`) and `GET /api/v1/match/calendar`, once
+  per competition with a selected jornada, both with `X-API-Key` = `PIPELINE_PLATFORM_API_KEY`. That service
+  credential must list `imports:write,matches:read`; without `matches:read` every recompute fails with a 403 that
+  names the API key. Open jornadas without a competition cannot be read through the calendar and are skipped with a
+  warning.
+- **Rules.** A match day is created for a jornada the platform reports open and is `UPCOMING`, `OPEN` or `CLOSED`.
+  Match statuses `SCHEDULED`, `AWAITING_RESULT`, `REPORTED`, `POSTPONED` and `OVERDUE` map from the platform
+  `calendarState`; `reported_at` and `reported_run_id` record the first run that saw the result (the recompute time
+  and no run for a periodic one). A match day closes when every match is reported, postponed or ignored, reopens by
+  itself if a match becomes unresolved again, and a manually closed one only reopens through the reopen action.
+  Several match days can be open at once. The full rules and tables are in
+  [docs/pipeline-datamodel.md](docs/pipeline-datamodel.md).
+- **Endpoints** (`/api/pipeline/match-days`). Reads need any valid token: `GET ?source=&season=&state=&from=&to=&page=&size=`
+  (size up to 200; `from`/`to` keep match days whose first-to-last match dates overlap the range) and `GET /{id}`
+  (matches and timeline). Actions need `matches:write`, record the token subject and the time in the timeline, and
+  answer with the updated detail: `POST /{id}/close`, `POST /{id}/reopen`, `PUT /{id}/matches/{matchId}/ignore`,
+  `DELETE /{id}/matches/{matchId}/ignore` (each with an optional `{"note"}` body) and `POST /{id}/notes`
+  (`{"text", "matchId"?}`). Errors are problem details with a `code`: `400` invalid input, `404`
+  `MATCH_DAY_NOT_FOUND`, `409` `ILLEGAL_TRANSITION` or `STALE_MATCH_DAY`.
+- Ignoring a match is a flag next to its status, so the status keeps following the platform and an ignore can be
+  undone. Ignoring the last unresolved match closes an open day; reopening a day whose matches are all resolved
+  closes it again on the next recompute.
 
 ## Event stream
 

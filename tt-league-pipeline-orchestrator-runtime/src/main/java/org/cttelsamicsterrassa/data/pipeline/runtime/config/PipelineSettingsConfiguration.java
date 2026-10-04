@@ -29,4 +29,9 @@ public class PipelineSettingsConfiguration {
     PipelineOrchestratorProperties.Schedule scheduleSettings(PipelineOrchestratorProperties properties) {
         return properties.schedule();
     }
+
+    @Bean
+    PipelineOrchestratorProperties.Tracker trackerSettings(PipelineOrchestratorProperties properties) {
+        return properties.tracker();
+    }
 }

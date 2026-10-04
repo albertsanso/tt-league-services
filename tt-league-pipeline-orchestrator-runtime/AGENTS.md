@@ -40,6 +40,13 @@ and the Flyway/JPA persistence of the run model (later features add security).
   `@EnableScheduling` or `@EnableSchedulerLock` (Boot would register a
   `taskScheduler` `Executor` bean). Schedules are opt-in per source: no
   default cron, season or zone.
+- The match-day tracker (`tracker/`) recomputes only through `TrackerRecomputeDispatcher` (one private
+  single-thread executor, never an `Executor` bean); the `TrackerRunObserver` and the periodic
+  `TrackerRecomputeSchedule` (ShedLock lock `pipeline-tracker-recompute`, private scheduler, not a bean) only
+  enqueue. Platform match state is read only through `HttpPlatformMatchGateway`, which needs the service
+  credential to hold `matches:read`; the controllers in `api/` only call `MatchDayActions` and
+  `MatchDayQueryService`. Never add retries, partial writes or fallbacks to a failed recompute, and never store
+  match results.
 - Run observers never throw into the executor (`CompositeRunObserver` isolates
   them). The `RunEventBroadcaster` sends on its own private pool, which is not
   an `Executor` bean, and never on a run thread.
