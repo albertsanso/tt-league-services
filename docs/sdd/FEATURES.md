@@ -48,28 +48,7 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## In Progress
 
-### [FEAT-00097] Ingest run outcome classification for unattended runs
-- **Status:** in-progress
-- **Priority:** high
-- **Effort:** medium
-- **Depends on:** —
-
-#### Goal
-Let an unattended caller tell a no-change run, a transient source outage and a parse failure apart from the ingest run report instead of a single FAILED status.
-
-#### Acceptance Criteria
-- [ ] The run report has an `outcome` of `SUCCEEDED`, `NO_CHANGES`, `COMPLETED_WITH_ISSUES`, `SOURCE_UNAVAILABLE` or `FAILED`, plus a `retryable` flag; the existing `status` stays unchanged for compatibility
-- [ ] The pipeline fingerprints the season's `actas-json` (SHA-256 per file) and `equipos-json` before the first stage and after `PARSE`/`TEAMS`, and reports `actasChanged` and `contentChanged` counts
-- [ ] When the run includes `PARSE`, no JSON changed and `force` is not set, `PACKAGE` and `UPLOAD` are recorded as skipped and the outcome is `NO_CHANGES` instead of a delta packaging failure
-- [ ] A `DOWNLOAD` stage whose legacy script reported failures (exit code 1) while no content file was written gives `SOURCE_UNAVAILABLE` with `retryable=true`
-- [ ] Parse issues, invalid actas and stage failures give `COMPLETED_WITH_ISSUES` or `FAILED` with `retryable=false`
-- [ ] The CLI keeps exit codes 0/1/2 and adds 3 for `NO_CHANGES` and 4 for `SOURCE_UNAVAILABLE`; `--json` and the REST run DTO expose `outcome`, `retryable` and `changes`
-- [ ] Tests cover each outcome with fake ingestors and fixtures (no network); the README documents outcomes, skip rules and exit codes
-
-#### Feature Details
-→ See [FEAT-00097-DETAILS.md](./FEAT-00097-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
+No features currently in progress.
 ## In Review
 
 No features currently in review.
@@ -473,6 +452,29 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00097] Ingest run outcome classification for unattended runs
+- **Status:** done
+- **Priority:** high
+- **Effort:** medium
+- **Depends on:** —
+
+#### Goal
+Let an unattended caller tell a no-change run, a transient source outage and a parse failure apart from the ingest run report instead of a single FAILED status.
+
+#### Acceptance Criteria
+- [x] The run report has an `outcome` of `SUCCEEDED`, `NO_CHANGES`, `COMPLETED_WITH_ISSUES`, `SOURCE_UNAVAILABLE` or `FAILED`, plus a `retryable` flag; the existing `status` stays unchanged for compatibility
+- [x] The pipeline fingerprints the season's `actas-json` (SHA-256 per file) and `equipos-json` before the first stage and after `PARSE`/`TEAMS`, and reports `actasChanged` and `contentChanged` counts
+- [x] When the run includes `PARSE`, no JSON changed and `force` is not set, `PACKAGE` and `UPLOAD` are recorded as skipped and the outcome is `NO_CHANGES` instead of a delta packaging failure
+- [x] A `DOWNLOAD` stage whose legacy script reported failures (exit code 1) while no content file was written gives `SOURCE_UNAVAILABLE` with `retryable=true`
+- [x] Parse issues, invalid actas and stage failures give `COMPLETED_WITH_ISSUES` or `FAILED` with `retryable=false`
+- [x] The CLI keeps exit codes 0/1/2 and adds 3 for `NO_CHANGES` and 4 for `SOURCE_UNAVAILABLE`; `--json` and the REST run DTO expose `outcome`, `retryable` and `changes`
+- [x] Tests cover each outcome with fake ingestors and fixtures (no network); the README documents outcomes, skip rules and exit codes
+
+#### Feature Details
+→ See [FEAT-00097-DETAILS.md](./FEAT-00097-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00096] Pipeline orchestrator architecture baseline and module skeleton
 - **Status:** done

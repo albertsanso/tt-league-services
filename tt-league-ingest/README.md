@@ -85,8 +85,37 @@ uv run tt-league-ingest run      --source fctt --match-day 3 --package --upload 
 download (BCNESA: `Barcelona`, `Girona`, `Lleida`, `Tarragona`; FCTT: territory slug); parsing handles
 whatever was downloaded. Filters a source does not support (`--group`/`--phase`/`--territory` for RFETM,
 `--gender` outside FCTT, ...) fail the run before any network call. `--json`
-prints the run report as JSON. Exit codes: `0` succeeded, `1` completed with issues or a failed stage,
-`2` usage/configuration error.
+prints the run report as JSON.
+
+### Run outcome and exit codes
+
+Every run report carries an `outcome` and a `retryable` flag so an unattended caller can decide what to do next.
+The existing `status` (`SUCCEEDED`, `COMPLETED_WITH_ISSUES`, `FAILED`) is unchanged.
+
+| Outcome | Meaning | `retryable` | Exit code |
+|-|-|-|-|
+| `SUCCEEDED` | Every stage ran without issues | `false` | `0` |
+| `COMPLETED_WITH_ISSUES` | Stages ran, but there were parse issues, invalid actas or script failures | `false` | `1` |
+| `FAILED` | A stage could not complete (configuration, contract, authentication, packaging, parsing) | `false` | `1` |
+| `NO_CHANGES` | The run parsed but no JSON changed, so `PACKAGE`/`UPLOAD` were skipped | `false` | `3` |
+| `SOURCE_UNAVAILABLE` | The download reported failures (legacy exit code 1) and wrote no content file | `true` | `4` |
+
+Exit code `2` is a usage or configuration error (no run happens). `--json` prints `outcome`, `retryable` and
+`changes`; each stage also has a `skipped` reason (`null` when it ran).
+
+- **Changes.** Before the first stage the pipeline fingerprints the season's downloaded pages and PDFs (size and
+  modification time) and its JSON files (SHA-256 of the bytes): `actas-json/<season>` plus, when present,
+  `equipos-json/<season>.json`. After `DOWNLOAD` it reports `contentChanged`; after `PARSE`/`TEAMS` it reports
+  `actasChanged` (added, modified or removed files).
+- **Skip rule.** When the run includes `PARSE`, `actasChanged` is `0` and `--force` is not given, `PACKAGE` and
+  `UPLOAD` are recorded as skipped (`no JSON changed`) and the outcome is `NO_CHANGES`; no ZIP is written. A run
+  without `PARSE` (for example `package` alone) is never skipped. A run that does not request `PACKAGE` skips
+  nothing, so it reports `SUCCEEDED` even when nothing changed.
+- **Source unavailable.** A `DOWNLOAD` that reports failures while no page or PDF was written fails the stage as
+  `SOURCE_UNAVAILABLE` and later stages do not run. The same download with at least one changed file is
+  `COMPLETED_WITH_ISSUES`. A run that downloaded nothing because of errors is never reported as `NO_CHANGES`. Pages
+  that are already saved are skipped by the incremental downloaders, so a failing request in a run where every
+  selected page is already saved is also `SOURCE_UNAVAILABLE`; retry later.
 
 Downloads are incremental. A match day already saved as `complete` is not requested again. A match day
 saved as `partial` is refreshed on every run. A **future** match day (none of its matches has started)
@@ -113,6 +142,11 @@ curl -H "X-API-Key: $KEY" localhost:8090/api/v1/ingest/runs/<runId>
 Endpoints: `POST /api/v1/ingest/runs` (`202 {runId}`, `400` invalid input, `409` same source already running),
 `GET /api/v1/ingest/runs/{runId}` (`404` unknown), `GET /api/v1/ingest/runs` (most recent first, default 50),
 `GET /health` (no key). Runs execute one at a time; run history is in memory and lost on restart.
+
+A run exposes `status`, plus `outcome`, `retryable` and `changes` (`contentChanged`, `actasChanged`) as described
+under [Run outcome and exit codes](#run-outcome-and-exit-codes). `outcome` is `null` and `changes` is empty until
+the run ends; `retryable` is `false` until then. Each stage lists its `skipped` reason. If the pipeline itself
+raises, `status` and `outcome` are `FAILED`, `retryable` is `false` and `error` holds the exception.
 
 ## Tests
 

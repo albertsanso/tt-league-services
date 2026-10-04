@@ -10,7 +10,9 @@ import pytest
 
 from ingest_common.packaging import PackagingError, build_manifest, package_season
 from ingest_common.pipeline import IngestPipeline
-from ingest_common.run import IngestFilters, IngestRequest, IngestStage, RunStatus, StageReport
+from ingest_common.run import (IngestFilters, IngestRequest, IngestStage, RunOutcome, RunStatus,
+                               StageReport)
+from ingest_common.scan import record_exit_code
 from ingest_common.season import Season
 from ingest_common.settings import IngestSettings
 from ingest_common.source import Source
@@ -207,6 +209,142 @@ def test_issues_complete_the_run_with_issues(tmp_path):
 
     report = IngestPipeline(IngestSettings(tmp_path), {Source.FCTT: Noisy()}).run(request((IngestStage.PARSE,)))
     assert report.status is RunStatus.COMPLETED_WITH_ISSUES
+
+
+class OutcomeIngestor(FakeIngestor):
+    """Writes (or not) the files the real scripts would, and reports a legacy download exit code."""
+
+    supported_stages = frozenset({IngestStage.DOWNLOAD, IngestStage.PARSE, IngestStage.TEAMS})
+
+    def __init__(self, download_exit=0, page=None, acta=None, parse_fails=False):
+        super().__init__()
+        self.download_exit, self.page, self.acta, self.parse_fails = download_exit, page, acta, parse_fails
+
+    def download(self, request, settings, listener):
+        report = self._stage(IngestStage.DOWNLOAD)
+        if self.page is not None:
+            page = settings.content_dir(request.source) / str(request.season) / "jornada_01.html"
+            page.parent.mkdir(parents=True, exist_ok=True)
+            page.write_text(self.page, encoding="utf-8")
+        record_exit_code(report, "fake download", self.download_exit)
+        return report
+
+    def parse(self, request, settings, listener):
+        report = self._stage(IngestStage.PARSE)
+        if self.acta is not None:
+            acta = settings.actas_json_dir(request.source) / str(request.season) / "g1" / "acta.json"
+            acta.parent.mkdir(parents=True, exist_ok=True)
+            acta.write_text(json.dumps(self.acta), encoding="utf-8")
+        if self.parse_fails:
+            report.fail("fake parse", "boom")
+        return report
+
+
+PUBLISH = (IngestStage.DOWNLOAD, IngestStage.PARSE, IngestStage.PACKAGE)
+ACTA = {"jornada": 1, "acta_publicada": True}
+
+
+def run_pipeline(tmp_path, ingestor, stages=PUBLISH, force=False):
+    return IngestPipeline(IngestSettings(tmp_path), {Source.FCTT: ingestor}).run(
+        IngestRequest(Source.FCTT, SEASON, stages, force=force))
+
+
+def test_parse_without_json_changes_skips_package_as_no_changes(tmp_path):
+    report = run_pipeline(tmp_path, OutcomeIngestor())
+    assert report.outcome is RunOutcome.NO_CHANGES and not report.retryable
+    assert report.status is RunStatus.SUCCEEDED
+    assert report.changes == {"contentChanged": 0, "actasChanged": 0}
+    assert report.stages[-1].stage is IngestStage.PACKAGE and report.stages[-1].skipped == "no JSON changed"
+    assert "package" not in report.outputs and not list(tmp_path.rglob("*.zip"))
+
+
+def test_parse_with_a_new_json_packages_and_succeeds(tmp_path):
+    report = run_pipeline(tmp_path, OutcomeIngestor(page="<html/>", acta=ACTA))
+    assert report.outcome is RunOutcome.SUCCEEDED and not report.retryable
+    assert report.changes == {"contentChanged": 1, "actasChanged": 1}
+    assert report.stages[-1].skipped is None and Path(report.outputs["package"]).is_file()
+
+
+def test_repeated_identical_run_is_no_changes_not_a_packaging_failure(tmp_path):
+    ingestor = OutcomeIngestor(page="<html/>", acta=ACTA)
+    assert run_pipeline(tmp_path, ingestor).outcome is RunOutcome.SUCCEEDED
+    second = run_pipeline(tmp_path, ingestor)
+    assert second.outcome is RunOutcome.NO_CHANGES and second.changes["actasChanged"] == 0
+    assert second.status is RunStatus.SUCCEEDED and second.stages[-1].skipped == "no JSON changed"
+
+
+def test_force_packages_even_when_no_json_changed(tmp_path):
+    ingestor = OutcomeIngestor(acta=ACTA)
+    run_pipeline(tmp_path, ingestor)
+    forced = run_pipeline(tmp_path, ingestor, force=True)
+    assert forced.changes["actasChanged"] == 0
+    assert forced.stages[-1].skipped is None and not forced.stages[-1].failed
+    assert forced.outcome is RunOutcome.SUCCEEDED
+
+
+def test_package_only_run_is_never_skipped(tmp_path):
+    settings = IngestSettings(tmp_path)
+    actas = settings.actas_json_dir(Source.FCTT) / str(SEASON)
+    actas.mkdir(parents=True)
+    (actas / "acta.json").write_text(json.dumps(ACTA), encoding="utf-8")
+    report = IngestPipeline(settings, {Source.FCTT: OutcomeIngestor()}).run(
+        IngestRequest(Source.FCTT, SEASON, (IngestStage.PACKAGE,)))
+    assert report.stages[0].skipped is None and report.outcome is RunOutcome.SUCCEEDED
+    assert Path(report.outputs["package"]).is_file()
+
+
+def test_failed_download_without_content_is_source_unavailable(tmp_path):
+    ingestor = OutcomeIngestor(download_exit=1)
+    report = run_pipeline(tmp_path, ingestor)
+    assert report.outcome is RunOutcome.SOURCE_UNAVAILABLE and report.retryable
+    assert report.status is RunStatus.FAILED
+    assert ingestor.calls == [IngestStage.DOWNLOAD]
+    assert [stage.stage for stage in report.stages] == [IngestStage.DOWNLOAD]
+    assert report.stages[0].source_unavailable and report.stages[0].failed
+
+
+def test_failed_download_that_wrote_content_completes_with_issues(tmp_path):
+    ingestor = OutcomeIngestor(download_exit=1, page="<html/>", acta=ACTA)
+    report = run_pipeline(tmp_path, ingestor)
+    assert report.outcome is RunOutcome.COMPLETED_WITH_ISSUES and not report.retryable
+    assert report.status is RunStatus.COMPLETED_WITH_ISSUES and report.changes["contentChanged"] == 1
+    assert ingestor.calls == [IngestStage.DOWNLOAD, IngestStage.PARSE]
+
+
+def test_clean_download_that_wrote_nothing_is_not_source_unavailable(tmp_path):
+    report = run_pipeline(tmp_path, OutcomeIngestor(download_exit=0), stages=(IngestStage.DOWNLOAD,))
+    assert report.outcome is RunOutcome.SUCCEEDED and not report.stages[0].source_unavailable
+
+
+def test_failed_parse_stage_is_failed_and_not_retryable(tmp_path):
+    report = run_pipeline(tmp_path, OutcomeIngestor(page="<html/>", parse_fails=True))
+    assert report.outcome is RunOutcome.FAILED and not report.retryable and report.status is RunStatus.FAILED
+    assert [stage.stage for stage in report.stages] == [IngestStage.DOWNLOAD, IngestStage.PARSE]
+
+
+def test_invalid_actas_complete_with_issues_and_are_not_retryable(tmp_path):
+    class Invalid(OutcomeIngestor):
+        def parse(self, request, settings, listener):
+            report = super().parse(request, settings, listener)
+            report.count("invalid")
+            return report
+
+    report = run_pipeline(tmp_path, Invalid(acta=ACTA))
+    assert report.outcome is RunOutcome.COMPLETED_WITH_ISSUES and not report.retryable
+
+
+def test_early_failure_is_failed_and_not_retryable(tmp_path):
+    report = run_pipeline(tmp_path, OutcomeIngestor(), stages=(IngestStage.TEAMS, IngestStage.UPLOAD))
+    assert report.outcome is RunOutcome.FAILED and not report.retryable
+
+
+def test_report_dict_exposes_outcome_retryable_changes_and_skipped(tmp_path):
+    payload = run_pipeline(tmp_path, OutcomeIngestor()).to_dict()
+    assert payload["outcome"] == "NO_CHANGES" and payload["retryable"] is False
+    assert payload["changes"] == {"contentChanged": 0, "actasChanged": 0}
+    assert [stage["skipped"] for stage in payload["stages"]] == [None, None, "no JSON changed"]
+    unavailable = run_pipeline(tmp_path, OutcomeIngestor(download_exit=1)).to_dict()
+    assert unavailable["outcome"] == "SOURCE_UNAVAILABLE" and unavailable["retryable"] is True
 
 
 def test_entry_points_resolve_the_three_sources():
