@@ -102,6 +102,8 @@ those ids through `ClubRepository`.
   new abstractions.
 - Keep validation and failure behavior explicit; do not add broad catches,
   silent fallbacks, or success-shaped error handling.
+- Treat `tt-league-pipeline-orchestrator-runtime/docs/pipeline-datamodel.md` as
+  the orchestrator schema contract; update it with every Flyway migration.
 - Treat `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` as the
   persistence schema contract. Update it whenever JPA columns, relationships,
   cascades, constraints, or table behavior change.

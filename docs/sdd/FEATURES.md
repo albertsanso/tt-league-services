@@ -54,27 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00103] Orchestrator pipeline run model and persistence
-- **Status:** idea
-- **Priority:** high
-- **Effort:** large
-- **Depends on:** FEAT-00096
-
-#### Goal
-Record every orchestrated run, its steps, artifacts and import report durably, with at most one active run per source enforced by the database.
-
-#### Acceptance Criteria
-- [ ] `tt-league-pipeline-orchestrator-core` models `PipelineRun` and `PipelineStep` with states `QUEUED`, `RUNNING_INGEST`, `NO_CHANGES`, `PACKED`, `IMPORTING`, `SUCCEEDED`, `PARTIAL`, `FAILED`, triggers `SCHEDULED`/`MANUAL`/`RETRY` and `requestedBy`, and rejects illegal transitions
-- [ ] Flyway migrations in `tt-league-pipeline-orchestrator-runtime` create schema `pipeline` with `pipeline_run`, `pipeline_step`, `run_artifact` and `import_report`
-- [ ] A partial unique index guarantees at most one `QUEUED`/`RUNNING_*`/`PACKED`/`IMPORTING` run per source
-- [ ] JPA adapters implement the core repository ports; Testcontainers PostgreSQL tests cover the migrations, the uniqueness rule and state persistence
-- [ ] The module documents its tables in a datamodel document next to the module README
-
-#### Feature Details
-→ See [FEAT-00103-DETAILS.md](./FEAT-00103-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00104] Orchestrator run executor with ingest and import gateways
 - **Status:** idea
 - **Priority:** high
@@ -341,6 +320,27 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00103] Orchestrator pipeline run model and persistence
+- **Status:** done
+- **Priority:** high
+- **Effort:** large
+- **Depends on:** FEAT-00096
+
+#### Goal
+Record every orchestrated run, its steps, artifacts and import report durably, with at most one active run per source enforced by the database.
+
+#### Acceptance Criteria
+- [x] `tt-league-pipeline-orchestrator-core` models `PipelineRun` and `PipelineStep` with states `QUEUED`, `RUNNING_INGEST`, `NO_CHANGES`, `PACKED`, `IMPORTING`, `SUCCEEDED`, `PARTIAL`, `FAILED`, triggers `SCHEDULED`/`MANUAL`/`RETRY` and `requestedBy`, and rejects illegal transitions
+- [x] Flyway migrations in `tt-league-pipeline-orchestrator-runtime` create schema `pipeline` with `pipeline_run`, `pipeline_step`, `run_artifact` and `import_report`
+- [x] A partial unique index guarantees at most one `QUEUED`/`RUNNING_*`/`PACKED`/`IMPORTING` run per source
+- [x] JPA adapters implement the core repository ports; Testcontainers PostgreSQL tests cover the migrations, the uniqueness rule and state persistence
+- [x] The module documents its tables in a datamodel document next to the module README
+
+#### Feature Details
+→ See [FEAT-00103-DETAILS.md](./FEAT-00103-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00102] Round progress and open match-day query endpoint
 - **Status:** done

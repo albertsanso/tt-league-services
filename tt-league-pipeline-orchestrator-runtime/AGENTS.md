@@ -6,7 +6,7 @@ These instructions supplement the repository-level `AGENTS.md`.
 
 Executable Spring Boot 3.5 (Java 21) orchestrator service. It adapts the ports
 of `tt-league-pipeline-orchestrator-core`: HTTP clients, controllers, scheduler
-and (in later features) Flyway/JPA persistence and security.
+and the Flyway/JPA persistence of the run model (later features add security).
 
 ## Boundaries
 
@@ -17,8 +17,14 @@ and (in later features) Flyway/JPA persistence and security.
 - Configuration lives in `PipelineOrchestratorProperties`
   (`tt.pipeline.*`, validated). Required values have no defaults in
   `application.yml`, so a missing variable fails startup. Do not add defaults.
-- Do not add Testcontainers, Flyway or Spring Security until the feature that
-  first uses them.
+- Flyway, JPA and Testcontainers are in place; Spring Security waits for
+  FEAT-00105.
+- Schema `pipeline` changes only through new `db/migration/V<n>__*.sql`
+  migrations; never edit an applied one. `ddl-auto` stays `validate`. Update
+  `docs/pipeline-datamodel.md` with every migration, and never reference
+  platform tables.
+- Persistence tests use Testcontainers PostgreSQL and are skipped without
+  Docker; run them with Docker before reporting persistence work as verified.
 
 ## Validation
 

@@ -2,12 +2,15 @@ package org.cttelsamicsterrassa.data.pipeline.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.cttelsamicsterrassa.data.pipeline.runtime.persistence.PostgresTestConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
+import org.springframework.context.annotation.Import;
 import org.springframework.http.ResponseEntity;
+import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest(
         webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
@@ -17,6 +20,8 @@ import org.springframework.http.ResponseEntity;
             "tt.pipeline.ingest.api-key=test-ingest-key",
             "tt.pipeline.security.jwt-secret=0123456789abcdef0123456789abcdef"
         })
+@Import(PostgresTestConfiguration.class)
+@Testcontainers(disabledWithoutDocker = true)
 class PipelineOrchestratorApplicationTest {
 
     @Autowired

@@ -8,7 +8,9 @@ Framework-free core of the pipeline orchestrator: run state machine, match-day
 tracker rules, polling policy, scope builder and the ports (`IngestGateway`,
 `ImportGateway`, `PlatformMatchGateway`, `ArtifactStore`, repositories,
 `Notifier`) that `tt-league-pipeline-orchestrator-runtime` implements. The
-module is a skeleton until FEAT-00103 onward add behaviour.
+`run` package holds the run state machine (`RunStatus`, `PipelineRun`), the step,
+artifact and import-report values, and the repository ports with their
+exceptions; later features add tracker rules and the remaining ports.
 
 ## Boundaries
 
