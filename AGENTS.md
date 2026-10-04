@@ -13,6 +13,10 @@ data. The root aggregator is `tt-data-league-services` and currently contains:
 - `tt-data-league-import-runtime`: executable Spring Boot import runtime.
 - `tt-data-league-api-rest`, `tt-data-league-api-runtime`, and
   `tt-data-league-api-graphql`: API and API runtime modules.
+- `tt-league-ingest`: Python (uv) workspace outside the Maven reactor that
+  produces the `actas-json`/`equipos-json` exports and upload ZIPs consumed by
+  the import and the upload endpoint (RFETM, BCNESA and FCTT current-season
+  pipelines, CLI and REST service).
 
 Keep dependencies directed inward: domain code must not depend on Spring or
 JPA; import code must not depend on persistence adapters; and runtime modules
@@ -28,6 +32,7 @@ supplement this file:
 - `tt-data-league-core-repository-jpa/AGENTS.md`
 - `tt-data-league-import/AGENTS.md`
 - `tt-data-league-import-runtime/AGENTS.md`
+- `tt-league-ingest/AGENTS.md`
 - `docs/sdd/AGENTS.md` for feature-planning and SDD registry work.
 
 `docs/sdd/` is a documentation/planning module rather than an application
@@ -125,6 +130,15 @@ mvn -pl tt-data-league-core-domain -am test
 mvn -pl tt-data-league-core-repository-jpa -am test
 mvn -pl tt-data-league-import -am test
 mvn -pl tt-data-league-import-runtime -am test
+```
+
+`mvn test` does not cover the Python workspace. For `tt-league-ingest`, run from
+`tt-league-ingest/` (requires uv):
+
+```text
+uv lock --check
+uv sync --all-packages
+uv run pytest
 ```
 
 Do not add generated `target/` content to source changes. Before concluding,

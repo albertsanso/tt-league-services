@@ -10,3 +10,8 @@ target/
 tt-data-league-frontend/node_modules/
 tt-data-league-frontend/dist/
 tt-data-league-frontend/target/
+# Python ingestion workspace
+tt-league-ingest/.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/

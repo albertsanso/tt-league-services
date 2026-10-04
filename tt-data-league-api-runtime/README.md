@@ -2,6 +2,8 @@
 
 This service provides the runtime API for the TT League application. 
 It is built using Spring Boot and connects to a PostgreSQL database. 
+The import upload ZIPs (`POST /api/v1/administration/import/upload`) are produced by the
+`tt-league-ingest` workspace (`package` / `upload`, see `tt-league-ingest/README.md`).
 The configuration for the service, including database connection details, JWT settings, mail server settings, and multipart upload limits, can be found in the `application.yml` file.
 
 ## Requirements

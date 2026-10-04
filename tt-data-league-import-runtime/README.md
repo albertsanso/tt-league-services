@@ -6,6 +6,9 @@ import processors, JPA repositories, and optional club/player consolidation.
 Parsing and import rules are implemented in `tt-data-league-import`; this
 module is responsible for runtime configuration and sequencing.
 
+The `actas-json` / `equipos-json` trees this runtime reads are produced by the
+`tt-league-ingest` workspace (see `tt-league-ingest/README.md`).
+
 ## Requirements
 
 - Java 21
