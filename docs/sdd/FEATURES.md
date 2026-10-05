@@ -54,25 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00112] Orchestrator notifications and alerts
-- **Status:** idea
-- **Priority:** low
-- **Effort:** medium
-- **Depends on:** FEAT-00104, FEAT-00107
-
-#### Goal
-Tell operators when a match day closes or when the pipeline needs attention, without watching the UI.
-
-#### Acceptance Criteria
-- [ ] A `Notifier` port has one adapter for the chosen channel, configured from the environment and disabled when unconfigured
-- [ ] Alerts fire for: match day closed, two consecutive failed runs for a source, a match unreported past a configured threshold, and no successful run in 24 h during an open match day
-- [ ] Each alert is sent once per condition until it clears; tests use a fake notifier
-
-#### Feature Details
-→ See [FEAT-00112-DETAILS.md](./FEAT-00112-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00113] Pipeline history statistics and dashboard
 - **Status:** idea
 - **Priority:** low
@@ -152,6 +133,26 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00112] Orchestrator notifications and alerts
+- **Status:** done
+- **Priority:** low
+- **Effort:** large
+- **Depends on:** FEAT-00104, FEAT-00107
+
+#### Goal
+Tell operators when a match day closes or when the pipeline needs attention, without watching the UI.
+
+#### Acceptance Criteria
+- [x] A `Notifier` port has one SMTP e-mail adapter, configured from the environment (`PIPELINE_MAIL_*`) and disabled when `PIPELINE_MAIL_HOST` is unset
+- [x] Alerts fire for: match day closed, two consecutive failed runs for a source, a match unreported past a configured threshold, and no successful run in 24 h during an open match day
+- [x] Each alert is sent once per condition until it clears; tests use a fake notifier
+- [x] The adaptive-polling alerts (scope stopped, scope unmatched) are also sent through the notifier, keeping their WARN log lines
+
+#### Feature Details
+→ See [FEAT-00112-DETAILS.md](./FEAT-00112-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00111] Pipeline calendar and match-day detail views
 - **Status:** done

@@ -3,8 +3,10 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.events;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.cttelsamicsterrassa.data.pipeline.runtime.api.RunDtoMapper;
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
+import org.cttelsamicsterrassa.data.pipeline.runtime.notification.AlertDispatcher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 
 @Configuration(proxyBeanMethods = false)
 public class RunEventsConfiguration {
@@ -13,5 +15,16 @@ public class RunEventsConfiguration {
     RunEventBroadcaster runEventBroadcaster(
             RunDtoMapper mapper, ObjectMapper json, PipelineOrchestratorProperties.Events settings) {
         return new RunEventBroadcaster(mapper, json, settings);
+    }
+
+    /**
+     * The listener the tracker and the controllers see: the live views first, then an alert evaluation request. The
+     * broadcaster is injected by concrete type, so this primary bean is the only {@link MatchDayChangeListener} they
+     * resolve.
+     */
+    @Bean
+    @Primary
+    MatchDayChangeListener matchDayChangeListener(RunEventBroadcaster broadcaster, AlertDispatcher alerts) {
+        return new CompositeMatchDayChangeListener(broadcaster, alerts);
     }
 }

@@ -79,6 +79,20 @@ mvn -pl tt-league-pipeline-orchestrator-core -am test
   (`ignoredByStatus`, `activeCounts`, `reportedCount`, `totalCount`, `completion`). `RecomputeOutcome.hasChanges` is
   true only for a visible change, not for a recompute that only refreshed timestamps.
 
+## Alert package
+
+- `AlertRules.holding` is the only place that decides which alert conditions hold (pure function, no I/O, no clock);
+  the texts are built in `AlertTexts` and describe runs by `RunError.code`, never by `RunError.message`. The
+  evaluator, the dispatcher and the UI never re-derive a condition.
+- `AlertEvaluator` is the only writer of alerts: it clears the alerts whose condition stopped holding, raises the new
+  ones (`ActiveAlertExistsException` means another writer won: skip, do not send) and sends one `Notification` per
+  pass. A `NotificationException` is recorded on the alerts (`notifyFailed`) and retried by the next pass; gateway and
+  repository failures propagate to the runtime dispatcher.
+- `Notifier` and `AlertRequests` implementations never throw into their callers; `AlertRunObserver` only requests an
+  evaluation and `NotifyingPollingAlerts` swallows sink failures after calling its delegate.
+- New fixtures in the `test-jar`: `InMemoryAlertRepository`, `RecordingNotifier` and `RecordingAlertRequests`;
+  `InMemoryMatchDayRepository` also implements `findByState` and `findClosedSince`.
+
 ## Polling package
 
 - `PollingPolicy` is a pure function (no I/O, no clock): the level of a unit comes from the tracked status and date of

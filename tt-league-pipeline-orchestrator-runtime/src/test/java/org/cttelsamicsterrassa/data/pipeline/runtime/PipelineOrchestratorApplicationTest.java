@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.pipeline.runtime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import org.cttelsamicsterrassa.data.pipeline.runtime.notification.AlertDispatcher;
 import org.cttelsamicsterrassa.data.pipeline.runtime.persistence.PostgresTestConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,6 +50,9 @@ class PipelineOrchestratorApplicationTest {
     @Autowired
     private TestRestTemplate restTemplate;
 
+    @Autowired
+    private AlertDispatcher alertDispatcher;
+
     @Test
     void protectedApiNeedsATokenWhileHealthIsPublic() {
         ResponseEntity<String> response = restTemplate.getForEntity("/api/pipeline/runs", String.class);
@@ -62,5 +66,10 @@ class PipelineOrchestratorApplicationTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("\"status\":\"UP\"");
+    }
+
+    @Test
+    void notificationsAreOffWithoutAMailHost() {
+        assertThat(alertDispatcher.enabled()).isFalse();
     }
 }

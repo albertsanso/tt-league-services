@@ -6,6 +6,7 @@ import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import java.sql.SQLException;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
@@ -24,6 +25,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayFacets;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayKey;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayPage;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayQuery;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayState;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDaySummary;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayWindow;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchTracking;
@@ -78,6 +80,20 @@ class JpaMatchDayRepository implements MatchDayRepository {
     @Transactional(readOnly = true)
     public List<MatchDay> findBySourceAndSeason(PipelineSource source, String season) {
         return days.findBySourceAndSeason(source, season).stream().map(JpaMatchDayRepository::toDomain).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MatchDay> findByState(MatchDayState state) {
+        return days.findByState(state).stream().map(JpaMatchDayRepository::toDomain).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<MatchDay> findClosedSince(Instant since) {
+        return days.findByStateAndClosedAtGreaterThanEqual(MatchDayState.CLOSED, since).stream()
+                .map(JpaMatchDayRepository::toDomain)
+                .toList();
     }
 
     @Override

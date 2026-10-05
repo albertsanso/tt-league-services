@@ -59,6 +59,13 @@ and the Flyway/JPA persistence of the run model (later features add security).
   always the tracker-backed `TrackerOpenMatchDayScopeResolver` from `PollingConfiguration`. The ingest status is read
   only through `HttpIngestStatusGateway`; the policy and schedule endpoints are in `PollingController` (policy
   changes `ADMIN`, resume `matches:write`).
+- Notifications leave only through `AlertDispatcher` (`notification/`): one private single-thread executor, never an
+  `Executor` bean, and the only place that evaluates alerts or sends e-mail. The `AlertRunObserver`, the
+  `CompositeMatchDayChangeListener`, the periodic `AlertEvaluationSchedule` (private scheduler, not a bean, no
+  ShedLock) and `NotifyingPollingAlerts` only enqueue. Configure the SMTP channel only through
+  `tt.pipeline.notifications.*`: never `spring.mail.*` and never a `JavaMailSender` bean (Boot would add a mail
+  health indicator). Never log SMTP credentials or put them, `RunError.message` or any message text in an e-mail,
+  alert row, log line or exception: `MailNotifier` keeps the exception simple name and the SMTP reply code only.
 - Run observers never throw into the executor (`CompositeRunObserver` isolates
   them). The `RunEventBroadcaster` sends on its own private pool, which is not
   an `Executor` bean, and never on a run thread.

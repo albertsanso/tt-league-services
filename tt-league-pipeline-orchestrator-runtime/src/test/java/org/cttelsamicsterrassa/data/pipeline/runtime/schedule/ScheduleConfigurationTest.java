@@ -8,6 +8,7 @@ import java.util.concurrent.Executor;
 import javax.sql.DataSource;
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.provider.jdbctemplate.JdbcTemplateLockProvider;
+import org.cttelsamicsterrassa.data.pipeline.core.alert.port.AlertRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunClock;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepository;
@@ -26,6 +27,7 @@ import org.cttelsamicsterrassa.data.pipeline.runtime.tracker.TrackerRecomputeSch
 import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollPolicyRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollScheduleRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepository;
+import org.cttelsamicsterrassa.data.pipeline.runtime.notification.NotificationConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.polling.PollingConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -52,7 +54,8 @@ class ScheduleConfigurationTest {
                 .withUserConfiguration(Repositories.class, RunExecutionConfiguration.class,
                         PipelineSettingsConfiguration.class, RunEventsConfiguration.class,
                         TriggerConfiguration.class, ScheduleConfiguration.class,
-                        TrackerConfiguration.class, PollingConfiguration.class)
+                        TrackerConfiguration.class, PollingConfiguration.class,
+                        NotificationConfiguration.class)
                 .withPropertyValues(
                         "tt.pipeline.platform.base-url=http://localhost:8080",
                         "tt.pipeline.platform.api-key=platform-key",
@@ -138,6 +141,11 @@ class ScheduleConfigurationTest {
     @Configuration
     @EnableConfigurationProperties(PipelineOrchestratorProperties.class)
     static class Repositories {
+
+        @Bean
+        AlertRepository alertRepository() {
+            return mock(AlertRepository.class);
+        }
 
         @Bean
         DataSource dataSource() {

@@ -8,6 +8,7 @@ import java.util.concurrent.Executor;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RunExecutor;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RunLauncher;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RunRecovery;
+import org.cttelsamicsterrassa.data.pipeline.core.alert.port.AlertRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunDispatcher;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
@@ -27,6 +28,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayTracker;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollPolicyRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollScheduleRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepository;
+import org.cttelsamicsterrassa.data.pipeline.runtime.notification.NotificationConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.polling.PollingConfiguration;
 import net.javacrumbs.shedlock.core.LockingTaskExecutor;
 import org.junit.jupiter.api.Test;
@@ -53,7 +55,7 @@ class RunExecutionConfigurationTest {
                 .withUserConfiguration(Repositories.class, RunExecutionConfiguration.class,
                         PipelineSettingsConfiguration.class, RunEventsConfiguration.class,
                         TriggerConfiguration.class, TrackerConfiguration.class,
-                        PollingConfiguration.class)
+                        PollingConfiguration.class, NotificationConfiguration.class)
                 .withPropertyValues(
                         "tt.pipeline.platform.base-url=http://localhost:8080",
                         "tt.pipeline.platform.api-key=platform-key",
@@ -132,6 +134,11 @@ class RunExecutionConfigurationTest {
     @Configuration
     @EnableConfigurationProperties(PipelineOrchestratorProperties.class)
     static class Repositories {
+
+        @Bean
+        AlertRepository alertRepository() {
+            return mock(AlertRepository.class);
+        }
 
         @Bean
         MatchDayRepository matchDays() {

@@ -46,6 +46,18 @@ positive (ISO-8601, for example `PT30S`) and invalid values fail startup:
 | `PIPELINE_POLLING_TICK_INTERVAL` | `PT5M` | Fixed delay of the adaptive polling tick |
 | `PIPELINE_POLLING_LOCK_AT_MOST_FOR` | `PT10M` | Longest a polling-tick lock is held if its instance dies |
 | `PIPELINE_POLLING_LOCK_AT_LEAST_FOR` | `PT30S` | Shortest a polling-tick lock is held (at most the above) |
+| `PIPELINE_MAIL_HOST` | empty | SMTP host; empty switches [notifications](#notifications) off |
+| `PIPELINE_MAIL_PORT` | `587` | SMTP port (1 to 65535) |
+| `PIPELINE_MAIL_USERNAME` | empty | SMTP user; set together with the password, or both empty |
+| `PIPELINE_MAIL_PASSWORD` | empty | SMTP password |
+| `PIPELINE_MAIL_STARTTLS` | `true` | Require STARTTLS |
+| `PIPELINE_MAIL_FROM` | empty | Sender address (required once the host is set) |
+| `PIPELINE_MAIL_TO` | empty | Comma-separated recipient addresses (at least one once the host is set) |
+| `PIPELINE_MAIL_SUBJECT_PREFIX` | `[tt-pipeline]` | Prefix of every subject |
+| `PIPELINE_ALERTS_EVALUATE_INTERVAL` | `PT15M` | Fixed delay of the periodic alert evaluation |
+| `PIPELINE_ALERTS_UNREPORTED_AFTER` | `PT48H` | How long after its date a match may stay unreported |
+| `PIPELINE_ALERTS_NO_SUCCESS_WINDOW` | `PT24H` | How long a source may go without a successful run while it has an open match day |
+| `PIPELINE_ALERTS_CLOSED_LOOKBACK` | `P1D` | How far back a closed match day still raises an alert |
 
 Scheduled runs are off unless configured; see [Scheduled runs](#scheduled-runs) for the per-source cron variables and
 [Adaptive polling](#adaptive-polling) for the alternative that follows the open match days.
@@ -303,6 +315,48 @@ changed a match day or match, or `ACTION` (with the id) after an operator action
 Recomputes that change nothing, and failed ones, send nothing. There is no replay: after reconnecting, refetch
 `GET /api/pipeline/runs`. Native `EventSource` cannot send the `Authorization` header, so use `fetch` streaming.
 Limits: `PIPELINE_EVENTS_TIMEOUT` (PT30M), `PIPELINE_EVENTS_MAX_SUBSCRIBERS` (50, then `503`).
+
+## Notifications
+
+Operators get an SMTP e-mail when the pipeline needs attention, so nobody has to watch the UI. The channel is plain-text
+e-mail; there is no other channel. Notifications are **opt-in**: they are enabled exactly when `PIPELINE_MAIL_HOST` is
+not blank, and with a blank host nothing is sent and no other channel is used. With a host set, `PIPELINE_MAIL_FROM`
+and at least one valid `PIPELINE_MAIL_TO` address are required, the port must be 1-65535, the username and password
+must be set together and every duration must be positive; otherwise startup fails and names the setting. The
+variables are in the table above (`tt.pipeline.notifications.*`).
+
+The settings are deliberately `tt.pipeline.*` and not `spring.mail.*`: those would auto-configure a `JavaMailSender`
+bean and Boot's mail health indicator, and `/actuator/health` would go DOWN whenever the SMTP server is unreachable.
+The adapter keeps its sender private. SMTP timeouts are constants: connect `10 s`, read `30 s`, write `30 s`.
+
+**Alerts.** Each condition has a kind and a stable key. It is *raised* when it holds and has no active alert row, and
+*cleared* (silently) when it stops holding.
+
+| Alert | Key | Raised when | Cleared when |
+| --- | --- | --- | --- |
+| Match day closed | match day id | the day is `CLOSED` with `closedAt` within `PIPELINE_ALERTS_CLOSED_LOOKBACK` (every close reason, named in the e-mail) | the day is reopened or removed; a later close raises again |
+| Two failed runs | source | the two newest finished runs of the source are both `FAILED` | the newest finished run is not `FAILED` (`PARTIAL` breaks the streak) |
+| Match unreported | match id | the match of an open day is not ignored, still `SCHEDULED`, `AWAITING_RESULT` or `OVERDUE`, and its date plus `PIPELINE_ALERTS_UNREPORTED_AFTER` has passed | it is reported, postponed, ignored or removed, or its day is no longer open |
+| No recent success | source | the source has an open match day and neither a successful run nor the opening of its earliest open day falls within `PIPELINE_ALERTS_NO_SUCCESS_WINDOW` | a successful run inside the window, or no open day left |
+
+A successful run is `SUCCEEDED` or `NO_CHANGES`. The window of the last alert starts at the opening of the match day, so
+a day that has just opened does not alert at once. The e-mails name the source, season, competition, group, phase and
+round, the teams and dates (UTC) and, for runs, the run ids and error codes; they never carry a run error message, a
+URL, a key or a token.
+
+**Once per condition.** An alert is sent once until it clears; a later recurrence raises a new one and sends again.
+The evaluation runs after every run that reaches a final state, after every match-day change (tracker recompute,
+operator close or reopen) and every `PIPELINE_ALERTS_EVALUATE_INTERVAL`. One pass sends **one e-mail** with every alert
+raised in that pass plus earlier alerts whose send failed. A failed send is logged, the alert keeps `notified_at` null
+and the next pass retries; nothing is rethrown into runs, the tracker or requests.
+
+**Polling alerts.** The adaptive-polling alerts (a unit stopped after too many overdue days, open match days that
+cannot be scoped) are also sent as their own e-mail, on top of their WARN log lines. They are not stored and not
+retried: the polling tick already reports each stop once and each message once per day.
+
+All work runs on one private `pipeline-alerts` thread (`AlertDispatcher`); an unreachable SMTP server never delays a run.
+There is no lock between instances: the partial unique index makes raising idempotent, but with two instances a retried
+failed send can go out twice. The alerts are stored in the `alert` table (see [docs/pipeline-datamodel.md](docs/pipeline-datamodel.md)).
 
 ## Persistence
 

@@ -7,8 +7,10 @@ import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayEvent;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayFacets;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayPage;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayQuery;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayState;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchTracking;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.SourceSeason;
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +34,12 @@ public interface MatchDayRepository {
 
     /** Source and season pairs with at least one match day that is not CLOSED. */
     Set<SourceSeason> findSourceSeasonsWithUnclosedDays();
+
+    /** Match days of every source and season in the given state. Read-only; used by the alerts. */
+    List<MatchDay> findByState(MatchDayState state);
+
+    /** CLOSED match days of every source and season with {@code closedAt >= since}. Read-only; used by the alerts. */
+    List<MatchDay> findClosedSince(Instant since);
 
     MatchDayPage query(MatchDayQuery query);
 

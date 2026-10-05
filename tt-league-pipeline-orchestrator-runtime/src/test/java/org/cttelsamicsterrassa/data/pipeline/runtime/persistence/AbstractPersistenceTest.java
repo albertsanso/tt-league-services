@@ -21,7 +21,7 @@ abstract class AbstractPersistenceTest {
 
     @BeforeEach
     void truncateTables() {
-        jdbc.execute("TRUNCATE pipeline.poll_schedule, pipeline.poll_policy, pipeline.match_day, pipeline.pending_trigger, pipeline.import_report, pipeline.run_artifact, pipeline.pipeline_step, "
+        jdbc.execute("TRUNCATE pipeline.alert, pipeline.poll_schedule, pipeline.poll_policy, pipeline.match_day, pipeline.pending_trigger, pipeline.import_report, pipeline.run_artifact, pipeline.pipeline_step, "
                 + "pipeline.pipeline_run CASCADE");
     }
 

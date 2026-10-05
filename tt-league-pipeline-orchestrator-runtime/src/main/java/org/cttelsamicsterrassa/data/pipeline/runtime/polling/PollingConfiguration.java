@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.polling;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import net.javacrumbs.shedlock.core.LockingTaskExecutor;
+import org.cttelsamicsterrassa.data.pipeline.core.alert.NotifyingPollingAlerts;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunClock;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.AdaptivePollingTick;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.MatchDayRefresh;
@@ -20,6 +21,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.port.OpenMatchDayScopeResolver;
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
 import org.cttelsamicsterrassa.data.pipeline.runtime.gateway.HttpIngestStatusGateway;
+import org.cttelsamicsterrassa.data.pipeline.runtime.notification.AlertDispatcher;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -65,8 +67,9 @@ public class PollingConfiguration {
     }
 
     @Bean
-    PollingAlerts pollingAlerts() {
-        return new LoggingPollingAlerts();
+    PollingAlerts pollingAlerts(PipelineOrchestratorProperties.Notifications notifications, AlertDispatcher dispatcher) {
+        PollingAlerts logging = new LoggingPollingAlerts();
+        return notifications.enabled() ? new NotifyingPollingAlerts(logging, dispatcher::send) : logging;
     }
 
     @Bean

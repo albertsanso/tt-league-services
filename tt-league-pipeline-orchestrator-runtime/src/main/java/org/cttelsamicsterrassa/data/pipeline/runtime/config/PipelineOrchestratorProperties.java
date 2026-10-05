@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.pipeline.runtime.config;
 
+import org.cttelsamicsterrassa.data.pipeline.core.alert.AlertSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.ExecutionSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.PollIntervals;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RetryPolicy;
@@ -9,6 +10,8 @@ import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.BcnesaCompetitio
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
+import jakarta.mail.internet.AddressException;
+import jakarta.mail.internet.InternetAddress;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -45,12 +48,14 @@ public record PipelineOrchestratorProperties(
         @Valid @NotNull Events events,
         Schedule schedule,
         Tracker tracker,
-        Polling polling) {
+        Polling polling,
+        Notifications notifications) {
 
     public PipelineOrchestratorProperties {
         schedule = schedule == null ? Schedule.none() : schedule;
         tracker = tracker == null ? Tracker.defaults() : tracker;
         polling = polling == null ? Polling.none() : polling;
+        notifications = notifications == null ? Notifications.disabled() : notifications;
         for (PipelineSource source : polling.sources()) {
             if (schedule.sources().containsKey(source)) {
                 throw new IllegalArgumentException(
@@ -394,6 +399,120 @@ public record PipelineOrchestratorProperties(
 
         public PollingSettings defaultSettings() {
             return defaults.toSettings();
+        }
+    }
+
+    /**
+     * Operator notifications by SMTP e-mail. They are enabled exactly when {@code mail.host} is not blank; when
+     * disabled every other value is ignored. When enabled, {@code mail.from} and at least one {@code mail.to} are
+     * required addresses, the port is 1-65535, {@code username} and {@code password} are both set or both blank and
+     * every duration is positive. {@code evaluateInterval} is the fixed delay of the alert evaluation;
+     * {@code unreportedAfter}, {@code noSuccessWindow} and {@code closedLookback} are the alert thresholds.
+     */
+    public record Notifications(
+            Mail mail,
+            Duration evaluateInterval,
+            Duration unreportedAfter,
+            Duration noSuccessWindow,
+            Duration closedLookback) {
+
+        public Notifications {
+            mail = mail == null ? Mail.blank() : mail;
+            evaluateInterval = evaluateInterval == null ? Duration.ofMinutes(15) : evaluateInterval;
+            unreportedAfter = unreportedAfter == null ? Duration.ofHours(48) : unreportedAfter;
+            noSuccessWindow = noSuccessWindow == null ? Duration.ofHours(24) : noSuccessWindow;
+            closedLookback = closedLookback == null ? Duration.ofDays(1) : closedLookback;
+            if (mail.enabled()) {
+                mail.validate();
+                positive(evaluateInterval, "notifications.evaluate-interval");
+                positive(unreportedAfter, "notifications.unreported-after");
+                positive(noSuccessWindow, "notifications.no-success-window");
+                positive(closedLookback, "notifications.closed-lookback");
+            }
+        }
+
+        static Notifications disabled() {
+            return new Notifications(null, null, null, null, null);
+        }
+
+        public boolean enabled() {
+            return mail.enabled();
+        }
+
+        public AlertSettings alertSettings() {
+            return new AlertSettings(unreportedAfter, noSuccessWindow, closedLookback);
+        }
+    }
+
+    /**
+     * SMTP settings. {@code toString} masks the password, because records print every component. Blank means not
+     * set; {@code port} defaults to 587, {@code starttls} to true and {@code subjectPrefix} to
+     * {@code [tt-pipeline]}.
+     */
+    public record Mail(
+            String host,
+            Integer port,
+            String username,
+            String password,
+            Boolean starttls,
+            String from,
+            List<String> to,
+            String subjectPrefix) {
+
+        public Mail {
+            host = blankToNull(host);
+            port = port == null ? Integer.valueOf(587) : port;
+            username = blankToNull(username);
+            password = blankToNull(password);
+            starttls = starttls == null ? Boolean.TRUE : starttls;
+            from = blankToNull(from);
+            to = to == null ? List.of() : to.stream().map(String::trim).filter(value -> !value.isEmpty()).toList();
+            subjectPrefix = subjectPrefix == null ? "[tt-pipeline]" : subjectPrefix.trim();
+        }
+
+        static Mail blank() {
+            return new Mail(null, null, null, null, null, null, null, null);
+        }
+
+        public boolean enabled() {
+            return host != null;
+        }
+
+        void validate() {
+            if (port < 1 || port > 65535) {
+                throw new IllegalArgumentException("notifications.mail.port must be between 1 and 65535: " + port);
+            }
+            if ((username == null) != (password == null)) {
+                throw new IllegalArgumentException(
+                        "notifications.mail.username and notifications.mail.password must be set together");
+            }
+            if (from == null) {
+                throw new IllegalArgumentException("notifications.mail.from is required when the mail host is set");
+            }
+            requireAddress(from, "notifications.mail.from");
+            if (to.isEmpty()) {
+                throw new IllegalArgumentException("notifications.mail.to needs at least one address");
+            }
+            to.forEach(address -> requireAddress(address, "notifications.mail.to"));
+        }
+
+        private static void requireAddress(String address, String name) {
+            try {
+                new InternetAddress(address, true).validate();
+            } catch (AddressException e) {
+                throw new IllegalArgumentException(name + " is not a valid e-mail address: " + address);
+            }
+        }
+
+        private static String blankToNull(String value) {
+            return value == null || value.isBlank() ? null : value.trim();
+        }
+
+        @Override
+        public String toString() {
+            return "Mail[host=" + host + ", port=" + port + ", username=" + username + ", password="
+                    + (password == null ? "null" : "****") + ", starttls=" + starttls + ", from=" + from + ", to="
+                    + to + ", subjectPrefix=" + subjectPrefix + "]";
         }
     }
 

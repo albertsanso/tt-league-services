@@ -334,4 +334,35 @@ class JpaMatchDayRepositoryTest extends AbstractPersistenceTest {
                 .containsExactly(run.id());
         assertThat(runs.findByIds(List.of())).isEmpty();
     }
+
+    @Test
+    void findByStateReadsEverySourceAndSeason() {
+        MatchDay open = day(1, "2026-10-04").open(T0);
+        MatchDay otherSource = day(key(PipelineSource.RFETM, null, null, 2), LocalDate.parse("2026-10-05"),
+                LocalDate.parse("2026-10-05")).open(T0);
+        MatchDay upcoming = day(3, "2026-10-11");
+        MatchDay closed = day(4, "2026-10-12").open(T0).close(CloseReason.MANUAL, "ana", T0.plusSeconds(5));
+        repository.apply(changes(List.of(open, otherSource, upcoming, closed), List.of(), List.of()));
+
+        assertThat(repository.findByState(MatchDayState.OPEN)).extracting(MatchDay::id)
+                .containsExactlyInAnyOrder(open.id(), otherSource.id());
+        assertThat(repository.findByState(MatchDayState.UPCOMING)).extracting(MatchDay::id)
+                .containsExactly(upcoming.id());
+        assertThat(repository.findByState(MatchDayState.CLOSED)).extracting(MatchDay::id)
+                .containsExactly(closed.id());
+    }
+
+    @Test
+    void findClosedSinceKeepsClosedDaysAtOrAfterTheBoundary() {
+        MatchDay old = day(1, "2026-10-04").open(T0).close(CloseReason.ALL_RESOLVED, "system:tracker", T0);
+        MatchDay onTheEdge = day(2, "2026-10-05").open(T0)
+                .close(CloseReason.MANUAL, "ana", T0.plusSeconds(100));
+        MatchDay recent = day(3, "2026-10-06").open(T0).close(CloseReason.REMOVED, "system:tracker", T0.plusSeconds(200));
+        MatchDay stillOpen = day(4, "2026-10-07").open(T0);
+        repository.apply(changes(List.of(old, onTheEdge, recent, stillOpen), List.of(), List.of()));
+
+        assertThat(repository.findClosedSince(T0.plusSeconds(100))).extracting(MatchDay::id)
+                .containsExactlyInAnyOrder(onTheEdge.id(), recent.id());
+        assertThat(repository.findClosedSince(T0.plusSeconds(201))).isEmpty();
+    }
 }

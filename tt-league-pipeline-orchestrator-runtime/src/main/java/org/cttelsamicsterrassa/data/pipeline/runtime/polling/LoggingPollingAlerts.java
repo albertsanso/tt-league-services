@@ -6,7 +6,10 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Alerts as WARN log lines until notification channels exist (FEAT-00112); never logs secrets. */
+/**
+ * Alerts as WARN log lines; never logs secrets. With notifications enabled, {@code NotifyingPollingAlerts} wraps it
+ * and also sends them by e-mail, so these log lines stay in either case.
+ */
 public final class LoggingPollingAlerts implements PollingAlerts {
 
     private static final Logger LOG = LoggerFactory.getLogger(LoggingPollingAlerts.class);

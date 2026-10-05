@@ -112,6 +112,25 @@ tt:
       # bcnesa-competition-names:
       #   rtb-example: Example
 
+    notifications:
+      # SMTP e-mail alerts (match day closed, two failed runs, unreported match, no recent success) and the adaptive
+      # polling alerts. Enabled only when the mail host is set; leave it empty to switch notifications off. These are
+      # tt.pipeline.* values on purpose: spring.mail.* would add a JavaMailSender bean and a mail health indicator.
+      mail:
+        host: ${PIPELINE_MAIL_HOST:}
+        port: ${PIPELINE_MAIL_PORT:587}
+        username: ${PIPELINE_MAIL_USERNAME:}
+        password: ${PIPELINE_MAIL_PASSWORD:}
+        starttls: ${PIPELINE_MAIL_STARTTLS:true}
+        from: ${PIPELINE_MAIL_FROM:}
+        # Comma-separated recipient list.
+        to: ${PIPELINE_MAIL_TO:}
+        subject-prefix: ${PIPELINE_MAIL_SUBJECT_PREFIX:[tt-pipeline]}
+      evaluate-interval: ${PIPELINE_ALERTS_EVALUATE_INTERVAL:PT15M}
+      unreported-after: ${PIPELINE_ALERTS_UNREPORTED_AFTER:PT48H}
+      no-success-window: ${PIPELINE_ALERTS_NO_SUCCESS_WINDOW:PT24H}
+      closed-lookback: ${PIPELINE_ALERTS_CLOSED_LOOKBACK:P1D}
+
 management:
   endpoints:
     web:

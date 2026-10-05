@@ -39,4 +39,9 @@ public class PipelineSettingsConfiguration {
     PipelineOrchestratorProperties.Polling pollingSettings(PipelineOrchestratorProperties properties) {
         return properties.polling();
     }
+
+    @Bean
+    PipelineOrchestratorProperties.Notifications notificationSettings(PipelineOrchestratorProperties properties) {
+        return properties.notifications();
+    }
 }

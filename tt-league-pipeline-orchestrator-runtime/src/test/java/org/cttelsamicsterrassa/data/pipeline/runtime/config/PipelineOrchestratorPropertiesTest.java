@@ -421,6 +421,109 @@ class PipelineOrchestratorPropertiesTest {
         return result;
     }
 
+    private static List<String> withMail(String... extra) {
+        List<String> properties = valid();
+        properties.addAll(List.of(
+                "tt.pipeline.notifications.mail.host=smtp.example.org",
+                "tt.pipeline.notifications.mail.from=pipeline@example.org",
+                "tt.pipeline.notifications.mail.to=ops@example.org,admin@example.org"));
+        properties.addAll(List.of(extra));
+        return properties;
+    }
+
+    private static List<String> withMailWithout(String key) {
+        List<String> properties = withMail();
+        properties.removeIf(entry -> entry.startsWith(key + "="));
+        return properties;
+    }
+
+    @Test
+    void notificationsAreDisabledByDefault() {
+        runner.withPropertyValues(valid().toArray(String[]::new)).run(context -> {
+            PipelineOrchestratorProperties.Notifications notifications =
+                    context.getBean(PipelineOrchestratorProperties.class).notifications();
+            assertThat(notifications.enabled()).isFalse();
+            assertThat(notifications.mail().host()).isNull();
+        });
+    }
+
+    @Test
+    void aBlankMailHostKeepsNotificationsOffAndIgnoresTheOtherValues() {
+        List<String> properties = valid();
+        properties.addAll(List.of(
+                "tt.pipeline.notifications.mail.host=   ",
+                "tt.pipeline.notifications.mail.port=0",
+                "tt.pipeline.notifications.mail.from=not-an-address",
+                "tt.pipeline.notifications.evaluate-interval=PT0S"));
+
+        runner.withPropertyValues(properties.toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(PipelineOrchestratorProperties.class).notifications().enabled()).isFalse();
+        });
+    }
+
+    @Test
+    void bindsEnabledNotificationsWithTheirDefaults() {
+        runner.withPropertyValues(withMail().toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            PipelineOrchestratorProperties.Notifications notifications =
+                    context.getBean(PipelineOrchestratorProperties.class).notifications();
+            assertThat(notifications.enabled()).isTrue();
+            assertThat(notifications.mail().port()).isEqualTo(587);
+            assertThat(notifications.mail().starttls()).isTrue();
+            assertThat(notifications.mail().subjectPrefix()).isEqualTo("[tt-pipeline]");
+            assertThat(notifications.mail().to()).containsExactly("ops@example.org", "admin@example.org");
+            assertThat(notifications.evaluateInterval()).isEqualTo(Duration.ofMinutes(15));
+            assertThat(notifications.alertSettings().unreportedAfter()).isEqualTo(Duration.ofHours(48));
+            assertThat(notifications.alertSettings().noSuccessWindow()).isEqualTo(Duration.ofHours(24));
+            assertThat(notifications.alertSettings().closedLookback()).isEqualTo(Duration.ofDays(1));
+        });
+    }
+
+    @Test
+    void enabledNotificationsRequireFromAndRecipients() {
+        assertFails(withMailWithout("tt.pipeline.notifications.mail.from"), "notifications.mail.from");
+        assertFails(withMailWithout("tt.pipeline.notifications.mail.to"), "notifications.mail.to");
+    }
+
+    @Test
+    void enabledNotificationsRejectBadAddressesPortsAndCredentialPairs() {
+        List<String> badFrom = withMailWithout("tt.pipeline.notifications.mail.from");
+        badFrom.add("tt.pipeline.notifications.mail.from=nobody");
+        assertFails(badFrom, "notifications.mail.from");
+
+        List<String> badTo = withMailWithout("tt.pipeline.notifications.mail.to");
+        badTo.add("tt.pipeline.notifications.mail.to=ops@example.org,broken@");
+        assertFails(badTo, "notifications.mail.to");
+
+        assertFails(withMail("tt.pipeline.notifications.mail.port=70000"), "notifications.mail.port");
+        assertFails(withMail("tt.pipeline.notifications.mail.port=0"), "notifications.mail.port");
+        assertFails(withMail("tt.pipeline.notifications.mail.username=ops"),
+                "notifications.mail.username and notifications.mail.password");
+        assertFails(withMail("tt.pipeline.notifications.mail.password=s3cret"),
+                "notifications.mail.username and notifications.mail.password");
+    }
+
+    @Test
+    void enabledNotificationsRejectNonPositiveDurations() {
+        assertFails(withMail("tt.pipeline.notifications.evaluate-interval=PT0S"), "notifications.evaluate-interval");
+        assertFails(withMail("tt.pipeline.notifications.unreported-after=-PT1H"), "notifications.unreported-after");
+        assertFails(withMail("tt.pipeline.notifications.no-success-window=PT0S"), "notifications.no-success-window");
+        assertFails(withMail("tt.pipeline.notifications.closed-lookback=PT0S"), "notifications.closed-lookback");
+    }
+
+    @Test
+    void theMailToStringMasksThePassword() {
+        runner.withPropertyValues(withMail(
+                "tt.pipeline.notifications.mail.username=ops",
+                "tt.pipeline.notifications.mail.password=s3cret-value").toArray(String[]::new)).run(context -> {
+            PipelineOrchestratorProperties properties = context.getBean(PipelineOrchestratorProperties.class);
+            assertThat(properties.notifications().mail().password()).isEqualTo("s3cret-value");
+            assertThat(properties.notifications().mail().toString()).doesNotContain("s3cret-value").contains("****");
+            assertThat(properties.toString()).doesNotContain("s3cret-value");
+        });
+    }
+
     private void assertFails(List<String> properties, String expectedFragment) {
         runner.withPropertyValues(properties.toArray(String[]::new)).run(context -> {
             assertThat(context).hasFailed();

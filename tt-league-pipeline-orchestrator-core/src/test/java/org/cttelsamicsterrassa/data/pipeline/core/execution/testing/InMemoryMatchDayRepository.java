@@ -15,6 +15,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.tracker.SourceSeason;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.TrackedMatchStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.StaleMatchDayException;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -98,6 +99,18 @@ public class InMemoryMatchDayRepository implements MatchDayRepository {
             }
         }
         return result;
+    }
+
+    @Override
+    public synchronized List<MatchDay> findByState(MatchDayState state) {
+        return days.values().stream().filter(day -> day.state() == state).toList();
+    }
+
+    @Override
+    public synchronized List<MatchDay> findClosedSince(Instant since) {
+        return days.values().stream()
+                .filter(day -> day.state() == MatchDayState.CLOSED && !day.closedAt().isBefore(since))
+                .toList();
     }
 
     @Override
