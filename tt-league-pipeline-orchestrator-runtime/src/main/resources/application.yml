@@ -160,4 +160,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  structured:
+    format:
+      # logstash (default), ecs or gelf write one JSON object per line, with the run id in runId. An empty value keeps
+      # Boot's plain-text pattern for local development; any other value fails startup.
+      console: ${PIPELINE_LOG_FORMAT:logstash}

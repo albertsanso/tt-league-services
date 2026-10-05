@@ -6,6 +6,7 @@ import org.cttelsamicsterrassa.data.pipeline.runtime.notification.AlertDispatche
 import org.cttelsamicsterrassa.data.pipeline.runtime.persistence.PostgresTestConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.actuate.observability.AutoConfigureObservability;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
@@ -44,6 +45,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
             "tt.pipeline.statistics.zone=Europe/Madrid",
             "tt.pipeline.security.jwt-secret=0123456789abcdef0123456789abcdef"
         })
+@AutoConfigureObservability
 @Import(PostgresTestConfiguration.class)
 @Testcontainers(disabledWithoutDocker = true)
 class PipelineOrchestratorApplicationTest {
@@ -67,6 +69,16 @@ class PipelineOrchestratorApplicationTest {
 
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("\"status\":\"UP\"");
+    }
+
+    @Test
+    void prometheusIsPublicAndExposesTheOperationalGauges() {
+        ResponseEntity<String> response = restTemplate.getForEntity("/actuator/prometheus", String.class);
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(response.getHeaders().getContentType().toString()).startsWith("text/plain");
+        assertThat(response.getBody()).contains("pipeline_matches_pending{", "pipeline_matches_overdue{",
+                "pipeline_match_days_open{", "application=\"tt-league-pipeline-orchestrator-runtime\"");
     }
 
     @Test

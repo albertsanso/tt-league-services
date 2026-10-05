@@ -29,6 +29,8 @@ import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollScheduleRepos
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepository;
 import org.cttelsamicsterrassa.data.pipeline.runtime.notification.NotificationConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.polling.PollingConfiguration;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.cttelsamicsterrassa.data.pipeline.runtime.metrics.RunMetricsObserver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -181,6 +183,11 @@ class ScheduleConfigurationTest {
         @Bean
         PipelineRunRepository runs() {
             return mock(PipelineRunRepository.class);
+        }
+
+        @Bean
+        RunMetricsObserver runMetricsObserver(PipelineRunRepository runs) {
+            return new RunMetricsObserver(new SimpleMeterRegistry(), runs);
         }
 
         @Bean

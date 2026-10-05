@@ -159,14 +159,15 @@ public final class IngestServiceJobRunner implements IngestGateway {
             String mode,
             boolean force,
             boolean allowPublishedShrink,
-            List<ScopeBody> scopes) {
+            List<ScopeBody> scopes,
+            String correlationId) {
 
         static StartBody from(IngestRunRequest request) {
             List<ScopeBody> scopes = request.scope().isFullSeason()
                     ? null
                     : request.scope().filters().stream().map(ScopeBody::from).toList();
             return new StartBody(request.source().name(), request.season(), STAGES, mode(request.mode()),
-                    request.force(), false, scopes);
+                    request.force(), false, scopes, request.correlationId().toString());
         }
 
         private static String mode(IngestMode mode) {

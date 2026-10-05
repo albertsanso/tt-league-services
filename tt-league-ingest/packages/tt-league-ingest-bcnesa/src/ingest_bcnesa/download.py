@@ -63,7 +63,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup, Tag
 
-from ingest_common import health
+from ingest_common import health, logs
 
 
 INDEX_URL = "https://fctt.cat/competicions-estatals/"
@@ -234,6 +234,9 @@ def write_atomically(destination: Path, content: bytes) -> None:
 
 def configure_logging(log_file: Path) -> logging.Logger:
     logger = logging.getLogger("download_actas_content_incremental")
+    if logs.service_logging_active():
+        logs.attach_script_file_handler(logger, log_file, "%(asctime)s %(levelname)s %(message)s")
+        return logger
     logger.setLevel(logging.INFO)
     if not logger.handlers:  # main() may run more than once in the same process.
         log_file.parent.mkdir(parents=True, exist_ok=True)

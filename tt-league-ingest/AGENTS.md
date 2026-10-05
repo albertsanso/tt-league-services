@@ -18,3 +18,6 @@ Supplements the root `AGENTS.md`. This is a uv workspace outside the Maven react
   logs or tokens.
 - Do not change Java code or the manifest contract from here (`ResourceZipService` owns it).
 - Validation: `uv lock --check`, `uv sync --all-packages`, `uv run pytest` from `tt-league-ingest/`.
+- The REST service configures logging only through `ingest_common.logs`. A legacy `configure_logging` must
+  not touch the root logger or add console handlers while `service_logging_active()`; it only attaches its
+  own file handler and lets records propagate to the root JSON handler.

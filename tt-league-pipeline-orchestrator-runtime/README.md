@@ -69,7 +69,8 @@ HTTP connect timeouts are `PT10S`; read timeouts are `PT1M` (ingest) and `PT5M`
 (platform, which validates the upload synchronously). They are set in
 `application.yml` (`tt.pipeline.*.connect-timeout`, `read-timeout`).
 
-`/actuator/health` and `/actuator/info` are exposed.
+`/actuator/health`, `/actuator/info` and `/actuator/prometheus` are exposed; see
+[Observability](#observability). `PIPELINE_LOG_FORMAT` (default `logstash`) selects the console log format.
 
 ## Run execution
 
@@ -134,7 +135,7 @@ stay active.
 Every `/api/**` request needs a platform JWT in `Authorization: Bearer ...`. The decoder uses the shared secret and
 picks HS256 (32-47 bytes), HS384 (48-63) or HS512 (64+) like the platform. Authorities are the `permissions` claim as
 is plus `ROLE_<role>`; `sub` is the user name. `POST /api/pipeline/runs`, `POST /api/pipeline/runs/{id}/replay` and every mutation under `/api/pipeline/match-days` (`POST`, `PUT`, `DELETE`) need
-`matches:write`; everything else needs any valid token. Health, info, `/v3/api-docs` and `/swagger-ui` are public. Tokens revoked by a platform logout stay
+`matches:write`; everything else needs any valid token. Health, info, Prometheus, `/v3/api-docs` and `/swagger-ui` are public. Tokens revoked by a platform logout stay
 valid here until they expire. `PIPELINE_CORS_ALLOWED_ORIGINS` (comma-separated origins, default none) enables CORS
 for those browser origins.
 
@@ -456,6 +457,50 @@ writes one row per source for every complete day from the day after the latest s
 never aggregated. A failure is logged as a warning and the next tick catches up again. Statistics never block or fail a
 run, a recompute or a request. The run detail also shows the ingest health of each attempt and `amendedPlayed` of the
 import report.
+
+## Observability
+
+### Metrics
+
+`GET /actuator/prometheus` serves the Prometheus text format. Every meter carries the tag
+`application=tt-league-pipeline-orchestrator-runtime`. Run meters are registered on their first sample, so they appear
+after the first run finishes. Counters are per process and reset on restart; there is no persistence of metrics.
+
+| Meter (Prometheus name) | Type | Tags | Meaning |
+| --- | --- | --- | --- |
+| `pipeline.runs.finished` (`pipeline_runs_finished_total`) | counter | `source`, `trigger`, `outcome`, `error` | One per run that reaches a terminal status (`NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED`); `error` is the failure code or `none` |
+| `pipeline.run.duration` (`pipeline_run_duration_seconds_*`) | timer | `source`, `trigger`, `outcome` | `finishedAt - startedAt`; a run that failed at launch has no duration |
+| `pipeline.step.duration` (`pipeline_step_duration_seconds_*`) | timer | `source`, `step`, `status` | One sample per finished step attempt (`INGEST`, `FETCH_PACKAGE`, `IMPORT`) |
+| `pipeline.matches.pending` (`pipeline_matches_pending`) | gauge | `source`, `age` | Matches still waiting for a result by age bucket (`under_1_day`, `days_1_to_2`, `days_2_to_7`, `over_7_days`) |
+| `pipeline.matches.overdue` (`pipeline_matches_overdue`) | gauge | `source` | Pending matches with status OVERDUE |
+| `pipeline.match.days.open` (`pipeline_match_days_open`) | gauge | `source` | Open match days |
+| `pipeline.metrics.refresh.failures` (`pipeline_metrics_refresh_failures_total`) | counter | none | Failed refreshes of the three gauges above |
+
+Boot's JVM, process and `http_*` meters (including `http_client_requests` for the ingest and platform clients) come
+with the registry. The duration timers publish the fixed buckets 10s, 30s, 1m, 5m, 15m, 30m, 1h, 2h, 3h and 6h and no
+client-side percentiles. Tags are enum or failure-code names only; a run id, season, scope or message is never a tag.
+
+The three gauges read one cached snapshot built by `OperationalGauges`, so the pending figure is the same one
+`GET /api/pipeline/statistics/pending` returns. The snapshot is refreshed by the first scrape that finds it older than
+30 seconds; nothing runs while nobody scrapes. When a refresh fails, it is logged as a warning, the failure counter is
+incremented and the gauges report `NaN` until a refresh succeeds (a database outage costs one read per 30 seconds).
+
+`/actuator/prometheus` is public, like the health endpoint: it carries aggregate counts and durations only. Do not
+route it through a public reverse proxy; scrape it from the internal network. Grafana dashboards, alert rules and the
+log stack are deployment concerns and are not committed here.
+
+### Logs
+
+Logs are JSON, one object per line, written to the console. `PIPELINE_LOG_FORMAT` selects the format: `logstash`
+(default), `ecs` or `gelf` (Boot's structured formats), or an empty value for the plain-text pattern in local
+development. Any other value fails startup. The `logstash` fields are `@timestamp`, `level`, `logger_name`,
+`thread_name`, `message` and `stack_trace`, plus the MDC and key-value fields below.
+
+Every line written while a run executes carries `runId` (the orchestrator run id), including the core's own lines and
+the gateway lines. The run observer lines add `source`, `status`, `step`, `attempt`, `outcome` and `error`. The
+orchestrator sends the same id to `tt-league-ingest` as `correlationId` in the `POST /api/v1/ingest/runs` body, and
+ingest writes it as `runId` on every log line of that run (with its own id as `ingestRunId`), so one query,
+`runId = <uuid>`, returns the lines of both services. An ingest service from before FEAT-00115 ignores the field.
 
 ## Persistence
 

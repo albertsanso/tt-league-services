@@ -54,25 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00115] Orchestrator metrics and run-correlated logging
-- **Status:** idea
-- **Priority:** low
-- **Effort:** medium
-- **Depends on:** FEAT-00104
-
-#### Goal
-Make the pipeline observable with metrics and logs that trace one run across the orchestrator and ingest.
-
-#### Acceptance Criteria
-- [ ] Micrometer metrics (runs by outcome, step durations, pending matches, open match days) are exposed through Actuator in Prometheus format
-- [ ] The orchestrator logs in structured JSON with `runId`, and passes its `runId` to the ingest service, which includes it on every log line of that run
-- [ ] Tests check metric registration and run-id propagation
-
-#### Feature Details
-→ See [FEAT-00115-DETAILS.md](./FEAT-00115-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00116] Container packaging for orchestrator and ingest services
 - **Status:** idea
 - **Priority:** medium
@@ -93,6 +74,25 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00115] Orchestrator metrics and run-correlated logging
+- **Status:** done
+- **Priority:** low
+- **Effort:** large
+- **Depends on:** FEAT-00104, FEAT-00107, FEAT-00113
+
+#### Goal
+Make the pipeline observable with metrics and logs that trace one run across the orchestrator and ingest.
+
+#### Acceptance Criteria
+- [x] Micrometer metrics (runs by outcome, step durations, pending matches, open match days) are exposed through Actuator in Prometheus format
+- [x] The orchestrator logs in structured JSON with `runId`, and passes its `runId` to the ingest service, which includes it on every log line of that run
+- [x] Tests check metric registration and run-id propagation
+
+#### Feature Details
+→ See [FEAT-00115-DETAILS.md](./FEAT-00115-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00114] Replay import from retained run artifacts
 - **Status:** done

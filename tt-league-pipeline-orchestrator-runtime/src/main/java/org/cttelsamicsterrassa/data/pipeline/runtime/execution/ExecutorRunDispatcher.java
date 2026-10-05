@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.execution;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RunExecutor;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunDispatcher;
 import jakarta.annotation.PreDestroy;
+import org.cttelsamicsterrassa.data.pipeline.runtime.logging.RunLogContext;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -54,10 +55,12 @@ public final class ExecutorRunDispatcher implements RunDispatcher {
     }
 
     private void runOne(UUID runId) {
-        try {
-            executor.execute(runId);
-        } catch (RuntimeException e) {
-            LOG.error("run {} escaped the executor", runId, e);
+        try (RunLogContext.Scope scope = RunLogContext.bind(runId)) {
+            try {
+                executor.execute(runId);
+            } catch (RuntimeException e) {
+                LOG.error("run {} escaped the executor", runId, e);
+            }
         } finally {
             inFlight.remove(runId);
         }

@@ -357,6 +357,11 @@ class RunsApiWebTest {
         mvc.perform(get("/actuator/health")).andExpect(status().isNotFound());
     }
 
+    @Test
+    void prometheusIsPublic() throws Exception {
+        mvc.perform(get("/actuator/prometheus")).andExpect(status().isNotFound());
+    }
+
     @SuppressWarnings("unused")
     private static Object unused() {
         return mock(Object.class);

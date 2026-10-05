@@ -46,7 +46,7 @@ from ingest_fctt.download import (
     Node, atomic_write, parse_filter, parse_html, parse_match_days, query_param, slugify,
 )
 
-from ingest_common import health
+from ingest_common import health, logs
 from ingest_common.validation import ACTA_SCHEMA_PATH
 
 try:
@@ -770,8 +770,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def configure_logging(log_file: Path, verbose: bool) -> None:
-    log_file.parent.mkdir(parents=True, exist_ok=True)
     level = logging.DEBUG if verbose else logging.INFO
+    if logs.service_logging_active():
+        logs.attach_script_file_handler(LOGGER, log_file, "%(asctime)s %(levelname)s %(message)s", level)
+        return
+    log_file.parent.mkdir(parents=True, exist_ok=True)
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     file_handler = logging.FileHandler(log_file, encoding="utf-8")
     console = logging.StreamHandler(sys.stderr)

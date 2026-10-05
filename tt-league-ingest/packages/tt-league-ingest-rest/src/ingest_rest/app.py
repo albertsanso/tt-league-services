@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
@@ -16,6 +17,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel, ConfigDict
 
 from ingest_common.fingerprint import file_digest
+from ingest_common.logs import bind_run
 from ingest_common.match_day_status import read_status_report, report_for_season
 from ingest_common.match_days import parse_match_days
 from ingest_common.pipeline import IngestPipeline, SourceIngestor, discover_ingestors
@@ -29,6 +31,7 @@ from ingest_common.source import Source
 LOGGER = logging.getLogger(__name__)
 HISTORY_LIMIT = 50  # also the number of runs whose package ZIP is retained
 ACTIVE_STATUSES = ("QUEUED", "RUNNING")
+CORRELATION_ID = re.compile(r"[A-Za-z0-9._-]{1,64}")  # the value lands in log lines
 
 
 class FiltersBody(BaseModel):
@@ -60,12 +63,14 @@ class RunBody(BaseModel):
     force: bool = False
     mode: str = "snapshot"
     allowPublishedShrink: bool = False
+    correlationId: str | None = None
 
 
 @dataclass
 class RunRecord:
     run_id: str
     request: IngestRequest
+    correlation_id: str | None = None
     status: str = "QUEUED"
     current_stage: str | None = None
     created_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
@@ -78,6 +83,7 @@ class RunRecord:
         stages = self.report.stages if self.report else self.stages
         return {
             "runId": self.run_id,
+            "correlationId": self.correlation_id,
             "source": self.request.source.value,
             "season": str(self.request.season),
             "status": self.status,
@@ -102,8 +108,8 @@ class RunRegistry:
         self._runs: dict[str, RunRecord] = {}
         self._lock = threading.Lock()
 
-    def add(self, run_id: str, request: IngestRequest) -> RunRecord:
-        record = RunRecord(run_id, request)
+    def add(self, run_id: str, request: IngestRequest, correlation_id: str | None = None) -> RunRecord:
+        record = RunRecord(run_id, request, correlation_id)
         with self._lock:
             self._runs[record.run_id] = record
         return record
@@ -156,19 +162,25 @@ def create_app(settings: IngestSettings, api_key: str, ingestors: dict[Source, S
             raise HTTPException(status_code=401, detail="invalid or missing X-API-Key")
 
     def execute(record: RunRecord) -> None:
-        record.status = "RUNNING"
-        try:
-            report = IngestPipeline(settings, available, _RecordListener(record)).run(record.request)
-        except Exception as error:  # noqa: BLE001 - the failure is recorded on the run, not swallowed
-            record.status = RunStatus.FAILED.value
-            record.outcome = RunOutcome.FAILED
-            record.error = f"{type(error).__name__}: {error}"
-        else:
-            record.report = report
-            record.outcome = report.outcome
-            record.current_stage = None
-            record.status = report.status.value
-        prune_packages()
+        # executor.submit does not copy the context, so the ids are bound here, for the whole run.
+        with bind_run(record.run_id, record.correlation_id):
+            record.status = "RUNNING"
+            LOGGER.info("run started: source=%s season=%s", record.request.source.value, record.request.season)
+            try:
+                report = IngestPipeline(settings, available, _RecordListener(record)).run(record.request)
+            except Exception as error:  # noqa: BLE001 - the failure is recorded on the run, not swallowed
+                record.status = RunStatus.FAILED.value
+                record.outcome = RunOutcome.FAILED
+                record.error = f"{type(error).__name__}: {error}"
+                LOGGER.error("run failed: %s", record.error, exc_info=True)
+            else:
+                record.report = report
+                record.outcome = report.outcome
+                record.current_stage = None
+                record.status = report.status.value
+            LOGGER.info("run finished: status=%s outcome=%s", record.status,
+                        record.outcome.value if record.outcome else None)
+            prune_packages()
 
     def run_package_path(run_id: str, source: Source) -> Path:
         """Each run packages to its own file, so a later run never replaces an earlier run's ZIP."""
@@ -215,11 +227,16 @@ def create_app(settings: IngestSettings, api_key: str, ingestors: dict[Source, S
     @app.post("/api/v1/ingest/runs", status_code=202, dependencies=[Depends(require_key)])
     def create_run(body: RunBody) -> dict[str, str]:
         run_id = uuid.uuid4().hex
+        if body.correlationId is not None and not CORRELATION_ID.fullmatch(body.correlationId):
+            raise HTTPException(status_code=400, detail="correlationId must match [A-Za-z0-9._-]{1,64}")
         request = to_request(body)
         if registry.active_for(request.source) is not None:
             raise HTTPException(status_code=409, detail=f"a run for {request.source.value} is already active")
         package_path = run_package_path(run_id, request.source) if IngestStage.PACKAGE in request.stages else None
-        record = registry.add(run_id, replace(request, run_id=run_id, zip_path=package_path))
+        record = registry.add(run_id, replace(request, run_id=run_id, zip_path=package_path), body.correlationId)
+        with bind_run(run_id, body.correlationId):
+            LOGGER.info("run accepted: source=%s season=%s stages=%s mode=%s", request.source.value,
+                        request.season, ",".join(stage.value for stage in request.stages), request.mode)
         executor.submit(execute, record)
         return {"runId": record.run_id}
 

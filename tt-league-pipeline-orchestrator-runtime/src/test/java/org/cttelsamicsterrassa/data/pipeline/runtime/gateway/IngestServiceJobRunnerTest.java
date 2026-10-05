@@ -21,6 +21,7 @@ import java.time.Duration;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -29,6 +30,7 @@ import org.springframework.web.client.RestClient;
 class IngestServiceJobRunnerTest {
 
     private static final String KEY = "ingest-secret-key";
+    private static final UUID CORRELATION = UUID.fromString("11111111-2222-3333-4444-555555555555");
     private static final String RUNS = "/api/v1/ingest/runs";
 
     private final StubHttpServer server = new StubHttpServer();
@@ -45,7 +47,7 @@ class IngestServiceJobRunnerTest {
     }
 
     private static IngestRunRequest fullSeason() {
-        return new IngestRunRequest(PipelineSource.RFETM, "2025-2026", IngestMode.SNAPSHOT, RunScope.fullSeason(), false);
+        return new IngestRunRequest(PipelineSource.RFETM, "2025-2026", IngestMode.SNAPSHOT, RunScope.fullSeason(), false, CORRELATION);
     }
 
     private static GatewayException failureOf(Runnable call) {
@@ -69,7 +71,7 @@ class IngestServiceJobRunnerTest {
         assertThat(request.header("Content-Type")).startsWith("application/json");
         assertThat(request.bodyText()).isEqualTo("{\"source\":\"RFETM\",\"season\":\"2025-2026\","
                 + "\"stages\":[\"download\",\"parse\",\"package\"],\"mode\":\"snapshot\",\"force\":false,"
-                + "\"allowPublishedShrink\":false}");
+                + "\"allowPublishedShrink\":false,\"correlationId\":\"" + CORRELATION + "\"}");
     }
 
     @Test
@@ -77,7 +79,7 @@ class IngestServiceJobRunnerTest {
         server.on("POST", RUNS, Response.json(202, "{\"runId\":\"r1\"}"));
 
         gateway.startRun(new IngestRunRequest(PipelineSource.RFETM, "2025-2026", IngestMode.SNAPSHOT,
-                RunScope.fullSeason(), true));
+                RunScope.fullSeason(), true, CORRELATION));
 
         assertThat(server.requests.get(0).bodyText()).contains("\"force\":true")
                 .contains("\"allowPublishedShrink\":false");
@@ -90,12 +92,12 @@ class IngestServiceJobRunnerTest {
                 new ScopeFilter("CAT", null, "FASE1", null, null, List.of(3, 4)),
                 new ScopeFilter(null, "G1", null, null, "F", List.of())));
 
-        gateway.startRun(new IngestRunRequest(PipelineSource.BCNESA, "2025-2026", IngestMode.DELTA, scope, false));
+        gateway.startRun(new IngestRunRequest(PipelineSource.BCNESA, "2025-2026", IngestMode.DELTA, scope, false, CORRELATION));
 
         assertThat(server.requests.get(0).bodyText()).isEqualTo("{\"source\":\"BCNESA\",\"season\":\"2025-2026\","
                 + "\"stages\":[\"download\",\"parse\",\"package\"],\"mode\":\"delta\",\"force\":false,"
                 + "\"allowPublishedShrink\":false,\"scopes\":[{\"category\":\"CAT\",\"phase\":\"FASE1\","
-                + "\"matchDays\":[3,4]},{\"group\":\"G1\",\"gender\":\"F\"}]}");
+                + "\"matchDays\":[3,4]},{\"group\":\"G1\",\"gender\":\"F\"}],\"correlationId\":\"" + CORRELATION + "\"}");
     }
 
     @Test

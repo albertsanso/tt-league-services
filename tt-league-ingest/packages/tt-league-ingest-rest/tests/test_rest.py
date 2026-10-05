@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import threading
 import time
 import zipfile
@@ -13,6 +14,7 @@ from fastapi.testclient import TestClient
 
 import ingest_rest.app
 
+from ingest_common import logs
 from ingest_common.run import IngestStage, StageReport
 from ingest_common.scan import record_exit_code
 from ingest_common.settings import IngestSettings
@@ -34,6 +36,7 @@ class FakeIngestor:
 
     def download(self, request, settings, listener):
         self.release.wait(5)
+        logging.getLogger("fake.ingestor").info("downloading on the executor thread")
         if self.raises:
             raise RuntimeError("unexpected")
         report = StageReport(IngestStage.DOWNLOAD)
@@ -355,3 +358,89 @@ def test_status_endpoint_answers_while_a_run_is_active(tmp_path):
     assert client.get(STATUS_URL.format("fctt"), headers=KEY).status_code == 200
     ingestor.release.set()
     wait_for(client, run_id)
+
+
+class Capture(logging.Handler):
+    def __init__(self):
+        super().__init__(logging.DEBUG)
+        self.records = []
+
+    def emit(self, record):
+        self.records.append(record)
+
+
+@pytest.fixture
+def captured():
+    root = logging.getLogger()
+    saved = (root.level, logging.getLogRecordFactory(), logs._installed_factory)
+    logs.install_record_factory()
+    root.setLevel(logging.INFO)
+    capture = Capture()
+    root.addHandler(capture)
+    yield capture.records
+    root.removeHandler(capture)
+    root.setLevel(saved[0])
+    logging.setLogRecordFactory(saved[1])
+    logs._installed_factory = saved[2]
+
+
+def test_correlation_id_is_accepted_and_returned(tmp_path):
+    client = client_for(tmp_path, FakeIngestor())
+    run_id = post(client, correlationId="0a1b2c3d-1111-2222-3333-444455556666").json()["runId"]
+
+    body = wait_for(client, run_id)
+
+    assert body["correlationId"] == "0a1b2c3d-1111-2222-3333-444455556666"
+    listing = client.get("/api/v1/ingest/runs", headers=KEY).json()
+    assert listing[0]["correlationId"] == "0a1b2c3d-1111-2222-3333-444455556666"
+
+
+def test_a_missing_correlation_id_is_null(tmp_path):
+    client = client_for(tmp_path, FakeIngestor())
+    assert wait_for(client, post(client).json()["runId"])["correlationId"] is None
+
+
+@pytest.mark.parametrize("value", ["", "has space", "semi;colon", "x" * 65, "line-break\n", "{json}"])
+def test_an_invalid_correlation_id_is_rejected(tmp_path, value):
+    client = client_for(tmp_path, FakeIngestor())
+    assert post(client, correlationId=value).status_code == 400
+
+
+def test_every_record_of_a_run_carries_the_ids(tmp_path, captured):
+    client = client_for(tmp_path, FakeIngestor())
+    run_id = post(client, correlationId="orch-42").json()["runId"]
+    wait_for(client, run_id)
+    deadline = time.time() + 5
+    while time.time() < deadline and not any("run finished" in r.getMessage() for r in captured):
+        time.sleep(0.05)
+
+    messages = {r.getMessage(): r for r in captured if r.name.startswith(("ingest_rest", "fake"))}
+    assert any(m.startswith("run accepted") for m in messages)
+    assert "downloading on the executor thread" in messages
+    assert any(m.startswith("run started") for m in messages)
+    assert any(m.startswith("run finished") for m in messages)
+    for record in messages.values():
+        assert record.runId == "orch-42" and record.ingestRunId == run_id
+
+
+def test_a_run_without_a_correlation_id_logs_a_null_run_id(tmp_path, captured):
+    client = client_for(tmp_path, FakeIngestor())
+    run_id = post(client).json()["runId"]
+    wait_for(client, run_id)
+
+    run_records = [r for r in captured if r.name.startswith("fake")]
+    assert run_records and all(r.runId is None and r.ingestRunId == run_id for r in run_records)
+
+
+def test_a_failing_run_logs_the_stack_trace_and_still_records_the_error(tmp_path, captured):
+    client = client_for(tmp_path, FakeIngestor(raises=True))
+    run_id = post(client, correlationId="orch-9").json()["runId"]
+
+    body = wait_for(client, run_id)
+
+    assert body["status"] == "FAILED" and body["error"].startswith("RuntimeError")
+    deadline = time.time() + 5
+    while time.time() < deadline and not any(r.exc_info for r in captured):
+        time.sleep(0.05)
+    failed = [r for r in captured if r.exc_info]
+    assert failed and failed[0].runId == "orch-9"

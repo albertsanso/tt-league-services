@@ -83,6 +83,10 @@ and the Flyway/JPA persistence of the run model (later features add security).
 - Run observers never throw into the executor (`CompositeRunObserver` isolates
   them). The `RunEventBroadcaster` sends on its own private pool, which is not
   an `Executor` bean, and never on a run thread.
+- Meters are created only by `RunMetricsObserver` and `OperationalGaugeBinder`, and tagged only with enum or
+  `FailureCode` names, never a run id, season, scope or message. The `runId` MDC key is written only by
+  `RunLogContext`. `/actuator/prometheus` is public and exposes aggregates only; a failed gauge refresh reports
+  `NaN` and counts the failure.
 - Schema `pipeline` changes only through new `db/migration/V<n>__*.sql`
   migrations; never edit an applied one. `ddl-auto` stays `validate`. Update
   `docs/pipeline-datamodel.md` with every migration, and never reference

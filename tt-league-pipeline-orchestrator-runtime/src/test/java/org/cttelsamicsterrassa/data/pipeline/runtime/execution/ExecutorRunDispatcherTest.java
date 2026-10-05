@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.slf4j.MDC;
 
 class ExecutorRunDispatcherTest {
 
@@ -52,6 +53,7 @@ class ExecutorRunDispatcherTest {
         final AtomicInteger active = new AtomicInteger();
         final AtomicInteger maxActive = new AtomicInteger();
         final List<String> threadNames = Collections.synchronizedList(new ArrayList<>());
+        final List<String> loggedRunIds = Collections.synchronizedList(new ArrayList<>());
         final boolean finishRuns;
 
         BlockingIngest(boolean finishRuns) {
@@ -62,6 +64,7 @@ class ExecutorRunDispatcherTest {
         public String startRun(IngestRunRequest request) {
             starts.incrementAndGet();
             threadNames.add(Thread.currentThread().getName());
+            loggedRunIds.add(String.valueOf(MDC.get("runId")));
             int now = active.incrementAndGet();
             maxActive.accumulateAndGet(now, Math::max);
             try {
@@ -132,6 +135,24 @@ class ExecutorRunDispatcherTest {
 
         await(() -> runs.findById(run.id()).orElseThrow().status() == RunStatus.NO_CHANGES);
         assertThat(ingest.threadNames).singleElement().asString().matches("pipeline-run-\\d+");
+    }
+
+    @Test
+    void everyRunExecutesWithItsOwnRunIdInTheLogContext() throws Exception {
+        BlockingIngest ingest = new BlockingIngest(true);
+        ingest.release.countDown();
+        PipelineRun first = queue(PipelineSource.RFETM);
+        PipelineRun second = queue(PipelineSource.BCNESA);
+        ExecutorRunDispatcher d = dispatcher(ingest, 1);
+
+        d.dispatch(first.id());
+        await(() -> runs.findById(first.id()).orElseThrow().status() == RunStatus.NO_CHANGES);
+        d.dispatch(second.id());
+        await(() -> runs.findById(second.id()).orElseThrow().status() == RunStatus.NO_CHANGES);
+
+        assertThat(ingest.threadNames).hasSize(2).containsOnly(ingest.threadNames.get(0));
+        assertThat(ingest.loggedRunIds).containsExactly(first.id().toString(), second.id().toString());
+        assertThat(MDC.get("runId")).isNull();
     }
 
     @Test

@@ -58,7 +58,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 from urllib.request import HTTPCookieProcessor, Request, build_opener
 from urllib.robotparser import RobotFileParser
 
-from ingest_common import health
+from ingest_common import health, logs
 
 try:
     from zoneinfo import ZoneInfo
@@ -1314,8 +1314,11 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def configure_logging(log_file: Path, verbose: bool) -> None:
-    log_file.parent.mkdir(parents=True, exist_ok=True)
     level = logging.DEBUG if verbose else logging.INFO
+    if logs.service_logging_active():
+        logs.attach_script_file_handler(LOGGER, log_file, "%(asctime)s %(levelname)s %(message)s", level)
+        return
+    log_file.parent.mkdir(parents=True, exist_ok=True)
     formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
     file_handler = logging.FileHandler(log_file, encoding="utf-8")
     console = logging.StreamHandler(sys.stderr)

@@ -38,6 +38,7 @@ Federation packages register their `SourceIngestor` under the entry-point group 
 | `TT_INGEST_REST_API_KEY` | REST service | Value expected in the `X-API-Key` header; startup fails without it |
 | `TT_INGEST_REST_HOST` | no | Default `127.0.0.1` |
 | `TT_INGEST_REST_PORT` | no | Default `8090` |
+| `TT_INGEST_REST_LOG_FORMAT` | no | `json` (default) or `text`; any other value exits with code 2 |
 
 ## Output contracts (unchanged from the legacy extractors)
 
@@ -209,6 +210,19 @@ Endpoints: `POST /api/v1/ingest/runs` (`202 {runId}`, `400` invalid input, `409`
 `GET /api/v1/ingest/runs/{runId}` (`404` unknown), `GET /api/v1/ingest/runs` (most recent first, default 50),
 `GET /api/v1/ingest/runs/{runId}/package` (see below), `GET /api/v1/ingest/sources/{source}/match-days-status`
 (see below), `GET /health` (no key). Runs execute one at a time; run history is in memory and lost on restart.
+
+The run body accepts an optional `correlationId` (1-64 characters among `A-Za-z0-9._-`, otherwise `400`): the id
+of the calling system's run, which the pipeline orchestrator sets to its run id. It is stored on the run and
+returned as `correlationId` (`null` when absent) by `GET /runs/{runId}` and `GET /runs`; it is not part of the
+ZIP or the manifest.
+
+The service logs to stderr, one JSON object per line (`TT_INGEST_REST_LOG_FORMAT=text` for a plain pattern), with
+the fields the orchestrator also writes: `@timestamp`, `level`, `logger_name`, `thread_name`, `message` and
+`stack_trace`. While a run executes, every log record of that run, including the legacy scripts' records, also
+carries `runId` and `ingestRunId`. Note the naming: in the API, `runId` is the ingest run id; in the log lines,
+`runId` is the orchestrator run id (the `correlationId`, absent when none was given) and `ingestRunId` is the
+ingest run id. The legacy scripts keep their own per-script log files unchanged and add no console handler while
+the service runs; the CLI keeps its text output.
 
 A REST run that includes `package` writes its own ZIP, `<data_dir>/<source>/packages/runs/<runId>.zip`, with
 `runId` in the manifest, so a later run never replaces an earlier run's package. (CLI runs keep the

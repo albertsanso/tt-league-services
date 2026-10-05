@@ -22,7 +22,8 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 /**
  * Stateless bearer-token security. Tokens are platform JWTs; viewing needs authentication, while triggering a run and
  * the match-day actions need the {@code matches:write} authority and changing a polling policy needs the {@code ADMIN} role. Tokens are never
- * logged or echoed.
+ * logged or echoed. The health, info and Prometheus actuator endpoints are public; the Prometheus one carries only
+ * aggregate counts and durations and must not be published by a reverse proxy.
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfiguration {
@@ -68,6 +69,7 @@ public class SecurityConfiguration {
                         // Async and error dispatches continue a request that was already authorized.
                         .dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()
                         .requestMatchers("/actuator/health", "/actuator/health/**", "/actuator/info",
+                                "/actuator/prometheus",
                                 "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**", "/error")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/pipeline/runs").hasAuthority(TRIGGER_AUTHORITY)

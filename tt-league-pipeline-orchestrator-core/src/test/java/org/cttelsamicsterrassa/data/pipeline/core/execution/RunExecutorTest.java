@@ -120,6 +120,15 @@ class RunExecutorTest {
     }
 
     @Test
+    void theRunIdIsSentToIngestAsTheCorrelationId() {
+        ingest.start("a").poll(finished("a", "NO_CHANGES", false));
+
+        PipelineRun run = execute(h.queueRun());
+
+        assertThat(ingest.startRequests).extracting(IngestRunRequest::correlationId).containsExactly(run.id());
+    }
+
+    @Test
     void forceIsPassedToTheIngestStart() {
         ingest.start("a").poll(finished("a", "NO_CHANGES", false));
         execute(h.queueRun(PipelineSource.RFETM, RunScope.fullSeason(), true));
@@ -262,6 +271,8 @@ class RunExecutorTest {
         assertThat(attempts.get(0).error().code()).isEqualTo("INGEST_UNAVAILABLE");
         assertThat(attempts.get(0).externalRef()).isNull();
         assertThat(h.fakeClock.sleeps).containsExactly(Duration.ofSeconds(30));
+        assertThat(ingest.startRequests).hasSize(2)
+                .allSatisfy(request -> assertThat(request.correlationId()).isEqualTo(run.id()));
     }
 
     @Test

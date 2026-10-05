@@ -57,7 +57,7 @@ from bs4 import BeautifulSoup, Tag
 from jsonschema import Draft202012Validator
 
 from ingest_bcnesa import acta_parser
-from ingest_common import health
+from ingest_common import health, logs
 from ingest_common.validation import ACTA_SCHEMA_PATH
 
 
@@ -106,6 +106,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def configure_logging(log_file: Path | None) -> None:
+    if logs.service_logging_active():
+        logs.attach_script_file_handler(LOGGER, log_file, "%(asctime)s %(levelname)s %(message)s")
+        return
     handlers: list[logging.Handler] = [logging.StreamHandler()]
     if log_file:
         log_file.parent.mkdir(parents=True, exist_ok=True)

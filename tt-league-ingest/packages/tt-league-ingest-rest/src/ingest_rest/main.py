@@ -7,12 +7,14 @@ import sys
 
 import uvicorn
 
+from ingest_common.logs import configure_service_logging
 from ingest_common.settings import ConfigurationError, IngestSettings
 from ingest_rest.app import create_app
 
 API_KEY_VARIABLE = "TT_INGEST_REST_API_KEY"
 HOST_VARIABLE = "TT_INGEST_REST_HOST"
 PORT_VARIABLE = "TT_INGEST_REST_PORT"
+LOG_FORMAT_VARIABLE = "TT_INGEST_REST_LOG_FORMAT"
 
 
 def main() -> int:
@@ -26,7 +28,14 @@ def main() -> int:
     except (ConfigurationError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
-    uvicorn.run(create_app(settings, api_key), host=os.environ.get(HOST_VARIABLE, "127.0.0.1"), port=port)
+    try:
+        configure_service_logging(os.environ.get(LOG_FORMAT_VARIABLE, "json").strip())
+    except ValueError as error:
+        print(f"error: {LOG_FORMAT_VARIABLE}: {error}", file=sys.stderr)
+        return 2
+    # log_config=None: uvicorn's loggers propagate to the root handler instead of its own formatters.
+    uvicorn.run(create_app(settings, api_key), host=os.environ.get(HOST_VARIABLE, "127.0.0.1"), port=port,
+                log_config=None)
     return 0
 
 

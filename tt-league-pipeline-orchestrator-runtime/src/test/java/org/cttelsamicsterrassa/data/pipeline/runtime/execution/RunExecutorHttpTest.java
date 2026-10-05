@@ -121,6 +121,8 @@ class RunExecutorHttpTest {
 
         PipelineRun run = h.run(queued.id());
         assertThat(run.status()).isEqualTo(RunStatus.SUCCEEDED);
+        assertThat(ingest.requests.stream().filter(r -> r.method().equals("POST")).findFirst().orElseThrow()
+                .bodyText()).contains("\"correlationId\":\"" + run.id() + "\"");
         assertThat(run.ingestRunId()).isEqualTo("ing1");
         assertThat(run.importJobId()).isEqualTo(jobId);
         Path zip = artifacts.resolve("rfetm/2025-2026/" + run.id() + "/ingest-ing1.zip");

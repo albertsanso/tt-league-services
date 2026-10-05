@@ -9,7 +9,9 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.RunExecutor;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RunLauncher;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RunRecovery;
 import org.cttelsamicsterrassa.data.pipeline.core.alert.port.AlertRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.port.CompositeRunObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunDispatcher;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineStepRepository;
@@ -31,6 +33,8 @@ import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepositor
 import org.cttelsamicsterrassa.data.pipeline.runtime.notification.NotificationConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.polling.PollingConfiguration;
 import net.javacrumbs.shedlock.core.LockingTaskExecutor;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
+import org.cttelsamicsterrassa.data.pipeline.runtime.metrics.RunMetricsObserver;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -93,6 +97,15 @@ class RunExecutionConfigurationTest {
             assertThat(context).hasSingleBean(RunLauncher.class);
             assertThat(context).hasSingleBean(RunRecovery.class);
             assertThat(context.getBean(RunDispatcher.class)).isInstanceOf(ExecutorRunDispatcher.class);
+        });
+    }
+
+    @Test
+    void theRunObserverIsPrimaryAndTheRunMetricsAreWired() {
+        runner().run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(RunObserver.class)).isInstanceOf(CompositeRunObserver.class);
+            assertThat(context).hasSingleBean(RunMetricsObserver.class);
         });
     }
 
@@ -174,6 +187,11 @@ class RunExecutionConfigurationTest {
         @Bean
         PipelineRunRepository runs() {
             return mock(PipelineRunRepository.class);
+        }
+
+        @Bean
+        RunMetricsObserver runMetricsObserver(PipelineRunRepository runs) {
+            return new RunMetricsObserver(new SimpleMeterRegistry(), runs);
         }
 
         @Bean

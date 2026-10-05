@@ -146,3 +146,6 @@ mvn -pl tt-league-pipeline-orchestrator-core -am test
   `ImportReport` carry `amendedPlayed`.
 - New fixtures in the `test-jar`: `InMemoryDailyStatsRepository` and `InMemoryStatisticsReadRepository`;
   `ScriptedIngestGateway.withHealth` builds an ingest state with health.
+- `IngestRunRequest.correlationId` is the run id, sent to ingest so both services log the same `runId`.
+  `OperationalGauges` only composes `StatisticsQueries.pending` and the open match days; it adds no rule, and
+  the core gets no Micrometer, SLF4J or MDC dependency.
