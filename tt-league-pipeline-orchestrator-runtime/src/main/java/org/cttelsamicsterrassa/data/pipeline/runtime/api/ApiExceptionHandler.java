@@ -3,6 +3,8 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.api;
 import com.fasterxml.jackson.databind.exc.InvalidFormatException;
 import com.fasterxml.jackson.databind.exc.MismatchedInputException;
 import java.util.List;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.port.StalePollPolicyException;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.port.StalePollScheduleException;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.IllegalMatchDayTransitionException;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayNotFoundException;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.StaleMatchDayException;
@@ -80,6 +82,28 @@ class ApiExceptionHandler {
     ProblemDetail staleMatchDay(StaleMatchDayException e) {
         return coded(HttpStatus.CONFLICT, "STALE_MATCH_DAY",
                 "The match day changed while it was being updated; reload it and try again");
+    }
+
+    @ExceptionHandler(PollScheduleNotFoundException.class)
+    ProblemDetail pollScheduleNotFound(PollScheduleNotFoundException e) {
+        return coded(HttpStatus.NOT_FOUND, "POLL_SCHEDULE_NOT_FOUND", e.getMessage());
+    }
+
+    @ExceptionHandler(PollScheduleNotStoppedException.class)
+    ProblemDetail pollScheduleNotStopped(PollScheduleNotStoppedException e) {
+        return coded(HttpStatus.CONFLICT, "NOT_STOPPED", e.getMessage());
+    }
+
+    @ExceptionHandler(StalePollScheduleException.class)
+    ProblemDetail stalePollSchedule(StalePollScheduleException e) {
+        return coded(HttpStatus.CONFLICT, "STALE_SCHEDULE",
+                "The poll schedule changed while it was being updated; reload it and try again");
+    }
+
+    @ExceptionHandler(StalePollPolicyException.class)
+    ProblemDetail stalePollPolicy(StalePollPolicyException e) {
+        return coded(HttpStatus.CONFLICT, "STALE_POLICY",
+                "The polling policy of " + e.source() + " changed; reload it and try again");
     }
 
     private static ProblemDetail coded(HttpStatus status, String code, String detail) {

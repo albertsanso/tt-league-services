@@ -54,27 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00108] Scoped runs and adaptive polling
-- **Status:** idea
-- **Priority:** medium
-- **Effort:** large
-- **Depends on:** FEAT-00098, FEAT-00106, FEAT-00107
-
-#### Goal
-Poll each source only for its open groups, as often as their matches require, and stop by itself when match days are complete.
-
-#### Acceptance Criteria
-- [ ] A scope builder turns a source's open match days into ingest `scopes` (territory/category/group/phase/match days)
-- [ ] `poll_schedule` stores the next run, interval, consecutive no-change count and policy level per source and scope hash
-- [ ] Poll intervals follow the proposal's policy table (configurable per source), double after 3 consecutive `NO_CHANGES` up to the next level, and stop with an alert for matches overdue beyond 21 days
-- [ ] A weekly full-scope run (and one at season start) refreshes fixtures, phases and re-draws
-- [ ] Admins can change the policy settings through an API; tests cover each policy level and the back-off
-
-#### Feature Details
-→ See [FEAT-00108-DETAILS.md](./FEAT-00108-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00109] Orchestrator frontend shell, authentication and API client
 - **Status:** idea
 - **Priority:** medium
@@ -235,6 +214,28 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00108] Scoped runs and adaptive polling
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large
+- **Depends on:** FEAT-00098, FEAT-00106, FEAT-00107
+
+#### Goal
+Poll each source only for its open groups, as often as their matches require, and stop by itself when match days are complete.
+
+#### Acceptance Criteria
+- [x] A scope builder turns a source's open match days into ingest `scopes` (territory/category/group/phase/match days)
+- [x] `poll_schedule` stores the next run, interval, consecutive no-change count and policy level per source and scope hash
+- [x] Poll intervals follow the proposal's policy table (configurable per source), double after 3 consecutive `NO_CHANGES` up to the next level, and stop with an alert for matches overdue beyond 21 days
+- [x] A weekly full-scope run (and one at season start) refreshes fixtures, phases and re-draws
+- [x] Admins can change the policy settings through an API; tests cover each policy level and the back-off
+- [x] `OPEN_MATCH_DAYS` triggers resolve through the scope builder, with `NO_OPEN_MATCH_DAYS` when nothing is open
+
+#### Feature Details
+→ See [FEAT-00108-DETAILS.md](./FEAT-00108-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00107] Match-day tracker for open match days and pending matches
 - **Status:** done

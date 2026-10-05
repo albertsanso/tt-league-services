@@ -66,7 +66,7 @@ class RunsController {
     @ApiResponse(responseCode = "202", description = "No run was created but a trigger was queued")
     @ApiResponse(responseCode = "400", description = "Invalid request")
     @ApiResponse(responseCode = "409", description = "Every source has an active run (or a pending trigger)")
-    @ApiResponse(responseCode = "422", description = "The scope is unavailable, for example OPEN_MATCH_DAYS")
+    @ApiResponse(responseCode = "422", description = "The scope is unavailable: NO_OPEN_MATCH_DAYS, NO_INGEST_STATUS or SCOPE_UNMATCHED")
     ResponseEntity<Object> trigger(@Valid @RequestBody TriggerRunRequest body, Authentication authentication) {
         TriggerRun.Command command = command(body, CurrentUser.name(authentication));
         List<Outcome> outcomes = triggerRun.trigger(command);

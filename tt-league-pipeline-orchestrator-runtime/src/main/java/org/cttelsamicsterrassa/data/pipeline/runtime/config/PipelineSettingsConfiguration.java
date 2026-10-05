@@ -34,4 +34,9 @@ public class PipelineSettingsConfiguration {
     PipelineOrchestratorProperties.Tracker trackerSettings(PipelineOrchestratorProperties properties) {
         return properties.tracker();
     }
+
+    @Bean
+    PipelineOrchestratorProperties.Polling pollingSettings(PipelineOrchestratorProperties properties) {
+        return properties.polling();
+    }
 }

@@ -4,6 +4,8 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.ExecutionSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.PollIntervals;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.RetryPolicy;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.StepTimeouts;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.PollingSettings;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.BcnesaCompetitionNames;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
@@ -19,8 +21,10 @@ import java.time.Duration;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.scheduling.support.CronExpression;
 import org.springframework.validation.annotation.Validated;
@@ -40,11 +44,22 @@ public record PipelineOrchestratorProperties(
         @Valid @NotNull Triggers triggers,
         @Valid @NotNull Events events,
         Schedule schedule,
-        Tracker tracker) {
+        Tracker tracker,
+        Polling polling) {
 
     public PipelineOrchestratorProperties {
         schedule = schedule == null ? Schedule.none() : schedule;
         tracker = tracker == null ? Tracker.defaults() : tracker;
+        polling = polling == null ? Polling.none() : polling;
+        for (PipelineSource source : polling.sources()) {
+            if (schedule.sources().containsKey(source)) {
+                throw new IllegalArgumentException(
+                        "source " + source + " has both a cron and adaptive polling; configure only one");
+            }
+        }
+        if (!polling.sources().isEmpty()) {
+            schedule.requireSeasonAndZone("adaptive polling is enabled");
+        }
     }
 
     /** Platform REST API; {@code apiKey} is a service credential with {@code imports:write}. */
@@ -202,8 +217,8 @@ public record PipelineOrchestratorProperties(
                 positive(lockAtLeastFor, "schedule.lock-at-least-for");
             }
             if (!sources.isEmpty()) {
-                validSeason(season);
-                validZone(zone);
+                validSeason(season, "a source schedule is set");
+                validZone(zone, "a source schedule is set");
                 positive(lockAtMostFor, "schedule.lock-at-most-for");
                 positive(lockAtLeastFor, "schedule.lock-at-least-for");
                 if (lockAtLeastFor.compareTo(lockAtMostFor) > 0) {
@@ -243,9 +258,15 @@ public record PipelineOrchestratorProperties(
             }
         }
 
-        private static void validSeason(String season) {
+        /** Adaptive polling reuses the schedule season and zone instead of having its own. */
+        void requireSeasonAndZone(String context) {
+            validSeason(season, context);
+            validZone(zone, context);
+        }
+
+        private static void validSeason(String season, String context) {
             if (season == null || season.isBlank()) {
-                throw new IllegalArgumentException("schedule.season is required when a source schedule is set");
+                throw new IllegalArgumentException("schedule.season is required when " + context);
             }
             try {
                 PipelineRun.requireValidSeason(season);
@@ -254,9 +275,9 @@ public record PipelineOrchestratorProperties(
             }
         }
 
-        private static void validZone(String zone) {
+        private static void validZone(String zone, String context) {
             if (zone == null || zone.isBlank()) {
-                throw new IllegalArgumentException("schedule.zone is required when a source schedule is set");
+                throw new IllegalArgumentException("schedule.zone is required when " + context);
             }
             try {
                 ZoneId.of(zone.trim());
@@ -288,6 +309,91 @@ public record PipelineOrchestratorProperties(
 
         static Tracker defaults() {
             return new Tracker(null, null, null);
+        }
+    }
+
+    /**
+     * Adaptive polling. {@code sources} are the sources polled adaptively (empty means adaptive polling is off); a
+     * source cannot also have a fixed cron, and the season and zone come from {@code schedule}. {@code tickInterval}
+     * is the fixed delay of the tick and the ShedLock durations bound its per-source lock. {@code defaults} are the
+     * policy values every source uses unless an admin stored an override. {@code bcnesaCompetitionNames} maps an
+     * {@code rtb-*} export folder to the stored competition name (default: the table of the import). All are tuning
+     * values, so each has a default and a missing value is not an error.
+     */
+    public record Polling(
+            Set<PipelineSource> sources,
+            Duration tickInterval,
+            Duration lockAtMostFor,
+            Duration lockAtLeastFor,
+            Defaults defaults,
+            Map<String, String> bcnesaCompetitionNames) {
+
+        public Polling {
+            sources = sources == null || sources.isEmpty() ? Set.of() : Set.copyOf(EnumSet.copyOf(sources));
+            tickInterval = tickInterval == null ? Duration.ofMinutes(5) : tickInterval;
+            lockAtMostFor = lockAtMostFor == null ? Duration.ofMinutes(10) : lockAtMostFor;
+            lockAtLeastFor = lockAtLeastFor == null ? Duration.ofSeconds(30) : lockAtLeastFor;
+            defaults = defaults == null ? Defaults.none() : defaults;
+            bcnesaCompetitionNames = bcnesaCompetitionNames == null || bcnesaCompetitionNames.isEmpty()
+                    ? BcnesaCompetitionNames.defaultEntries() : Map.copyOf(bcnesaCompetitionNames);
+            positive(tickInterval, "polling.tick-interval");
+            positive(lockAtMostFor, "polling.lock-at-most-for");
+            positive(lockAtLeastFor, "polling.lock-at-least-for");
+            if (lockAtLeastFor.compareTo(lockAtMostFor) > 0) {
+                throw new IllegalArgumentException(
+                        "polling.lock-at-least-for must not exceed polling.lock-at-most-for");
+            }
+            defaults.toSettings();
+            try {
+                new BcnesaCompetitionNames(bcnesaCompetitionNames);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("polling.bcnesa-competition-names is invalid: " + e.getMessage(),
+                        e);
+            }
+        }
+
+        /** The policy values; a null value takes the documented default. */
+        public record Defaults(
+                Duration matchDay,
+                Duration matchDayStartOffset,
+                Duration dayAfter,
+                Duration daysTwoToSeven,
+                Duration open,
+                Duration overdue,
+                Integer overdueStopAfterDays,
+                Duration fullRefresh,
+                Integer noChangeThreshold) {
+
+            static Defaults none() {
+                return new Defaults(null, null, null, null, null, null, null, null, null);
+            }
+
+            /** Validates through {@link PollingSettings}; the failure names the offending setting. */
+            public PollingSettings toSettings() {
+                PollingSettings base = PollingSettings.defaults();
+                try {
+                    return new PollingSettings(
+                            matchDay == null ? base.matchDay() : matchDay,
+                            matchDayStartOffset == null ? base.matchDayStartOffset() : matchDayStartOffset,
+                            dayAfter == null ? base.dayAfter() : dayAfter,
+                            daysTwoToSeven == null ? base.daysTwoToSeven() : daysTwoToSeven,
+                            open == null ? base.open() : open,
+                            overdue == null ? base.overdue() : overdue,
+                            overdueStopAfterDays == null ? base.overdueStopAfterDays() : overdueStopAfterDays,
+                            fullRefresh == null ? base.fullRefresh() : fullRefresh,
+                            noChangeThreshold == null ? base.noChangeThreshold() : noChangeThreshold);
+                } catch (IllegalArgumentException e) {
+                    throw new IllegalArgumentException("polling.defaults is invalid: " + e.getMessage(), e);
+                }
+            }
+        }
+
+        static Polling none() {
+            return new Polling(null, null, null, null, null, null);
+        }
+
+        public PollingSettings defaultSettings() {
+            return defaults.toSettings();
         }
     }
 

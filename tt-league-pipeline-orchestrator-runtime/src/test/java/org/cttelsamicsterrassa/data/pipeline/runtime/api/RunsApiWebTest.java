@@ -24,6 +24,9 @@ import java.util.Optional;
 import java.util.UUID;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunClock;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.FakeRunClock;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.PollingSettingsProvider;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollPolicyRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollScheduleRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
@@ -89,6 +92,12 @@ class RunsApiWebTest {
 
     @Autowired
     MockMvc mvc;
+    @MockitoBean
+    PollingSettingsProvider pollingSettings;
+    @MockitoBean
+    PollPolicyRepository pollPolicies;
+    @MockitoBean
+    PollScheduleRepository pollSchedules;
     @MockitoBean
     TriggerRun triggerRun;
     @MockitoBean

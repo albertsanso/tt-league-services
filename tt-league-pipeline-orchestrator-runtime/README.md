@@ -43,8 +43,12 @@ positive (ISO-8601, for example `PT30S`) and invalid values fail startup:
 | `PIPELINE_TRACKER_RECOMPUTE_INTERVAL` | `PT1H` | Fixed delay of the periodic match-day recompute |
 | `PIPELINE_TRACKER_LOCK_AT_MOST_FOR` | `PT10M` | Longest the periodic recompute lock is held if its instance dies |
 | `PIPELINE_TRACKER_LOCK_AT_LEAST_FOR` | `PT30S` | Shortest the periodic recompute lock is held (at most the above) |
+| `PIPELINE_POLLING_TICK_INTERVAL` | `PT5M` | Fixed delay of the adaptive polling tick |
+| `PIPELINE_POLLING_LOCK_AT_MOST_FOR` | `PT10M` | Longest a polling-tick lock is held if its instance dies |
+| `PIPELINE_POLLING_LOCK_AT_LEAST_FOR` | `PT30S` | Shortest a polling-tick lock is held (at most the above) |
 
-Scheduled runs are off unless configured; see [Scheduled runs](#scheduled-runs) for the per-source cron variables.
+Scheduled runs are off unless configured; see [Scheduled runs](#scheduled-runs) for the per-source cron variables and
+[Adaptive polling](#adaptive-polling) for the alternative that follows the open match days.
 
 HTTP connect timeouts are `PT10S`; read timeouts are `PT1M` (ingest) and `PT5M`
 (platform, which validates the upload synchronously). They are set in
@@ -124,7 +128,8 @@ for those browser origins.
 - `POST /api/pipeline/runs` `{source: RFETM|BCNESA|FCTT|ALL, season, scopeType: OPEN_MATCH_DAYS|GROUP|FULL_SEASON,
   filters, force}`: one MANUAL run per source, `requestedBy` = token subject. `201` when any run was created, `202`
   when only queued, `409` when rejected (active run, or a pending trigger already exists), `422` when the scope is
-  unavailable (`OPEN_MATCH_DAYS` answers `SCOPE_UNAVAILABLE` until its scope resolver exists). The body lists each
+  unavailable (`OPEN_MATCH_DAYS` answers `NO_OPEN_MATCH_DAYS`, `NO_INGEST_STATUS` or `SCOPE_UNMATCHED`, see
+  [Adaptive polling](#adaptive-polling)). The body lists each
   source's outcome under `results`.
 - `GET /api/pipeline/runs` (`source`, `status`, `from`, `to`, `page`, `size` up to 100; newest first) and
   `GET /api/pipeline/runs/{id}` (steps, artifacts, import report, issues).
@@ -156,6 +161,76 @@ no default schedule.
   tick: the lock `pipeline-schedule-<SOURCE>` is held at least `PIPELINE_SCHEDULE_LOCK_AT_LEAST_FOR` and at most
   `PIPELINE_SCHEDULE_LOCK_AT_MOST_FOR`. Keep the shortest interval between two ticks of a source above
   `PIPELINE_SCHEDULE_LOCK_AT_LEAST_FOR`. The active-run index still rejects a duplicate run if two ticks race.
+
+## Adaptive polling
+
+Instead of a fixed cron, a source can be polled adaptively: while match days are open the orchestrator ingests only
+the groups that matter, often on match days and rarely otherwise, and stops by itself when a match day is complete.
+It is off unless `PIPELINE_POLLING_SOURCES` lists the sources.
+
+| Variable | Property | Description |
+| --- | --- | --- |
+| `PIPELINE_POLLING_SOURCES` | `tt.pipeline.polling.sources` | Comma-separated sources polled adaptively (for example `RFETM,FCTT`); empty means off |
+| `PIPELINE_POLLING_*` | `tt.pipeline.polling.defaults.*` | Policy defaults, below |
+| | `tt.pipeline.polling.bcnesa-competition-names` | Map of an `rtb-*` export folder to the stored competition name; unset keeps the 16 entries of the import (`rtb-segona-a` is `Segona _A_`, ...) |
+
+- **Season and zone** come from `PIPELINE_SCHEDULE_SEASON` and `PIPELINE_SCHEDULE_ZONE`, which are required once any
+  source is polled. **A source cannot have both a cron and adaptive polling**: the configuration fails at startup
+  with "source X has both a cron and adaptive polling". Sources can mix (one on cron, another adaptive).
+- **Poll units.** A unit is one ingest group (category, group, phase, territory, gender, limited to the fields the
+  source supports) with its open rounds as `matchDays`; RFETM scopes only support the category, so RFETM units are
+  per category. The match-day tracker says which match days are open and which matches are unresolved; the ingest
+  `match-days-status` rows turn them into ingest scopes. An open tracker match day with no status row fails the
+  scope build with `SCOPE_UNMATCHED` (an alert, no run, never a silent full-season fallback); the weekly full refresh
+  rewrites the status file and is the recovery path.
+- **Levels** (evaluated in the schedule zone; the most urgent level of a unit's unresolved matches wins). Candidate
+  matches are the non-ignored `SCHEDULED`, `AWAITING_RESULT`, `OVERDUE` and `POSTPONED` ones of `OPEN` match days, and
+  of days closed as `ALL_RESOLVED` that still hold a postponed match; manually closed, removed and upcoming days are
+  never polled.
+
+  | Level | Rule | Default interval |
+  | --- | --- | --- |
+  | `MATCH_DAY` | a match today and now is at least the first start today plus `match-day-start-offset` | `PT2H` |
+  | `DAY_AFTER` | latest unresolved match was yesterday | `PT3H` |
+  | `DAYS_2_TO_7` | latest unresolved match 2 to 7 days ago | `PT12H` |
+  | `OPEN` | open, no match today (future, undated, or today before the offset; the next run is capped at the first start plus the offset) | `PT24H` |
+  | `OVERDUE` | only `OVERDUE` matches left, or matches older than 7 days, youngest within `overdue-stop-after-days` | `PT24H` |
+  | `STOPPED` | only `OVERDUE` matches older than `overdue-stop-after-days` (21); raises one alert | none |
+  | `FULL_REFRESH` | per-source full-season unit: first tick of a source and season (season start) and weekly | `P7D` |
+
+  Defaults (`tt.pipeline.polling.defaults.*`, each with a `PIPELINE_POLLING_<NAME>` variable): `match-day`
+  (`PIPELINE_POLLING_MATCH_DAY`), `match-day-start-offset`, `day-after`, `days-two-to-seven`
+  (`PIPELINE_POLLING_DAYS_2_TO_7`), `open`, `overdue`, `overdue-stop-after-days`, `full-refresh`,
+  `no-change-threshold`. All durations are positive ISO-8601 and must satisfy `match-day <= day-after <=
+  days-two-to-seven <= open <= full-refresh` and `overdue <= full-refresh`; an invalid value fails startup.
+  An admin can override every value per source through the API (below).
+- **Back-off.** After `no-change-threshold` (3) consecutive `NO_CHANGES` runs the interval doubles, and doubles again
+  every further threshold, capped at the interval of the next slower level (`MATCH_DAY` to `DAY_AFTER` to
+  `DAYS_2_TO_7` to `OPEN`/`OVERDUE` to `FULL_REFRESH`). A level change resets the counter; `SUCCEEDED` and `PARTIAL`
+  reset it; `FAILED` leaves it (the executor retry rule handles failures). A run's outcome counts for every unit it
+  covered (the import report is not per group).
+- **Tick.** Every `PIPELINE_POLLING_TICK_INTERVAL` and per source, under the ShedLock lock `pipeline-polling-<SOURCE>`,
+  at most one run is launched: the `FULL_REFRESH` run when due (it covers every unit), otherwise one `GROUP` run
+  whose scope is the union of the due units. Runs are `SCHEDULED`, `ConflictMode.REJECT` (a source with an active run
+  is skipped, nothing queued) and `requestedBy` `system:polling` (fixed-cron runs use `system:scheduler`). Units are
+  never run in parallel, and the federation delays of the ingest are never shortened. A concurrent change of a
+  schedule row abandons the tick (logged); the next tick starts again.
+- **Stop and resume.** A stopped unit is skipped and raises one alert (a WARN log until the notification feature).
+  `POST /api/pipeline/polling/schedules/{id}/resume` makes it due now and polls it once before it can stop again.
+- **Endpoints** (`/api/pipeline/polling`). Reads need any valid token: `GET /policies`, `GET /policies/{source}`
+  (effective settings with `overridden`, `version`, `updatedBy`, `updatedAt`; durations are ISO-8601, for example
+  `PT168H`) and `GET /schedules?source=&season=` (level, interval, counters, next run, pending run, stop state).
+  `PUT /policies/{source}` (full settings plus `version`, 0 when no override exists) and
+  `DELETE /policies/{source}` (back to the configured defaults) need the `ADMIN` role; the author is the token
+  subject. `POST /schedules/{id}/resume` needs `matches:write`. Errors are problem details with a `code`: `400`
+  invalid settings, `404` `POLL_SCHEDULE_NOT_FOUND`, `409` `STALE_POLICY`, `STALE_SCHEDULE` or `NOT_STOPPED`.
+- **`OPEN_MATCH_DAYS` triggers** (`POST /api/pipeline/runs`, with or without adaptive polling) resolve through the same
+  scope builder and use the filters of every unit. They answer `422` with `NO_OPEN_MATCH_DAYS` (nothing is open),
+  `NO_INGEST_STATUS` (the ingest has no status file or season yet; run a full-season ingest first) or
+  `SCOPE_UNMATCHED` (an open match day matches no status row).
+- The ingest status is read from `GET /api/v1/ingest/sources/{source}/match-days-status?season=` with the ingest
+  `X-API-Key`. The import path-to-identity rules are mirrored in the core `SourceVocabulary`; a change to the import
+  rules (or to `BcnesaCompetitionNames`) must update the vocabulary and its tests in the same change.
 
 ## Match-day tracker
 

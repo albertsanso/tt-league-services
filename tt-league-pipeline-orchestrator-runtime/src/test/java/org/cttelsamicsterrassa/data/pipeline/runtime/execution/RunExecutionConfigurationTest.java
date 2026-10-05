@@ -24,7 +24,10 @@ import org.cttelsamicsterrassa.data.pipeline.runtime.tracker.TrackerConfiguratio
 import org.cttelsamicsterrassa.data.pipeline.runtime.tracker.TrackerRecomputeDispatcher;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayActions;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayTracker;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollPolicyRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollScheduleRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepository;
+import org.cttelsamicsterrassa.data.pipeline.runtime.polling.PollingConfiguration;
 import net.javacrumbs.shedlock.core.LockingTaskExecutor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -49,7 +52,8 @@ class RunExecutionConfigurationTest {
                         HttpMessageConvertersAutoConfiguration.class, RestClientAutoConfiguration.class))
                 .withUserConfiguration(Repositories.class, RunExecutionConfiguration.class,
                         PipelineSettingsConfiguration.class, RunEventsConfiguration.class,
-                        TriggerConfiguration.class, TrackerConfiguration.class)
+                        TriggerConfiguration.class, TrackerConfiguration.class,
+                        PollingConfiguration.class)
                 .withPropertyValues(
                         "tt.pipeline.platform.base-url=http://localhost:8080",
                         "tt.pipeline.platform.api-key=platform-key",
@@ -137,6 +141,16 @@ class RunExecutionConfigurationTest {
         @Bean
         LockingTaskExecutor schedulerLockingTaskExecutor() {
             return mock(LockingTaskExecutor.class);
+        }
+
+        @Bean
+        PollPolicyRepository pollPolicies() {
+            return mock(PollPolicyRepository.class);
+        }
+
+        @Bean
+        PollScheduleRepository pollSchedules() {
+            return mock(PollScheduleRepository.class);
         }
 
         @Bean

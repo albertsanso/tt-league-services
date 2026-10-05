@@ -47,6 +47,13 @@ and the Flyway/JPA persistence of the run model (later features add security).
   credential to hold `matches:read`; the controllers in `api/` only call `MatchDayActions` and
   `MatchDayQueryService`. Never add retries, partial writes or fallbacks to a failed recompute, and never store
   match results.
+- Adaptive polling runs only from `AdaptivePollingTrigger` (`polling/`), which calls the core `AdaptivePollingTick`
+  per source under the ShedLock lock `pipeline-polling-<SOURCE>` through `LockingTaskExecutor`; a failing source is
+  logged and never stops the others. Its scheduler is private and never a bean. A source has either a cron or adaptive
+  polling (startup fails otherwise), and the season and zone are the schedule ones. The `OPEN_MATCH_DAYS` resolver is
+  always the tracker-backed `TrackerOpenMatchDayScopeResolver` from `PollingConfiguration`. The ingest status is read
+  only through `HttpIngestStatusGateway`; the policy and schedule endpoints are in `PollingController` (policy
+  changes `ADMIN`, resume `matches:write`).
 - Run observers never throw into the executor (`CompositeRunObserver` isolates
   them). The `RunEventBroadcaster` sends on its own private pool, which is not
   an `Executor` bean, and never on a run thread.

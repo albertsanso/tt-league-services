@@ -264,6 +264,57 @@ recompute (`MatchDayRepository.apply`); a version conflict or a concurrently cre
 with `StaleMatchDayException` and nothing is written. The operator actions write the changed rows and their event in
 one transaction the same way.
 
+## `poll_schedule`
+
+Adaptive polling state (FEAT-00108): one row per poll unit, that is per `(source, season, scope_key)`. A unit is an
+ingest group (category, group, phase, territory, gender, limited to the fields the source supports) with the match
+days still open, or the per-source `FULL_REFRESH` unit that runs the whole season weekly and at season start.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | |
+| `source` | `varchar(16)` NOT NULL | `RFETM`, `BCNESA`, `FCTT` |
+| `season` | `varchar(9)` NOT NULL | `^[0-9]{4}-[0-9]{4}$` |
+| `scope_key` | `varchar(64)` NOT NULL | SHA-256 hex of the unit identity **without its match days** (so back-off state survives a new round), or the literal `FULL_REFRESH` |
+| `kind` | `varchar(16)` NOT NULL | `FULL_REFRESH`, `GROUP` |
+| `filter` | `jsonb` NULL | `{"scopes":[{...}]}` with exactly one filter (the unit and its open rounds); NULL exactly for `FULL_REFRESH` |
+| `policy_level` | `varchar(16)` NOT NULL | `MATCH_DAY`, `DAY_AFTER`, `DAYS_2_TO_7`, `OPEN`, `OVERDUE`, `STOPPED`, `FULL_REFRESH` (`FULL_REFRESH` exactly for the `FULL_REFRESH` unit) |
+| `interval_seconds` | `bigint` NULL | effective interval, back-off included; NULL exactly while `STOPPED`; `> 0` |
+| `consecutive_no_change` | `integer` NOT NULL DEFAULT 0 | consecutive `NO_CHANGES` outcomes at the current level; reset by a level change, `SUCCEEDED` or `PARTIAL`, kept by `FAILED` |
+| `next_run_at` | `timestamptz` NULL | NULL while `STOPPED` |
+| `last_run_at` | `timestamptz` NULL | end of the last run that covered the unit; NULL for a never polled (or resumed) unit |
+| `pending_run_id` | `uuid` NULL | FK `pipeline_run(id)` `ON DELETE SET NULL`; the run launched for the unit, until its outcome is applied |
+| `stopped_at` | `timestamptz` NULL | set exactly while `policy_level = 'STOPPED'` |
+| `stop_reason` | `varchar(32)` NULL | `OVERDUE_LIMIT`; set exactly when `stopped_at` is |
+| `alerted_at` | `timestamptz` NULL | `GROUP`: when the stop alert was raised (once per stop); `FULL_REFRESH`: when the last unmatched-scope alert was raised |
+| `version` | `bigint` NOT NULL | optimistic version (`@Version`), starts at 0 |
+| `created_at`, `updated_at` | `timestamptz` NOT NULL | |
+
+Unique index `ux_poll_schedule_unit (source, season, scope_key)`; index `ix_poll_schedule_next_run (source, season,
+next_run_at)`. Checks tie `kind`, `filter`, `scope_key` and `policy_level` together for the `FULL_REFRESH` unit, and
+`policy_level = 'STOPPED'` to `stopped_at`/`stop_reason` and to a NULL interval.
+
+Writers: only the adaptive tick (`AdaptivePollingTick`, under the lock `pipeline-polling-<SOURCE>`) and the resume
+endpoint, always through `PollScheduleRepository.save`. A version conflict, a removed row or a concurrently created
+unit raises `StalePollScheduleException`; the tick then stops for that source and starts again at the next interval.
+Group rows are deleted when their match days are no longer open; the `FULL_REFRESH` row is kept.
+
+## `poll_policy`
+
+Per-source override of the polling settings; a source without a row uses the configured defaults
+(`tt.pipeline.polling.defaults.*`).
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `source` | `varchar(16)` PK | `RFETM`, `BCNESA`, `FCTT` |
+| `settings` | `jsonb` NOT NULL | `matchDay`, `matchDayStartOffset`, `dayAfter`, `daysTwoToSeven`, `open`, `overdue`, `fullRefresh` (ISO-8601 durations), `overdueStopAfterDays`, `noChangeThreshold` (integers); read strictly, so unknown or missing keys fail |
+| `version` | `bigint` NOT NULL | optimistic version, starts at 1 for the first save |
+| `updated_by` | `varchar(128)` NOT NULL | JWT subject of the admin |
+| `updated_at` | `timestamptz` NOT NULL | |
+
+Written only by `PUT`/`DELETE /api/pipeline/polling/policies/{source}`; a version conflict raises
+`StalePollPolicyException`.
+
 ## Migration history
 
 | Version | File | Content |
@@ -272,3 +323,4 @@ one transaction the same way.
 | `V2` | `V2__manual_triggers.sql` | `pipeline_run.force`, `ix_pipeline_run_created`, `pending_trigger` |
 | `V3` | `V3__scheduler_lock.sql` | `shedlock` |
 | `V4` | `V4__match_day_tracker.sql` | `match_day`, `match_tracking`, `match_day_event` |
+| `V5` | `V5__adaptive_polling.sql` | `poll_schedule`, `poll_policy` |

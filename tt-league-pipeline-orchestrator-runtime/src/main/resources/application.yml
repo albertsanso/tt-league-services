@@ -89,6 +89,29 @@ tt:
       lock-at-most-for: ${PIPELINE_TRACKER_LOCK_AT_MOST_FOR:PT10M}
       lock-at-least-for: ${PIPELINE_TRACKER_LOCK_AT_LEAST_FOR:PT30S}
 
+    polling:
+      # Adaptive polling: comma-separated sources polled with the policy levels (empty = off). A source cannot also
+      # have a cron above; season and zone come from the schedule settings. One tick per source launches at most one
+      # run, under the ShedLock lock pipeline-polling-<SOURCE>.
+      sources: ${PIPELINE_POLLING_SOURCES:}
+      tick-interval: ${PIPELINE_POLLING_TICK_INTERVAL:PT5M}
+      lock-at-most-for: ${PIPELINE_POLLING_LOCK_AT_MOST_FOR:PT10M}
+      lock-at-least-for: ${PIPELINE_POLLING_LOCK_AT_LEAST_FOR:PT30S}
+      # Policy values every source uses unless an admin stored an override through the API.
+      defaults:
+        match-day: ${PIPELINE_POLLING_MATCH_DAY:PT2H}
+        match-day-start-offset: ${PIPELINE_POLLING_MATCH_DAY_START_OFFSET:PT2H}
+        day-after: ${PIPELINE_POLLING_DAY_AFTER:PT3H}
+        days-two-to-seven: ${PIPELINE_POLLING_DAYS_2_TO_7:PT12H}
+        open: ${PIPELINE_POLLING_OPEN:PT24H}
+        overdue: ${PIPELINE_POLLING_OVERDUE:PT24H}
+        overdue-stop-after-days: ${PIPELINE_POLLING_OVERDUE_STOP_AFTER_DAYS:21}
+        full-refresh: ${PIPELINE_POLLING_FULL_REFRESH:P7D}
+        no-change-threshold: ${PIPELINE_POLLING_NO_CHANGE_THRESHOLD:3}
+      # Export folder -> stored competition name for BCNESA rtb-* folders; unset keeps the 16 entries of the import.
+      # bcnesa-competition-names:
+      #   rtb-example: Example
+
 management:
   endpoints:
     web:

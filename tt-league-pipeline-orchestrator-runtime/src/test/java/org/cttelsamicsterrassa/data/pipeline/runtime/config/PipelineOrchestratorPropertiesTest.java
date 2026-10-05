@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.config;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.cttelsamicsterrassa.data.pipeline.core.execution.ExecutionSettings;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.PollingSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
 import java.time.Duration;
@@ -290,6 +291,111 @@ class PipelineOrchestratorPropertiesTest {
         assertFails(withoutIn(scheduled(), "tt.pipeline.schedule.lock-at-least-for"), "schedule.lock-at-least-for");
         assertFails(replaceIn(scheduled(), "tt.pipeline.schedule.lock-at-least-for", "PT11M"),
                 "schedule.lock-at-least-for must not exceed");
+    }
+
+    @Test
+    void adaptivePollingIsOffByDefaultWithDocumentedDefaults() {
+        runner.withPropertyValues(valid().toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            PipelineOrchestratorProperties.Polling polling =
+                    context.getBean(PipelineOrchestratorProperties.class).polling();
+            assertThat(polling.sources()).isEmpty();
+            assertThat(polling.tickInterval()).isEqualTo(Duration.ofMinutes(5));
+            assertThat(polling.lockAtMostFor()).isEqualTo(Duration.ofMinutes(10));
+            assertThat(polling.lockAtLeastFor()).isEqualTo(Duration.ofSeconds(30));
+            assertThat(polling.defaultSettings()).isEqualTo(PollingSettings.defaults());
+            assertThat(polling.bcnesaCompetitionNames()).hasSize(16).containsEntry("rtb-segona-a", "Segona _A_");
+        });
+    }
+
+    @Test
+    void bindsTheAdaptiveSourcesAndTheDefaults() {
+        List<String> properties = polled("tt.pipeline.polling.sources=FCTT,bcnesa");
+        properties.add("tt.pipeline.polling.tick-interval=PT1M");
+        properties.add("tt.pipeline.polling.defaults.match-day=PT1H");
+        properties.add("tt.pipeline.polling.defaults.overdue-stop-after-days=14");
+        properties.add("tt.pipeline.polling.bcnesa-competition-names.rtb-nova=Nova");
+        runner.withPropertyValues(properties.toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            PipelineOrchestratorProperties.Polling polling =
+                    context.getBean(PipelineOrchestratorProperties.class).polling();
+            assertThat(polling.sources()).containsExactlyInAnyOrder(PipelineSource.FCTT, PipelineSource.BCNESA);
+            assertThat(polling.tickInterval()).isEqualTo(Duration.ofMinutes(1));
+            PollingSettings settings = polling.defaultSettings();
+            assertThat(settings.matchDay()).isEqualTo(Duration.ofHours(1));
+            assertThat(settings.overdueStopAfterDays()).isEqualTo(14);
+            assertThat(settings.dayAfter()).isEqualTo(Duration.ofHours(3));
+            assertThat(polling.bcnesaCompetitionNames()).containsOnlyKeys("rtb-nova");
+        });
+    }
+
+    @Test
+    void aBlankSourcesListMeansAdaptivePollingIsOff() {
+        runner.withPropertyValues(polled("tt.pipeline.polling.sources=").toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(PipelineOrchestratorProperties.class).polling().sources()).isEmpty();
+        });
+    }
+
+    @Test
+    void failsWhenASourceHasBothACronAndAdaptivePolling() {
+        List<String> properties = scheduled();
+        properties.add("tt.pipeline.polling.sources=RFETM");
+        assertFails(properties, "source RFETM has both a cron and adaptive polling");
+    }
+
+    @Test
+    void adaptivePollingCoexistsWithACronOnAnotherSource() {
+        List<String> properties = scheduled();
+        properties.add("tt.pipeline.polling.sources=FCTT");
+        runner.withPropertyValues(properties.toArray(String[]::new)).run(context -> assertThat(context).hasNotFailed());
+    }
+
+    @Test
+    void adaptivePollingNeedsTheScheduleSeasonAndZone() {
+        List<String> properties = valid();
+        properties.add("tt.pipeline.polling.sources=FCTT");
+        assertFails(properties, "schedule.season is required when adaptive polling is enabled");
+        properties.add("tt.pipeline.schedule.season=2026-2027");
+        assertFails(properties, "schedule.zone is required when adaptive polling is enabled");
+        properties.add("tt.pipeline.schedule.zone=Mars/Olympus");
+        assertFails(properties, "schedule.zone is not a valid time zone");
+    }
+
+    @Test
+    void failsOnInvalidPollingDefaults() {
+        assertFails(withPolling("defaults.match-day=PT5H", "defaults.day-after=PT3H"), "polling.defaults is invalid");
+        assertFails(withPolling("defaults.no-change-threshold=0"), "noChangeThreshold");
+        assertFails(withPolling("defaults.full-refresh=PT1H"), "polling.defaults is invalid");
+    }
+
+    @Test
+    void failsOnInvalidPollingTimings() {
+        assertFails(withPolling("tick-interval=PT0S"), "polling.tick-interval");
+        assertFails(withPolling("lock-at-most-for=-PT1M"), "polling.lock-at-most-for");
+        assertFails(withPolling("lock-at-most-for=PT10S", "lock-at-least-for=PT1M"),
+                "polling.lock-at-least-for must not exceed");
+    }
+
+    @Test
+    void failsOnAnUnknownPollingSource() {
+        assertFails(withPolling("sources=XYZ"), "XYZ");
+    }
+
+    private static List<String> polled(String sources) {
+        List<String> properties = valid();
+        properties.add("tt.pipeline.schedule.season=2026-2027");
+        properties.add("tt.pipeline.schedule.zone=Europe/Madrid");
+        properties.add(sources);
+        return properties;
+    }
+
+    private static List<String> withPolling(String... settings) {
+        List<String> properties = valid();
+        for (String setting : settings) {
+            properties.add("tt.pipeline.polling." + setting);
+        }
+        return properties;
     }
 
     private static List<String> scheduled() {

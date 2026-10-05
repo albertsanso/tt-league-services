@@ -23,7 +23,10 @@ import org.cttelsamicsterrassa.data.pipeline.runtime.events.RunEventsConfigurati
 import org.cttelsamicsterrassa.data.pipeline.runtime.execution.RunExecutionConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.tracker.TrackerConfiguration;
 import org.cttelsamicsterrassa.data.pipeline.runtime.tracker.TrackerRecomputeSchedule;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollPolicyRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollScheduleRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepository;
+import org.cttelsamicsterrassa.data.pipeline.runtime.polling.PollingConfiguration;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -49,7 +52,7 @@ class ScheduleConfigurationTest {
                 .withUserConfiguration(Repositories.class, RunExecutionConfiguration.class,
                         PipelineSettingsConfiguration.class, RunEventsConfiguration.class,
                         TriggerConfiguration.class, ScheduleConfiguration.class,
-                        TrackerConfiguration.class)
+                        TrackerConfiguration.class, PollingConfiguration.class)
                 .withPropertyValues(
                         "tt.pipeline.platform.base-url=http://localhost:8080",
                         "tt.pipeline.platform.api-key=platform-key",
@@ -144,6 +147,16 @@ class ScheduleConfigurationTest {
         @Bean
         MatchDayRepository matchDays() {
             return mock(MatchDayRepository.class);
+        }
+
+        @Bean
+        PollPolicyRepository pollPolicies() {
+            return mock(PollPolicyRepository.class);
+        }
+
+        @Bean
+        PollScheduleRepository pollSchedules() {
+            return mock(PollScheduleRepository.class);
         }
 
         @Bean

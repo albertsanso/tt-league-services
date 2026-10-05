@@ -21,12 +21,14 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 /**
  * Stateless bearer-token security. Tokens are platform JWTs; viewing needs authentication, while triggering a run and
- * the match-day actions need the {@code matches:write} authority. Tokens are never logged or echoed.
+ * the match-day actions need the {@code matches:write} authority and changing a polling policy needs the {@code ADMIN} role. Tokens are never
+ * logged or echoed.
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfiguration {
 
     public static final String TRIGGER_AUTHORITY = "matches:write";
+    public static final String ADMIN_ROLE = "ADMIN";
 
     @Bean
     JwtDecoder platformJwtDecoder(PipelineOrchestratorProperties.Security security) {
@@ -75,6 +77,11 @@ public class SecurityConfiguration {
                         .requestMatchers(HttpMethod.PUT, "/api/pipeline/match-days/**")
                         .hasAuthority(TRIGGER_AUTHORITY)
                         .requestMatchers(HttpMethod.DELETE, "/api/pipeline/match-days/**")
+                        .hasAuthority(TRIGGER_AUTHORITY)
+                        // Polling reads fall under anyRequest(); policy changes are admin-only, resuming is an operator action.
+                        .requestMatchers(HttpMethod.PUT, "/api/pipeline/polling/policies/**").hasRole(ADMIN_ROLE)
+                        .requestMatchers(HttpMethod.DELETE, "/api/pipeline/polling/policies/**").hasRole(ADMIN_ROLE)
+                        .requestMatchers(HttpMethod.POST, "/api/pipeline/polling/schedules/*/resume")
                         .hasAuthority(TRIGGER_AUTHORITY)
                         .anyRequest().authenticated())
                 .oauth2ResourceServer(resource -> resource
