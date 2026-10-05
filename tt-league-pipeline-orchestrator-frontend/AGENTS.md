@@ -10,9 +10,17 @@ signing in and calendar components may be duplicated rather than shared.
 
 ## Boundaries
 
-- Talks to `tt-league-pipeline-orchestrator-runtime` over relative `/api/...`
-  paths (Vite proxies `/api` to `VITE_API_PROXY_TARGET`, default
-  `http://localhost:8095`). No Java types or backend business logic here.
+- Talks to `tt-league-pipeline-orchestrator-runtime` over relative
+  `/api/pipeline/...` paths (Vite proxies them to `VITE_API_PROXY_TARGET`,
+  default `http://localhost:8095`) and to the platform login over `/api/v1/...`
+  (proxied to `VITE_PLATFORM_PROXY_TARGET`, default `http://localhost:8080`).
+  No Java types or backend business logic here.
+- The JWT lives only in the `Authorization` header and `sessionStorage`; never
+  in URLs, other storage, or logs.
+- UI permission checks mirror `SecurityConfiguration` and never replace server
+  checks.
+- DTO types live in `src/api/types.ts` and change with the runtime DTOs.
+- No data-fetching, state or JWT library without a decision.
 - Tests use Vitest + React Testing Library (not Jest).
 - `package-lock.json` is committed; the Maven build uses `npm ci`. If a fresh
   `npm install` fails with an `edgesOut` error, regenerate the lockfile with

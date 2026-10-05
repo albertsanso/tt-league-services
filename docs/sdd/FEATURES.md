@@ -54,27 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00109] Orchestrator frontend shell, authentication and API client
-- **Status:** idea
-- **Priority:** medium
-- **Effort:** medium
-- **Depends on:** FEAT-00096, FEAT-00105
-
-#### Goal
-Give operators a signed-in pipeline control centre shell that the runs, calendar and statistics views plug into.
-
-#### Acceptance Criteria
-- [ ] Users sign in through the platform login endpoint; the JWT is kept for the session and expiry sends the user back to sign in
-- [ ] The layout has navigation for Calendar, Runs and Statistics, with routes lazy-loaded
-- [ ] A typed API client covers the orchestrator endpoints, and a hook subscribes to the SSE event stream with reconnection
-- [ ] Controls that need `matches:write` or `ADMIN` are hidden or disabled for other users
-- [ ] Vitest + React Testing Library tests cover login, routing, the client and the SSE hook
-
-#### Feature Details
-→ See [FEAT-00109-DETAILS.md](./FEAT-00109-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00110] Orchestrator runs view with live logs and Run now dialog
 - **Status:** idea
 - **Priority:** medium
@@ -214,6 +193,27 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00109] Orchestrator frontend shell, authentication and API client
+- **Status:** done
+- **Priority:** medium
+- **Effort:** medium
+- **Depends on:** FEAT-00096, FEAT-00105
+
+#### Goal
+Give operators a signed-in pipeline control centre shell that the runs, calendar and statistics views plug into.
+
+#### Acceptance Criteria
+- [x] Users sign in through the platform login endpoint; the JWT is kept for the session and expiry sends the user back to sign in
+- [x] The layout has navigation for Calendar, Runs and Statistics, with routes lazy-loaded
+- [x] A typed API client covers the orchestrator endpoints, and a hook subscribes to the SSE event stream with reconnection
+- [x] Controls that need `matches:write` or `ADMIN` are hidden or disabled for other users
+- [x] Vitest + React Testing Library tests cover login, routing, the client and the SSE hook
+
+#### Feature Details
+→ See [FEAT-00109-DETAILS.md](./FEAT-00109-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00108] Scoped runs and adaptive polling
 - **Status:** done
