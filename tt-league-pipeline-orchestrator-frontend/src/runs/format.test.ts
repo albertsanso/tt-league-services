@@ -88,6 +88,7 @@ const row: RunSummary = {
   trigger: 'MANUAL',
   requestedBy: 'ana',
   force: false,
+  importJobReused: null,
   status: 'QUEUED',
   createdAt: '2026-10-01T10:00:00Z',
   startedAt: null,
@@ -148,6 +149,7 @@ describe('upsertStep', () => {
       outcome: null,
       retryable: null,
       error: null,
+      importJobReused: null,
       health: null,
     }
   }

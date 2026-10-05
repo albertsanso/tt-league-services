@@ -55,6 +55,22 @@ and open-match-day scope ports. The `tracker` package holds the match-day tracke
 - New fixtures in the `test-jar`: `InMemoryPendingTriggerRepository`,
   `StubOpenMatchDayScopeResolver` and `RecordingPendingTriggerEvents`.
 
+## Replay and retention
+
+- `ReplayRules.check` is the only place that decides whether a run can be replayed (`RUN_ACTIVE`, `NO_PACKAGE`,
+  `ARTIFACT_PURGED`); the runtime and the UI show its answer and never re-derive it. `ReplayRun` is the only creator of
+  `RETRY` runs: it launches through `RunLauncher`, never queues behind an active run (`Rejected`) and `TriggerRun` stays the
+  only creator of `MANUAL`/`SCHEDULED` runs.
+- A replay never calls ingest: `RunExecutor.replayPhase` re-hashes the original's stored ZIP, adds a `ZIP` row for the replay
+  run that shares the original's storage key (the file is never copied) and moves `QUEUED -> PACKED` through
+  `PipelineRun.startReplay`; the rest is the unchanged `packedPhase`. A missing or purged file fails with
+  `ARTIFACT_PURGED` (final). Never pass `allowPublishedShrink` for a replay.
+- `RetentionRules.expired` is the only place that decides what expires (pure, no I/O, no clock) and `ArtifactCleanup` is the
+  only purge path: file first, then `markPurged`; rows are never deleted and a key referenced by an active run is never
+  purged. Retention is opt-in in the runtime.
+- New fixtures in the `test-jar`: `InMemoryArtifactRetentionRepository`; `InMemoryArtifactStore` gains `failDeletes`,
+  `InMemoryRunArtifactRepository` the new port methods and `ScriptedImportGateway.existing` answers `created=false`.
+
 ## Validation
 
 ```text

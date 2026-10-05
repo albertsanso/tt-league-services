@@ -84,7 +84,7 @@ consecutive failure up to 60 s (±20 % jitter). The server has no replay, so eve
 ## Runs screen
 
 `/runs` lists runs newest first (20 per page) with the columns Created, Source,
-Trigger (`Manual · ana`, `Scheduled`, `Retry`, plus a `forced` chip), Scope (full
+Trigger (`Manual · ana`, `Scheduled`, `Replay`, plus a `forced` chip), Scope (full
 list in a tooltip), Duration (active rows tick every second from `startedAt` and
 the local clock), Steps (one badge per Ingest / Fetch package / Import with the
 latest attempt, `×n` when retried) and Outcome (status chip; failed or partial
@@ -116,6 +116,15 @@ import report counters and a live activity log for the run. While the run is
 active it follows `run` and `step` events; a terminal `run` event refetches the
 detail (artifacts, report and issues only come from the GET), and a reconnect
 refetches. An unknown or malformed id shows "Run not found".
+
+With the `matches:write` permission the header has a **Replay import** button. It is enabled only when the server says the
+run can be replayed (`replay.allowed`); otherwise it is disabled with a tooltip for the server's code (the run is still
+active, it has no stored package, or the package was purged). The confirmation dialog explains that ingest is skipped, that
+the stored ZIP is submitted again and that the platform returns the existing import job when it already imported the same
+content; on success it opens the new run, and a `409`/`422` shows the server message in the dialog. A replay run shows
+"Replay of <id>" in the header and its Ingest and Fetch package badges as "skipped (replay)". When the platform returned an
+existing job, the header and the import report show "Existing import job reused — nothing was re-imported", and a purged
+artifact shows "Purged <date>".
 
 ## Run now dialog
 

@@ -23,7 +23,7 @@ import {
   replacePollingPolicy,
   resumePollSchedule,
 } from './polling'
-import { getRun, listRuns, triggerRun } from './runs'
+import { getRun, listRuns, replayRun, triggerRun } from './runs'
 import type { PollingPolicyRequest } from './types'
 
 interface Call {
@@ -71,6 +71,7 @@ const cases: ReadonlyArray<readonly [string, (c: HttpClient) => Promise<unknown>
     { method: 'GET', path: '/api/pipeline/runs', query: { source: ['RFETM'], status: ['FAILED'], from: undefined, to: undefined, page: 2, size: 20 } },
   ],
   ['getRun', (c) => getRun(c, 'a/b'), { method: 'GET', path: '/api/pipeline/runs/a%2Fb' }],
+  ['replayRun', (c) => replayRun(c, 'a/b'), { method: 'POST', path: '/api/pipeline/runs/a%2Fb/replay' }],
   ['listPendingTriggers', (c) => listPendingTriggers(c), { method: 'GET', path: '/api/pipeline/pending-triggers' }],
   [
     'listMatchDays',
@@ -181,5 +182,35 @@ describe('triggerRun', () => {
     ).catch((e: unknown) => e)
     expect(error).toBeInstanceOf(ApiError)
     expect(triggerResults(error)[0].code).toBe('RUN_ACTIVE')
+  })
+})
+
+describe('replayRun', () => {
+  function clientFor(response: Response) {
+    return createHttpClient({
+      baseUrl: '',
+      getToken: () => 't',
+      fetch: (async () => response) as unknown as typeof fetch,
+    })
+  }
+
+  it('resolves with the new run on 201', async () => {
+    const run = await replayRun(
+      clientFor(new Response(JSON.stringify({ id: 'r2', trigger: 'RETRY' }), { status: 201, headers: { 'Content-Type': 'application/json' } })),
+      'r1',
+    )
+    expect(run.id).toBe('r2')
+  })
+
+  it.each([409, 422])('rejects with the problem code on %i', async (status) => {
+    const problem = { status, detail: 'cannot replay', code: status === 409 ? 'ACTIVE_RUN' : 'ARTIFACT_PURGED' }
+    const error = await replayRun(
+      clientFor(new Response(JSON.stringify(problem), { status, headers: { 'Content-Type': 'application/problem+json' } })),
+      'r1',
+    ).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiError)
+    expect((error as ApiError).status).toBe(status)
+    expect((error as ApiError).problem?.code).toBe(problem.code)
+    expect((error as ApiError).message).toBe('cannot replay')
   })
 })

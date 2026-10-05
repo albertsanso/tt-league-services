@@ -87,4 +87,20 @@ class JpaPipelineStepRepositoryTest extends AbstractPersistenceTest {
         assertThat(steps.findByRunId(run.id())).extracting(PipelineStep::id)
                 .containsExactly(first.id(), second.id(), later.id());
     }
+
+    @Test
+    void roundTripsTheImportJobReusedFlag() {
+        PipelineRun run = runs.create(queued(PipelineSource.RFETM));
+        PipelineStep importing = PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.IMPORT, 1, T0, null);
+        steps.save(importing);
+        assertThat(steps.findByRunId(run.id()).get(0).importJobReused()).isNull();
+
+        PipelineStep submitted = importing.withImportJob(UUID.randomUUID(), true);
+        steps.save(submitted);
+        steps.save(submitted.succeed(T0.plusSeconds(5), "SUCCEEDED"));
+
+        PipelineStep loaded = steps.findByRunId(run.id()).get(0);
+        assertThat(loaded.importJobReused()).isTrue();
+        assertThat(loaded.externalRef()).isEqualTo(submitted.externalRef());
+    }
 }

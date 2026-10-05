@@ -36,6 +36,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayActions;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.PendingTrigger;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ScopeType;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.ReplayRun;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun.Outcome;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.port.PendingTriggerRepository;
@@ -102,6 +103,8 @@ class RunsApiWebTest {
     PollScheduleRepository pollSchedules;
     @MockitoBean
     TriggerRun triggerRun;
+    @MockitoBean
+    ReplayRun replayRun;
     @MockitoBean
     RunQueryService queries;
     @MockitoBean
@@ -267,6 +270,56 @@ class RunsApiWebTest {
         assertThat(captor.getValue().sources()).containsExactlyInAnyOrder(PipelineSource.RFETM, PipelineSource.FCTT);
         assertThat(captor.getValue().page()).isEqualTo(2);
         assertThat(captor.getValue().createdFrom()).isEqualTo(Instant.parse("2026-10-01T00:00:00Z"));
+    }
+
+    @Test
+    void replayNeedsTheMatchesWritePermissionAndAToken() throws Exception {
+        UUID id = UUID.randomUUID();
+        mvc.perform(post("/api/pipeline/runs/" + id + "/replay")).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/pipeline/runs/" + id + "/replay").header("Authorization", "Bearer " + valid()))
+                .andExpect(status().isForbidden());
+        verifyNoInteractions(replayRun);
+    }
+
+    @Test
+    void replayCreatesARetryRunForTheTokenSubject() throws Exception {
+        PipelineRun original = run(PipelineSource.RFETM);
+        PipelineRun created = PipelineRun.queue(UUID.randomUUID(), PipelineSource.RFETM, "2025-2026",
+                RunScope.fullSeason(), true, RunTrigger.RETRY, "alice", original.id(), T0);
+        when(replayRun.replay(original.id(), "alice")).thenReturn(new ReplayRun.Created(created));
+
+        mvc.perform(post("/api/pipeline/runs/" + original.id() + "/replay")
+                .header("Authorization", "Bearer " + valid("matches:write")))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/pipeline/runs/" + created.id()))
+                .andExpect(jsonPath("$.id").value(created.id().toString()))
+                .andExpect(jsonPath("$.trigger").value("RETRY"))
+                .andExpect(jsonPath("$.retryOfRunId").value(original.id().toString()));
+    }
+
+    @Test
+    void replayMapsTheOutcomesToStatuses() throws Exception {
+        String auth = "Bearer " + valid("matches:write");
+        UUID id = UUID.randomUUID();
+        UUID active = UUID.randomUUID();
+
+        when(replayRun.replay(any(), any())).thenReturn(new ReplayRun.NotFound());
+        mvc.perform(post("/api/pipeline/runs/" + id + "/replay").header("Authorization", auth))
+                .andExpect(status().isNotFound());
+
+        when(replayRun.replay(any(), any())).thenReturn(new ReplayRun.Rejected("ACTIVE_RUN", "busy", active));
+        mvc.perform(post("/api/pipeline/runs/" + id + "/replay").header("Authorization", auth))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ACTIVE_RUN"))
+                .andExpect(jsonPath("$.activeRunId").value(active.toString()));
+
+        for (String code : List.of("RUN_ACTIVE", "NO_PACKAGE", "ARTIFACT_PURGED")) {
+            when(replayRun.replay(any(), any())).thenReturn(new ReplayRun.NotReplayable(code, "no " + code));
+            mvc.perform(post("/api/pipeline/runs/" + id + "/replay").header("Authorization", auth))
+                    .andExpect(status().isUnprocessableEntity())
+                    .andExpect(jsonPath("$.code").value(code))
+                    .andExpect(jsonPath("$.detail").value("no " + code));
+        }
     }
 
     @Test

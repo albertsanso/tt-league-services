@@ -108,7 +108,7 @@ export function useRunDetail(runId: string): RunDetailResult {
     if (event.type === 'run' && event.payload.id === runId) {
       const changed = event.payload
       setSettled((previous) =>
-        previous.run === null ? previous : { ...previous, run: { ...previous.run, ...changed } },
+        previous.run === null ? previous : { ...previous, run: { ...previous.run, ...changed, importJobReused: changed.importJobReused ?? previous.run.importJobReused } },
       )
       if (inflightRef.current !== null) {
         staleRef.current = true

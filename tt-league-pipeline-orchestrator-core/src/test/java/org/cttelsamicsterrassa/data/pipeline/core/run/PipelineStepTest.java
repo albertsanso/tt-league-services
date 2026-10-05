@@ -64,11 +64,11 @@ class PipelineStepTest {
     void restoreRejectsInconsistentState() {
         UUID id = UUID.randomUUID();
         assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.FAILED, T0,
-                T0.plusSeconds(1), null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
+                T0.plusSeconds(1), null, null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.RUNNING, T0,
-                T0.plusSeconds(1), null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
+                T0.plusSeconds(1), null, null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.SUCCEEDED, T0, null,
-                null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
+                null, null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -93,7 +93,7 @@ class PipelineStepTest {
         assertThatThrownBy(() -> importing.succeed(T0.plusSeconds(1), "SUCCEEDED", health))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.RUNNING, T0, null,
-                null, null, null, null, null, health)).isInstanceOf(IllegalArgumentException.class);
+                null, null, null, null, null, health, null)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
@@ -120,5 +120,24 @@ class PipelineStepTest {
         assertThatThrownBy(() -> fresh.withExternalRef("x".repeat(65))).isInstanceOf(IllegalStateException.class);
         PipelineStep finished = fresh.succeed(T0.plusSeconds(1), "OK");
         assertThatThrownBy(() -> finished.withExternalRef("late")).isInstanceOf(IllegalStateException.class);
+    }
+
+    @Test
+    void importJobCarriesTheReusedFlagOnImportStepsOnly() {
+        UUID job = UUID.randomUUID();
+        PipelineStep step = PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), StepKind.IMPORT, 1, T0, null);
+        assertThat(step.importJobReused()).isNull();
+
+        PipelineStep reused = step.withImportJob(job, true);
+        assertThat(reused.externalRef()).isEqualTo(job.toString());
+        assertThat(reused.importJobReused()).isTrue();
+        assertThat(reused.succeed(T0.plusSeconds(1), "SUCCEEDED").importJobReused()).isTrue();
+        assertThatThrownBy(() -> reused.withImportJob(job, true)).isInstanceOf(IllegalStateException.class);
+
+        PipelineStep ingest = started();
+        assertThatThrownBy(() -> ingest.withImportJob(job, false)).isInstanceOf(IllegalStateException.class);
+        UUID id = UUID.randomUUID();
+        assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.RUNNING, T0, null,
+                null, null, null, null, null, null, true)).isInstanceOf(IllegalArgumentException.class);
     }
 }

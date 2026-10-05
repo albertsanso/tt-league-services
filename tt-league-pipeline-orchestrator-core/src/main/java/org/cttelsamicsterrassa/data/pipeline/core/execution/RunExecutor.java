@@ -1,8 +1,13 @@
 package org.cttelsamicsterrassa.data.pipeline.core.execution;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -28,6 +33,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunArtifact;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepository;
@@ -114,7 +120,8 @@ public final class RunExecutor {
         PipelineRun run = start;
         while (!run.status().isTerminal()) {
             run = switch (run.status()) {
-                case QUEUED, RUNNING_INGEST -> ingestPhase(run);
+                case QUEUED -> run.trigger() == RunTrigger.RETRY ? replayPhase(run) : ingestPhase(run);
+                case RUNNING_INGEST -> ingestPhase(run);
                 case PACKED -> packedPhase(run);
                 case IMPORTING -> importingPhase(run);
                 default -> throw new IllegalStateException("Run " + run.id() + " is in unexpected status "
@@ -274,6 +281,55 @@ public final class RunExecutor {
         }
     }
 
+    // ---------------------------------------------------------------- REPLAY
+
+    /**
+     * Prepares a RETRY run: re-checks the original's stored package, shares it with the replay run and skips ingest.
+     * A crash after the row copy resumes here and only repeats the checks.
+     */
+    private PipelineRun replayPhase(PipelineRun run) {
+        UUID originalId = run.retryOfRunId();
+        Optional<RunArtifact> source = artifactRows.findByRunId(originalId).stream()
+                .filter(artifact -> artifact.kind() == ArtifactKind.ZIP)
+                .findFirst();
+        if (source.isEmpty() || source.get().isPurged() || !artifacts.exists(source.get().storageKey())) {
+            return failRun(run, new RunError(FailureCode.ARTIFACT_PURGED.name(),
+                    "The stored package of run " + originalId + " is no longer available"));
+        }
+        RunArtifact original = source.get();
+        try {
+            if (!sha256Of(artifacts.content(original.storageKey())).equals(original.sha256())) {
+                return failRun(run, new RunError(FailureCode.PACKAGE_CHECKSUM_MISMATCH.name(),
+                        "The stored package of run " + originalId + " no longer matches its recorded SHA-256"));
+            }
+        } catch (ArtifactStoreException e) {
+            return failRun(run, new RunError(FailureCode.ARTIFACT_STORE_FAILED.name(),
+                    orDefault(e.getMessage(), FailureCode.ARTIFACT_STORE_FAILED.name())));
+        }
+        boolean copied = artifactRows.findByRunId(run.id()).stream()
+                .anyMatch(artifact -> artifact.kind() == ArtifactKind.ZIP);
+        if (!copied) {
+            artifactRows.add(new RunArtifact(UUID.randomUUID(), run.id(), ArtifactKind.ZIP, original.storageKey(),
+                    original.sha256(), original.sizeBytes(), clock.now()));
+        }
+        return updateRun(run.startReplay(clock.now()));
+    }
+
+    private static String sha256Of(ArtifactContent content) {
+        try (InputStream in = content.open()) {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] buffer = new byte[8192];
+            for (int read = in.read(buffer); read >= 0; read = in.read(buffer)) {
+                digest.update(buffer, 0, read);
+            }
+            return HexFormat.of().formatHex(digest.digest());
+        } catch (IOException e) {
+            throw new ArtifactStoreException("Could not read the stored package", e);
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
+
     // --------------------------------------------------------- FETCH_PACKAGE
 
     private PipelineRun packedPhase(PipelineRun run) throws InterruptedException {
@@ -407,7 +463,7 @@ public final class RunExecutor {
         } catch (ArtifactStoreException e) {
             return new Failed(run, failStep(step, null, FailureCode.ARTIFACT_STORE_FAILED, e.getMessage(), false));
         }
-        step = saveStep(step.withExternalRef(submission.importJobId().toString()));
+        step = saveStep(step.withImportJob(submission.importJobId(), !submission.created()));
         run = updateRun(run.startImport(submission.importJobId(), clock.now()));
         return pollImport(run, step, deadline);
     }

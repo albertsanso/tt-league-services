@@ -14,6 +14,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunArtifact;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.ReplayEligibility;
 import org.springframework.stereotype.Component;
 
 /** Maps core runs and steps to the API shapes; durations of active runs and steps are measured up to now. */
@@ -28,24 +29,28 @@ public class RunDtoMapper {
 
     /** {@code steps} are the run's step attempts, or null to leave {@code steps} out (events, detail view). */
     public RunSummaryDto summary(PipelineRun run, List<PipelineStep> steps) {
+        return summary(run, steps, steps);
+    }
+
+    private RunSummaryDto summary(PipelineRun run, List<PipelineStep> listedSteps, List<PipelineStep> knownSteps) {
         return new RunSummaryDto(
                 run.id(), run.source().name(), run.season(),
                 run.scope().filters().stream().map(ScopeFilterDto::from).toList(), run.scope().isFullSeason(),
                 run.trigger().name(), run.requestedBy(), run.force(), run.status().name(), run.createdAt(),
                 run.startedAt(), run.finishedAt(), duration(run.startedAt(), run.finishedAt()),
-                ErrorDto.from(run.error()), run.ingestRunId(), run.importJobId(), run.retryOfRunId(),
-                steps == null ? null : latestAttempts(steps));
+                ErrorDto.from(run.error()), run.ingestRunId(), run.importJobId(), run.retryOfRunId(), importJobReused(run, knownSteps),
+                listedSteps == null ? null : latestAttempts(listedSteps));
     }
 
     public StepDto step(PipelineStep step) {
         return new StepDto(step.runId(), step.kind().name(), step.attempt(), step.status().name(),
                 step.startedAt(), step.finishedAt(), duration(step.startedAt(), step.finishedAt()),
                 step.externalRef(), step.outcome(), step.retryable(), ErrorDto.from(step.error()),
-                health(step));
+                health(step), step.importJobReused());
     }
 
     public RunDetailDto detail(PipelineRun run, List<PipelineStep> steps, List<RunArtifact> artifacts,
-            ImportReport report) {
+            ImportReport report, ReplayEligibility replay) {
         List<String> issues = new ArrayList<>();
         if (report != null) {
             issues.addAll(report.issues());
@@ -54,12 +59,27 @@ public class RunDtoMapper {
             issues.add(run.error().message());
         }
         return new RunDetailDto(
-                summary(run, null),
+                summary(run, null, steps),
                 steps.stream().map(this::step).toList(),
                 artifacts.stream().map(a -> new ArtifactDto(a.kind().name(), a.sha256(), a.sizeBytes(),
-                        a.createdAt())).toList(),
+                        a.createdAt(), a.purgedAt())).toList(),
                 report == null ? null : importReport(report),
-                issues);
+                issues,
+                ReplayDto.from(replay));
+    }
+
+    /** The flag of the IMPORT step whose external reference is the import job of the run; null when there is none. */
+    private static Boolean importJobReused(PipelineRun run, List<PipelineStep> steps) {
+        if (steps == null || run.importJobId() == null) {
+            return null;
+        }
+        String job = run.importJobId().toString();
+        return steps.stream()
+                .filter(step -> step.kind() == StepKind.IMPORT && job.equals(step.externalRef()))
+                .map(PipelineStep::importJobReused)
+                .filter(java.util.Objects::nonNull)
+                .reduce((first, second) -> second)
+                .orElse(null);
     }
 
     private static ImportReportDto importReport(ImportReport report) {

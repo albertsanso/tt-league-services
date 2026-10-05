@@ -211,4 +211,34 @@ class PipelineRunTest {
         assertThatThrownBy(() -> running.restartIngest("x".repeat(65), T2))
                 .isInstanceOf(IllegalArgumentException.class);
     }
+
+    private static PipelineRun queuedRetry() {
+        return queue("2025-2026", RunTrigger.RETRY, "operator", UUID.randomUUID());
+    }
+
+    @Test
+    void startReplayMovesAQueuedRetryRunStraightToPacked() {
+        PipelineRun packed = queuedRetry().startReplay(T1);
+
+        assertThat(packed.status()).isEqualTo(RunStatus.PACKED);
+        assertThat(packed.startedAt()).isEqualTo(T1);
+        assertThat(packed.ingestRunId()).isNull();
+        assertThat(packed.startImport(UUID.randomUUID(), T2).status()).isEqualTo(RunStatus.IMPORTING);
+    }
+
+    @Test
+    void startReplayIsRejectedForNonRetryRunsAndOtherStatuses() {
+        assertThatThrownBy(() -> queued().startReplay(T1)).isInstanceOf(IllegalRunTransitionException.class);
+        assertThatThrownBy(() -> queue("2025-2026", RunTrigger.SCHEDULED, "system", null).startReplay(T1))
+                .isInstanceOf(IllegalRunTransitionException.class);
+        PipelineRun packed = queuedRetry().startReplay(T1);
+        assertThatThrownBy(() -> packed.startReplay(T2)).isInstanceOf(IllegalRunTransitionException.class);
+    }
+
+    @Test
+    void packedStillRequiresRunningIngest() {
+        assertThatThrownBy(() -> queuedRetry().packed(T1)).isInstanceOf(IllegalRunTransitionException.class);
+        assertThatThrownBy(() -> queued().packed(T1)).isInstanceOf(IllegalRunTransitionException.class);
+        assertThat(queued().startIngest("a", T1).packed(T2).status()).isEqualTo(RunStatus.PACKED);
+    }
 }

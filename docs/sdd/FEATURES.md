@@ -54,26 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00114] Replay import from retained run artifacts
-- **Status:** idea
-- **Priority:** low
-- **Effort:** medium
-- **Depends on:** FEAT-00104, FEAT-00110
-
-#### Goal
-Re-import any past run's ZIP after a fix, without downloading from the federation again.
-
-#### Acceptance Criteria
-- [ ] Operators can replay the import of a past run from the API and the runs view; it creates a `RETRY` run linked to the original
-- [ ] Artifacts follow a configurable retention policy (for example ZIPs for the season, raw files 90 days), enforced by a cleanup job
-- [ ] Replaying an unchanged ZIP returns the existing import job (idempotency) and the run records that
-- [ ] Tests cover replay, retention and the idempotent case
-
-#### Feature Details
-→ See [FEAT-00114-DETAILS.md](./FEAT-00114-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00115] Orchestrator metrics and run-correlated logging
 - **Status:** idea
 - **Priority:** low
@@ -113,6 +93,26 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00114] Replay import from retained run artifacts
+- **Status:** done
+- **Priority:** low
+- **Effort:** large
+- **Depends on:** FEAT-00104, FEAT-00110
+
+#### Goal
+Re-import any past run's ZIP after a fix, without downloading from the federation again.
+
+#### Acceptance Criteria
+- [x] Operators can replay the import of a past run from the API and the runs view; it creates a `RETRY` run linked to the original
+- [x] Artifacts follow a configurable retention policy (for example ZIPs for the season, raw files 90 days), enforced by a cleanup job
+- [x] Replaying an unchanged ZIP returns the existing import job (idempotency) and the run records that
+- [x] Tests cover replay, retention and the idempotent case
+
+#### Feature Details
+→ See [FEAT-00114-DETAILS.md](./FEAT-00114-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00113] Pipeline history statistics and dashboard
 - **Status:** done

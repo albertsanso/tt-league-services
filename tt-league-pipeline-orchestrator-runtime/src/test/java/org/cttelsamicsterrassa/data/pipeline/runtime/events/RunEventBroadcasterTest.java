@@ -98,4 +98,23 @@ class RunEventBroadcasterTest {
 
         assertThat(broadcaster.subscriberCount()).isEqualTo(1);
     }
+
+    @Test
+    void aReplayRunIsPublishedLikeAnyOtherRunAndCarriesItsTriggerAndOrigin() throws Exception {
+        create(5, 10);
+        broadcaster.subscribe();
+        UUID original = UUID.randomUUID();
+        PipelineRun replay = PipelineRun.queue(UUID.randomUUID(), PipelineSource.RFETM, "2025-2026",
+                RunScope.fullSeason(), false, RunTrigger.RETRY, "alice", original,
+                Instant.parse("2026-10-04T10:00:00Z"));
+
+        broadcaster.runChanged(replay);
+
+        ObjectMapper json = new ObjectMapper().findAndRegisterModules();
+        com.fasterxml.jackson.databind.JsonNode payload = json.readTree(json.writeValueAsString(
+                new RunDtoMapper(new FakeRunClock()).summary(replay, null)));
+        assertThat(payload.get("trigger").asText()).isEqualTo("RETRY");
+        assertThat(payload.get("retryOfRunId").asText()).isEqualTo(original.toString());
+        assertThat(broadcaster.subscriberCount()).isEqualTo(1);
+    }
 }

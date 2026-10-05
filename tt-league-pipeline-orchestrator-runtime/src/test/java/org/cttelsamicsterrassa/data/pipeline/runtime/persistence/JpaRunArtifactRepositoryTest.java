@@ -46,4 +46,29 @@ class JpaRunArtifactRepositoryTest extends AbstractPersistenceTest {
                 new RunArtifact(UUID.randomUUID(), run.id(), ArtifactKind.ZIP, "k.zip", SHA, 1, T0)))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
+
+    @Test
+    void roundTripsPurgedAtAndFindsRowsBySharedStorageKey() {
+        PipelineRun original = runs.create(queued(PipelineSource.RFETM));
+        RunArtifact first = new RunArtifact(UUID.randomUUID(), original.id(), ArtifactKind.ZIP, "k.zip", SHA, 1, T0);
+        artifacts.add(first);
+        PipelineRun other = runs.create(queued(PipelineSource.BCNESA));
+        RunArtifact shared = new RunArtifact(UUID.randomUUID(), other.id(), ArtifactKind.ZIP, "k.zip", SHA, 1,
+                T0.plusSeconds(5));
+        artifacts.add(shared);
+        artifacts.add(new RunArtifact(UUID.randomUUID(), other.id(), ArtifactKind.MANIFEST, "other.json", SHA, 1, T0));
+
+        assertThat(artifacts.findByStorageKey("k.zip")).containsExactly(first, shared);
+        assertThat(artifacts.findByStorageKey("missing")).isEmpty();
+        assertThat(artifacts.findByRunId(original.id()).get(0).purgedAt()).isNull();
+
+        assertThat(artifacts.markPurged("k.zip", T0.plusSeconds(60))).isEqualTo(2);
+        assertThat(artifacts.markPurged("k.zip", T0.plusSeconds(120))).isZero();
+        assertThat(artifacts.findByStorageKey("k.zip")).allSatisfy(row -> {
+            assertThat(row.isPurged()).isTrue();
+            assertThat(row.purgedAt()).isEqualTo(T0.plusSeconds(60));
+        });
+        assertThat(artifacts.findByRunId(other.id())).filteredOn(row -> row.storageKey().equals("other.json"))
+                .allMatch(row -> !row.isPurged());
+    }
 }

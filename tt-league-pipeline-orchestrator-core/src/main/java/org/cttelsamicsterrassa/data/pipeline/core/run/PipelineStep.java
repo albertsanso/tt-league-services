@@ -22,6 +22,7 @@ public final class PipelineStep {
     private final RunError error;
     private final String logRef;
     private final IngestHealth ingestHealth;
+    private final Boolean importJobReused;
 
     private PipelineStep(
             UUID id,
@@ -36,7 +37,8 @@ public final class PipelineStep {
             Boolean retryable,
             RunError error,
             String logRef,
-            IngestHealth ingestHealth) {
+            IngestHealth ingestHealth,
+            Boolean importJobReused) {
         this.id = Checks.required(id, "id");
         this.runId = Checks.required(runId, "runId");
         this.kind = Checks.required(kind, "kind");
@@ -53,6 +55,7 @@ public final class PipelineStep {
         this.error = error;
         this.logRef = Checks.optionalMax(logRef, "logRef", 512);
         this.ingestHealth = ingestHealth;
+        this.importJobReused = importJobReused;
         if ((status == StepStatus.RUNNING) != (finishedAt == null)) {
             throw new IllegalArgumentException("finishedAt must be present exactly for finished steps");
         }
@@ -65,6 +68,9 @@ public final class PipelineStep {
         if (ingestHealth != null && kind != StepKind.INGEST) {
             throw new IllegalArgumentException("ingestHealth is only allowed on INGEST steps");
         }
+        if (importJobReused != null && kind != StepKind.IMPORT) {
+            throw new IllegalArgumentException("importJobReused is only allowed on IMPORT steps");
+        }
         if (ingestHealth != null && status == StepStatus.RUNNING) {
             throw new IllegalArgumentException("ingestHealth is only allowed on finished steps");
         }
@@ -73,7 +79,7 @@ public final class PipelineStep {
     public static PipelineStep start(
             UUID id, UUID runId, StepKind kind, int attempt, Instant startedAt, String externalRef) {
         return new PipelineStep(
-                id, runId, kind, attempt, StepStatus.RUNNING, startedAt, null, externalRef, null, null, null, null, null);
+                id, runId, kind, attempt, StepStatus.RUNNING, startedAt, null, externalRef, null, null, null, null, null, null);
     }
 
     /** Rebuilds a stored step; used by adapters only. */
@@ -90,10 +96,11 @@ public final class PipelineStep {
             Boolean retryable,
             RunError error,
             String logRef,
-            IngestHealth ingestHealth) {
+            IngestHealth ingestHealth,
+            Boolean importJobReused) {
         return new PipelineStep(
                 id, runId, kind, attempt, status, startedAt, finishedAt, externalRef, outcome, retryable, error,
-                logRef, ingestHealth);
+                logRef, ingestHealth, importJobReused);
     }
 
     public PipelineStep succeed(Instant at, String outcome) {
@@ -105,7 +112,7 @@ public final class PipelineStep {
         Checks.required(at, "at");
         return new PipelineStep(
                 id, runId, kind, attempt, StepStatus.SUCCEEDED, startedAt, at, externalRef, outcome, retryable,
-                null, logRef, health);
+                null, logRef, health, importJobReused);
     }
 
     public PipelineStep fail(Instant at, String outcome, RunError error, boolean retryable) {
@@ -119,7 +126,22 @@ public final class PipelineStep {
         Checks.required(error, "error");
         return new PipelineStep(
                 id, runId, kind, attempt, StepStatus.FAILED, startedAt, at, externalRef, outcome, retryable, error,
-                logRef, health);
+                logRef, health, importJobReused);
+    }
+
+    /**
+     * Attaches the platform import job of an IMPORT step and whether the platform returned an existing job for the
+     * same content; same once-only rule as {@link #withExternalRef}.
+     */
+    public PipelineStep withImportJob(UUID importJobId, boolean reused) {
+        Checks.required(importJobId, "importJobId");
+        if (kind != StepKind.IMPORT) {
+            throw new IllegalStateException("An import job can only be attached to an IMPORT step");
+        }
+        PipelineStep with = withExternalRef(importJobId.toString());
+        return new PipelineStep(
+                with.id, with.runId, with.kind, with.attempt, with.status, with.startedAt, null, with.externalRef,
+                with.outcome, with.retryable, null, with.logRef, null, reused);
     }
 
     /** Attaches the external id once it is known; allowed once, while the step is RUNNING. */
@@ -132,7 +154,8 @@ public final class PipelineStep {
             throw new IllegalStateException("externalRef must be non-blank and at most 64 characters");
         }
         return new PipelineStep(
-                id, runId, kind, attempt, status, startedAt, null, ref, outcome, retryable, null, logRef, null);
+                id, runId, kind, attempt, status, startedAt, null, ref, outcome, retryable, null, logRef, null,
+                importJobReused);
     }
 
     private void requireRunning(StepStatus target) {
@@ -192,5 +215,13 @@ public final class PipelineStep {
     /** The source health of a finished INGEST step; null when unknown or not an INGEST step. */
     public IngestHealth ingestHealth() {
         return ingestHealth;
+    }
+
+    /**
+     * Whether the platform returned an existing import job for the same content; null on non-IMPORT steps and when it
+     * was not recorded.
+     */
+    public Boolean importJobReused() {
+        return importJobReused;
     }
 }

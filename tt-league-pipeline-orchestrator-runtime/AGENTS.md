@@ -72,6 +72,14 @@ and the Flyway/JPA persistence of the run model (later features add security).
   parameters and calls `StatisticsQueries`; it never derives a figure. `JpaStatisticsReadRepository` filters rows with
   JPQL and never aggregates in SQL (percentiles and buckets stay in the core). `tt.pipeline.statistics.zone` is
   required with no default.
+- Artifact retention is opt-in (`tt.pipeline.retention`, no defaults; startup fails naming the setting). The cleanup job is
+  `ArtifactCleanupSchedule` (`artifact/`): a private scheduler, never a bean, under the ShedLock lock
+  `pipeline-artifact-cleanup` through `LockingTaskExecutor`, with no startup catch-up. Artifact files are deleted only
+  through the core `ArtifactCleanup`; never call `ArtifactStore.delete` for a stored ZIP from anywhere else, and never delete
+  `run_artifact` rows (the purge only sets `purged_at`).
+- `POST /api/pipeline/runs/{id}/replay` only translates to the core `ReplayRun` (the only creator of `RETRY` runs) and needs
+  `matches:write` through its own matcher in `SecurityConfiguration`; `RunQueryService` exposes the decision of
+  `ReplayRules.check` and the controller never derives it.
 - Run observers never throw into the executor (`CompositeRunObserver` isolates
   them). The `RunEventBroadcaster` sends on its own private pool, which is not
   an `Executor` bean, and never on a run thread.

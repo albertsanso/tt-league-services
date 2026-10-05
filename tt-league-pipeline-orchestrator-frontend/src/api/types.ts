@@ -66,6 +66,8 @@ export interface RunSummary {
   readonly ingestRunId: string | null
   readonly importJobId: string | null
   readonly retryOfRunId: string | null
+  /** The platform returned an existing import job for the same content; null when unknown or no import yet. */
+  readonly importJobReused: boolean | null
   readonly steps?: readonly StepStatusSummary[]
 }
 
@@ -89,6 +91,8 @@ export interface Step {
   readonly retryable: boolean | null
   readonly error: RunError | null
   readonly health: StepHealth | null
+  /** Set on IMPORT steps: the platform returned an existing job instead of creating one. */
+  readonly importJobReused: boolean | null
 }
 
 export interface Artifact {
@@ -96,6 +100,8 @@ export interface Artifact {
   readonly sha256: string
   readonly sizeBytes: number
   readonly createdAt: string
+  /** Set once the retention cleanup deleted the file; the row is kept as history. */
+  readonly purgedAt: string | null
 }
 
 export interface ImportReport {
@@ -115,11 +121,18 @@ export interface ImportReport {
   readonly receivedAt: string | null
 }
 
+/** Whether a run can be replayed, decided by the server (`ReplayRules`); `code` names the reason when it cannot. */
+export interface ReplayEligibility {
+  readonly allowed: boolean
+  readonly code: string | null
+}
+
 export type RunDetail = Omit<RunSummary, 'steps'> & {
   readonly steps: readonly Step[]
   readonly artifacts: readonly Artifact[]
   readonly importReport: ImportReport | null
   readonly issues: readonly string[]
+  readonly replay: ReplayEligibility
 }
 
 export interface Page<T> {

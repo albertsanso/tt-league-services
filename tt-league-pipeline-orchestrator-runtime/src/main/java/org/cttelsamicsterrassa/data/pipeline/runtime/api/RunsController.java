@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import java.net.URI;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.EnumSet;
@@ -18,11 +19,14 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.RunQuery;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.ReplayRun;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun;
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
 import org.cttelsamicsterrassa.data.pipeline.runtime.security.CurrentUser;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -42,13 +46,15 @@ class RunsController {
     private static final String ALL = "ALL";
 
     private final TriggerRun triggerRun;
+    private final ReplayRun replayRun;
     private final RunQueryService queries;
     private final RunDtoMapper mapper;
     private final PipelineOrchestratorProperties.Triggers triggers;
 
-    RunsController(TriggerRun triggerRun, RunQueryService queries, RunDtoMapper mapper,
+    RunsController(TriggerRun triggerRun, ReplayRun replayRun, RunQueryService queries, RunDtoMapper mapper,
             PipelineOrchestratorProperties.Triggers triggers) {
         this.triggerRun = triggerRun;
+        this.replayRun = replayRun;
         this.queries = queries;
         this.mapper = mapper;
         this.triggers = triggers;
@@ -96,6 +102,39 @@ class RunsController {
     @ApiResponse(responseCode = "404", description = "Unknown run")
     RunDetailDto detail(@PathVariable("id") UUID id) {
         return queries.detail(id).orElseThrow(() -> new RunNotFoundException(id));
+    }
+
+    @PostMapping("/{id}/replay")
+    @Operation(summary = "Replay the import of a run",
+            description = "Creates a RETRY run that re-submits the stored package of the run, without calling ingest. "
+                    + "The platform returns the existing import job when it already imported the same content. "
+                    + "Needs the matches:write authority.")
+    @ApiResponse(responseCode = "201", description = "The replay run was created")
+    @ApiResponse(responseCode = "404", description = "Unknown run")
+    @ApiResponse(responseCode = "409", description = "The source has an active run (code ACTIVE_RUN)")
+    @ApiResponse(responseCode = "422", description = "The run cannot be replayed: RUN_ACTIVE, NO_PACKAGE or ARTIFACT_PURGED")
+    ResponseEntity<Object> replay(@PathVariable("id") UUID id, Authentication authentication) {
+        ReplayRun.Outcome outcome = replayRun.replay(id, CurrentUser.name(authentication));
+        return switch (outcome) {
+            case ReplayRun.Created created -> ResponseEntity
+                    .created(URI.create("/api/pipeline/runs/" + created.run().id()))
+                    .body(mapper.summary(created.run(), List.of()));
+            case ReplayRun.NotFound notFound -> throw new RunNotFoundException(id);
+            case ReplayRun.NotReplayable notReplayable -> problem(HttpStatus.UNPROCESSABLE_ENTITY,
+                    notReplayable.code(), notReplayable.message(), null);
+            case ReplayRun.Rejected rejected -> problem(HttpStatus.CONFLICT, rejected.code(), rejected.message(),
+                    rejected.activeRunId());
+        };
+    }
+
+    private static ResponseEntity<Object> problem(HttpStatus status, String code, String message, UUID activeRunId) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, message);
+        problem.setTitle(status.getReasonPhrase());
+        problem.setProperty("code", code);
+        if (activeRunId != null) {
+            problem.setProperty("activeRunId", activeRunId);
+        }
+        return ResponseEntity.status(status).contentType(MediaType.APPLICATION_PROBLEM_JSON).body(problem);
     }
 
     private TriggerRun.Command command(TriggerRunRequest body, String requestedBy) {

@@ -42,6 +42,7 @@ class JpaPipelineStepRepository implements PipelineStepRepository {
         entity.httpErrors = step.ingestHealth() == null ? null : step.ingestHealth().httpErrors();
         entity.timeouts = step.ingestHealth() == null ? null : step.ingestHealth().timeouts();
         entity.parseErrors = step.ingestHealth() == null ? null : step.ingestHealth().parseErrors();
+        entity.importJobReused = step.importJobReused();
         return toDomain(steps.saveAndFlush(entity));
     }
 
@@ -73,6 +74,7 @@ class JpaPipelineStepRepository implements PipelineStepRepository {
                 : new IngestHealth(entity.httpErrors, entity.timeouts, entity.parseErrors);
         return PipelineStep.restore(
                 entity.id, entity.runId, entity.kind, entity.attempt, entity.status, entity.startedAt,
-                entity.finishedAt, entity.externalRef, entity.outcome, entity.retryable, error, entity.logRef, health);
+                entity.finishedAt, entity.externalRef, entity.outcome, entity.retryable, error, entity.logRef, health,
+                entity.importJobReused);
     }
 }

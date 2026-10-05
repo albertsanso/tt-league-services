@@ -5,7 +5,7 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 
 public record RunArtifact(
-        UUID id, UUID runId, ArtifactKind kind, String storageKey, String sha256, long sizeBytes, Instant createdAt) {
+        UUID id, UUID runId, ArtifactKind kind, String storageKey, String sha256, long sizeBytes, Instant createdAt, Instant purgedAt) {
 
     private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
     private static final Pattern DRIVE_PREFIX = Pattern.compile("^[A-Za-z]:.*");
@@ -30,5 +30,19 @@ public record RunArtifact(
         }
         Checks.nonNegative(sizeBytes, "sizeBytes");
         Checks.required(createdAt, "createdAt");
+        if (purgedAt != null && purgedAt.isBefore(createdAt)) {
+            throw new IllegalArgumentException("purgedAt must not be before createdAt");
+        }
+    }
+
+    /** An artifact that has not been purged. */
+    public RunArtifact(
+            UUID id, UUID runId, ArtifactKind kind, String storageKey, String sha256, long sizeBytes,
+            Instant createdAt) {
+        this(id, runId, kind, storageKey, sha256, sizeBytes, createdAt, null);
+    }
+
+    public boolean isPurged() {
+        return purgedAt != null;
     }
 }

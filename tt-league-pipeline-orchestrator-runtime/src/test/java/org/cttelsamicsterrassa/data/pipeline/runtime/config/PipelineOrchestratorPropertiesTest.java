@@ -633,4 +633,78 @@ class PipelineOrchestratorPropertiesTest {
     @EnableConfigurationProperties(PipelineOrchestratorProperties.class)
     static class PropertiesConfig {
     }
+
+    private static List<String> withRetention(String... settings) {
+        List<String> properties = valid();
+        properties.add("tt.pipeline.retention.cron=0 30 4 * * *");
+        properties.add("tt.pipeline.retention.zone=Europe/Madrid");
+        properties.add("tt.pipeline.retention.rules.zip.seasons=1");
+        properties.add("tt.pipeline.retention.rules.manifest.seasons=1");
+        properties.add("tt.pipeline.retention.rules.raw.max-age=P90D");
+        properties.add("tt.pipeline.retention.rules.json.max-age=P90D");
+        for (String setting : settings) {
+            properties.removeIf(entry -> entry.startsWith(setting.substring(0, setting.indexOf('=') + 1)));
+            properties.add(setting);
+        }
+        return properties;
+    }
+
+    @Test
+    void retentionIsOffWithoutTheBlock() {
+        runner.withPropertyValues(valid().toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(PipelineOrchestratorProperties.class).retention()).isNull();
+        });
+    }
+
+    @Test
+    void bindsTheRetentionBlockIntoAPolicy() {
+        runner.withPropertyValues(withRetention().toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            PipelineOrchestratorProperties.Retention retention =
+                    context.getBean(PipelineOrchestratorProperties.class).retention();
+            assertThat(retention.cron()).isEqualTo("0 30 4 * * *");
+            assertThat(retention.zoneId()).isEqualTo(ZoneId.of("Europe/Madrid"));
+            assertThat(retention.toPolicy().rules())
+                    .containsEntry(org.cttelsamicsterrassa.data.pipeline.core.run.ArtifactKind.ZIP,
+                            new org.cttelsamicsterrassa.data.pipeline.core.retention.RetentionRule.Seasons(1))
+                    .containsEntry(org.cttelsamicsterrassa.data.pipeline.core.run.ArtifactKind.RAW,
+                            new org.cttelsamicsterrassa.data.pipeline.core.retention.RetentionRule.MaxAge(
+                                    Duration.ofDays(90)));
+        });
+    }
+
+    @Test
+    void failsOnAMissingOrInvalidRetentionCronOrZone() {
+        List<String> noCron = withRetention();
+        noCron.removeIf(entry -> entry.startsWith("tt.pipeline.retention.cron="));
+        assertFails(noCron, "retention.cron is required");
+        assertFails(withRetention("tt.pipeline.retention.cron=nightly"), "retention.cron is not a valid cron");
+        assertFails(withRetention("tt.pipeline.retention.cron=0 30 4 * * *", "tt.pipeline.retention.zone=Mars/Base"),
+                "retention.zone is not a valid time zone");
+        List<String> noZone = withRetention();
+        noZone.removeIf(entry -> entry.startsWith("tt.pipeline.retention.zone="));
+        assertFails(noZone, "retention.zone is required");
+    }
+
+    @Test
+    void failsWhenAnArtifactKindHasNoRuleOrAnInvalidOne() {
+        List<String> noJson = withRetention();
+        noJson.removeIf(entry -> entry.startsWith("tt.pipeline.retention.rules.json."));
+        assertFails(noJson, "retention.rules.json is required");
+        assertFails(withRetention("tt.pipeline.retention.rules.zip.max-age=P1D"),
+                "retention.rules.zip needs exactly one of max-age or seasons");
+        List<String> neither = withRetention();
+        neither.removeIf(entry -> entry.startsWith("tt.pipeline.retention.rules.raw."));
+        neither.add("tt.pipeline.retention.rules.raw.seasons=");
+        assertFails(neither, "retention.rules.raw");
+        assertFails(withRetention("tt.pipeline.retention.rules.zip.seasons=11"),
+                "retention.rules.zip.seasons must be between 1 and 10");
+        assertFails(withRetention("tt.pipeline.retention.rules.zip.seasons=0"),
+                "retention.rules.zip.seasons must be between 1 and 10");
+        List<String> badAge = withRetention();
+        badAge.removeIf(entry -> entry.startsWith("tt.pipeline.retention.rules.raw."));
+        badAge.add("tt.pipeline.retention.rules.raw.max-age=PT0S");
+        assertFails(badAge, "retention.rules.raw.max-age must be a positive duration");
+    }
 }

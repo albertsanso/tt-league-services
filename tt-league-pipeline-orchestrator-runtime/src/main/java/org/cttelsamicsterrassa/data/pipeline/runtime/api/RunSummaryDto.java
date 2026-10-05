@@ -7,7 +7,8 @@ import java.util.UUID;
 
 /**
  * A run as shown in lists and events. {@code steps} holds the latest attempt per step kind; it is absent in event
- * payloads and in the detail view (which lists every attempt itself).
+ * payloads and in the detail view (which lists every attempt itself). {@code importJobReused} is the flag of the
+ * IMPORT step that submitted the import job of the run; null when unknown (events, no import yet, older runs).
  */
 public record RunSummaryDto(
         UUID id,
@@ -27,5 +28,6 @@ public record RunSummaryDto(
         String ingestRunId,
         UUID importJobId,
         UUID retryOfRunId,
+        Boolean importJobReused,
         @JsonInclude(JsonInclude.Include.NON_NULL) List<StepStatusDto> steps) {
 }

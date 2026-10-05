@@ -5,12 +5,14 @@ import java.util.Optional;
 import java.util.UUID;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunArtifact;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunPage;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunQuery;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineStepRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunArtifactRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.ReplayRules;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -46,8 +48,9 @@ public class RunQueryService {
     public Optional<RunDetailDto> detail(UUID id) {
         return runs.findById(id).map(run -> {
             List<PipelineStep> runSteps = steps.findByRunId(run.id());
-            return mapper.detail(run, runSteps, artifacts.findByRunId(run.id()),
-                    reports.findByRunId(run.id()).orElse(null));
+            List<RunArtifact> runArtifacts = artifacts.findByRunId(run.id());
+            return mapper.detail(run, runSteps, runArtifacts, reports.findByRunId(run.id()).orElse(null),
+                    ReplayRules.check(run, runArtifacts));
         });
     }
 }

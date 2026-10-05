@@ -133,7 +133,7 @@ stay active.
 
 Every `/api/**` request needs a platform JWT in `Authorization: Bearer ...`. The decoder uses the shared secret and
 picks HS256 (32-47 bytes), HS384 (48-63) or HS512 (64+) like the platform. Authorities are the `permissions` claim as
-is plus `ROLE_<role>`; `sub` is the user name. `POST /api/pipeline/runs` and every mutation under `/api/pipeline/match-days` (`POST`, `PUT`, `DELETE`) need
+is plus `ROLE_<role>`; `sub` is the user name. `POST /api/pipeline/runs`, `POST /api/pipeline/runs/{id}/replay` and every mutation under `/api/pipeline/match-days` (`POST`, `PUT`, `DELETE`) need
 `matches:write`; everything else needs any valid token. Health, info, `/v3/api-docs` and `/swagger-ui` are public. Tokens revoked by a platform logout stay
 valid here until they expire. `PIPELINE_CORS_ALLOWED_ORIGINS` (comma-separated origins, default none) enables CORS
 for those browser origins.
@@ -148,9 +148,60 @@ for those browser origins.
   source's outcome under `results`.
 - `GET /api/pipeline/runs` (`source`, `status`, `from`, `to`, `page`, `size` up to 100; newest first) and
   `GET /api/pipeline/runs/{id}` (steps, artifacts, import report, issues).
+- `POST /api/pipeline/runs/{id}/replay` (no body): replays the import of a past run, see [Replay](#replay). `201` with the
+  new `RETRY` run (`RunSummary`) and its `Location`, `404` for an unknown run, `409` with `code: ACTIVE_RUN` and
+  `activeRunId` when the source has an active run (a replay is never queued), `422` with `code` `RUN_ACTIVE`,
+  `NO_PACKAGE` or `ARTIFACT_PURGED` when the run cannot be replayed. `GET /api/pipeline/runs/{id}` carries the same
+  decision as `replay: {allowed, code}`, plus `purgedAt` on every artifact and `importJobReused` on steps and runs.
 - `GET /api/pipeline/pending-triggers`.
 - Conflict mode `PIPELINE_TRIGGER_CONFLICT_MODE`: `REJECT` (default) or `QUEUE` (one persisted pending trigger per
   source, launched when the active run ends or at startup).
+
+## Replay
+
+A replay creates a `RETRY` run linked to the original (`retryOfRunId`). It never calls ingest and never downloads from the
+federation: it re-hashes the original's stored ZIP against its recorded SHA-256 and submits it to the platform again, then
+follows the import like any run. The platform keeps its content deduplication: when it already holds an active,
+`SUCCEEDED` or `PARTIAL` job for the same content it returns that job (`200`, `created=false`), the `IMPORT` step records
+`importJobReused = true` and nothing is re-imported. A replay therefore re-imports only runs whose import `FAILED`, was
+rejected or never ran (for example after a platform fix). A replay of an `IMPORT_SHRINK` failure fails the same way: the
+published-acta shrink guard is never bypassed.
+
+A run can be replayed when it is finished and its ZIP exists (`NO_CHANGES` runs and runs that failed before the package was
+stored have none). The replay shares the original's ZIP file and stays replayable itself.
+
+## Artifact retention
+
+Artifacts are kept forever unless `tt.pipeline.retention` is configured. With it, a cleanup job
+(`ArtifactCleanupSchedule`: private scheduler, ShedLock lock `pipeline-artifact-cleanup`, no catch-up at startup) deletes
+the files of expired artifacts and sets `purged_at` on their rows; run and artifact rows are history and are never deleted.
+There is no default cron, zone or rule: with the block, startup fails naming the setting when the cron or zone is missing or
+invalid, when an artifact kind has no rule, when a rule has both or neither of `max-age` and `seasons`, or when a value is out
+of range.
+
+```yaml
+tt:
+  pipeline:
+    retention:
+      cron: "0 30 4 * * *"      # Spring six-field cron
+      zone: Europe/Madrid        # IANA zone of the cron
+      rules:                     # a rule for every kind: zip, manifest, raw, json
+        zip:
+          seasons: 2             # keep the newest 2 seasons for which the source has runs (1-10)
+        manifest:
+          seasons: 2
+        raw:
+          max-age: P90D          # ISO-8601 duration
+        json:
+          max-age: P90D
+```
+
+- `seasons: N` keeps the artifacts of the newest N seasons for which the source has orchestrator runs. When the first run of
+  a new season is created, the previous season's ZIPs expire under `seasons: 1`; use `seasons: 2` to keep them through the
+  season change.
+- A file referenced by an active run is never purged, and a failed delete is logged and counted without stopping the pass;
+  that file stays unpurged and the next tick tries again.
+- Only `ZIP` artifacts are written today: the rules of the other kinds apply once something writes them.
 
 ## Scheduled runs
 

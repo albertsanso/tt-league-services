@@ -58,6 +58,11 @@ public class ScriptedImportGateway implements ImportGateway {
         return new ImportSubmission(jobId, "QUEUED", true);
     }
 
+    /** The platform's answer for content it already imported: the existing job, not a new one. */
+    public static ImportSubmission existing(UUID jobId) {
+        return new ImportSubmission(jobId, "SUCCEEDED", false);
+    }
+
     public static ImportJobState job(UUID jobId, String status, String errorDetail, ImportSeasonState... seasons) {
         return new ImportJobState(jobId, status, errorDetail, List.of(seasons), "{\"status\":\"" + status + "\"}");
     }

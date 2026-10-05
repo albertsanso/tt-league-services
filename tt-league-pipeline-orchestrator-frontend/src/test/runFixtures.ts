@@ -19,6 +19,7 @@ export function makeRun(id: string, overrides: Partial<RunSummary> = {}): RunSum
     ingestRunId: null,
     importJobId: null,
     retryOfRunId: null,
+    importJobReused: null,
     steps: [],
     ...overrides,
   }
@@ -42,6 +43,7 @@ export function makeStep(runId: string, overrides: Partial<Step> = {}): Step {
     retryable: null,
     error: null,
     health: null,
+    importJobReused: null,
     ...overrides,
   }
 }
@@ -49,5 +51,13 @@ export function makeStep(runId: string, overrides: Partial<Step> = {}): Step {
 export function makeDetail(id: string, overrides: Partial<RunDetail> = {}): RunDetail {
   const { steps: _ignored, ...summary } = makeRun(id)
   void _ignored
-  return { ...summary, steps: [], artifacts: [], importReport: null, issues: [], ...overrides }
+  return {
+    ...summary,
+    steps: [],
+    artifacts: [],
+    importReport: null,
+    issues: [],
+    replay: { allowed: true, code: null },
+    ...overrides,
+  }
 }

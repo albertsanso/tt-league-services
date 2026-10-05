@@ -33,6 +33,9 @@ signing in and calendar components may be duplicated rather than shared.
   statistics themselves and there is no event subscription (the page has a refresh button). Figures are never derived
   in the browser: panels show the server values (`format.ts` only formats seconds as hours) and every chart has a
   summary table that is its text equivalent.
+- Whether a run can be replayed comes from the server (`replay` in the run detail, decided by `ReplayRules`);
+  `src/runs/replay.ts` only maps its `code` to labels and the UI never derives eligibility from the status or the
+  artifacts. A purged artifact and a reused import job are shown from `purgedAt` and `importJobReused`.
 - Client-side trigger validation mirrors `TriggerRules` and
   `PipelineRun.requireValidSeason` and never replaces the server's answer.
 - No data-fetching, state or JWT library without a decision.

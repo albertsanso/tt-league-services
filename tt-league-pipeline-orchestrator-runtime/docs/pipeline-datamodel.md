@@ -51,13 +51,14 @@ Indexes:
 
 | From | Allowed next |
 | --- | --- |
-| `QUEUED` | `RUNNING_INGEST`, `FAILED` |
+| `QUEUED` | `RUNNING_INGEST`, `PACKED` (`RETRY` runs only, see [Replay](#replay-and-retention)), `FAILED` |
 | `RUNNING_INGEST` | `NO_CHANGES`, `PACKED`, `FAILED` |
 | `PACKED` | `IMPORTING`, `FAILED` |
 | `IMPORTING` | `SUCCEEDED`, `PARTIAL`, `FAILED` |
 | `NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED` | none (terminal) |
 
-Enforced by `RunStatus` in the core, not by the database.
+Enforced by `RunStatus` and `PipelineRun` in the core, not by the database: `QUEUED -> PACKED` is reachable only through
+`PipelineRun.startReplay`, which requires `trigger = RETRY`; `PipelineRun.packed` still requires `RUNNING_INGEST`.
 
 ## `pipeline_step`
 
@@ -79,6 +80,7 @@ run status.
 | `error_code` / `error_message` | `varchar(64)` / `text` NULL | |
 | `log_ref` | `varchar(512)` NULL | filled by a later feature |
 | `http_errors`, `timeouts`, `parse_errors` | `bigint` NULL | source health an `INGEST` attempt reported (FEAT-00113, `V8`): the `http_errors` and `timeouts` of every ingest stage, and the `parse_errors + invalid` of the parse and teams stages; each `>= 0`. All three are NULL (unknown: an older ingest service, or an attempt that never finished the ingest run) or all set (`ck_pipeline_step_health_all_or_none`), and only an `INGEST` step may carry them (`ck_pipeline_step_health_ingest_only`) |
+| `import_job_reused` | `boolean` NULL | whether the platform answered the import submit with an existing job for the same content (`200`, `created=false`) instead of a new one (`202`); FEAT-00114, `V9`. Only an `IMPORT` step may carry it (`ck_pipeline_step_reused_import_only`). NULL means "not recorded" (rows written before `V9`) |
 
 `UNIQUE (run_id, kind, attempt)`.
 
@@ -95,8 +97,13 @@ Files produced or fetched by a run.
 | `sha256` | `char(64)` NOT NULL | `^[0-9a-f]{64}$` |
 | `size_bytes` | `bigint` NOT NULL | `>= 0` |
 | `created_at` | `timestamptz` NOT NULL | |
+| `purged_at` | `timestamptz` NULL | set when the retention cleanup deleted the file (FEAT-00114, `V9`); `purged_at >= created_at` (`ck_run_artifact_purged_after_created`). The row is kept as history. NULL for every row written before `V9` |
 
-`UNIQUE (run_id, kind, storage_key)`.
+`UNIQUE (run_id, kind, storage_key)`. Indexes added by `V9`: `ix_run_artifact_storage_key (storage_key)` and the partial
+`ix_run_artifact_unpurged (created_at) WHERE purged_at IS NULL`.
+
+Several rows may share one `storage_key`: a replay run carries its own `ZIP` row that points at the file of the original run
+(see [Replay and retention](#replay-and-retention)).
 
 ## `import_report`
 
@@ -129,10 +136,13 @@ No migration: the columns above already fit every value written by FEAT-00104.
 - **`error_code`** (steps and runs): the `FailureCode` names `INGEST_UNAVAILABLE`,
   `INGEST_BUSY`, `INGEST_REJECTED`, `INGEST_RUN_LOST`, `SOURCE_UNAVAILABLE`,
   `INGEST_FAILED`, `INGEST_NO_PACKAGE`, `PACKAGE_UNAVAILABLE`, `PACKAGE_GONE`,
-  `PACKAGE_CHECKSUM_MISMATCH`, `ARTIFACT_STORE_FAILED`, `PLATFORM_UNAVAILABLE`,
+  `PACKAGE_CHECKSUM_MISMATCH`, `ARTIFACT_STORE_FAILED`, `ARTIFACT_PURGED`, `PLATFORM_UNAVAILABLE`,
   `IMPORT_REJECTED`, `IMPORT_SHRINK`, `IMPORT_JOB_LOST`, `IMPORT_FAILED`,
   `STEP_TIMEOUT`, `PROTOCOL_ERROR`, `INTERRUPTED`, `DISPATCH_FAILED`,
   `INTERNAL_ERROR`. Messages never contain keys.
+- **`pipeline_step.import_job_reused`** (`V9`). Written together with the import job id (`external_ref`) when the
+  `IMPORT` step receives the platform's answer: `true` for an existing job (`created=false`), `false` for a new one. Every
+  run records it, not only replays.
 - **`pipeline_run.ingest_run_id`.** The ingest run currently followed: a retried
   `INGEST` step replaces it without a status change.
 - **`run_artifact.storage_key`.** `<source lower-case>/<season>/<runId>/ingest-<ingestRunId>.zip`
@@ -382,6 +392,27 @@ Indexes added by `V8` for the statistics range reads: `ix_pipeline_run_finished 
 `ix_pipeline_step_finished (finished_at)`, `ix_match_tracking_reported (reported_at)` and
 `ix_import_report_received (received_at)`.
 
+## Replay and retention
+
+FEAT-00114, `V9`. No change to `pipeline_run`: `RETRY` and `retry_of_run_id` exist since `V1` and the active-run unique
+index covers replays.
+
+- **Replay.** `ReplayRun` is the only creator of `RETRY` runs. A replay run has no `INGEST` or `FETCH_PACKAGE` step and no
+  `ingest_run_id`; its status goes `QUEUED -> PACKED -> IMPORTING -> ...` and its start time is the replay start. The
+  executor adds a `ZIP` row for the replay run with a new id, the replay `run_id`, the same `storage_key`, `sha256` and
+  `size_bytes` as the original and `created_at = now`. The file is shared, never copied.
+- **Failure `ARTIFACT_PURGED`.** The replay run fails with it (final, never retried) when the original's `ZIP` row is purged
+  or missing, or its file does not exist. It is never `PACKAGE_GONE`, which means ingest lost the package. A stored file
+  that no longer matches the recorded `sha256` fails with `PACKAGE_CHECKSUM_MISMATCH`.
+- **Platform deduplication.** A replay re-imports only when the platform has no active, `SUCCEEDED` or `PARTIAL` job for the
+  same `contentSha256`; otherwise the platform returns the existing job and the `IMPORT` step records
+  `import_job_reused = true`.
+- **Purge semantics.** `ArtifactCleanup` deletes the file first and then sets `purged_at` on every row of the storage key;
+  rows are never deleted. A crash in between leaves an unpurged row whose file is gone: the next pass deletes again
+  (idempotent) and marks it. A key is never purged while any run that references it is active.
+- **Retention is opt-in** (`tt.pipeline.retention`, see the runtime README). The age of a shared key is that of its oldest
+  row, and its source and season are those of the original run.
+
 ## Migration history
 
 | Version | File | Content |
@@ -394,3 +425,4 @@ Indexes added by `V8` for the statistics range reads: `ix_pipeline_run_finished 
 | `V6` | `V6__match_day_refresh_event.sql` | `match_day_event.kind` CHECK (`match_day_event_kind_check`) also accepts `REFRESH_REQUESTED` |
 | `V7` | `V7__alerts.sql` | `alert`, partial unique index `ux_alert_active`, `ix_alert_raised` |
 | `V8` | `V8__statistics.sql` | `pipeline_step.http_errors`, `timeouts`, `parse_errors` (+ CHECKs), `import_report.amended_played`, `daily_stats`, `ix_pipeline_run_finished`, `ix_pipeline_step_finished`, `ix_match_tracking_reported`, `ix_import_report_received` |
+| `V9` | `V9__replay_and_retention.sql` | `run_artifact.purged_at` (+ CHECK), `ix_run_artifact_storage_key`, `ix_run_artifact_unpurged`, `pipeline_step.import_job_reused` (+ CHECK) |

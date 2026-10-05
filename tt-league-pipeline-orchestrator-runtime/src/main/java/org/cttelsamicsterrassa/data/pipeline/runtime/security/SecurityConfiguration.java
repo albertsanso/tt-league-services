@@ -71,6 +71,8 @@ public class SecurityConfiguration {
                                 "/v3/api-docs", "/v3/api-docs/**", "/swagger-ui.html", "/swagger-ui/**", "/error")
                         .permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/pipeline/runs").hasAuthority(TRIGGER_AUTHORITY)
+                        .requestMatchers(HttpMethod.POST, "/api/pipeline/runs/*/replay")
+                        .hasAuthority(TRIGGER_AUTHORITY)
                         // Match-day reads fall under anyRequest(); every mutation is an operator action.
                         .requestMatchers(HttpMethod.POST, "/api/pipeline/match-days/**")
                         .hasAuthority(TRIGGER_AUTHORITY)

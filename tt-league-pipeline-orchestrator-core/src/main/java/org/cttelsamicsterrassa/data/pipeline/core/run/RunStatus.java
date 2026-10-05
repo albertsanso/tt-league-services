@@ -17,7 +17,7 @@ public enum RunStatus {
     private Set<RunStatus> successors;
 
     static {
-        QUEUED.successors = EnumSet.of(RUNNING_INGEST, FAILED);
+        QUEUED.successors = EnumSet.of(RUNNING_INGEST, PACKED, FAILED);
         RUNNING_INGEST.successors = EnumSet.of(NO_CHANGES, PACKED, FAILED);
         PACKED.successors = EnumSet.of(IMPORTING, FAILED);
         IMPORTING.successors = EnumSet.of(SUCCEEDED, PARTIAL, FAILED);

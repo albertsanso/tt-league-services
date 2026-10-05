@@ -7,6 +7,9 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.RetryPolicy;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.StepTimeouts;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.PollingSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.BcnesaCompetitionNames;
+import org.cttelsamicsterrassa.data.pipeline.core.retention.RetentionPolicy;
+import org.cttelsamicsterrassa.data.pipeline.core.retention.RetentionRule;
+import org.cttelsamicsterrassa.data.pipeline.core.run.ArtifactKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.StatisticsSettings;
@@ -52,7 +55,8 @@ public record PipelineOrchestratorProperties(
         Schedule schedule,
         Tracker tracker,
         Polling polling,
-        Notifications notifications) {
+        Notifications notifications,
+        Retention retention) {
 
     public PipelineOrchestratorProperties {
         schedule = schedule == null ? Schedule.none() : schedule;
@@ -559,6 +563,76 @@ public record PipelineOrchestratorProperties(
             return "Mail[host=" + host + ", port=" + port + ", username=" + username + ", password="
                     + (password == null ? "null" : "****") + ", starttls=" + starttls + ", from=" + from + ", to="
                     + to + ", subjectPrefix=" + subjectPrefix + "]";
+        }
+    }
+
+    /**
+     * Artifact retention (FEAT-00114), opt-in: without the block nothing is ever deleted. With it, {@code cron}
+     * (Spring six-field), {@code zone} (IANA id) and a rule for every artifact kind are required, with no defaults.
+     * A rule has exactly one of {@code maxAge} (ISO-8601 duration) or {@code seasons} (1 to 10).
+     */
+    public record Retention(String cron, String zone, Map<ArtifactKind, Rule> rules) {
+
+        public record Rule(Duration maxAge, Integer seasons) {
+
+            RetentionRule toRule(ArtifactKind kind) {
+                String name = "retention.rules." + kind.name().toLowerCase(java.util.Locale.ROOT);
+                if ((maxAge == null) == (seasons == null)) {
+                    throw new IllegalArgumentException(name + " needs exactly one of max-age or seasons");
+                }
+                if (maxAge != null) {
+                    positive(maxAge, name + ".max-age");
+                    return new RetentionRule.MaxAge(maxAge);
+                }
+                if (seasons < 1 || seasons > 10) {
+                    throw new IllegalArgumentException(name + ".seasons must be between 1 and 10: " + seasons);
+                }
+                return new RetentionRule.Seasons(seasons);
+            }
+        }
+
+        public Retention {
+            if (cron == null || cron.isBlank()) {
+                throw new IllegalArgumentException("retention.cron is required when retention is configured");
+            }
+            cron = cron.trim();
+            try {
+                CronExpression.parse(cron);
+            } catch (IllegalArgumentException e) {
+                throw new IllegalArgumentException("retention.cron is not a valid cron expression: " + cron, e);
+            }
+            if (zone == null || zone.isBlank()) {
+                throw new IllegalArgumentException("retention.zone is required when retention is configured");
+            }
+            try {
+                ZoneId.of(zone.trim());
+            } catch (DateTimeException e) {
+                throw new IllegalArgumentException("retention.zone is not a valid time zone: " + zone, e);
+            }
+            zone = zone.trim();
+            Map<ArtifactKind, Rule> checked = new EnumMap<>(ArtifactKind.class);
+            if (rules != null) {
+                checked.putAll(rules);
+            }
+            for (ArtifactKind kind : ArtifactKind.values()) {
+                Rule rule = checked.get(kind);
+                if (rule == null) {
+                    throw new IllegalArgumentException(
+                            "retention.rules." + kind.name().toLowerCase(java.util.Locale.ROOT) + " is required");
+                }
+                rule.toRule(kind);
+            }
+            rules = Collections.unmodifiableMap(checked);
+        }
+
+        public ZoneId zoneId() {
+            return ZoneId.of(zone);
+        }
+
+        public RetentionPolicy toPolicy() {
+            Map<ArtifactKind, RetentionRule> policy = new EnumMap<>(ArtifactKind.class);
+            rules.forEach((kind, rule) -> policy.put(kind, rule.toRule(kind)));
+            return new RetentionPolicy(policy);
         }
     }
 

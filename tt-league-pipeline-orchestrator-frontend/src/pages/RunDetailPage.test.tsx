@@ -2,24 +2,43 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ApiError } from '../api/ApiError'
+import type { Api } from '../api/bindApi'
 import type { RunDetail } from '../api/types'
+import { AuthContext } from '../auth/authContext'
+import type { AuthContextValue } from '../auth/authContext'
 import { createEventBus } from '../test/eventBus'
 import { FakeEvents } from '../test/FakeEvents'
 import { makeDetail, makeRun, makeStep } from '../test/runFixtures'
 import { TestApiProvider } from '../test/TestApiProvider'
 import RunDetailPage from './RunDetailPage'
 
-function setup(getRun: ReturnType<typeof vi.fn>, backTo?: string) {
+function setup(
+  getRun: ReturnType<typeof vi.fn>,
+  backTo?: string,
+  options: { permissions?: string[]; replayRun?: ReturnType<typeof vi.fn> } = {},
+) {
   const bus = createEventBus()
+  const auth: AuthContextValue = {
+    status: 'signed-in',
+    token: 't',
+    user: { username: 'u', roles: [], permissions: options.permissions ?? ['matches:write'], expiresAt: Date.now() + 60_000 },
+    signIn: async () => undefined,
+    signOut: () => undefined,
+    getToken: () => 't',
+  }
+  const api = { runs: { getRun, replayRun: options.replayRun } } as unknown as Partial<Api>
   render(
     <MemoryRouter initialEntries={[{ pathname: '/runs/r1', state: backTo === undefined ? null : { backTo } }]}>
-      <FakeEvents bus={bus}>
-        <TestApiProvider api={{ runs: { getRun } as never }}>
-          <Routes>
-            <Route path="/runs/:runId" element={<RunDetailPage />} />
-          </Routes>
-        </TestApiProvider>
-      </FakeEvents>
+      <AuthContext.Provider value={auth}>
+        <FakeEvents bus={bus}>
+          <TestApiProvider api={api}>
+            <Routes>
+              <Route path="/runs/:runId" element={<RunDetailPage />} />
+              <Route path="/runs/r2" element={<div>replay page</div>} />
+            </Routes>
+          </TestApiProvider>
+        </FakeEvents>
+      </AuthContext.Provider>
     </MemoryRouter>,
   )
   return bus
@@ -50,7 +69,9 @@ describe('RunDetailPage', () => {
         makeStep('r1', { kind: 'IMPORT', attempt: 2, outcome: 'IMPORTED' }),
       ],
       issues: ['Acta 12 is partial'],
-      artifacts: [{ kind: 'UPLOAD_ZIP', sha256: 'abc123def456', sizeBytes: 2048, createdAt: '2026-10-01T10:00:40Z' }],
+      artifacts: [
+        { kind: 'UPLOAD_ZIP', sha256: 'abc123def456', sizeBytes: 2048, createdAt: '2026-10-01T10:00:40Z', purgedAt: null },
+      ],
       importReport: report,
     })
     setup(vi.fn().mockResolvedValue(detail))
@@ -158,5 +179,99 @@ describe('RunDetailPage', () => {
   it('keeps the list filters in the back link', async () => {
     setup(vi.fn().mockResolvedValue(makeDetail('r1')), '?source=FCTT&page=2')
     expect(await screen.findByRole('link', { name: 'All runs' })).toHaveAttribute('href', '/runs?source=FCTT&page=2')
+  })
+
+  describe('replay', () => {
+    it('enables the button when the server allows it and shows the dialog text', async () => {
+      setup(vi.fn().mockResolvedValue(makeDetail('r1')))
+
+      const button = await screen.findByRole('button', { name: 'Replay import' })
+      expect(button).toBeEnabled()
+      await userEvent.click(button)
+
+      const dialog = screen.getByRole('dialog', { name: 'Replay import' })
+      expect(within(dialog).getByText(/Ingest is skipped/)).toBeInTheDocument()
+      expect(within(dialog).getByText(/returns the existing import job/)).toBeInTheDocument()
+    })
+
+    it.each([
+      ['RUN_ACTIVE', 'The run has not finished yet'],
+      ['NO_PACKAGE', 'This run has no stored package to replay'],
+      ['ARTIFACT_PURGED', 'The stored package was purged by the retention policy'],
+    ])('disables the button with a tooltip for %s', async (code, label) => {
+      setup(vi.fn().mockResolvedValue(makeDetail('r1', { replay: { allowed: false, code } })))
+
+      const button = await screen.findByRole('button', { name: 'Replay import' })
+      expect(button).toBeDisabled()
+      await userEvent.hover(button.parentElement as HTMLElement)
+      expect(await screen.findByText(label)).toBeInTheDocument()
+    })
+
+    it('hides the button without the matches:write permission', async () => {
+      setup(vi.fn().mockResolvedValue(makeDetail('r1')), undefined, { permissions: [] })
+
+      await screen.findByText('No steps yet.')
+      expect(screen.queryByRole('button', { name: 'Replay import' })).not.toBeInTheDocument()
+    })
+
+    it('navigates to the new run on a 201', async () => {
+      const replayRun = vi.fn().mockResolvedValue(makeRun('r2', { trigger: 'RETRY', retryOfRunId: 'r1' }))
+      setup(vi.fn().mockResolvedValue(makeDetail('r1')), undefined, { replayRun })
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Replay import' }))
+      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Replay import' }))
+
+      expect(replayRun).toHaveBeenCalledWith('r1')
+      expect(await screen.findByText('replay page')).toBeInTheDocument()
+    })
+
+    it.each([
+      [409, 'Source RFETM already has an active run'],
+      [422, 'The stored package of run r1 has been purged'],
+    ])('shows the server message in the dialog on a %i', async (status, message) => {
+      const replayRun = vi.fn().mockRejectedValue(new ApiError(status, { detail: message }, message))
+      setup(vi.fn().mockResolvedValue(makeDetail('r1')), undefined, { replayRun })
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Replay import' }))
+      await userEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Replay import' }))
+
+      expect(await within(screen.getByRole('dialog')).findByText(message)).toBeInTheDocument()
+      expect(screen.queryByText('replay page')).not.toBeInTheDocument()
+    })
+
+    it('says "Replay of" in the header of a replay run', async () => {
+      setup(vi.fn().mockResolvedValue(makeDetail('r1', { trigger: 'RETRY', retryOfRunId: 'r0' })))
+
+      expect(await screen.findByRole('link', { name: 'r0' })).toHaveAttribute('href', '/runs/r0')
+      expect(screen.getByText(/Replay of/)).toBeInTheDocument()
+    })
+
+    it('shows the reused chip in the header and the import report section', async () => {
+      setup(vi.fn().mockResolvedValue(makeDetail('r1', { importJobReused: true, importReport: report })))
+
+      expect(await screen.findAllByText('Existing import job reused \u2014 nothing was re-imported')).toHaveLength(2)
+    })
+
+    it('does not show the reused chip for a fresh job', async () => {
+      setup(vi.fn().mockResolvedValue(makeDetail('r1', { importJobReused: false })))
+
+      await screen.findByText('No steps yet.')
+      expect(screen.queryByText(/Existing import job reused/)).not.toBeInTheDocument()
+    })
+
+    it('marks a purged artifact row', async () => {
+      const detail = makeDetail('r1', {
+        artifacts: [
+          { kind: 'ZIP', sha256: 'aaa', sizeBytes: 10, createdAt: '2026-10-01T10:00:40Z', purgedAt: '2026-11-01T04:30:00Z' },
+          { kind: 'JSON', sha256: 'bbb', sizeBytes: 10, createdAt: '2026-10-01T10:00:40Z', purgedAt: null },
+        ],
+      })
+      setup(vi.fn().mockResolvedValue(detail))
+
+      const artifacts = await screen.findByRole('table', { name: 'Artifacts' })
+      const rows = within(artifacts).getAllByRole('row').slice(1)
+      expect(within(rows[0]).getByText(/^Purged /)).toBeInTheDocument()
+      expect(within(rows[1]).queryByText(/^Purged /)).not.toBeInTheDocument()
+    })
   })
 })

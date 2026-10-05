@@ -1,5 +1,13 @@
 import type { RunStatus } from '../api/types'
-import { ACTIVE_STATUSES, STEP_ORDER, TERMINAL_STATUSES, isActiveStatus, statusColor, stepStatusColor } from './runStatus'
+import {
+  ACTIVE_STATUSES,
+  STEP_ORDER,
+  TERMINAL_STATUSES,
+  TRIGGER_LABELS,
+  isActiveStatus,
+  statusColor,
+  stepStatusColor,
+} from './runStatus'
 
 describe('run status', () => {
   it.each<[RunStatus, string, boolean]>([
@@ -25,5 +33,10 @@ describe('run status', () => {
     expect(stepStatusColor('RUNNING')).toBe('info')
     expect(stepStatusColor('SUCCEEDED')).toBe('success')
     expect(stepStatusColor('FAILED')).toBe('error')
+  })
+
+  it('labels a RETRY run as a replay', () => {
+    expect(TRIGGER_LABELS.RETRY).toBe('Replay')
+    expect(TRIGGER_LABELS.MANUAL).toBe('Manual')
   })
 })

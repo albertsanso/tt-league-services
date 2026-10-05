@@ -36,6 +36,11 @@ export function getRun(client: HttpClient, id: string, signal?: AbortSignal): Pr
   return client.request<RunDetail>('GET', `/api/pipeline/runs/${encodeURIComponent(id)}`, { signal })
 }
 
+/** Resolves with the new RETRY run on 201; a 404, 409 or 422 rejects with an ApiError whose problem carries the code. */
+export function replayRun(client: HttpClient, id: string): Promise<RunSummary> {
+  return client.request<RunSummary>('POST', `/api/pipeline/runs/${encodeURIComponent(id)}/replay`)
+}
+
 export interface TriggerRunOutcome {
   readonly status: number
   readonly response: TriggerResponse

@@ -17,6 +17,7 @@ import java.util.Map;
 public class InMemoryArtifactStore implements ArtifactStore {
 
     private final Map<String, byte[]> files = new HashMap<>();
+    private boolean failDeletes;
 
     @Override
     public synchronized StoredArtifact store(String storageKey, InputStream content) {
@@ -58,7 +59,14 @@ public class InMemoryArtifactStore implements ArtifactStore {
 
     @Override
     public synchronized void delete(String storageKey) {
+        if (failDeletes) {
+            throw new ArtifactStoreException("Could not delete " + storageKey);
+        }
         files.remove(storageKey);
+    }
+
+    public synchronized void failDeletes(boolean fail) {
+        this.failDeletes = fail;
     }
 
     public synchronized byte[] bytes(String storageKey) {

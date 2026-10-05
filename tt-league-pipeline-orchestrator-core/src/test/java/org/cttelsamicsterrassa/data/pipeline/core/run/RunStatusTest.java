@@ -21,7 +21,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 class RunStatusTest {
 
     private static final Map<RunStatus, Set<RunStatus>> ALLOWED = Map.of(
-            QUEUED, Set.of(RUNNING_INGEST, FAILED),
+            QUEUED, Set.of(RUNNING_INGEST, PACKED, FAILED),
             RUNNING_INGEST, Set.of(NO_CHANGES, PACKED, FAILED),
             PACKED, Set.of(IMPORTING, FAILED),
             IMPORTING, Set.of(SUCCEEDED, PARTIAL, FAILED),

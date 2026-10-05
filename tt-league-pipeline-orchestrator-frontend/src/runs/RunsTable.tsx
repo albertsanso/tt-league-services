@@ -107,7 +107,7 @@ export function RunsTable({ page, filtered, onPageChange, onClearFilters }: Runs
                   </TableCell>
                   <TableCell>{formatDuration(duration)}</TableCell>
                   <TableCell>
-                    <StepBadges steps={run.steps} />
+                    <StepBadges steps={run.steps} replay={run.trigger === 'RETRY'} />
                   </TableCell>
                   <TableCell>
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>

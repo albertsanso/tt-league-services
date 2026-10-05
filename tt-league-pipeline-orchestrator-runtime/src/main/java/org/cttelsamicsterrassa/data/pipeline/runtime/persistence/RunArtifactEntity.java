@@ -39,6 +39,9 @@ class RunArtifactEntity {
     @Column(name = "created_at", nullable = false)
     Instant createdAt;
 
+    @Column(name = "purged_at")
+    Instant purgedAt;
+
     protected RunArtifactEntity() {
     }
 

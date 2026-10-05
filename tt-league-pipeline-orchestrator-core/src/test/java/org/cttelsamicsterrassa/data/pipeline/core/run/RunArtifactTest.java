@@ -48,4 +48,15 @@ class RunArtifactTest {
         assertThatThrownBy(() -> artifact(" ", SHA, 1)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> artifact("k".repeat(513), SHA, 1)).isInstanceOf(IllegalArgumentException.class);
     }
+
+    @Test
+    void purgedAtIsOptionalAndNotBeforeCreation() {
+        RunArtifact kept = artifact("k.zip", SHA, 1);
+        assertThat(kept.isPurged()).isFalse();
+        RunArtifact purged = new RunArtifact(kept.id(), kept.runId(), kept.kind(), "k.zip", SHA, 1, NOW,
+                NOW.plusSeconds(1));
+        assertThat(purged.isPurged()).isTrue();
+        assertThatThrownBy(() -> new RunArtifact(kept.id(), kept.runId(), kept.kind(), "k.zip", SHA, 1, NOW,
+                NOW.minusSeconds(1))).isInstanceOf(IllegalArgumentException.class);
+    }
 }

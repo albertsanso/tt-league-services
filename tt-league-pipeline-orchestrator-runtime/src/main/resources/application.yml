@@ -139,6 +139,23 @@ tt:
       no-success-window: ${PIPELINE_ALERTS_NO_SUCCESS_WINDOW:PT24H}
       closed-lookback: ${PIPELINE_ALERTS_CLOSED_LOOKBACK:P1D}
 
+    # Artifact retention (opt-in): without this block no artifact is ever deleted. With it, cron (Spring six-field),
+    # zone (IANA id) and a rule for EVERY artifact kind are required, with no defaults. A rule has exactly one of
+    # max-age (ISO-8601 duration) or seasons (1-10: keep the newest N seasons for which the source has runs). The job
+    # deletes files only; run and artifact rows are kept with purged_at. Runs in progress are never touched.
+    # retention:
+    #   cron: "0 30 4 * * *"
+    #   zone: Europe/Madrid
+    #   rules:
+    #     zip:
+    #       seasons: 1
+    #     manifest:
+    #       seasons: 1
+    #     raw:
+    #       max-age: P90D
+    #     json:
+    #       max-age: P90D
+
 management:
   endpoints:
     web:

@@ -21,7 +21,7 @@ export const STATUS_LABELS: Readonly<Record<RunStatus, string>> = {
 export const TRIGGER_LABELS: Readonly<Record<RunTrigger, string>> = {
   MANUAL: 'Manual',
   SCHEDULED: 'Scheduled',
-  RETRY: 'Retry',
+  RETRY: 'Replay',
 }
 
 export const STEP_LABELS: Readonly<Record<StepKind, string>> = {

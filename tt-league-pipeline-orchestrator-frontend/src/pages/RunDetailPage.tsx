@@ -14,9 +14,13 @@ import TableRow from '@mui/material/TableRow'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import type { ReactNode } from 'react'
-import { Link as RouterLink, useLocation, useParams } from 'react-router-dom'
+import { useState } from 'react'
+import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom'
 import type { ImportReport, RunDetail, StepHealth } from '../api/types'
+import { Can } from '../auth/Can'
 import { elapsedMs, formatBytes, formatDuration, formatInstant, scopeDetails } from '../runs/format'
+import { REUSED_IMPORT_LABEL, replayBlockedLabel } from '../runs/replay'
+import { ReplayRunDialog } from '../runs/ReplayRunDialog'
 import { RunActivityLog } from '../runs/RunActivityLog'
 import { RunStatusChip } from '../runs/RunStatusChip'
 import { isActiveStatus, STEP_LABELS, STEP_STATUS_LABELS, stepStatusColor, TRIGGER_LABELS } from '../runs/runStatus'
@@ -108,7 +112,23 @@ function healthText(health: StepHealth | null): string {
     : `HTTP ${health.httpErrors} · timeouts ${health.timeouts} · parse ${health.parseErrors}`
 }
 
-function Header({ run, now }: { run: RunDetail; now: number }) {
+/** Enabled only when the server says the run can be replayed; the reason for a refusal is a label of its code. */
+function ReplayButton({ run, onReplay }: { run: RunDetail; onReplay: () => void; disabled?: boolean }) {
+  const button = (
+    <Button variant="outlined" onClick={onReplay} disabled={!run.replay.allowed}>
+      Replay import
+    </Button>
+  )
+  return run.replay.allowed ? (
+    button
+  ) : (
+    <Tooltip title={replayBlockedLabel(run.replay.code)}>
+      <span>{button}</span>
+    </Tooltip>
+  )
+}
+
+function Header({ run, now, onReplay }: { run: RunDetail; now: number; onReplay: () => void }) {
   const active = isActiveStatus(run.status)
   const duration = active ? elapsedMs(run.startedAt, run.finishedAt, now) : (run.durationMs ?? elapsedMs(run.startedAt, run.finishedAt, now))
   return (
@@ -119,6 +139,11 @@ function Header({ run, now }: { run: RunDetail; now: number }) {
         </Typography>
         <RunStatusChip status={run.status} />
         {run.force && <Chip size="small" variant="outlined" label="forced" />}
+        {run.importJobReused === true && <Chip size="small" color="info" label={REUSED_IMPORT_LABEL} />}
+        <Box sx={{ flexGrow: 1 }} />
+        <Can capability="trigger-runs" mode="hide">
+          <ReplayButton run={run} onReplay={onReplay} />
+        </Can>
       </Box>
       <Typography sx={{ mt: 1 }}>
         {run.source} · {run.season} · {TRIGGER_LABELS[run.trigger]}
@@ -136,7 +161,7 @@ function Header({ run, now }: { run: RunDetail; now: number }) {
       <Box sx={{ mt: 1 }}>
         {run.retryOfRunId !== null && (
           <Box component="span" sx={{ mr: 2 }}>
-            Retry of{' '}
+            Replay of{' '}
             <Link component={RouterLink} to={`/runs/${run.retryOfRunId}`}>
               {run.retryOfRunId}
             </Link>
@@ -154,6 +179,8 @@ export default function RunDetailPage() {
   const location = useLocation()
   const backTo = (location.state as { backTo?: string } | null)?.backTo ?? ''
   const { run, loading, error, notFound, refetch } = useRunDetail(runId)
+  const navigate = useNavigate()
+  const [replayOpen, setReplayOpen] = useState(false)
   const active = run !== null && isActiveStatus(run.status)
   const now = useNow(1000, active)
 
@@ -218,7 +245,14 @@ export default function RunDetailPage() {
           {error}
         </Alert>
       )}
-      <Header run={run} now={now} />
+      <Header run={run} now={now} onReplay={() => setReplayOpen(true)} />
+      {replayOpen && (
+        <ReplayRunDialog
+          runId={run.id}
+          onClose={() => setReplayOpen(false)}
+          onReplayed={(replayed) => navigate(`/runs/${replayed.id}`)}
+        />
+      )}
 
       <Section title="Scope">
         {scopeDetails(run).map((line) => (
@@ -304,7 +338,12 @@ export default function RunDetailPage() {
               <TableBody>
                 {run.artifacts.map((artifact) => (
                   <TableRow key={`${artifact.kind}-${artifact.sha256}`}>
-                    <TableCell>{artifact.kind}</TableCell>
+                    <TableCell>
+                      {artifact.kind}
+                      {artifact.purgedAt !== null && (
+                        <Chip size="small" variant="outlined" sx={{ ml: 1 }} label={`Purged ${formatInstant(artifact.purgedAt)}`} />
+                      )}
+                    </TableCell>
                     <TableCell>{formatBytes(artifact.sizeBytes)}</TableCell>
                     <TableCell>{formatInstant(artifact.createdAt)}</TableCell>
                     <TableCell>
@@ -326,6 +365,11 @@ export default function RunDetailPage() {
       </Section>
 
       <Section title="Import report">
+        {run.importJobReused === true && (
+          <Alert severity="info" sx={{ mb: 1 }}>
+            {REUSED_IMPORT_LABEL}
+          </Alert>
+        )}
         <ImportReportView report={run.importReport} active={active} />
       </Section>
 

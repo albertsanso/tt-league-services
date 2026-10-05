@@ -125,7 +125,18 @@ public final class PipelineRun {
         return move(RunStatus.NO_CHANGES, at, startedAt, at, ingestRunId, importJobId, null);
     }
 
+    /** Skips ingest for a replay: QUEUED to PACKED, allowed only for RETRY runs. */
+    public PipelineRun startReplay(Instant at) {
+        if (trigger != RunTrigger.RETRY || status != RunStatus.QUEUED) {
+            throw new IllegalRunTransitionException(id, status, RunStatus.PACKED);
+        }
+        return move(RunStatus.PACKED, at, at, null, ingestRunId, importJobId, null);
+    }
+
     public PipelineRun packed(Instant at) {
+        if (status != RunStatus.RUNNING_INGEST) {
+            throw new IllegalRunTransitionException(id, status, RunStatus.PACKED);
+        }
         return move(RunStatus.PACKED, at, startedAt, null, ingestRunId, importJobId, null);
     }
 

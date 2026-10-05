@@ -65,6 +65,10 @@ class PipelineStepEntity {
     @Column(name = "parse_errors")
     Long parseErrors;
 
+    /** Whether the platform returned an existing import job; null on non-IMPORT steps and old rows (V9). */
+    @Column(name = "import_job_reused")
+    Boolean importJobReused;
+
     protected PipelineStepEntity() {
     }
 
