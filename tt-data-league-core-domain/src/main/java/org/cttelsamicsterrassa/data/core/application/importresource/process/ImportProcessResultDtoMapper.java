@@ -51,6 +51,7 @@ public final class ImportProcessResultDtoMapper {
                 result.lifecycle().scheduledCreated(), result.lifecycle().upgradedToPlayed(),
                 result.lifecycle().rescheduled(), result.lifecycle().partialActas(),
                 result.lifecycle().invalidActas(), result.lifecycle().unresolvedPendingFixtures(),
+                result.lifecycle().amendedPlayed(),
                 RoundProgressDtoMapper.toDtos(result.roundProgress()));
     }
 }

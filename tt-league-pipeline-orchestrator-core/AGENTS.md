@@ -114,3 +114,19 @@ mvn -pl tt-league-pipeline-orchestrator-core -am test
   `PollingAlerts` implementations must not throw into the tick.
 - New fixtures in the `test-jar`: `InMemoryPollScheduleRepository`, `InMemoryPollPolicyRepository`,
   `ScriptedIngestStatusGateway` and `RecordingPollingAlerts`.
+
+## Statistics package
+
+- `StatisticsRules` is the only place that applies the statistics definitions (arrival, time to report, nearest-rank
+  percentile, pending at end of day, pending now, age buckets, daily figures). It is pure and static: no I/O and no
+  clock. The services, the runtime and the UI never re-derive a figure.
+- `DailyStatsAggregator` is the only writer of `daily_stats`: one `upsert` of one row per `PipelineSource` per complete
+  day, never today, and a stored day is never recomputed (`catchUp` continues after `latestDate`, at most
+  `backfillDays` back). `StatisticsQueries` is read-only: nothing is cached and nothing is written.
+- `StatisticsReadRepository` and `DailyStatsRepository` are ports; the read facts (`RunFacts`, `StepFacts`, `MatchFacts`,
+  `CorrectionFacts`) never carry match results. The day boundaries are local days in `StatisticsSettings.zone`.
+- An `INGEST` `PipelineStep` may carry `IngestHealth` (set only when the step finishes, `null` means unknown);
+  `RunExecutor.finishIngest` passes `IngestRunState.health()` for every finished ingest outcome. `ImportCounters` and
+  `ImportReport` carry `amendedPlayed`.
+- New fixtures in the `test-jar`: `InMemoryDailyStatsRepository` and `InMemoryStatisticsReadRepository`;
+  `ScriptedIngestGateway.withHealth` builds an ingest state with health.

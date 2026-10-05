@@ -43,6 +43,7 @@ from urllib.parse import urljoin, urlparse, parse_qs
 import requests
 from bs4 import BeautifulSoup
 
+from ingest_common import health
 from ingest_rfetm.parse import parse_html_matches
 
 # ══════════════════════════════════════════
@@ -181,8 +182,10 @@ class Downloader:
         Returns:
             La respuesta, o None si tras los reintentos sigue fallando.
         """
+        timed_out = False
         for intento in range(1, self.retries + 2):
             self._wait_rate_limit()
+            timed_out = False
             try:
                 response = self.session.get(url, timeout=TIMEOUT)
                 if response.status_code not in TRANSIENT_STATUS:
@@ -190,6 +193,7 @@ class Downloader:
                 motivo = f"HTTP {response.status_code}"
             except requests.RequestException as e:
                 motivo = str(e)
+                timed_out = isinstance(e, requests.Timeout)
 
             if intento <= self.retries:
                 espera = RETRY_BACKOFF * (2 ** (intento - 1))
@@ -197,6 +201,7 @@ class Downloader:
                 time.sleep(espera)
             else:
                 logger.warning(f"Fallo definitivo en {url} ({motivo})")
+                health.timeout() if timed_out else health.http_error()
         return None
 
 
@@ -208,6 +213,7 @@ def fetch_html(downloader: Downloader, url: str) -> Optional[str]:
     if response.status_code in (200, 500) and response.content:
         return decode_html(response.content)
     logger.warning(f"HTTP {response.status_code} sin contenido útil: {url}")
+    health.http_error()
     return None
 
 
@@ -445,6 +451,8 @@ def download_acta_pdf(downloader: Downloader, acta_url: str, path: Path,
     content_type = response.headers.get("content-type", "").lower()
     es_pdf = content_type.startswith("application/pdf") or response.content[:5] == b"%PDF-"
     if response.status_code != 200 or not es_pdf:
+        if response.status_code != 200:
+            health.http_error()
         stats.pdf_no_disponibles += 1
         logger.warning(
             f"Acta no disponible (HTTP {response.status_code}, {content_type or 'sin content-type'}): {acta_url}"

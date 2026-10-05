@@ -78,6 +78,7 @@ run status.
 | `retryable` | `boolean` NULL | |
 | `error_code` / `error_message` | `varchar(64)` / `text` NULL | |
 | `log_ref` | `varchar(512)` NULL | filled by a later feature |
+| `http_errors`, `timeouts`, `parse_errors` | `bigint` NULL | source health an `INGEST` attempt reported (FEAT-00113, `V8`): the `http_errors` and `timeouts` of every ingest stage, and the `parse_errors + invalid` of the parse and teams stages; each `>= 0`. All three are NULL (unknown: an older ingest service, or an attempt that never finished the ingest run) or all set (`ck_pipeline_step_health_all_or_none`), and only an `INGEST` step may carry them (`ck_pipeline_step_health_ingest_only`) |
 
 `UNIQUE (run_id, kind, attempt)`.
 
@@ -107,6 +108,7 @@ Result of the platform import job of a run; at most one per run.
 | `import_job_id` | `uuid` NOT NULL | platform job (plain column) |
 | `import_status` | `varchar(16)` NOT NULL | `SUCCEEDED`, `PARTIAL`, `FAILED` |
 | `files_seen`, `items_persisted`, `skipped`, `processor_failures`, `scheduled_created`, `upgraded_to_played`, `rescheduled`, `partial_actas`, `invalid_actas`, `unresolved_pending_fixtures` | `bigint` NOT NULL | counters summed over the job's seasons, each `>= 0` |
+| `amended_played` | `bigint` NOT NULL DEFAULT 0 | stored `PLAYED` matches the platform re-applied from an amended acta (FEAT-00089), summed over the seasons; `>= 0`. Added by `V8`: reports written before it read `0`, which means "not recorded before V8". It stays `0` unless the platform runs with `IMPORT_EXECUTION_AMENDED_ACTA_DETECTION=write` |
 | `issues` | `jsonb` NOT NULL | array of strings |
 | `raw_report` | `jsonb` NOT NULL | platform job JSON as received |
 | `received_at` | `timestamptz` NOT NULL | |
@@ -160,10 +162,10 @@ Extra index on `pipeline_run`: `ix_pipeline_run_created (created_at DESC, id)` f
 
 ## `shedlock`
 
-ShedLock JDBC lock table for the fixed-schedule trigger and the periodic tracker recompute: one row per lock
-name, written only by ShedLock (`JdbcTemplateLockProvider` with the database clock). Lock names are
-`pipeline-schedule-<SOURCE>` and `pipeline-tracker-recompute`; rows are reused, not deleted, when a lock is
-released.
+ShedLock JDBC lock table for the fixed-schedule trigger, the periodic tracker recompute and the daily statistics job: one
+row per lock name, written only by ShedLock (`JdbcTemplateLockProvider` with the database clock). Lock names are
+`pipeline-schedule-<SOURCE>`, `pipeline-tracker-recompute` and `pipeline-daily-stats`; rows are reused, not deleted,
+when a lock is released.
 
 | Column | Type | Notes |
 | --- | --- | --- |
@@ -344,6 +346,42 @@ Written only by `AlertEvaluator` through `JpaAlertRepository`: it raises a row w
 notified (or failed, for a retry on the next pass) and clears it when the condition stops holding. A version conflict
 raises `StaleAlertException` and the next pass repairs the row.
 
+## `daily_stats`
+
+One snapshot row per source and local day (FEAT-00113, `V8`). It is a snapshot, so there are deliberately **no foreign
+keys**: it outlives the rows it was computed from.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `stat_date` | `date` | local day in `zone`; part of the primary key |
+| `source` | `varchar(16)` | CHECK: `RFETM`, `BCNESA`, `FCTT`; part of the primary key |
+| `runs` | `integer` NOT NULL | terminal runs of the source with `finished_at` in the day; `>= 0` |
+| `failures` | `integer` NOT NULL | those of them with status `FAILED`; `>= 0` and `<= runs` |
+| `matches_reported` | `integer` NOT NULL | arrivals of the source with `reported_at` in the day; `>= 0` |
+| `avg_time_to_report_seconds` | `bigint` NULL | mean time to report of those arrivals; NULL when there are none; `>= 0` |
+| `pending_end_of_day` | `integer` NOT NULL | tracked matches still pending at the end of the day; `>= 0` |
+| `zone` | `varchar(64)` NOT NULL | the statistics zone the day boundaries were taken in |
+| `computed_at` | `timestamptz` NOT NULL | when the row was written |
+
+Definitions (all in `StatisticsRules`, the only place that applies them; days are local days in the zone):
+
+- **Arrival**: a tracked match with `reported_at > first_seen_at`, so its result arrived while it was tracked. A match
+  first seen already reported has an unknown arrival time and is left out of every time-to-report figure and of
+  `matches_reported`.
+- **Time to report**: `reported_at - match_date_time` for arrivals with a match date and `reported_at >= match_date_time`.
+- **Pending at end of day**: the match is not ignored, its day is not `CLOSED`, `match_date_time` is before the end of the
+  day, it was not reported by then (`reported_at` null or at/after the end of the day) and it is not `POSTPONED`. It is
+  computed from the state at aggregation time, so a day aggregated late is an approximation.
+
+Writer: `DailyStatsAggregator` is the only writer. Each day is written once, after it is complete, in one transaction of
+three rows (one per source, zero rows included), and a stored day is never recomputed. The daily job (`DailyStatsSchedule`,
+under the ShedLock lock `pipeline-daily-stats`) catches up every missing day from the day after the latest stored one
+(at most `PIPELINE_STATISTICS_BACKFILL_DAYS` back) through yesterday. Reads: `StatisticsQueries` only.
+
+Indexes added by `V8` for the statistics range reads: `ix_pipeline_run_finished (finished_at)`,
+`ix_pipeline_step_finished (finished_at)`, `ix_match_tracking_reported (reported_at)` and
+`ix_import_report_received (received_at)`.
+
 ## Migration history
 
 | Version | File | Content |
@@ -355,3 +393,4 @@ raises `StaleAlertException` and the next pass repairs the row.
 | `V5` | `V5__adaptive_polling.sql` | `poll_schedule`, `poll_policy` |
 | `V6` | `V6__match_day_refresh_event.sql` | `match_day_event.kind` CHECK (`match_day_event_kind_check`) also accepts `REFRESH_REQUESTED` |
 | `V7` | `V7__alerts.sql` | `alert`, partial unique index `ux_alert_active`, `ix_alert_raised` |
+| `V8` | `V8__statistics.sql` | `pipeline_step.http_errors`, `timeouts`, `parse_errors` (+ CHECKs), `import_report.amended_played`, `daily_stats`, `ix_pipeline_run_finished`, `ix_pipeline_step_finished`, `ix_match_tracking_reported`, `ix_import_report_received` |

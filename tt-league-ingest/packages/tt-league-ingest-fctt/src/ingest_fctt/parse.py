@@ -46,6 +46,7 @@ from ingest_fctt.download import (
     Node, atomic_write, parse_filter, parse_html, parse_match_days, query_param, slugify,
 )
 
+from ingest_common import health
 from ingest_common.validation import ACTA_SCHEMA_PATH
 
 try:
@@ -557,6 +558,7 @@ def parse_page(page: MatchDayPage, text: str, competitions: CompetitionNames) ->
             result.matches.append(parse_match(container, page, common, page_status))
         except (ValueError, KeyError, IndexError, TypeError) as error:
             result.errors.append(f"match {number}: {error}")
+            health.parse_error()
     seen: dict[str, int] = {}
     for match in result.matches:
         copy = seen[match.filename] = seen.get(match.filename, 0) + 1
@@ -678,6 +680,7 @@ class IncrementalParser:
             result = parse_page(page, data.decode("utf-8", errors="replace"), self.competitions)
         except Exception as error:  # a broken page must not stop the run
             LOGGER.exception("%s: parsing failed: %s", page.key, error)
+            health.parse_error()
             self.counters["pages_failed"] += 1
             return
         self.counters["pages_parsed"] += 1

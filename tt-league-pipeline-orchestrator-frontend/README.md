@@ -179,6 +179,19 @@ Actions need `matches:write` (the buttons are disabled with a tooltip otherwise)
 A `409` (`ILLEGAL_TRANSITION`, `STALE_MATCH_DAY`) shows the server message and reloads the match day; a `400` on the
 note is shown on the field; `403`, `404` and network errors are shown as an alert.
 
+## Statistics
+
+`/statistics` is the statistics dashboard (FEAT-00113). The filter bar holds the sources, the season (default: the
+latest the match-day facets offer) and a `from` / `to` range (default: the last 30 days); the filters live in the URL
+(`?source=FCTT&season=2026-2027&from=2026-09-06&to=2026-10-05`) and there is a refresh button instead of an event
+subscription. Every panel is a card with an `@mui/x-charts` chart and a compact table with the same figures (the text
+equivalent of the chart): daily overview, runs by outcome, time to report (median and p90 per source, per category in an
+expandable table), pending by age, corrections after the first report, source health (HTTP errors, timeouts and parse
+errors per source) and the reporting progress of a match day. All figures come from
+`GET /api/pipeline/statistics/...`; the browser only formats them (durations in hours with one decimal) and the page
+notes that days are grouped in the server time zone. Corrections stay at zero unless the platform runs with amended-acta
+detection.
+
 ## Layout
 
 ```text
@@ -187,5 +200,6 @@ src/auth/     token storage and claims, AuthProvider, permissions, Can
 src/events/   SSE parser and RunEventsProvider
 src/layout/   app shell, navigation list, route error boundary
 src/runs/     run list/detail hooks, table, filters, activity log, Run now dialog
+src/statistics/ statistics filters, hooks and the dashboard panels
 src/pages/    lazy-loaded screens (Calendar, Runs, Run detail, Statistics), login
 ```

@@ -175,14 +175,16 @@ actas-json/
 
 ### Run status and counters
 
-Every run reports six lifecycle counters (in the traversal summary, the
+Every run reports seven lifecycle counters (in the traversal summary, the
 execution metrics, the final log line, and the administration API result):
 `scheduledCreated`, `upgradedToPlayed`, `rescheduled`, `partialActas`,
-`invalidActas` and `unresolvedPendingFixtures`. The counters mirror the
+`invalidActas`, `unresolvedPendingFixtures` and `amendedPlayed`. The counters mirror the
 per-acta outcomes and are exclusive: a partial or invalid acta that created or
 rescheduled a `SCHEDULED` match is counted only under `partialActas` /
 `invalidActas`, never also under `scheduledCreated` / `rescheduled`, so no acta
 is ever counted twice. Regressions have no counter; they surface as warnings.
+`amendedPlayed` counts stored `PLAYED` matches re-applied from an amended acta (FEAT-00089); it stays `0`
+unless `IMPORT_EXECUTION_AMENDED_ACTA_DETECTION=write` (report mode writes nothing and is not counted).
 
 Run status is computed by one rule. Processor failures or traversal issues
 give `FAILURE`. Otherwise a run is `EMPTY_RESULT` only when nothing was

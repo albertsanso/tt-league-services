@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.pipeline.runtime.config;
 
+import org.cttelsamicsterrassa.data.pipeline.core.statistics.StatisticsSettings;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -23,6 +24,11 @@ public class PipelineSettingsConfiguration {
     @Bean
     PipelineOrchestratorProperties.Events eventSettings(PipelineOrchestratorProperties properties) {
         return properties.events();
+    }
+
+    @Bean
+    StatisticsSettings statisticsSettings(PipelineOrchestratorProperties properties) {
+        return properties.statisticsSettings();
     }
 
     @Bean

@@ -77,6 +77,7 @@ class ScheduleConfigurationTest {
                         "tt.pipeline.execution.timeouts.import-job=PT3H",
                         "tt.pipeline.execution.max-concurrent-runs=2",
                         "tt.pipeline.execution.recover-on-startup=false",
+                        "tt.pipeline.statistics.zone=Europe/Madrid",
                         "tt.pipeline.security.jwt-secret=0123456789abcdef0123456789abcdef",
                         "tt.pipeline.triggers.conflict-mode=REJECT",
                         "tt.pipeline.events.heartbeat-interval=PT15S",

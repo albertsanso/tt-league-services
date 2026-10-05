@@ -6,6 +6,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.cttelsamicsterrassa.data.pipeline.core.run.IngestHealth;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineStepRepository;
@@ -38,6 +39,9 @@ class JpaPipelineStepRepository implements PipelineStepRepository {
         entity.errorCode = step.error() == null ? null : step.error().code();
         entity.errorMessage = step.error() == null ? null : step.error().message();
         entity.logRef = step.logRef();
+        entity.httpErrors = step.ingestHealth() == null ? null : step.ingestHealth().httpErrors();
+        entity.timeouts = step.ingestHealth() == null ? null : step.ingestHealth().timeouts();
+        entity.parseErrors = step.ingestHealth() == null ? null : step.ingestHealth().parseErrors();
         return toDomain(steps.saveAndFlush(entity));
     }
 
@@ -64,8 +68,11 @@ class JpaPipelineStepRepository implements PipelineStepRepository {
         RunError error = entity.errorCode == null && entity.errorMessage == null
                 ? null
                 : new RunError(entity.errorCode, entity.errorMessage);
+        IngestHealth health = entity.httpErrors == null
+                ? null
+                : new IngestHealth(entity.httpErrors, entity.timeouts, entity.parseErrors);
         return PipelineStep.restore(
                 entity.id, entity.runId, entity.kind, entity.attempt, entity.status, entity.startedAt,
-                entity.finishedAt, entity.externalRef, entity.outcome, entity.retryable, error, entity.logRef);
+                entity.finishedAt, entity.externalRef, entity.outcome, entity.retryable, error, entity.logRef, health);
     }
 }

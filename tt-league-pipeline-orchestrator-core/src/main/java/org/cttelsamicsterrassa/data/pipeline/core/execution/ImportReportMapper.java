@@ -16,7 +16,7 @@ public final class ImportReportMapper {
     }
 
     public static ImportReport toReport(UUID runId, ImportJobState job, Instant receivedAt) {
-        long[] sum = new long[10];
+        long[] sum = new long[11];
         List<String> issues = new ArrayList<>();
         addIfPresent(issues, job.errorDetail(), null);
         for (ImportSeasonState season : job.seasons()) {
@@ -40,9 +40,10 @@ public final class ImportReportMapper {
             sum[7] += c.partialActas();
             sum[8] += c.invalidActas();
             sum[9] += c.unresolvedPendingFixtures();
+            sum[10] += c.amendedPlayed();
         }
         return new ImportReport(runId, job.importJobId(), job.status(), sum[0], sum[1], sum[2], sum[3], sum[4],
-                sum[5], sum[6], sum[7], sum[8], sum[9], issues, job.rawJson(), receivedAt);
+                sum[5], sum[6], sum[7], sum[8], sum[9], sum[10], issues, job.rawJson(), receivedAt);
     }
 
     private static void addIfPresent(List<String> issues, String text, String season) {

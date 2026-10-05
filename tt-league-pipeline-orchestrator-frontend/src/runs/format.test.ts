@@ -148,6 +148,7 @@ describe('upsertStep', () => {
       outcome: null,
       retryable: null,
       error: null,
+      health: null,
     }
   }
 

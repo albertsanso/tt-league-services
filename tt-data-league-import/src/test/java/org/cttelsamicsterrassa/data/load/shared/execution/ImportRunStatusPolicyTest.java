@@ -29,13 +29,13 @@ class ImportRunStatusPolicyTest {
     @Test
     void unparsableRunsStayEmptyEvenWithCountersZeroButUnresolvedZero() {
         assertEquals(ImportProcessStatus.EMPTY_RESULT, ImportRunStatusPolicy.statusOf(0, false, 0,
-                new ImportLifecycleCounters(0, 0, 0, 1, 1, 0)));
+                new ImportLifecycleCounters(0, 0, 0, 1, 1, 0, 0)));
     }
 
     @Test
     void recognisedUnresolvedPendingFixturesEndSuccessNotEmpty() {
         assertEquals(ImportProcessStatus.SUCCESS, ImportRunStatusPolicy.statusOf(0, false, 0,
-                new ImportLifecycleCounters(0, 0, 0, 0, 0, 1)));
+                new ImportLifecycleCounters(0, 0, 0, 0, 0, 1, 0)));
     }
 
     @Test
@@ -43,7 +43,7 @@ class ImportRunStatusPolicyTest {
         assertEquals(ImportProcessStatus.SUCCESS,
                 ImportRunStatusPolicy.statusOf(0, false, 3, ImportLifecycleCounters.ZERO));
         assertEquals(ImportProcessStatus.SUCCESS, ImportRunStatusPolicy.statusOf(0, false, 3,
-                new ImportLifecycleCounters(0, 0, 0, 2, 1, 0)));
+                new ImportLifecycleCounters(0, 0, 0, 2, 1, 0, 0)));
     }
 
     @Test

@@ -54,26 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00113] Pipeline history statistics and dashboard
-- **Status:** idea
-- **Priority:** low
-- **Effort:** large
-- **Depends on:** FEAT-00107, FEAT-00108, FEAT-00109
-
-#### Goal
-Report reporting timeliness, pending matches, run outcomes and source health over the season.
-
-#### Acceptance Criteria
-- [ ] A daily job aggregates `daily_stats` (runs, failures, matches reported, average time to report, pending at end of day) per source
-- [ ] Statistics endpoints return reporting progress per match day, time to report (median, p90) per source and category, pending by age, corrections after first report and runs by outcome
-- [ ] A dashboard page charts these figures and a source-health panel (HTTP errors, timeouts, parse errors per source)
-- [ ] Tests cover the aggregation and the endpoints
-
-#### Feature Details
-→ See [FEAT-00113-DETAILS.md](./FEAT-00113-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00114] Replay import from retained run artifacts
 - **Status:** idea
 - **Priority:** low
@@ -133,6 +113,28 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00113] Pipeline history statistics and dashboard
+- **Status:** done
+- **Priority:** low
+- **Effort:** large
+- **Depends on:** FEAT-00107, FEAT-00108, FEAT-00109
+
+#### Goal
+Report reporting timeliness, pending matches, run outcomes and source health over the season.
+
+#### Acceptance Criteria
+- [x] A daily job aggregates `daily_stats` (runs, failures, matches reported, average time to report, pending at end of day) per source
+- [x] Statistics endpoints return reporting progress per match day, time to report (median, p90) per source and category, pending by age, corrections after first report and runs by outcome
+- [x] A dashboard page charts these figures and a source-health panel (HTTP errors, timeouts, parse errors per source)
+- [x] The ingest run report counts HTTP errors, timeouts and parse errors per stage, and the orchestrator stores them per ingest step
+- [x] Platform import results count amended actas re-applied (`amendedPlayed`), and the orchestrator stores them per import report
+- [x] Tests cover the aggregation and the endpoints
+
+#### Feature Details
+→ See [FEAT-00113-DETAILS.md](./FEAT-00113-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00112] Orchestrator notifications and alerts
 - **Status:** done

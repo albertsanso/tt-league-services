@@ -71,7 +71,7 @@ class FindImportRunStatusQueryHandlerTest {
         UUID runId = UUID.randomUUID();
         ImportProcessResult result = new ImportProcessResult(ImportProcessStatus.SUCCESS, List.of(), List.of(),
                 4, 4, 0, 0, 10, 4, List.of(), List.of(),
-                new ImportLifecycleCounters(2, 1, 3, 4, 5, 6));
+                new ImportLifecycleCounters(2, 1, 3, 4, 5, 6, 7));
         ImportRunSnapshot completed = ImportRunSnapshot.queued(runId, resourceId, ImportSource.RFETM, "2025-2026")
                 .running(ImportRunProgress.zero())
                 .complete(ImportRunStatus.SUCCESS, ImportRunProgress.determinate(4, 4, 0, 0), result, null);
@@ -86,6 +86,7 @@ class FindImportRunStatusQueryHandlerTest {
         assertEquals(4, dto.partialActas());
         assertEquals(5, dto.invalidActas());
         assertEquals(6, dto.unresolvedPendingFixtures());
+        assertEquals(7, dto.amendedPlayed());
     }
 
     @Test

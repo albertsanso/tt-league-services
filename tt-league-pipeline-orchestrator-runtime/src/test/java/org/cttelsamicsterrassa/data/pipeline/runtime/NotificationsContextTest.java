@@ -45,6 +45,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
             "spring.datasource.url=jdbc:postgresql://service-connection/unused",
             "spring.datasource.username=unused",
             "spring.datasource.password=unused",
+            "tt.pipeline.statistics.zone=Europe/Madrid",
             "tt.pipeline.security.jwt-secret=0123456789abcdef0123456789abcdef",
             // an address nobody listens on: nothing is sent during the test
             "tt.pipeline.notifications.mail.host=127.0.0.1",

@@ -66,11 +66,19 @@ tt:
       heartbeat-interval: ${PIPELINE_EVENTS_HEARTBEAT:PT15S}
       emitter-timeout: ${PIPELINE_EVENTS_TIMEOUT:PT30M}
       max-subscribers: ${PIPELINE_EVENTS_MAX_SUBSCRIBERS:50}
+    statistics:
+      # History and statistics: figures are grouped by local day in this zone (IANA id, e.g. Europe/Madrid). Required,
+      # no default: a wrong zone would silently shift every day boundary.
+      zone: ${PIPELINE_STATISTICS_ZONE:Europe/Madrid}
+      # Time of day, in that zone, of the daily aggregation of the previous days (it also catches up on missed days).
+      daily-at: ${PIPELINE_STATISTICS_DAILY_AT:00:30}
+      # How many past days the first catch-up aggregates (0-366); later catch-ups continue after the latest day.
+      backfill-days: ${PIPELINE_STATISTICS_BACKFILL_DAYS:31}
     schedule:
       # Fixed-schedule full-season runs. A source is scheduled only when its cron is set (Spring six-field format,
       # e.g. "0 0 7,22 * * *"); an empty cron means never. Season and zone are required once any cron is set.
       season: ${PIPELINE_SCHEDULE_SEASON:}
-      zone: ${PIPELINE_SCHEDULE_ZONE:}
+      zone: ${PIPELINE_SCHEDULE_ZONE:Europe/Madrid}
       # ShedLock bounds: the lock is held at most this long if an instance dies, and at least this long so
       # instances with slightly skewed clocks do not fire the same tick twice.
       lock-at-most-for: ${PIPELINE_SCHEDULE_LOCK_AT_MOST_FOR:PT10M}

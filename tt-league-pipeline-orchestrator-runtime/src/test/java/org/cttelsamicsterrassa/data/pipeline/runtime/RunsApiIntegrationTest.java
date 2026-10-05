@@ -69,6 +69,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
             "spring.datasource.url=jdbc:postgresql://service-connection/unused",
             "spring.datasource.username=unused",
             "spring.datasource.password=unused",
+            "tt.pipeline.statistics.zone=Europe/Madrid",
             "tt.pipeline.security.jwt-secret=0123456789abcdef0123456789abcdef"
         })
 @Import({PostgresTestConfiguration.class, RunsApiIntegrationTest.Recording.class})

@@ -15,6 +15,7 @@ export function TestApiProvider({ api, children }: { api: Partial<Api>; children
     pendingTriggers: missing('pendingTriggers'),
     matchDays: missing('matchDays'),
     polling: missing('polling'),
+    statistics: missing('statistics'),
     ...api,
   } as Api
   return <ApiContext.Provider value={full}>{children}</ApiContext.Provider>

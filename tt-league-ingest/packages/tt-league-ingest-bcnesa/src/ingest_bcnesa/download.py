@@ -63,6 +63,8 @@ from urllib.parse import parse_qs, urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup, Tag
 
+from ingest_common import health
+
 
 INDEX_URL = "https://fctt.cat/competicions-estatals/"
 TERRITORIES = ("Barcelona", "Girona", "Lleida", "Tarragona")
@@ -600,6 +602,7 @@ class Fetcher:
                     self.logger.error("HTTP %d (not retried): %s", response.status_code, url)
                     record.errors.append(f"HTTP {response.status_code}")
                     record.outcome = "http-error"
+                    health.http_error()
                     return None
                 result = check(response)
                 record.outcome = "ok"
@@ -614,6 +617,7 @@ class Fetcher:
                         return cast(T, exc.result)
                     self.logger.error("Failed after %d attempt(s): %s (%s)", attempts, url, exc)
                     record.outcome = "failed"
+                    health.timeout() if isinstance(exc, requests.Timeout) else health.http_error()
                     return None
                 wait = max(retry_after, self.backoff * 2 ** (attempt - 1) + random.uniform(0, self.backoff))
                 self.logger.warning("Attempt %d/%d failed for %s (%s); retrying in %.1fs", attempt, attempts, url, exc, wait)

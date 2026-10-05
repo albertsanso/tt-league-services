@@ -41,6 +41,7 @@ export function makeStep(runId: string, overrides: Partial<Step> = {}): Step {
     outcome: null,
     retryable: null,
     error: null,
+    health: null,
     ...overrides,
   }
 }

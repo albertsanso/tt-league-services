@@ -10,6 +10,8 @@ import { makeToken } from './jwt'
 import type { TestClaims } from './jwt'
 import { makeFacets, makeMatchDayDetail, makeResults, makeSummaryPage, summariesForEveryCompletion } from './matchDayFixtures'
 import { makeDetail, makePage, makeRun } from './runFixtures'
+import { statisticsResponse } from './statisticsFixtures'
+import type { StatisticsOverrides } from './statisticsFixtures'
 
 export const runPage = makePage([makeRun('run-1')])
 
@@ -18,6 +20,9 @@ export interface AppFakeOptions {
   loginClaims?: TestClaims
   loginStatus?: number
   runs?: unknown
+  statistics?: StatisticsOverrides
+  /** Statistics answers wait for this promise, to observe the loading state. */
+  gateStatistics?: Promise<unknown>
 }
 
 /** Fake platform + orchestrator: login, me, logout, an idle event stream and the runs list. */
@@ -52,6 +57,10 @@ export function stubBackends(options: AppFakeOptions = {}): FakeFetch {
     }
     if (request.url.startsWith('/api/pipeline/match-days')) {
       return json(makeSummaryPage(request.url.includes('undated=true') ? [] : summariesForEveryCompletion()))
+    }
+    const statistics = statisticsResponse(request.url, options.statistics)
+    if (statistics !== null) {
+      return options.gateStatistics === undefined ? statistics : options.gateStatistics.then(() => statistics)
     }
     if (request.url.startsWith('/api/pipeline/runs/')) {
       return json(makeDetail('run-1'))

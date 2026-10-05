@@ -118,7 +118,7 @@ class HttpImportGatewayTest {
                 + "{\"season\":\"2024-2025\",\"status\":\"SUCCEEDED\",\"errorDetail\":null,\"result\":{"
                 + "\"filesSeen\":4,\"itemsPersisted\":3,\"skipped\":1,\"processorFailures\":0,"
                 + "\"scheduledCreated\":2,\"upgradedToPlayed\":1,\"rescheduled\":0,\"partialActas\":1,"
-                + "\"invalidActas\":0,\"unresolvedPendingFixtures\":5,\"executionIssues\":[\"late file\"],"
+                + "\"invalidActas\":0,\"unresolvedPendingFixtures\":5,\"amendedPlayed\":2,\"executionIssues\":[\"late file\"],"
                 + "\"findings\":[],\"roundProgress\":[]}},"
                 + "{\"season\":\"2025-2026\",\"status\":\"IMPORTING\",\"errorDetail\":\"slow\",\"result\":null}]}";
         server.on("GET", JOBS + "/" + jobId, Response.json(200, json));
@@ -134,6 +134,7 @@ class HttpImportGatewayTest {
         assertThat(first.counters().filesSeen()).isEqualTo(4);
         assertThat(first.counters().itemsPersisted()).isEqualTo(3);
         assertThat(first.counters().unresolvedPendingFixtures()).isEqualTo(5);
+        assertThat(first.counters().amendedPlayed()).isEqualTo(2);
         assertThat(first.executionIssues()).containsExactly("late file");
         ImportSeasonState second = state.seasons().get(1);
         assertThat(second.counters()).isNull();
@@ -151,6 +152,7 @@ class HttpImportGatewayTest {
 
         assertThat(state.seasons().get(0).counters().filesSeen()).isEqualTo(2);
         assertThat(state.seasons().get(0).counters().itemsPersisted()).isZero();
+        assertThat(state.seasons().get(0).counters().amendedPlayed()).isZero();
     }
 
     @Test

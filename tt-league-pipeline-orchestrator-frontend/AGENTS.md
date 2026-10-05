@@ -28,6 +28,11 @@ signing in and calendar components may be duplicated rather than shared.
   from the counts. Calendar and match-day detail state follow the event stream (`match-days`, `run`) through the
   `src/calendar/` hooks (`useMatchDayCalendar`, `useMatchDayDetail`, `useMatchDayResults`); screens never open their own
   event connection. Results are read from `GET .../results` and are never stored in the browser.
+- Charts use `@mui/x-charts` only (MIT community edition). Statistics state goes through the `src/statistics/` hooks
+  (`useStatistics`, `useReportingProgress`) and the URL filters in `statisticsFilters.ts`; screens never fetch
+  statistics themselves and there is no event subscription (the page has a refresh button). Figures are never derived
+  in the browser: panels show the server values (`format.ts` only formats seconds as hours) and every chart has a
+  summary table that is its text equivalent.
 - Client-side trigger validation mirrors `TriggerRules` and
   `PipelineRun.requireValidSeason` and never replaces the server's answer.
 - No data-fetching, state or JWT library without a decision.

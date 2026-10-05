@@ -15,7 +15,7 @@ import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import type { ReactNode } from 'react'
 import { Link as RouterLink, useLocation, useParams } from 'react-router-dom'
-import type { ImportReport, RunDetail } from '../api/types'
+import type { ImportReport, RunDetail, StepHealth } from '../api/types'
 import { elapsedMs, formatBytes, formatDuration, formatInstant, scopeDetails } from '../runs/format'
 import { RunActivityLog } from '../runs/RunActivityLog'
 import { RunStatusChip } from '../runs/RunStatusChip'
@@ -62,6 +62,7 @@ const REPORT_COUNTERS: ReadonlyArray<readonly [keyof ImportReport, string]> = [
   ['partialActas', 'Partial actas'],
   ['invalidActas', 'Invalid actas'],
   ['unresolvedPendingFixtures', 'Unresolved pending fixtures'],
+  ['amendedPlayed', 'Amended played'],
 ]
 
 function ImportReportView({ report, active }: { report: ImportReport | null; active: boolean }) {
@@ -98,6 +99,13 @@ function ImportReportView({ report, active }: { report: ImportReport | null; act
       ))}
     </Box>
   )
+}
+
+/** The source failures an ingest attempt reported; a dash when the ingest service did not report them. */
+function healthText(health: StepHealth | null): string {
+  return health === null
+    ? '—'
+    : `HTTP ${health.httpErrors} · timeouts ${health.timeouts} · parse ${health.parseErrors}`
 }
 
 function Header({ run, now }: { run: RunDetail; now: number }) {
@@ -234,6 +242,7 @@ export default function RunDetailPage() {
                   <TableCell>Duration</TableCell>
                   <TableCell>Reference</TableCell>
                   <TableCell>Outcome</TableCell>
+                  <TableCell>Source health</TableCell>
                   <TableCell>Retryable</TableCell>
                   <TableCell>Error</TableCell>
                 </TableRow>
@@ -255,6 +264,7 @@ export default function RunDetailPage() {
                     </TableCell>
                     <TableCell>{step.externalRef ?? '—'}</TableCell>
                     <TableCell>{step.outcome ?? '—'}</TableCell>
+                    <TableCell>{healthText(step.health)}</TableCell>
                     <TableCell>{step.retryable === null ? '—' : step.retryable ? 'Yes' : 'No'}</TableCell>
                     <TableCell>{step.error ? `${step.error.code}: ${step.error.message}` : '—'}</TableCell>
                   </TableRow>

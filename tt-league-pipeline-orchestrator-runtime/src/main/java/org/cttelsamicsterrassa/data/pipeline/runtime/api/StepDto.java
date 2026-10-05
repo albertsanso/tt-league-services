@@ -15,5 +15,10 @@ public record StepDto(
         String externalRef,
         String outcome,
         Boolean retryable,
-        ErrorDto error) {
+        ErrorDto error,
+        Health health) {
+
+    /** Source failures an INGEST attempt reported; null when unknown or not an INGEST step. */
+    public record Health(long httpErrors, long timeouts, long parseErrors) {
+    }
 }

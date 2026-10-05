@@ -143,7 +143,7 @@ class RfetmActasDirectoryNavigatorTest {
         TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
 
         assertEquals(new TraversalSummary(2, 1, 1, 0, List.of(),
-                new ImportLifecycleCounters(0, 0, 0, 0, 0, 1)), summary);
+                new ImportLifecycleCounters(0, 0, 0, 0, 0, 1, 0)), summary);
         assertEquals(1, summary.lifecycle().unresolvedPendingFixtures(),
                 "the no-team pending fixture is recorded as unresolved");
         assertEquals("10", injected.single().homeTeam().value());

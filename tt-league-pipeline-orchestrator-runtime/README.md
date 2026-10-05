@@ -20,6 +20,7 @@ invalid.
 | `PIPELINE_DB_URL` | `spring.datasource.url` | JDBC URL of the PostgreSQL database holding schema `pipeline` |
 | `PIPELINE_DB_USERNAME` | `spring.datasource.username` | Database user (ideally limited to schema `pipeline`) |
 | `PIPELINE_DB_PASSWORD` | `spring.datasource.password` | Database password |
+| `PIPELINE_STATISTICS_ZONE` | `tt.pipeline.statistics.zone` | IANA time zone (for example `Europe/Madrid`) whose local days group every [statistic](#statistics). Required, no default: a wrong default would silently shift the day boundaries |
 | `PIPELINE_SERVER_PORT` | `server.port` | Optional, default `8095` |
 
 Tuning values have defaults and can be overridden; every `Duration` must be
@@ -46,6 +47,8 @@ positive (ISO-8601, for example `PT30S`) and invalid values fail startup:
 | `PIPELINE_POLLING_TICK_INTERVAL` | `PT5M` | Fixed delay of the adaptive polling tick |
 | `PIPELINE_POLLING_LOCK_AT_MOST_FOR` | `PT10M` | Longest a polling-tick lock is held if its instance dies |
 | `PIPELINE_POLLING_LOCK_AT_LEAST_FOR` | `PT30S` | Shortest a polling-tick lock is held (at most the above) |
+| `PIPELINE_STATISTICS_DAILY_AT` | `00:30` | Time of day, in the statistics zone, of the daily aggregation |
+| `PIPELINE_STATISTICS_BACKFILL_DAYS` | `31` | How many past days the first catch-up aggregates (0 to 366) |
 | `PIPELINE_MAIL_HOST` | empty | SMTP host; empty switches [notifications](#notifications) off |
 | `PIPELINE_MAIL_PORT` | `587` | SMTP port (1 to 65535) |
 | `PIPELINE_MAIL_USERNAME` | empty | SMTP user; set together with the password, or both empty |
@@ -357,6 +360,51 @@ retried: the polling tick already reports each stop once and each message once p
 All work runs on one private `pipeline-alerts` thread (`AlertDispatcher`); an unreachable SMTP server never delays a run.
 There is no lock between instances: the partial unique index makes raising idempotent, but with two instances a retried
 failed send can go out twice. The alerts are stored in the `alert` table (see [docs/pipeline-datamodel.md](docs/pipeline-datamodel.md)).
+
+## Statistics
+
+History and statistics (FEAT-00113). Every figure is computed by `StatisticsRules` in the core; the controller only
+validates parameters and calls `StatisticsQueries`, and the dashboard only formats server values. Days are local days in
+`PIPELINE_STATISTICS_ZONE` and every response carries the `zone`.
+
+| Figure | Definition |
+| --- | --- |
+| Arrival | A tracked match with `reportedAt > firstSeenAt`, so its result arrived while it was tracked. Matches first seen already reported are left out of every time-to-report figure and of `matchesReported`. |
+| Time to report | `reportedAt - matchDateTime` for arrivals with a match date and `reportedAt >= matchDateTime`. |
+| Category | The platform competition name, because the tracker has no separate category. |
+| `runs` / `failures` | Terminal runs of the source finished in the day, and those with status `FAILED`. |
+| `pendingEndOfDay` | Matches of the source not ignored, whose match day is not `CLOSED`, dated before the end of the day, not reported by then and not `POSTPONED`. Computed from the state at aggregation time, so a day aggregated late is an approximation. |
+| Median / p90 | Nearest-rank percentile over the sorted durations (index `ceil(p * n) - 1`). |
+| Pending (now) | Not ignored matches of `UPCOMING`/`OPEN` match days with status `SCHEDULED`, `AWAITING_RESULT` or `OVERDUE` and a match date up to now; undated matches are left out. Buckets: under 1 day, 1 to 2, 2 to 7 and over 7 days from the match date (lower bounds inclusive). |
+| Corrections | `amendedPlayed` of the import reports, by the day they were received. |
+| Source health | HTTP errors, timeouts and parse errors the ingest attempts of the day reported, plus the attempts, the `SOURCE_UNAVAILABLE` ones and those without health data. |
+
+The ingest service counts `http_errors`, `timeouts` and `parse_errors` per stage in its run report; the orchestrator sums
+them per ingest attempt (parse errors are `parse_errors + invalid` of the parse and teams stages) and stores them on the
+`INGEST` step. An ingest service that does not report them leaves the health unknown (`healthUnknown`); a negative
+counter is a protocol error. Corrections come from the platform `amendedPlayed` import counter and **stay at zero
+unless the platform runs with `IMPORT_EXECUTION_AMENDED_ACTA_DETECTION=write`**.
+
+Endpoints (`GET`, any authenticated user; `source` is optional and repeatable, `from` / `to` are ISO dates, at most 366
+days; a bad or missing parameter is a `400`):
+
+| Path | Parameters | Returns |
+| --- | --- | --- |
+| `/api/pipeline/statistics/daily` | `from`, `to`, `source` | the stored daily rows (time to report in seconds) and the `zone` |
+| `/api/pipeline/statistics/runs` | `from`, `to`, `source` | per day and source: `succeeded`, `noChanges`, `partial`, `failed`; `avgStepSeconds` per source and step kind |
+| `/api/pipeline/statistics/time-to-report` | `season`, `source` | per source and competition, plus a source total (`competition` null): `count`, `medianSeconds`, `p90Seconds` |
+| `/api/pipeline/statistics/pending` | optional `season`, `source` | per source: the four age buckets and `overdue`, plus `asOf` |
+| `/api/pipeline/statistics/corrections` | `from`, `to`, `source` | per day and source `amendedPlayed`, plus totals |
+| `/api/pipeline/statistics/reporting-progress` | exactly one `source`, `season`, optional `competition` | per dated match day: window, counts and one point per date (`reported`, `pending`) |
+| `/api/pipeline/statistics/source-health` | `from`, `to`, `source` | per day and source: `httpErrors`, `timeouts`, `parseErrors`, `ingestAttempts`, `sourceUnavailable`, `healthUnknown`; plus totals |
+
+The daily job (`DailyStatsSchedule`) runs at `PIPELINE_STATISTICS_DAILY_AT` in the statistics zone and once one minute
+after start, under the ShedLock lock `pipeline-daily-stats` (at most `PT10M`), so only one instance aggregates. A tick
+writes one row per source for every complete day from the day after the latest stored one (at most
+`PIPELINE_STATISTICS_BACKFILL_DAYS` back) through yesterday, oldest first; a stored day is never recomputed, and today is
+never aggregated. A failure is logged as a warning and the next tick catches up again. Statistics never block or fail a
+run, a recompute or a request. The run detail also shows the ingest health of each attempt and `amendedPlayed` of the
+import report.
 
 ## Persistence
 

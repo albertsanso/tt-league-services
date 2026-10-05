@@ -58,6 +58,8 @@ from urllib.parse import parse_qs, urljoin, urlparse
 from urllib.request import HTTPCookieProcessor, Request, build_opener
 from urllib.robotparser import RobotFileParser
 
+from ingest_common import health
+
 try:
     from zoneinfo import ZoneInfo
 
@@ -697,6 +699,7 @@ class HttpClient:
             self.sleep(delay)
         if retriable:
             self.metrics.record_exhausted()
+        health.timeout() if kind == "timeout" else health.http_error()
         raise FetchError(url, kind, attempt, message, status, payload)
 
 

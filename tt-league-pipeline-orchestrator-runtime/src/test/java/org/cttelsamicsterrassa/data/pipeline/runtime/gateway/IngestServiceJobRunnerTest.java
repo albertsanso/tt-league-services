@@ -10,6 +10,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestMode;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunRequest;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunState;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.StoredArtifact;
+import org.cttelsamicsterrassa.data.pipeline.core.run.IngestHealth;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
@@ -196,6 +197,61 @@ class IngestServiceJobRunnerTest {
         assertThat(unavailable.error()).isEqualTo("source down");
         assertThat(failed.outcome()).isEqualTo("FAILED");
         assertThat(failed.error()).isEqualTo("parser exploded");
+    }
+
+    private static String withStages(String stages) {
+        return "{\"runId\":\"r1\",\"status\":\"SUCCEEDED\",\"outcome\":\"NO_CHANGES\",\"retryable\":false,"
+                + "\"package\":null,\"error\":null,\"stages\":" + stages + "}";
+    }
+
+    @Test
+    void sumsTheHealthCountersOverTheStages() {
+        server.on("GET", RUNS + "/r1", Response.json(200, withStages("[{\"stage\":\"DOWNLOAD\",\"counters\":"
+                + "{\"seen\":9,\"http_errors\":2,\"timeouts\":1,\"parse_errors\":0}},"
+                + "{\"stage\":\"PARSE\",\"counters\":{\"parsed\":9,\"invalid\":3,\"http_errors\":0,"
+                + "\"timeouts\":0,\"parse_errors\":4}},"
+                + "{\"stage\":\"TEAMS\",\"counters\":{\"invalid\":1,\"http_errors\":1,\"timeouts\":0,"
+                + "\"parse_errors\":2}},"
+                + "{\"stage\":\"PACKAGE\",\"counters\":{\"invalid\":7,\"http_errors\":0,\"timeouts\":0,"
+                + "\"parse_errors\":0}}]")));
+
+        IngestRunState state = gateway.getRun("r1");
+
+        // invalid counts as a parse error only on the parse and teams stages; the download http errors are summed
+        assertThat(state.health()).isEqualTo(new IngestHealth(3, 1, 10));
+    }
+
+    @Test
+    void healthIsUnknownWhenNoStageCarriesTheCounters() {
+        server.on("GET", RUNS + "/r1", Response.json(200, withStages("[{\"stage\":\"DOWNLOAD\",\"counters\":"
+                + "{\"seen\":9,\"invalid\":1}}]")), Response.json(200, withStages("[]")),
+                Response.json(200, withStages("null")),
+                Response.json(200, "{\"runId\":\"r1\",\"status\":\"RUNNING\"}"));
+
+        assertThat(gateway.getRun("r1").health()).isNull();
+        assertThat(gateway.getRun("r1").health()).isNull();
+        assertThat(gateway.getRun("r1").health()).isNull();
+        assertThat(gateway.getRun("r1").health()).isNull();
+    }
+
+    @Test
+    void zeroHealthCountersAreKnownHealth() {
+        server.on("GET", RUNS + "/r1", Response.json(200, withStages("[{\"stage\":\"DOWNLOAD\",\"counters\":"
+                + "{\"http_errors\":0,\"timeouts\":0,\"parse_errors\":0}}]")));
+
+        assertThat(gateway.getRun("r1").health()).isEqualTo(new IngestHealth(0, 0, 0));
+    }
+
+    @Test
+    void aNegativeOrNonNumericHealthCounterIsAProtocolError() {
+        server.on("GET", RUNS + "/r1",
+                Response.json(200, withStages("[{\"stage\":\"DOWNLOAD\",\"counters\":{\"http_errors\":-1}}]")),
+                Response.json(200, withStages("[{\"stage\":\"PARSE\",\"counters\":{\"parse_errors\":-3}}]")),
+                Response.json(200, withStages("[{\"stage\":\"PARSE\",\"counters\":{\"timeouts\":\"many\"}}]")));
+
+        assertThat(failureOf(() -> gateway.getRun("r1")).kind()).isEqualTo(Kind.PROTOCOL);
+        assertThat(failureOf(() -> gateway.getRun("r1")).kind()).isEqualTo(Kind.PROTOCOL);
+        assertThat(failureOf(() -> gateway.getRun("r1")).kind()).isEqualTo(Kind.PROTOCOL);
     }
 
     private static String state(String status, String outcome, String pkg, String error) {

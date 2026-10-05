@@ -3,6 +3,11 @@ import userEvent from '@testing-library/user-event'
 import { clearToken, readToken } from './auth/tokenStorage'
 import { renderApp, storeSession, stubBackends } from './test/renderApp'
 
+// The statistics route is a lazy chunk that pulls in the charts; loading it once up front keeps the routing tests fast.
+beforeAll(async () => {
+  await import('./pages/StatisticsPage')
+}, 60_000)
+
 afterEach(() => {
   vi.unstubAllGlobals()
   clearToken()

@@ -37,6 +37,7 @@ const report = {
   partialActas: 7,
   invalidActas: 8,
   unresolvedPendingFixtures: 9,
+  amendedPlayed: 10,
   receivedAt: '2026-10-01T10:02:00Z',
 }
 
@@ -64,6 +65,26 @@ describe('RunDetailPage', () => {
     expect(screen.getByText('Files seen')).toBeInTheDocument()
     expect(screen.getByText('22')).toBeInTheDocument()
     expect(screen.getByText('COMPLETED')).toBeInTheDocument()
+  })
+
+  it('shows the amended count of the import report and the health of ingest attempts', async () => {
+    const detail = makeDetail('r1', {
+      steps: [
+        makeStep('r1', { kind: 'INGEST', attempt: 1, health: { httpErrors: 3, timeouts: 2, parseErrors: 1 } }),
+        makeStep('r1', { kind: 'INGEST', attempt: 2, health: null }),
+        makeStep('r1', { kind: 'IMPORT', attempt: 1 }),
+      ],
+      importReport: report,
+    })
+    setup(vi.fn().mockResolvedValue(detail))
+
+    const steps = await screen.findByRole('table', { name: 'Steps' })
+    expect(within(steps).getByText('HTTP 3 · timeouts 2 · parse 1')).toBeInTheDocument()
+    // an attempt without health data and a non-ingest step show a dash
+    const rows = within(steps).getAllByRole('row').slice(1)
+    expect(within(rows[1]).getAllByRole('cell')[8]).toHaveTextContent('—')
+    expect(within(rows[2]).getAllByRole('cell')[8]).toHaveTextContent('—')
+    expect(screen.getByText('Amended played').nextSibling).toHaveTextContent('10')
   })
 
   it('explains a missing import report for active and terminal runs', async () => {

@@ -188,7 +188,7 @@ class FcttActasDirectoryNavigatorTest {
         TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
 
         assertEquals(new TraversalSummary(1, 0, 1, 0, List.of(),
-                new ImportLifecycleCounters(0, 0, 0, 0, 0, 1)), summary);
+                new ImportLifecycleCounters(0, 0, 0, 0, 0, 1, 0)), summary);
         assertEquals(1, summary.lifecycle().unresolvedPendingFixtures(),
                 "the no-team placeholder is recorded as unresolved");
         assertTrue(injected.contexts.isEmpty(), "no processor may create teams for a placeholder");

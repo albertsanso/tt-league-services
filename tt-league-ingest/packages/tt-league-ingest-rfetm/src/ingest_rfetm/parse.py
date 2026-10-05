@@ -41,6 +41,7 @@ from urllib.parse import urlparse, parse_qs
 
 from bs4 import BeautifulSoup
 
+from ingest_common import health
 from ingest_common.validation import ACTA_SCHEMA_PATH
 
 # ══════════════════════════════════════════
@@ -458,6 +459,7 @@ def convert_season(season: str, category: Optional[str], jornadas: Optional[List
             pagina = parse_html_matches(read_html(html_path))
         except Exception as e:
             stats.error(f"{rel_html}: error leyendo HTML: {e}")
+            health.parse_error()
             continue
         stats.html_procesados += 1
 
@@ -497,6 +499,7 @@ def convert_season(season: str, category: Optional[str], jornadas: Optional[List
                     stats.sin_pdf += 1
             except Exception as e:
                 stats.error(f"{origen}: error parseando {pdf_path.name if pdf_path else 'HTML'}: {e}")
+                health.parse_error()
                 continue
 
             acta = {"id_partido": build_id_partido(season, cat, grupo, jornada, partido), **acta}

@@ -94,7 +94,7 @@ class ImportJobHandlersTest {
         job.startImporting();
         UUID resourceId = UUID.randomUUID();
         ImportProcessResult result = new ImportProcessResult(ImportProcessStatus.SUCCESS, List.of(), List.of(),
-                4, 3, 1, 0, 100, 3, List.of(), List.of(), new ImportLifecycleCounters(2, 1, 0, 0, 0, 0),
+                4, 3, 1, 0, 100, 3, List.of(), List.of(), new ImportLifecycleCounters(2, 1, 0, 0, 0, 0, 3),
                 List.of(new RoundProgress(ImportSource.FCTT, Season.fromFormatted("2026-2027"), "Liga", 1, "Primera fase", 3, 2, 4, 2)));
         ImportRunSnapshot snapshot = ImportRunSnapshot.queued(UUID.randomUUID(), resourceId, ImportSource.FCTT,
                 "2026-2027").complete(ImportRunStatus.SUCCESS, ImportRunProgress.zero(), result, null);
@@ -122,6 +122,7 @@ class ImportJobHandlersTest {
         assertEquals("ACTAS", season.result().resourceType());
         assertEquals(2, season.result().scheduledCreated());
         assertEquals(1, season.result().upgradedToPlayed());
+        assertEquals(3, season.result().amendedPlayed());
         assertEquals(1, season.result().roundProgress().size());
     }
 

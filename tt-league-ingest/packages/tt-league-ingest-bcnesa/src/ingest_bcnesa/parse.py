@@ -57,6 +57,7 @@ from bs4 import BeautifulSoup, Tag
 from jsonschema import Draft202012Validator
 
 from ingest_bcnesa import acta_parser
+from ingest_common import health
 from ingest_common.validation import ACTA_SCHEMA_PATH
 
 
@@ -275,6 +276,8 @@ def process_file(html_path: Path, input_dir: Path, output_dir: Path, validator: 
             outcome = write_acta(result, target_dir / acta_filename(result, position), force)
         except Exception as exc:
             stats["matches failed"] += 1
+            if not isinstance(exc, OSError):  # a write error is not a parse error
+                health.parse_error()
             LOGGER.error("%s: match %d: %s", relative_path, position, exc)
             continue
         outcomes[outcome] += 1
@@ -305,6 +308,8 @@ def main(argv: list[str] | None = None) -> int:
             process_file(html_path, args.input_dir, args.output_dir, validator, args.force, stats)
         except Exception as exc:  # Keep processing the remaining jornadas.
             stats["jornadas failed"] += 1
+            if not isinstance(exc, OSError):
+                health.parse_error()
             LOGGER.error("%s: %s", html_path.relative_to(args.input_dir), exc)
     summary = ", ".join(f"{count} {name}" for name, count in sorted(stats.items())) or "nothing to do"
     LOGGER.info("Summary: %s", summary)

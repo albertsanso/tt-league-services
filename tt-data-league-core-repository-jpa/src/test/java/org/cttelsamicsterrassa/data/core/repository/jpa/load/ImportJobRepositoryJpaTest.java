@@ -168,7 +168,7 @@ class ImportJobRepositoryJpaTest {
                 List.of(new ImportPreviewFinding("WARNING", "Duplicate fixture", "a.json")),
                 List.of(new ImportPreviewProcessingError("Unreadable", "b.json")),
                 12, 10, 2, 1, 1500, 40, List.of("consolidation skipped"), List.of("rounds updated"),
-                new ImportLifecycleCounters(3, 2, 1, 0, 1, 0),
+                new ImportLifecycleCounters(3, 2, 1, 0, 1, 0, 4),
                 List.of(new RoundProgress(ImportSource.FCTT, Season.fromFormatted("2025-2026"), "Lliga", 2,
                         "Primera fase", 4, null, 5, 7)));
     }

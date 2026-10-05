@@ -12,7 +12,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @SpringBootTest(
-        webEnvironment = SpringBootTest.WebEnvironment.NONE,
+        webEnvironment = SpringBootTest.WebEnvironment.MOCK,
         properties = {
             "tt.pipeline.platform.base-url=http://localhost:8080",
             "tt.pipeline.platform.api-key=test-platform-key",
@@ -39,6 +39,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
             "spring.datasource.username=unused",
             "spring.datasource.password=unused",
             "tt.pipeline.ingest.api-key=test-ingest-key",
+            "tt.pipeline.statistics.zone=Europe/Madrid",
             "tt.pipeline.security.jwt-secret=0123456789abcdef0123456789abcdef"
         })
 @Import(PostgresTestConfiguration.class)

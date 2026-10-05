@@ -3,6 +3,7 @@ import * as matchDays from './matchDays'
 import * as pendingTriggers from './pendingTriggers'
 import * as polling from './polling'
 import * as runs from './runs'
+import * as statistics from './statistics'
 
 type Bound<M> = {
   [K in keyof M]: M[K] extends (client: HttpClient, ...args: infer A) => infer R ? (...args: A) => R : never
@@ -23,6 +24,7 @@ export interface Api {
   readonly pendingTriggers: Bound<typeof pendingTriggers>
   readonly matchDays: Bound<typeof matchDays>
   readonly polling: Bound<typeof polling>
+  readonly statistics: Bound<typeof statistics>
 }
 
 /** Endpoint modules bound to an orchestrator client. */
@@ -32,5 +34,6 @@ export function bindApi(client: HttpClient): Api {
     pendingTriggers: bind(pendingTriggers, client),
     matchDays: bind(matchDays, client),
     polling: bind(polling, client),
+    statistics: bind(statistics, client),
   }
 }

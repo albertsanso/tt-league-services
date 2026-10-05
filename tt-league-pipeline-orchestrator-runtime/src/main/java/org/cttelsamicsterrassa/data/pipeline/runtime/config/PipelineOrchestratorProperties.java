@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.polling.PollingSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.BcnesaCompetitionNames;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
+import org.cttelsamicsterrassa.data.pipeline.core.statistics.StatisticsSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
 import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
@@ -21,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.time.DateTimeException;
 import java.time.Duration;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.Collections;
 import java.util.EnumMap;
@@ -46,6 +48,7 @@ public record PipelineOrchestratorProperties(
         @Valid @NotNull Security security,
         @Valid @NotNull Triggers triggers,
         @Valid @NotNull Events events,
+        @Valid @NotNull Statistics statistics,
         Schedule schedule,
         Tracker tracker,
         Polling polling,
@@ -184,6 +187,49 @@ public record PipelineOrchestratorProperties(
             if (maxSubscribers < 1 || maxSubscribers > 1000) {
                 throw new IllegalArgumentException("events.max-subscribers must be between 1 and 1000");
             }
+        }
+    }
+
+    /**
+     * History and statistics (FEAT-00113). {@code zone} is required with no default: it decides which local day every
+     * statistic belongs to, so a wrong default would silently shift the figures. {@code dailyAt} (default 00:30) is
+     * the time of the daily aggregation in that zone and {@code backfillDays} (default 31, 0 to 366) is how far the
+     * first catch-up reaches back.
+     */
+    public record Statistics(String zone, LocalTime dailyAt, Integer backfillDays) {
+
+        public static final LocalTime DEFAULT_DAILY_AT = LocalTime.of(0, 30);
+        public static final int DEFAULT_BACKFILL_DAYS = 31;
+
+        public Statistics {
+            if (zone == null || zone.isBlank()) {
+                throw new IllegalArgumentException("statistics.zone is required");
+            }
+            try {
+                ZoneId.of(zone.trim());
+            } catch (DateTimeException e) {
+                // No cause: the binder prints the root cause only, and this message shows the exact rejected characters.
+                throw new IllegalArgumentException("statistics.zone is not a valid IANA time zone id (for example "
+                        + "Europe/Madrid); the value was " + escaped(zone) + " (" + e.getMessage() + ")");
+            }
+            zone = zone.trim();
+            dailyAt = dailyAt == null ? DEFAULT_DAILY_AT : dailyAt;
+            backfillDays = backfillDays == null ? DEFAULT_BACKFILL_DAYS : backfillDays;
+            if (backfillDays < 0 || backfillDays > StatisticsSettings.MAX_BACKFILL_DAYS) {
+                throw new IllegalArgumentException("statistics.backfill-days must be between 0 and "
+                        + StatisticsSettings.MAX_BACKFILL_DAYS + ": " + backfillDays);
+            }
+        }
+
+        /** The value with every character outside printable ASCII shown as its hex code in angle brackets, so stray quotes are visible. */
+        private static String escaped(String value) {
+            StringBuilder text = new StringBuilder("[");
+            value.chars().forEach(c -> text.append(c >= 0x20 && c < 0x7f ? String.valueOf((char) c) : String.format("<%04x>", c)));
+            return text.append(']').toString();
+        }
+
+        public StatisticsSettings toSettings() {
+            return new StatisticsSettings(ZoneId.of(zone), dailyAt, backfillDays);
         }
     }
 
@@ -514,6 +560,10 @@ public record PipelineOrchestratorProperties(
                     + (password == null ? "null" : "****") + ", starttls=" + starttls + ", from=" + from + ", to="
                     + to + ", subjectPrefix=" + subjectPrefix + "]";
         }
+    }
+
+    public StatisticsSettings statisticsSettings() {
+        return statistics.toSettings();
     }
 
     /** The core settings: retry and timeouts from {@code execution}, poll intervals from the two services. */

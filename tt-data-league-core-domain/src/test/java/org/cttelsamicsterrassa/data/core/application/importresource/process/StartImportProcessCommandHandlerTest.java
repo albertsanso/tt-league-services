@@ -284,7 +284,7 @@ class StartImportProcessCommandHandlerTest {
         ImportProcessResult withCounters = new ImportProcessResult(
                 org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus.SUCCESS,
                 List.of(), List.of(), 3, 3, 0, 0, 10, 3, List.of(), List.of(),
-                new ImportLifecycleCounters(1, 1, 0, 1, 0, 1));
+                new ImportLifecycleCounters(1, 1, 0, 1, 0, 1, 0));
         StartImportProcessCommandHandler handler = new StartImportProcessCommandHandler(repository,
                 service((ignored, listener) -> withCounters), runRegistry, SAME_THREAD_EXECUTOR);
 

@@ -7,6 +7,7 @@ import time
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from ingest_common import health
 from ingest_common.match_day_status import ScanResult, write_status_report
 from ingest_common.run import LEGACY_FAILURE_MESSAGE, IngestFilters, IngestStage, StageReport
 from ingest_common.source import Source
@@ -33,6 +34,13 @@ def record_exit_code(report: StageReport, script: str, code: int) -> bool:
     return False
 
 
+def count_health(report: StageReport, counters: health.HealthCounters) -> None:
+    """Add the failures a legacy script reported through ``ingest_common.health`` to the stage counters."""
+    report.count("http_errors", counters.http_errors)
+    report.count("timeouts", counters.timeouts)
+    report.count("parse_errors", counters.parse_errors)
+
+
 def run_per_scope(report: StageReport, script: str, calls: Sequence[tuple[IngestFilters, list[str]]],
                   main: Callable[[list[str]], int], delay_seconds: float = 0.0,
                   sleep: Callable[[float], None] | None = None) -> None:
@@ -49,7 +57,10 @@ def run_per_scope(report: StageReport, script: str, calls: Sequence[tuple[Ingest
         if position:
             (sleep or time.sleep)(delay_seconds)
         label = script if len(distinct) == 1 else f"{script} [{scope.describe()}]"
-        record_exit_code(report, label, main(list(args)))
+        with health.collect() as counters:
+            code = main(list(args))
+        count_health(report, counters)
+        record_exit_code(report, label, code)
         if report.failed:
             return
 

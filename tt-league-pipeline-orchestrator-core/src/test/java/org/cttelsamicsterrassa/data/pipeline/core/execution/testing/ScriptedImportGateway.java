@@ -68,7 +68,7 @@ public class ScriptedImportGateway implements ImportGateway {
     }
 
     public static ImportCounters counters(long filesSeen, long itemsPersisted) {
-        return new ImportCounters(filesSeen, itemsPersisted, 0, 0, 0, 0, 0, 0, 0, 0);
+        return new ImportCounters(filesSeen, itemsPersisted, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     }
 
     @Override

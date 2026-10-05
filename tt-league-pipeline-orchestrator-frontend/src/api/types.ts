@@ -69,6 +69,13 @@ export interface RunSummary {
   readonly steps?: readonly StepStatusSummary[]
 }
 
+/** Source failures an INGEST attempt reported; null on other steps and when the ingest service did not report them. */
+export interface StepHealth {
+  readonly httpErrors: number
+  readonly timeouts: number
+  readonly parseErrors: number
+}
+
 export interface Step {
   readonly runId: string
   readonly kind: StepKind
@@ -81,6 +88,7 @@ export interface Step {
   readonly outcome: string | null
   readonly retryable: boolean | null
   readonly error: RunError | null
+  readonly health: StepHealth | null
 }
 
 export interface Artifact {
@@ -102,6 +110,8 @@ export interface ImportReport {
   readonly partialActas: number
   readonly invalidActas: number
   readonly unresolvedPendingFixtures: number
+  /** Stored matches re-applied from an amended acta; stays 0 unless the platform runs with amended-acta detection. */
+  readonly amendedPlayed: number
   readonly receivedAt: string | null
 }
 
@@ -347,4 +357,138 @@ export interface CurrentUser {
   readonly active: boolean
   readonly roles: readonly string[]
   readonly permissions: readonly string[]
+}
+
+// ---- Statistics (`/api/pipeline/statistics/...`). Durations are whole seconds; dates are local days in `zone`.
+
+export interface DailyStatsRow {
+  readonly date: string
+  readonly source: PipelineSource
+  readonly runs: number
+  readonly failures: number
+  readonly matchesReported: number
+  readonly avgTimeToReportSeconds: number | null
+  readonly pendingEndOfDay: number
+  readonly computedAt: string
+}
+
+export interface DailyStatsResponse {
+  readonly zone: string
+  readonly rows: readonly DailyStatsRow[]
+}
+
+export interface DayOutcomes {
+  readonly date: string
+  readonly source: PipelineSource
+  readonly succeeded: number
+  readonly noChanges: number
+  readonly partial: number
+  readonly failed: number
+}
+
+export interface StepAverage {
+  readonly source: PipelineSource
+  readonly kind: StepKind
+  readonly attempts: number
+  readonly avgStepSeconds: number | null
+}
+
+export interface RunOutcomesResponse {
+  readonly zone: string
+  readonly days: readonly DayOutcomes[]
+  readonly stepAverages: readonly StepAverage[]
+}
+
+/** `competition` is null on the total row of a source. */
+export interface TimeToReportRow {
+  readonly source: PipelineSource
+  readonly competition: string | null
+  readonly count: number
+  readonly medianSeconds: number | null
+  readonly p90Seconds: number | null
+}
+
+export interface TimeToReportResponse {
+  readonly season: string
+  readonly rows: readonly TimeToReportRow[]
+}
+
+export interface SourcePending {
+  readonly source: PipelineSource
+  readonly under1Day: number
+  readonly days1To2: number
+  readonly days2To7: number
+  readonly over7Days: number
+  readonly overdue: number
+}
+
+export interface PendingResponse {
+  readonly asOf: string
+  readonly sources: readonly SourcePending[]
+}
+
+export interface DayCorrections {
+  readonly date: string
+  readonly source: PipelineSource
+  readonly amendedPlayed: number
+}
+
+export interface SourceCorrections {
+  readonly source: PipelineSource
+  readonly amendedPlayed: number
+}
+
+export interface CorrectionsResponse {
+  readonly zone: string
+  readonly days: readonly DayCorrections[]
+  readonly totals: readonly SourceCorrections[]
+}
+
+export interface SourceHealthCounts {
+  readonly source: PipelineSource
+  readonly httpErrors: number
+  readonly timeouts: number
+  readonly parseErrors: number
+  readonly ingestAttempts: number
+  readonly sourceUnavailable: number
+  readonly healthUnknown: number
+}
+
+export interface DayHealth extends SourceHealthCounts {
+  readonly date: string
+}
+
+export interface SourceHealthResponse {
+  readonly zone: string
+  readonly days: readonly DayHealth[]
+  readonly totals: readonly SourceHealthCounts[]
+}
+
+export interface ProgressPoint {
+  readonly date: string
+  readonly reported: number
+  readonly pending: number
+}
+
+export interface MatchDayProgress {
+  readonly matchDayId: string
+  readonly competition: string
+  readonly groupNumber: number | null
+  readonly phase: string | null
+  readonly round: number
+  readonly state: MatchDayState
+  readonly windowStart: string
+  readonly windowEnd: string
+  readonly active: number
+  readonly reported: number
+  readonly postponed: number
+  readonly pending: number
+  readonly points: readonly ProgressPoint[]
+}
+
+export interface ReportingProgressResponse {
+  readonly source: PipelineSource
+  readonly season: string
+  readonly zone: string
+  readonly matchDays: readonly MatchDayProgress[]
 }

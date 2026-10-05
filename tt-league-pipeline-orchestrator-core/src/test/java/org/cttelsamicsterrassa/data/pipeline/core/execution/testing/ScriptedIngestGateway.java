@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunReques
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunState;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.PackageSink;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.StoredArtifact;
+import org.cttelsamicsterrassa.data.pipeline.core.run.IngestHealth;
 import java.io.ByteArrayInputStream;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -82,6 +83,11 @@ public class ScriptedIngestGateway implements IngestGateway {
 
     public static IngestRunState finished(String id, String outcome, boolean withPackage) {
         return new IngestRunState(id, "SUCCEEDED", outcome, false, withPackage, null);
+    }
+
+    public static IngestRunState withHealth(IngestRunState state, IngestHealth health) {
+        return new IngestRunState(state.ingestRunId(), state.status(), state.outcome(), state.retryable(),
+                state.packageAvailable(), state.error(), health);
     }
 
     public static IngestRunState failed(String id, String outcome, String error) {

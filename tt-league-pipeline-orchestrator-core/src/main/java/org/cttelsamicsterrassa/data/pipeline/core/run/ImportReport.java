@@ -20,6 +20,7 @@ public record ImportReport(
         long partialActas,
         long invalidActas,
         long unresolvedPendingFixtures,
+        long amendedPlayed,
         List<String> issues,
         String rawReport,
         Instant receivedAt) {
@@ -43,6 +44,7 @@ public record ImportReport(
         Checks.nonNegative(partialActas, "partialActas");
         Checks.nonNegative(invalidActas, "invalidActas");
         Checks.nonNegative(unresolvedPendingFixtures, "unresolvedPendingFixtures");
+        Checks.nonNegative(amendedPlayed, "amendedPlayed");
         issues = List.copyOf(Checks.required(issues, "issues"));
         Checks.nonBlank(rawReport, "rawReport");
         Checks.required(receivedAt, "receivedAt");

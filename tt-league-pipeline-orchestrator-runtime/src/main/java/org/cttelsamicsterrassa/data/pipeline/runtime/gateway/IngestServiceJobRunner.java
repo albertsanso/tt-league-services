@@ -12,12 +12,15 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunReques
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunState;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.PackageSink;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.StoredArtifact;
+import org.cttelsamicsterrassa.data.pipeline.core.run.IngestHealth;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
@@ -35,6 +38,8 @@ public final class IngestServiceJobRunner implements IngestGateway {
     private static final Pattern SHA256 = Pattern.compile("[0-9a-f]{64}");
     private static final List<String> STAGES = List.of("download", "parse", "package");
     private static final int MAX_RUN_ID = 64;
+    private static final Set<String> HEALTH_COUNTERS = Set.of("http_errors", "timeouts", "parse_errors");
+    private static final Set<String> PARSE_STAGES = Set.of("parse", "teams");
 
     private final RestClient client;
 
@@ -72,7 +77,46 @@ public final class IngestServiceJobRunner implements IngestGateway {
             throw GatewayErrors.protocol("GET", RUN, "the run state has no status", null);
         }
         return new IngestRunState(ingestRunId, body.status(), body.outcome(), body.retryable(),
-                body.packageRef() != null, body.error());
+                body.packageRef() != null, body.error(), health(body.stages()));
+    }
+
+    /**
+     * The source health of a run: HTTP errors and timeouts summed over every stage, parse errors summed over the
+     * parse and teams stages as {@code parse_errors + invalid}. Null when no stage carries the health counters (an
+     * ingest service from before FEAT-00113); a negative value is a protocol error.
+     */
+    private static IngestHealth health(List<StageBody> stages) {
+        if (stages == null) {
+            return null;
+        }
+        boolean reported = false;
+        long httpErrors = 0;
+        long timeouts = 0;
+        long parseErrors = 0;
+        for (StageBody stage : stages) {
+            Map<String, Long> counters = stage.counters();
+            if (counters == null) {
+                continue;
+            }
+            reported |= counters.keySet().stream().anyMatch(HEALTH_COUNTERS::contains);
+            httpErrors += counter(counters, "http_errors");
+            timeouts += counter(counters, "timeouts");
+            if (PARSE_STAGES.contains(String.valueOf(stage.stage()).toLowerCase(Locale.ROOT))) {
+                parseErrors += counter(counters, "parse_errors") + counter(counters, "invalid");
+            }
+        }
+        return reported ? new IngestHealth(httpErrors, timeouts, parseErrors) : null;
+    }
+
+    private static long counter(Map<String, Long> counters, String name) {
+        Long value = counters.get(name);
+        if (value == null) {
+            return 0;
+        }
+        if (value < 0) {
+            throw GatewayErrors.protocol("GET", RUN, "the stage counter " + name + " is negative", null);
+        }
+        return value;
     }
 
     @Override
@@ -150,6 +194,11 @@ public final class IngestServiceJobRunner implements IngestGateway {
             String outcome,
             boolean retryable,
             @JsonProperty("package") Object packageRef,
-            String error) {
+            String error,
+            List<StageBody> stages) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record StageBody(String stage, Map<String, Long> counters) {
     }
 }

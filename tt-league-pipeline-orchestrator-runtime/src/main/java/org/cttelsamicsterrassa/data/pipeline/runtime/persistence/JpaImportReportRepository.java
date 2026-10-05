@@ -37,6 +37,7 @@ class JpaImportReportRepository implements ImportReportRepository {
         entity.partialActas = report.partialActas();
         entity.invalidActas = report.invalidActas();
         entity.unresolvedPendingFixtures = report.unresolvedPendingFixtures();
+        entity.amendedPlayed = report.amendedPlayed();
         entity.issues = json.writeIssues(report.issues());
         entity.rawReport = report.rawReport();
         entity.receivedAt = report.receivedAt();
@@ -53,7 +54,7 @@ class JpaImportReportRepository implements ImportReportRepository {
         return new ImportReport(
                 e.runId, e.importJobId, e.importStatus, e.filesSeen, e.itemsPersisted, e.skipped,
                 e.processorFailures, e.scheduledCreated, e.upgradedToPlayed, e.rescheduled, e.partialActas,
-                e.invalidActas, e.unresolvedPendingFixtures, json.readIssues(e.issues), e.rawReport,
+                e.invalidActas, e.unresolvedPendingFixtures, e.amendedPlayed, json.readIssues(e.issues), e.rawReport,
                 e.receivedAt);
     }
 }

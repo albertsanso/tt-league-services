@@ -15,5 +15,6 @@ public record ImportReportDto(
         long partialActas,
         long invalidActas,
         long unresolvedPendingFixtures,
+        long amendedPlayed,
         Instant receivedAt) {
 }

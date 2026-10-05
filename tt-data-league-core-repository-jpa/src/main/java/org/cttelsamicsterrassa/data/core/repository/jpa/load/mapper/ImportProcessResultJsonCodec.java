@@ -59,7 +59,7 @@ public class ImportProcessResultJsonCodec {
                     result.postProcessingOutcomes(),
                     new LifecycleJson(lifecycle.scheduledCreated(), lifecycle.upgradedToPlayed(),
                             lifecycle.rescheduled(), lifecycle.partialActas(), lifecycle.invalidActas(),
-                            lifecycle.unresolvedPendingFixtures()),
+                            lifecycle.unresolvedPendingFixtures(), lifecycle.amendedPlayed()),
                     result.roundProgress().stream().map(RoundJson::from).toList());
         }
 
@@ -73,7 +73,7 @@ public class ImportProcessResultJsonCodec {
                     executionIssues, postProcessingOutcomes,
                     new ImportLifecycleCounters(lifecycle.scheduledCreated(), lifecycle.upgradedToPlayed(),
                             lifecycle.rescheduled(), lifecycle.partialActas(), lifecycle.invalidActas(),
-                            lifecycle.unresolvedPendingFixtures()),
+                            lifecycle.unresolvedPendingFixtures(), lifecycle.amendedPlayed()),
                     roundProgress.stream().map(RoundJson::toDomain).toList());
         }
     }
@@ -85,7 +85,7 @@ public class ImportProcessResultJsonCodec {
     }
 
     private record LifecycleJson(long scheduledCreated, long upgradedToPlayed, long rescheduled, long partialActas,
-                                 long invalidActas, long unresolvedPendingFixtures) {
+                                 long invalidActas, long unresolvedPendingFixtures, long amendedPlayed) {
     }
 
     private record RoundJson(String source, String season, String competition, Integer groupNumber, String phase,

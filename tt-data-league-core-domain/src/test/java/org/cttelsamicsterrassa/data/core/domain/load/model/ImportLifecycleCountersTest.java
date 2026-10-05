@@ -19,15 +19,16 @@ class ImportLifecycleCountersTest {
         assertEquals(0, zero.partialActas());
         assertEquals(0, zero.invalidActas());
         assertEquals(0, zero.unresolvedPendingFixtures());
+        assertEquals(0, zero.amendedPlayed());
         assertFalse(zero.hasActivity());
     }
 
     @Test
     void plusSumsEveryComponent() {
-        ImportLifecycleCounters first = new ImportLifecycleCounters(1, 2, 3, 4, 5, 6);
-        ImportLifecycleCounters second = new ImportLifecycleCounters(10, 20, 30, 40, 50, 60);
+        ImportLifecycleCounters first = new ImportLifecycleCounters(1, 2, 3, 4, 5, 6, 7);
+        ImportLifecycleCounters second = new ImportLifecycleCounters(10, 20, 30, 40, 50, 60, 70);
 
-        assertEquals(new ImportLifecycleCounters(11, 22, 33, 44, 55, 66), first.plus(second));
+        assertEquals(new ImportLifecycleCounters(11, 22, 33, 44, 55, 66, 77), first.plus(second));
         assertEquals(first, first.plus(ImportLifecycleCounters.ZERO));
     }
 
@@ -38,18 +39,20 @@ class ImportLifecycleCountersTest {
 
     @Test
     void negativeComponentsAreRejected() {
-        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(-1, 0, 0, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(0, -1, 0, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(0, 0, -1, 0, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(0, 0, 0, -1, 0, 0));
-        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(0, 0, 0, 0, -1, 0));
-        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(0, 0, 0, 0, 0, -1));
+        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(-1, 0, 0, 0, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(0, -1, 0, 0, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(0, 0, -1, 0, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(0, 0, 0, -1, 0, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(0, 0, 0, 0, -1, 0, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(0, 0, 0, 0, 0, -1, 0));
+        assertThrows(IllegalArgumentException.class, () -> new ImportLifecycleCounters(0, 0, 0, 0, 0, 0, -1));
     }
 
     @Test
     void hasActivityIsTrueWhenAnyComponentIsPositive() {
-        assertTrue(new ImportLifecycleCounters(1, 0, 0, 0, 0, 0).hasActivity());
-        assertTrue(new ImportLifecycleCounters(0, 0, 0, 0, 0, 1).hasActivity());
+        assertTrue(new ImportLifecycleCounters(1, 0, 0, 0, 0, 0, 0).hasActivity());
+        assertTrue(new ImportLifecycleCounters(0, 0, 0, 0, 0, 1, 0).hasActivity());
+        assertTrue(new ImportLifecycleCounters(0, 0, 0, 0, 0, 0, 1).hasActivity());
         assertFalse(ImportLifecycleCounters.ZERO.hasActivity());
     }
 }

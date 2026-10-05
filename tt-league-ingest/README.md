@@ -219,6 +219,12 @@ Status codes: `404` for an unknown run, a run that produced no ZIP (no `package`
 or a ZIP no longer retained; `409` while the run is `QUEUED` or `RUNNING`. Only the ZIPs of the 50 most recent runs
 are kept; older ones are deleted when a run ends, and a restart forgets every run.
 
+Each stage in the run JSON (`stages[].counters`) also counts the source failures seen while it ran, after the
+legacy retries (a retried request that recovers is not counted): `http_errors` (status errors, "acta not available"
+statuses, connection errors and retryable statuses that ran out of attempts), `timeouts` (timed-out requests) and
+`parse_errors` (a source document that could not be read or converted). They are informational: `status`,
+`outcome` and the exit codes do not depend on them. The pipeline orchestrator stores their totals per ingest step.
+
 The run body takes either `filters` (one filter set) or `scopes` (see [Scoped runs](#scoped-runs)), never both:
 
 ```text

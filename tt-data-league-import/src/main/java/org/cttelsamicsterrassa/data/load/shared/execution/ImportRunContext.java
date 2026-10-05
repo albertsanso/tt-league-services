@@ -150,7 +150,8 @@ public final class ImportRunContext {
     /**
      * The run's lifecycle counters (FEAT-00082): the per-acta exclusive match outcomes recorded by
      * {@link #recordMatchOutcome} plus the unresolved pending fixtures recorded by
-     * {@link #recordUnresolvedPendingFixture}.
+     * {@link #recordUnresolvedPendingFixture}. {@code amendedPlayed} counts {@code PLAYED_AMENDED} only: the
+     * report-mode {@code PLAYED_AMENDMENT_REPORTED} wrote nothing and is not counted.
      */
     public ImportLifecycleCounters lifecycleCounters() {
         return new ImportLifecycleCounters(
@@ -159,7 +160,8 @@ public final class ImportRunContext {
                 matchOutcomeCounts.getOrDefault(MatchLifecycleOutcome.RESCHEDULED, 0),
                 matchOutcomeCounts.getOrDefault(MatchLifecycleOutcome.PARTIAL_REPORTED, 0),
                 matchOutcomeCounts.getOrDefault(MatchLifecycleOutcome.INVALID_REPORTED, 0),
-                unresolvedPendingFixtureCount);
+                unresolvedPendingFixtureCount,
+                matchOutcomeCounts.getOrDefault(MatchLifecycleOutcome.PLAYED_AMENDED, 0));
     }
 
     /** Outcome counters accumulated so far, as an unmodifiable snapshot. */

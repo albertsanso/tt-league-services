@@ -15,6 +15,8 @@ import requests
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from ingest_common import health
+
 
 RFETM_URL = "https://www.rfetm.es/public/resultados/{season}/view.php?listaeq=eq"
 REQUEST_DELAY = 2.0
@@ -79,8 +81,13 @@ def get_page(session: requests.Session, url: str) -> Optional[str]:
         if response.status_code in (200, 500) and body:
             return body
         logger.error("HTTP %s sin contenido útil: %s", response.status_code, url)
+        health.http_error()
+    except requests.Timeout as error:
+        logger.error("Error al descargar %s: %s", url, error)
+        health.timeout()
     except requests.RequestException as error:
         logger.error("Error al descargar %s: %s", url, error)
+        health.http_error()
     finally:
         time.sleep(REQUEST_DELAY)
     return None

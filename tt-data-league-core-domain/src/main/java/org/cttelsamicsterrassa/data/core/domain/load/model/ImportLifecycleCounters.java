@@ -14,11 +14,13 @@ import java.util.Objects;
  * @param partialActas               partial actas kept scheduled and reported
  * @param invalidActas               invalid actas kept scheduled (or untouched) and reported
  * @param unresolvedPendingFixtures  pending fixtures without teams that could not be dispatched
+ * @param amendedPlayed              stored PLAYED matches re-applied from an amended acta (FEAT-00089)
  */
 public record ImportLifecycleCounters(long scheduledCreated, long upgradedToPlayed, long rescheduled,
-                                      long partialActas, long invalidActas, long unresolvedPendingFixtures) {
+                                      long partialActas, long invalidActas, long unresolvedPendingFixtures,
+                                      long amendedPlayed) {
 
-    public static final ImportLifecycleCounters ZERO = new ImportLifecycleCounters(0, 0, 0, 0, 0, 0);
+    public static final ImportLifecycleCounters ZERO = new ImportLifecycleCounters(0, 0, 0, 0, 0, 0, 0);
 
     public ImportLifecycleCounters {
         requireNonNegative(scheduledCreated, "scheduledCreated");
@@ -27,6 +29,7 @@ public record ImportLifecycleCounters(long scheduledCreated, long upgradedToPlay
         requireNonNegative(partialActas, "partialActas");
         requireNonNegative(invalidActas, "invalidActas");
         requireNonNegative(unresolvedPendingFixtures, "unresolvedPendingFixtures");
+        requireNonNegative(amendedPlayed, "amendedPlayed");
     }
 
     public ImportLifecycleCounters plus(ImportLifecycleCounters other) {
@@ -36,13 +39,15 @@ public record ImportLifecycleCounters(long scheduledCreated, long upgradedToPlay
                 rescheduled + other.rescheduled,
                 partialActas + other.partialActas,
                 invalidActas + other.invalidActas,
-                unresolvedPendingFixtures + other.unresolvedPendingFixtures);
+                unresolvedPendingFixtures + other.unresolvedPendingFixtures,
+                amendedPlayed + other.amendedPlayed);
     }
 
     /** Whether any component is greater than zero. */
     public boolean hasActivity() {
         return scheduledCreated > 0 || upgradedToPlayed > 0 || rescheduled > 0
-                || partialActas > 0 || invalidActas > 0 || unresolvedPendingFixtures > 0;
+                || partialActas > 0 || invalidActas > 0 || unresolvedPendingFixtures > 0
+                || amendedPlayed > 0;
     }
 
     private static void requireNonNegative(long value, String name) {

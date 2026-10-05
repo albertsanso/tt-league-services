@@ -50,6 +50,7 @@ import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.cttelsamicsterrassa.data.pipeline.core.statistics.StatisticsQueries;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -115,6 +116,8 @@ class RunsApiWebTest {
     MatchDayResultsService matchDayResults;
     @MockitoBean
     MatchDayRefresh matchDayRefresh;
+    @MockitoBean
+    StatisticsQueries statisticsQueries;
 
     private static String token(String secret, String subject, List<String> permissions, Instant expires)
             throws Exception {

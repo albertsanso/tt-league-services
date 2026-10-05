@@ -55,6 +55,16 @@ class PipelineStepEntity {
     @Column(name = "log_ref", length = 512)
     String logRef;
 
+    /** The three health columns are all null or all set (a CHECK in V8); only INGEST steps carry them. */
+    @Column(name = "http_errors")
+    Long httpErrors;
+
+    @Column(name = "timeouts")
+    Long timeouts;
+
+    @Column(name = "parse_errors")
+    Long parseErrors;
+
     protected PipelineStepEntity() {
     }
 

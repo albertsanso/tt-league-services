@@ -39,6 +39,18 @@ class ImportRunContextTest {
     }
 
     @Test
+    void amendedPlayedCountsOnlyTheAppliedAmendment() {
+        ImportRunContext runContext = new ImportRunContext(ImportSource.RFETM, "2026-2027");
+
+        runContext.recordMatchOutcome(MatchLifecycleOutcome.PLAYED_AMENDED,
+                "RfetmMatchImportProcessor", Path.of("acta.json"), "amended acta re-applied");
+        runContext.recordMatchOutcome(MatchLifecycleOutcome.PLAYED_AMENDMENT_REPORTED,
+                "RfetmMatchImportProcessor", Path.of("other.json"), "amendment reported only");
+
+        assertEquals(1, runContext.lifecycleCounters().amendedPlayed());
+    }
+
+    @Test
     void recordRoundFallbackRejectsNullProcessorAndReason() {
         ImportRunContext runContext = new ImportRunContext(ImportSource.RFETM, "2026-2027");
 

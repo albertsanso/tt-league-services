@@ -53,6 +53,10 @@ class ImportReportEntity {
     @Column(name = "unresolved_pending_fixtures", nullable = false)
     long unresolvedPendingFixtures;
 
+    /** Reports written before V8 read 0: the amended count was not recorded then. */
+    @Column(name = "amended_played", nullable = false)
+    long amendedPlayed;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(nullable = false)
     String issues;

@@ -64,11 +64,43 @@ class PipelineStepTest {
     void restoreRejectsInconsistentState() {
         UUID id = UUID.randomUUID();
         assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.FAILED, T0,
-                T0.plusSeconds(1), null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
+                T0.plusSeconds(1), null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.RUNNING, T0,
-                T0.plusSeconds(1), null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
+                T0.plusSeconds(1), null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.SUCCEEDED, T0, null,
-                null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
+                null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void ingestStepKeepsTheHealthItFinishedWith() {
+        IngestHealth health = new IngestHealth(2, 1, 3);
+        PipelineStep succeeded = started().succeed(T0.plusSeconds(5), "SUCCEEDED", health);
+        PipelineStep failed = started().fail(T0.plusSeconds(5), "FAILED", ERROR, false, health);
+
+        assertThat(succeeded.ingestHealth()).isEqualTo(health);
+        assertThat(failed.ingestHealth()).isEqualTo(health);
+        assertThat(started().ingestHealth()).isNull();
+        assertThat(started().succeed(T0.plusSeconds(5), "SUCCEEDED").ingestHealth()).isNull();
+    }
+
+    @Test
+    void healthIsRejectedOnNonIngestStepsAndWhileRunning() {
+        IngestHealth health = new IngestHealth(0, 0, 0);
+        PipelineStep importing =
+                PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), StepKind.IMPORT, 1, T0, "abc");
+        UUID id = UUID.randomUUID();
+
+        assertThatThrownBy(() -> importing.succeed(T0.plusSeconds(1), "SUCCEEDED", health))
+                .isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.RUNNING, T0, null,
+                null, null, null, null, null, health)).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void healthRejectsNegativeValues() {
+        assertThatThrownBy(() -> new IngestHealth(-1, 0, 0)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new IngestHealth(0, -1, 0)).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> new IngestHealth(0, 0, -1)).isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test

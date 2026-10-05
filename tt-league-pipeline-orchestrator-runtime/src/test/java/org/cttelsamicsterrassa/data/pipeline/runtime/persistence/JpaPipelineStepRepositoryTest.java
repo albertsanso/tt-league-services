@@ -3,7 +3,9 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.persistence;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.util.List;
 import java.util.UUID;
+import org.cttelsamicsterrassa.data.pipeline.core.run.IngestHealth;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
@@ -41,6 +43,24 @@ class JpaPipelineStepRepositoryTest extends AbstractPersistenceTest {
         assertThat(loaded.error()).isEqualTo(new RunError("E", "boom"));
         assertThat(loaded.finishedAt()).isEqualTo(T0.plusSeconds(5));
         assertThat(steps.findByRunId(run.id())).hasSize(1);
+    }
+
+    @Test
+    void roundTripsTheIngestHealthAndLeavesItNullWhenUnknown() {
+        PipelineRun run = runs.create(queued(PipelineSource.RFETM));
+        PipelineStep ingest = PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.INGEST, 1, T0, "abc123");
+        steps.save(ingest);
+        assertThat(steps.findByRunId(run.id()).get(0).ingestHealth()).isNull();
+
+        steps.save(ingest.succeed(T0.plusSeconds(5), "SUCCEEDED", new IngestHealth(3, 2, 1)));
+        PipelineStep unknown = PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.INGEST, 2, T0.plusSeconds(6),
+                null);
+        steps.save(unknown);
+        steps.save(unknown.succeed(T0.plusSeconds(7), "NO_CHANGES"));
+
+        List<PipelineStep> loaded = steps.findByRunId(run.id());
+        assertThat(loaded.get(0).ingestHealth()).isEqualTo(new IngestHealth(3, 2, 1));
+        assertThat(loaded.get(1).ingestHealth()).isNull();
     }
 
     @Test

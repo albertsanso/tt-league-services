@@ -17,8 +17,8 @@ class ImportReportMapperTest {
 
     @Test
     void sumsCountersOverSeasonsWithAResult() {
-        ImportCounters a = new ImportCounters(1, 2, 3, 4, 5, 6, 7, 8, 9, 10);
-        ImportCounters b = new ImportCounters(10, 20, 30, 40, 50, 60, 70, 80, 90, 100);
+        ImportCounters a = new ImportCounters(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
+        ImportCounters b = new ImportCounters(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110);
         UUID runId = UUID.randomUUID();
         UUID jobId = UUID.randomUUID();
         ImportJobState job = new ImportJobState(jobId, "SUCCEEDED", null, List.of(
@@ -40,6 +40,7 @@ class ImportReportMapperTest {
         assertThat(report.partialActas()).isEqualTo(88);
         assertThat(report.invalidActas()).isEqualTo(99);
         assertThat(report.unresolvedPendingFixtures()).isEqualTo(110);
+        assertThat(report.amendedPlayed()).isEqualTo(121);
         assertThat(report.rawReport()).isEqualTo("{\"raw\":true}");
         assertThat(report.receivedAt()).isEqualTo(NOW);
     }
@@ -49,7 +50,7 @@ class ImportReportMapperTest {
         ImportJobState job = new ImportJobState(UUID.randomUUID(), "PARTIAL", "job broke", List.of(
                 new ImportSeasonState("2024-2025", "FAILED", "season broke", null, List.of("late file")),
                 new ImportSeasonState("2025-2026", "SUCCEEDED", null,
-                        new ImportCounters(1, 1, 0, 0, 0, 0, 0, 0, 0, 0), List.of("odd acta"))), "{}");
+                        new ImportCounters(1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0), List.of("odd acta"))), "{}");
 
         ImportReport report = ImportReportMapper.toReport(UUID.randomUUID(), job, NOW);
 

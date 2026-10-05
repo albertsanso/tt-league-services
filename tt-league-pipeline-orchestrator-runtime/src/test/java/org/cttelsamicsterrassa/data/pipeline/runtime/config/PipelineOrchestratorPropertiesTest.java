@@ -5,8 +5,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.ExecutionSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.PollingSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
+import org.cttelsamicsterrassa.data.pipeline.core.statistics.StatisticsSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
 import java.time.Duration;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -111,6 +113,38 @@ class PipelineOrchestratorPropertiesTest {
     void failsOnAnUnknownConflictModeOrMissingTriggers() {
         assertFails(replace("tt.pipeline.triggers.conflict-mode", "WAIT"), "conflict-mode");
         assertFails(without("tt.pipeline.triggers.conflict-mode"), "triggers");
+    }
+
+    @Test
+    void bindsTheStatisticsSettingsWithTheirDefaults() {
+        runner.withPropertyValues(valid().toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            StatisticsSettings settings = context.getBean(PipelineOrchestratorProperties.class).statisticsSettings();
+            assertThat(settings.zone()).isEqualTo(ZoneId.of("Europe/Madrid"));
+            assertThat(settings.dailyAt()).isEqualTo(LocalTime.of(0, 30));
+            assertThat(settings.backfillDays()).isEqualTo(31);
+        });
+        runner.withPropertyValues(replaceAll(valid(), "tt.pipeline.statistics.zone=UTC",
+                "tt.pipeline.statistics.daily-at=03:15", "tt.pipeline.statistics.backfill-days=0")
+                .toArray(String[]::new)).run(context -> {
+            StatisticsSettings settings = context.getBean(PipelineOrchestratorProperties.class).statisticsSettings();
+            assertThat(settings.zone()).isEqualTo(ZoneId.of("UTC"));
+            assertThat(settings.dailyAt()).isEqualTo(LocalTime.of(3, 15));
+            assertThat(settings.backfillDays()).isZero();
+        });
+    }
+
+    @Test
+    void failsWhenTheStatisticsZoneIsMissingBlankOrInvalid() {
+        assertFails(without("tt.pipeline.statistics.zone"), "statistics");
+        assertFails(replace("tt.pipeline.statistics.zone", "   "), "statistics.zone is required");
+        assertFails(replace("tt.pipeline.statistics.zone", "Mars/Olympus"), "statistics.zone is not a valid time zone");
+    }
+
+    @Test
+    void failsWhenBackfillDaysIsOutOfRange() {
+        assertFails(replaceAll(valid(), "tt.pipeline.statistics.backfill-days=-1"), "statistics.backfill-days");
+        assertFails(replaceAll(valid(), "tt.pipeline.statistics.backfill-days=367"), "statistics.backfill-days");
     }
 
     @Test
@@ -565,11 +599,22 @@ class PipelineOrchestratorPropertiesTest {
                 "tt.pipeline.execution.timeouts.import-job=PT3H",
                 "tt.pipeline.execution.max-concurrent-runs=3",
                 "tt.pipeline.execution.recover-on-startup=true",
+                "tt.pipeline.statistics.zone=Europe/Madrid",
                 "tt.pipeline.security.jwt-secret=" + VALID_SECRET,
                 "tt.pipeline.triggers.conflict-mode=REJECT",
                 "tt.pipeline.events.heartbeat-interval=PT15S",
                 "tt.pipeline.events.emitter-timeout=PT30M",
                 "tt.pipeline.events.max-subscribers=50"));
+    }
+
+    private static List<String> replaceAll(List<String> base, String... entries) {
+        List<String> properties = new ArrayList<>(base);
+        for (String entry : entries) {
+            String key = entry.substring(0, entry.indexOf('='));
+            properties.removeIf(property -> property.startsWith(key + "="));
+            properties.add(entry);
+        }
+        return properties;
     }
 
     private static List<String> replace(String key, String value) {

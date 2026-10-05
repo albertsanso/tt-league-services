@@ -24,7 +24,7 @@ class JpaImportReportRepositoryTest extends AbstractPersistenceTest {
     ImportReportRepository reports;
 
     private static ImportReport report(UUID runId) {
-        return new ImportReport(runId, UUID.randomUUID(), "PARTIAL", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+        return new ImportReport(runId, UUID.randomUUID(), "PARTIAL", 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,
                 List.of("issue one", "issue \"two\""), RAW, T0);
     }
 
@@ -36,6 +36,7 @@ class JpaImportReportRepositoryTest extends AbstractPersistenceTest {
 
         ImportReport loaded = reports.findByRunId(run.id()).orElseThrow();
         assertThat(loaded).usingRecursiveComparison().ignoringFields("rawReport").isEqualTo(report);
+        assertThat(loaded.amendedPlayed()).isEqualTo(11);
         assertThat(loaded.issues()).containsExactly("issue one", "issue \"two\"");
         assertThat(loaded.rawReport()).contains("\"jobId\"").contains("\"filesSeen\"");
     }

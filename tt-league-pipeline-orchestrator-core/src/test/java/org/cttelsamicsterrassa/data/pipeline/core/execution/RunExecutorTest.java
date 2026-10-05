@@ -7,6 +7,7 @@ import static org.cttelsamicsterrassa.data.pipeline.core.execution.testing.Scrip
 import static org.cttelsamicsterrassa.data.pipeline.core.execution.testing.ScriptedIngestGateway.failed;
 import static org.cttelsamicsterrassa.data.pipeline.core.execution.testing.ScriptedIngestGateway.finished;
 import static org.cttelsamicsterrassa.data.pipeline.core.execution.testing.ScriptedIngestGateway.running;
+import static org.cttelsamicsterrassa.data.pipeline.core.execution.testing.ScriptedIngestGateway.withHealth;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.GatewayException.Kind;
@@ -21,6 +22,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.ScriptedInge
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.ScriptedIngestGateway.PackageResponse;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ArtifactKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ImportReport;
+import org.cttelsamicsterrassa.data.pipeline.core.run.IngestHealth;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
@@ -142,6 +144,54 @@ class RunExecutorTest {
         });
         assertThat(h.observer.events).containsExactly("step:INGEST/1:RUNNING", "step:INGEST/1:RUNNING",
                 "run:RUNNING_INGEST", "step:INGEST/1:SUCCEEDED", "run:NO_CHANGES");
+    }
+
+    @Test
+    void everyFinishedIngestOutcomeStoresTheReportedHealth() {
+        IngestHealth health = new IngestHealth(4, 2, 1);
+
+        ingest.start("ing1").poll(withHealth(finished("ing1", "NO_CHANGES", false), health));
+        PipelineRun noChanges = execute(h.queueRun());
+        ingest.start("ing2").poll(withHealth(failed("ing2", "FAILED", "boom"), health));
+        PipelineRun failedRun = execute(h.queueRun());
+        ingest.start("ing3").poll(withHealth(finished("ing3", "SUCCEEDED", false), health));
+        PipelineRun noPackage = execute(h.queueRun());
+        for (int i = 4; i <= 7; i++) {
+            ingest.start("ing" + i).poll(withHealth(failed("ing" + i, "SOURCE_UNAVAILABLE", "down"), health));
+        }
+        PipelineRun unavailable = execute(h.queueRun());
+
+        for (PipelineRun run : List.of(noChanges, failedRun, noPackage, unavailable)) {
+            assertThat(steps(run, StepKind.INGEST)).isNotEmpty()
+                    .allSatisfy(step -> assertThat(step.ingestHealth()).isEqualTo(health));
+        }
+        assertThat(steps(unavailable, StepKind.INGEST)).hasSize(4);
+    }
+
+    @Test
+    void packedIngestStoresTheHealthAndAnIngestWithoutHealthStoresNone() {
+        IngestHealth health = new IngestHealth(0, 1, 0);
+        ingest.start("ing1").poll(withHealth(finished("ing1", "SUCCEEDED", true), health))
+                .packageResponse(PackageResponse.valid(ZIP));
+        scriptImportSuccess();
+
+        PipelineRun withHealth = execute(h.queueRun());
+        assertThat(steps(withHealth, StepKind.INGEST).get(0).ingestHealth()).isEqualTo(health);
+        assertThat(steps(withHealth, StepKind.IMPORT)).isNotEmpty()
+                .allSatisfy(step -> assertThat(step.ingestHealth()).isNull());
+
+        ingest.start("ing2").poll(finished("ing2", "NO_CHANGES", false));
+        PipelineRun without = execute(h.queueRun());
+        assertThat(steps(without, StepKind.INGEST).get(0).ingestHealth()).isNull();
+    }
+
+    @Test
+    void stepsThatFailBeforeTheIngestFinishedCarryNoHealth() {
+        ingest.startFails(Kind.UNAVAILABLE, 503).start("ing1").poll(finished("ing1", "NO_CHANGES", false));
+
+        PipelineRun run = execute(h.queueRun());
+
+        assertThat(steps(run, StepKind.INGEST)).allSatisfy(step -> assertThat(step.ingestHealth()).isNull());
     }
 
     @Test

@@ -29,6 +29,7 @@ public record ImportProcessResultDto(
     long partialActas,
     long invalidActas,
     long unresolvedPendingFixtures,
+    long amendedPlayed,
     List<RoundProgressDto> roundProgress) {
 
     public ImportProcessResultDto {
@@ -41,7 +42,7 @@ public ImportProcessResultDto(UUID importResourceId, String source, String seaso
                               long itemsPersisted, long skipped, long processorFailures) {
     this(importResourceId, source, season, resourceType, status, findings, processingErrors, filesSeen,
             itemsPersisted, skipped, processorFailures, 0, 0, List.of(), List.of(),
-            0, 0, 0, 0, 0, 0, List.of());
+            0, 0, 0, 0, 0, 0, 0, List.of());
 }
 
 public ImportProcessResultDto(UUID importResourceId, String source, String season, String resourceType,
@@ -52,6 +53,6 @@ public ImportProcessResultDto(UUID importResourceId, String source, String seaso
                               List<String> postProcessingOutcomes) {
     this(importResourceId, source, season, resourceType, status, findings, processingErrors, filesSeen,
             itemsPersisted, skipped, processorFailures, elapsedMillis, persistenceWrites,
-            executionIssues, postProcessingOutcomes, 0, 0, 0, 0, 0, 0, List.of());
+            executionIssues, postProcessingOutcomes, 0, 0, 0, 0, 0, 0, 0, List.of());
 }
 }

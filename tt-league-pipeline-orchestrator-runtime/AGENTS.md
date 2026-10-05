@@ -66,6 +66,12 @@ and the Flyway/JPA persistence of the run model (later features add security).
   `tt.pipeline.notifications.*`: never `spring.mail.*` and never a `JavaMailSender` bean (Boot would add a mail
   health indicator). Never log SMTP credentials or put them, `RunError.message` or any message text in an e-mail,
   alert row, log line or exception: `MailNotifier` keeps the exception simple name and the SMTP reply code only.
+- The daily statistics job is `DailyStatsSchedule` (`statistics/`): a private scheduler, never a bean, under the
+  ShedLock lock `pipeline-daily-stats` through `LockingTaskExecutor`; a failure is logged as a warning and the next tick
+  catches up again. `DailyStatsAggregator` is the only writer of `daily_stats`. `StatisticsController` only validates the
+  parameters and calls `StatisticsQueries`; it never derives a figure. `JpaStatisticsReadRepository` filters rows with
+  JPQL and never aggregates in SQL (percentiles and buckets stay in the core). `tt.pipeline.statistics.zone` is
+  required with no default.
 - Run observers never throw into the executor (`CompositeRunObserver` isolates
   them). The `RunEventBroadcaster` sends on its own private pool, which is not
   an `Executor` bean, and never on a run thread.
@@ -75,6 +81,7 @@ and the Flyway/JPA persistence of the run model (later features add security).
   platform tables.
 - Persistence tests use Testcontainers PostgreSQL and are skipped without
   Docker; run them with Docker before reporting persistence work as verified.
+  They run in a servlet (`MOCK`) web environment because `SecurityConfiguration` needs `HttpSecurity`.
 
 ## Validation
 

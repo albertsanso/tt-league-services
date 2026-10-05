@@ -113,7 +113,7 @@ class IngestRequest:
 
 
 COUNTERS = ("seen", "downloaded", "skipped_existing", "parsed", "published", "unpublished",
-            "written", "unchanged", "invalid", "failed")
+            "written", "unchanged", "invalid", "failed", "http_errors", "timeouts", "parse_errors")
 
 
 @dataclass

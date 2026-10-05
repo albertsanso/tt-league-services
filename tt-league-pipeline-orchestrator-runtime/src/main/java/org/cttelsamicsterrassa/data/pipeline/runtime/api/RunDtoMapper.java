@@ -40,7 +40,8 @@ public class RunDtoMapper {
     public StepDto step(PipelineStep step) {
         return new StepDto(step.runId(), step.kind().name(), step.attempt(), step.status().name(),
                 step.startedAt(), step.finishedAt(), duration(step.startedAt(), step.finishedAt()),
-                step.externalRef(), step.outcome(), step.retryable(), ErrorDto.from(step.error()));
+                step.externalRef(), step.outcome(), step.retryable(), ErrorDto.from(step.error()),
+                health(step));
     }
 
     public RunDetailDto detail(PipelineRun run, List<PipelineStep> steps, List<RunArtifact> artifacts,
@@ -65,7 +66,14 @@ public class RunDtoMapper {
         return new ImportReportDto(report.importStatus(), report.filesSeen(), report.itemsPersisted(),
                 report.skipped(), report.processorFailures(), report.scheduledCreated(), report.upgradedToPlayed(),
                 report.rescheduled(), report.partialActas(), report.invalidActas(),
-                report.unresolvedPendingFixtures(), report.receivedAt());
+                report.unresolvedPendingFixtures(), report.amendedPlayed(), report.receivedAt());
+    }
+
+    private static StepDto.Health health(PipelineStep step) {
+        return step.ingestHealth() == null
+                ? null
+                : new StepDto.Health(step.ingestHealth().httpErrors(), step.ingestHealth().timeouts(),
+                        step.ingestHealth().parseErrors());
     }
 
     private static List<StepStatusDto> latestAttempts(List<PipelineStep> steps) {

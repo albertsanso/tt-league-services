@@ -5,8 +5,9 @@ from __future__ import annotations
 import json
 from pathlib import PurePosixPath
 
+from ingest_common import health
 from ingest_common.run import IngestFilters, IngestRequest, IngestStage, ProgressListener, StageReport
-from ingest_common.scan import count_files, record_exit_code, run_per_scope, scan_actas, write_match_day_status
+from ingest_common.scan import count_files, count_health, record_exit_code, run_per_scope, scan_actas, write_match_day_status
 from ingest_common.settings import IngestSettings
 from ingest_common.source import Source
 from ingest_common.validation import ActaValidator, TeamsValidator
@@ -63,12 +64,18 @@ class RfetmIngestor:
         download_args = ["--output-dir", str(html_dir), "--start-season", season]
         if request.force:
             download_args.append("--overwrite")
-        record_exit_code(report, "rfetm teams download", teams_download.main(download_args))
+        with health.collect() as download_health:
+            download_code = teams_download.main(download_args)
+        count_health(report, download_health)
+        record_exit_code(report, "rfetm teams download", download_code)
         if report.failed:
             return report
         parse_args = ["--input-dir", str(html_dir), "--output-file", str(json_dir / "{season}.json"),
                       "--season", season, "--overwrite"]
-        record_exit_code(report, "rfetm teams parse", teams_parse.main(parse_args))
+        with health.collect() as parse_health:
+            parse_code = teams_parse.main(parse_args)
+        count_health(report, parse_health)
+        record_exit_code(report, "rfetm teams parse", parse_code)
         produced = json_dir / f"{season}.json"
         if produced.is_file():
             errors = TeamsValidator().errors(json.loads(produced.read_text(encoding="utf-8")))

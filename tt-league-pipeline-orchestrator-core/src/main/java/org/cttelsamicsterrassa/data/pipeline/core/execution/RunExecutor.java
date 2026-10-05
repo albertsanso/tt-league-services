@@ -22,6 +22,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunState;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunClock;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ArtifactKind;
+import org.cttelsamicsterrassa.data.pipeline.core.run.IngestHealth;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunArtifact;
@@ -245,25 +246,25 @@ public final class RunExecutor {
         String outcome = state.outcome();
         switch (outcome) {
             case "NO_CHANGES" -> {
-                saveStep(step.succeed(clock.now(), "NO_CHANGES"));
+                saveStep(step.succeed(clock.now(), "NO_CHANGES", state.health()));
                 return new Advanced(updateRun(run.noChanges(clock.now())));
             }
             case "SUCCEEDED", "COMPLETED_WITH_ISSUES" -> {
                 if (!state.packageAvailable()) {
-                    return new Failed(run, failStep(step, outcome, FailureCode.INGEST_NO_PACKAGE,
+                    return new Failed(run, failStep(step, outcome, state.health(), FailureCode.INGEST_NO_PACKAGE,
                             "Ingest run " + state.ingestRunId() + " finished " + outcome + " without a package",
                             false));
                 }
-                saveStep(step.succeed(clock.now(), outcome));
+                saveStep(step.succeed(clock.now(), outcome, state.health()));
                 return new Advanced(updateRun(run.packed(clock.now())));
             }
             case "SOURCE_UNAVAILABLE" -> {
-                return new Failed(run, failStep(step, outcome, FailureCode.SOURCE_UNAVAILABLE,
+                return new Failed(run, failStep(step, outcome, state.health(), FailureCode.SOURCE_UNAVAILABLE,
                         orDefault(state.error(), "The source was unavailable for ingest run " + state.ingestRunId()),
                         true));
             }
             case "FAILED" -> {
-                return new Failed(run, failStep(step, outcome, FailureCode.INGEST_FAILED,
+                return new Failed(run, failStep(step, outcome, state.health(), FailureCode.INGEST_FAILED,
                         orDefault(state.error(), "Ingest run " + state.ingestRunId() + " failed"), false));
             }
             default -> {
@@ -554,8 +555,18 @@ public final class RunExecutor {
 
     private PipelineStep failStep(
             PipelineStep step, String outcome, FailureCode code, String message, boolean retryable) {
+        return failStep(step, outcome, null, code, message, retryable);
+    }
+
+    private PipelineStep failStep(
+            PipelineStep step,
+            String outcome,
+            IngestHealth health,
+            FailureCode code,
+            String message,
+            boolean retryable) {
         RunError error = new RunError(code.name(), orDefault(message, code.name()));
-        return saveStep(step.fail(clock.now(), outcome, error, retryable));
+        return saveStep(step.fail(clock.now(), outcome, error, retryable, health));
     }
 
     private PipelineRun failRun(PipelineRun run, RunError error) {

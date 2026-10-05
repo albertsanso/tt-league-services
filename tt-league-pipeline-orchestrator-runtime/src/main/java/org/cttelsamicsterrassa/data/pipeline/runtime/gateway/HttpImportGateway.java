@@ -90,7 +90,8 @@ public final class HttpImportGateway implements ImportGateway {
                 : new ImportCounters(zero(result.filesSeen()), zero(result.itemsPersisted()),
                         zero(result.skipped()), zero(result.processorFailures()), zero(result.scheduledCreated()),
                         zero(result.upgradedToPlayed()), zero(result.rescheduled()), zero(result.partialActas()),
-                        zero(result.invalidActas()), zero(result.unresolvedPendingFixtures()));
+                        zero(result.invalidActas()), zero(result.unresolvedPendingFixtures()),
+                        zero(result.amendedPlayed()));
         return new ImportSeasonState(season.season(), season.status(), season.errorDetail(), counters,
                 result == null ? List.of() : result.executionIssues());
     }
@@ -155,6 +156,7 @@ public final class HttpImportGateway implements ImportGateway {
             Long partialActas,
             Long invalidActas,
             Long unresolvedPendingFixtures,
+            Long amendedPlayed,
             List<String> executionIssues) {
     }
 }
