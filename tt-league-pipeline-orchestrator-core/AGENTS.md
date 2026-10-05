@@ -74,6 +74,10 @@ mvn -pl tt-league-pipeline-orchestrator-core -am test
 - `MatchDayRepository.apply` is the only write path and checks versions (`StaleMatchDayException`); the aggregates
   are immutable and every change returns a new instance. Ignoring is a flag next to the status, not a status.
 - `TrackerRunObserver` only requests a recompute (`RecomputeRequests`) and never blocks or throws.
+- `TrackerRules.completion` is the only place that decides the completion category (`COMPLETE`, `IN_PROGRESS`,
+  `HAS_OVERDUE`, `FUTURE`) of a match day, over its active (non-ignored) match counts; `MatchDaySummary` exposes them
+  (`ignoredByStatus`, `activeCounts`, `reportedCount`, `totalCount`, `completion`). `RecomputeOutcome.hasChanges` is
+  true only for a visible change, not for a recompute that only refreshed timestamps.
 
 ## Polling package
 
@@ -88,6 +92,10 @@ mvn -pl tt-league-pipeline-orchestrator-core -am test
 - `SourceVocabulary` and `BcnesaCompetitionNames` mirror the import path-to-identity rules without depending on
   `tt-data-league-import`; each rule is pinned by `SourceVocabularyTest`. Update them in the same change as the import
   rules. An open match day without an ingest status row fails with `SCOPE_UNMATCHED`: never widen the scope silently.
+- `MatchDayRefresh` is the operator refresh of one match day: it builds the filters with the same `ScopeBuilder` as
+  `OPEN_MATCH_DAYS` and creates the run only through `TriggerRun` (`GROUP`, `MANUAL`); a created or queued run is
+  recorded with `MatchDayActions.recordRefresh` (a `REFRESH_REQUESTED` event), a rejected or unavailable one records
+  nothing.
 - `TrackerOpenMatchDayScopeResolver` answers `NO_OPEN_MATCH_DAYS`, `NO_INGEST_STATUS` and `SCOPE_UNMATCHED`.
   `PollingAlerts` implementations must not throw into the tick.
 - New fixtures in the `test-jar`: `InMemoryPollScheduleRepository`, `InMemoryPollPolicyRepository`,

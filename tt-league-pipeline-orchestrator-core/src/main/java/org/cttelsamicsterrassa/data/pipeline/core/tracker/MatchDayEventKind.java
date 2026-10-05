@@ -9,5 +9,6 @@ public enum MatchDayEventKind {
     MATCH_IGNORED,
     MATCH_UNIGNORED,
     MATCH_REMOVED,
-    NOTE
+    NOTE,
+    REFRESH_REQUESTED
 }

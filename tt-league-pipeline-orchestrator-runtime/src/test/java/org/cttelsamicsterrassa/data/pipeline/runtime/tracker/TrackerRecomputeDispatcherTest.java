@@ -4,7 +4,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.cttelsamicsterrassa.data.pipeline.core.execution.testing.ScriptedPlatformMatchGateway.match;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.GatewayException;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.FakeRunClock;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryMatchDayRepository;
@@ -24,8 +26,15 @@ class TrackerRecomputeDispatcherTest {
     private final ScriptedPlatformMatchGateway gateway = new ScriptedPlatformMatchGateway();
     private final InMemoryMatchDayRepository repository = new InMemoryMatchDayRepository();
     private final FakeRunClock clock = new FakeRunClock();
-    private final TrackerRecomputeDispatcher dispatcher =
-            new TrackerRecomputeDispatcher(new MatchDayTracker(gateway, repository, clock));
+    private final List<String> notified = new CopyOnWriteArrayList<>();
+    private RuntimeException listenerFailure;
+    private final TrackerRecomputeDispatcher dispatcher = new TrackerRecomputeDispatcher(
+            new MatchDayTracker(gateway, repository, clock), (source, season, matchDayId, cause) -> {
+                notified.add(source + ":" + season + ":" + matchDayId + ":" + cause);
+                if (listenerFailure != null) {
+                    throw listenerFailure;
+                }
+            });
 
     @BeforeEach
     void openJornada() {
@@ -120,5 +129,45 @@ class TrackerRecomputeDispatcherTest {
         dispatcher.stop();
 
         assertThat(dispatcher.isRunning()).isFalse();
+    }
+
+    @Test
+    void theListenerIsToldOnlyAfterARecomputeThatChangedSomething() throws Exception {
+        dispatcher.start();
+
+        dispatcher.request(PipelineSource.FCTT, SEASON, null);
+        dispatcher.awaitIdle();
+        assertThat(notified).containsExactly("FCTT:" + SEASON + ":null:RECOMPUTED");
+
+        dispatcher.request(PipelineSource.FCTT, SEASON, null);
+        dispatcher.awaitIdle();
+        assertThat(notified).hasSize(1);
+    }
+
+    @Test
+    void aFailedRecomputeNotifiesNobody() throws Exception {
+        dispatcher.start();
+        gateway.failWith(GatewayException.Kind.UNAVAILABLE, 503);
+
+        dispatcher.request(PipelineSource.FCTT, SEASON, null);
+        dispatcher.awaitIdle();
+
+        assertThat(notified).isEmpty();
+    }
+
+    @Test
+    void aFailingListenerDoesNotStopLaterRecomputes() throws Exception {
+        dispatcher.start();
+        listenerFailure = new IllegalStateException("listener down");
+        dispatcher.request(PipelineSource.FCTT, SEASON, null);
+        dispatcher.awaitIdle();
+        assertThat(notified).hasSize(1);
+
+        gateway.clear().jornada("TERCERA", 1, "1a Fase", 2, TODAY, TODAY, true,
+                match(UUID.randomUUID(), "TERCERA", 1, "1a Fase", 2, "OVERDUE"));
+        dispatcher.request(PipelineSource.FCTT, SEASON, null);
+        dispatcher.awaitIdle();
+
+        assertThat(notified).hasSize(2);
     }
 }

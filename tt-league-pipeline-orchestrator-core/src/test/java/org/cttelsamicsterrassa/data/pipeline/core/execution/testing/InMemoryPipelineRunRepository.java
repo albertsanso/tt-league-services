@@ -9,10 +9,12 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.port.ActiveRunConflictExce
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.StaleRunException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -53,6 +55,11 @@ public class InMemoryPipelineRunRepository implements PipelineRunRepository {
     @Override
     public synchronized Optional<PipelineRun> findById(UUID id) {
         return Optional.ofNullable(runs.get(id));
+    }
+
+    @Override
+    public synchronized List<PipelineRun> findByIds(Collection<UUID> ids) {
+        return ids.stream().distinct().map(runs::get).filter(Objects::nonNull).toList();
     }
 
     @Override

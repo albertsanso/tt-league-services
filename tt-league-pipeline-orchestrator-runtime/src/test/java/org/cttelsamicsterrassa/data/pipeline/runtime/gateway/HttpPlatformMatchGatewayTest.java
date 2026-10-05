@@ -84,7 +84,8 @@ class HttpPlatformMatchGatewayTest {
               {"groupNumber":1,"phase":"1a Fase","rounds":[
                {"round":1,"matches":[
                 {"id":"%s","dateTime":"2026-10-03T18:30:00+02:00[Europe/Madrid]","homeTeamName":"CTT A",
-                 "awayTeamName":"CTT B","status":"PLAYED","calendarState":"PLAYED","city":"Terrassa"},
+                 "awayTeamName":"CTT B","status":"PLAYED","calendarState":"PLAYED","city":"Terrassa",
+                 "homeGamesWon":3,"awayGamesWon":1,"winnerTeamName":"CTT A"},
                 {"id":"%s","dateTime":null,"homeTeamName":"CTT C","awayTeamName":"CTT D","status":"SCHEDULED",
                  "calendarState":"UNDATED"}]}]},
               {"groupNumber":null,"phase":null,"rounds":[
@@ -104,11 +105,11 @@ class HttpPlatformMatchGatewayTest {
         assertThat(calendar.today()).isEqualTo(LocalDate.parse("2026-10-04"));
         assertThat(calendar.matches()).containsExactly(
                 new PlatformCompetitionCalendar.PlatformCalendarMatch(matchId, "TERCERA", 1, "1a Fase", 1,
-                        Instant.parse("2026-10-03T16:30:00Z"), "CTT A", "CTT B", "PLAYED", "PLAYED"),
+                        Instant.parse("2026-10-03T16:30:00Z"), "CTT A", "CTT B", "PLAYED", "PLAYED", 3, 1, "CTT A"),
                 new PlatformCompetitionCalendar.PlatformCalendarMatch(second, "TERCERA", 1, "1a Fase", 1, null,
-                        "CTT C", "CTT D", "SCHEDULED", "UNDATED"),
+                        "CTT C", "CTT D", "SCHEDULED", "UNDATED", null, null, null),
                 new PlatformCompetitionCalendar.PlatformCalendarMatch(third, "TERCERA", null, null, 4,
-                        Instant.parse("2026-10-10T12:00:00Z"), "X", "Y", "SCHEDULED", "AWAITING_RESULT"));
+                        Instant.parse("2026-10-10T12:00:00Z"), "X", "Y", "SCHEDULED", "AWAITING_RESULT", null, null, null));
         assertThat(server.requests.get(0).header("X-API-Key")).isEqualTo(KEY);
     }
 

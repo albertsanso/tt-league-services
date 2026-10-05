@@ -14,8 +14,10 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.CloseReason;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDay;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayChangeSet;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayCompletion;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayEvent;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayEventKind;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayFacets;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayKey;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayPage;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayQuery;
@@ -221,22 +223,22 @@ class JpaMatchDayRepositoryTest extends AbstractPersistenceTest {
                 List.of(overdue, match(round2, TrackedMatchStatus.REPORTED), match(round2, TrackedMatchStatus.OVERDUE)),
                 List.of()));
 
-        MatchDayPage all = repository.query(new MatchDayQuery(null, null, null, null, null, 0, 10));
+        MatchDayPage all = repository.query(new MatchDayQuery(null, null, null, null, null, false, null, null, 0, 10));
         assertThat(all.total()).isEqualTo(4);
         assertThat(all.items()).extracting(item -> item.day().id())
                 .containsExactly(round1.id(), rfetm.id(), round2.id(), round3.id());
 
-        MatchDayPage fctt = repository.query(new MatchDayQuery(PipelineSource.FCTT, SEASON, null, null, null, 0, 10));
+        MatchDayPage fctt = repository.query(new MatchDayQuery(PipelineSource.FCTT, SEASON, null, null, null, false, null, null, 0, 10));
         assertThat(fctt.items()).hasSize(3);
-        assertThat(repository.query(new MatchDayQuery(null, null, MatchDayState.OPEN, null, null, 0, 10)).items())
+        assertThat(repository.query(new MatchDayQuery(null, null, MatchDayState.OPEN, null, null, false, null, null, 0, 10)).items())
                 .extracting(item -> item.day().id()).containsExactly(round2.id());
-        assertThat(repository.query(new MatchDayQuery(null, null, null, LocalDate.parse("2026-10-01"),
-                LocalDate.parse("2026-10-04"), 0, 10)).items()).extracting(item -> item.day().id())
+        assertThat(repository.query(new MatchDayQuery(null, null, null, null, null, false,
+                LocalDate.parse("2026-10-01"), LocalDate.parse("2026-10-04"), 0, 10)).items()).extracting(item -> item.day().id())
                 .containsExactly(rfetm.id(), round2.id());
-        assertThat(repository.query(new MatchDayQuery(null, null, null, LocalDate.parse("2026-10-05"), null, 0, 10))
+        assertThat(repository.query(new MatchDayQuery(null, null, null, null, null, false, LocalDate.parse("2026-10-05"), null, 0, 10))
                 .total()).isZero();
 
-        MatchDayPage second = repository.query(new MatchDayQuery(null, null, null, null, null, 1, 3));
+        MatchDayPage second = repository.query(new MatchDayQuery(null, null, null, null, null, false, null, null, 1, 3));
         assertThat(second.total()).isEqualTo(4);
         assertThat(second.items()).hasSize(1);
 
@@ -246,5 +248,90 @@ class JpaMatchDayRepositoryTest extends AbstractPersistenceTest {
                 .containsEntry(TrackedMatchStatus.REPORTED, 1).containsEntry(TrackedMatchStatus.SCHEDULED, 0);
         assertThat(summary.ignoredCount()).isEqualTo(1);
         assertThat(all.items().get(0).ignoredCount()).isZero();
+    }
+
+    @Test
+    void queryFiltersByCompetitionPhaseAndUndated() {
+        MatchDay tercera = day(1, "2026-10-04");
+        MatchDay segunda = day(new MatchDayKey(PipelineSource.FCTT, SEASON, "SEGUNDA", 1, "2a Fase", 1),
+                LocalDate.parse("2026-10-04"), LocalDate.parse("2026-10-04"));
+        MatchDay undated = day(2, null);
+        repository.apply(changes(List.of(tercera, segunda, undated), List.of(), List.of()));
+
+        assertThat(repository.query(new MatchDayQuery(null, null, null, "SEGUNDA", null, false, null, null, 0, 10))
+                .items()).extracting(item -> item.day().id()).containsExactly(segunda.id());
+        assertThat(repository.query(new MatchDayQuery(null, null, null, null, "1a Fase", false, null, null, 0, 10))
+                .items()).extracting(item -> item.day().id()).containsExactly(tercera.id(), undated.id());
+        assertThat(repository.query(new MatchDayQuery(null, null, null, null, null, true, null, null, 0, 10))
+                .items()).extracting(item -> item.day().id()).containsExactly(undated.id());
+        assertThat(repository.query(new MatchDayQuery(null, null, null, "TERCERA", "2a Fase", false, null, null, 0, 10))
+                .total()).isZero();
+    }
+
+    @Test
+    void facetsAreDistinctSortedAndScopedBySourceAndSeason() {
+        MatchDay fctt = day(1, "2026-10-04");
+        MatchDay fcttSegunda = day(new MatchDayKey(PipelineSource.FCTT, SEASON, "SEGUNDA", 1, "2a Fase", 1),
+                LocalDate.parse("2026-10-04"), LocalDate.parse("2026-10-04"));
+        MatchDay rfetm = day(new MatchDayKey(PipelineSource.RFETM, SEASON, "SUPER", 1, null, 1),
+                LocalDate.parse("2026-10-04"), LocalDate.parse("2026-10-04"));
+        MatchDay older = MatchDay.create(UUID.randomUUID(),
+                new MatchDayKey(PipelineSource.FCTT, "2025-2026", "OLD", 1, "Fase Vieja", 1), MatchDayWindow.undated(2),
+                T0);
+        repository.apply(changes(List.of(fctt, fcttSegunda, rfetm, older), List.of(), List.of()));
+
+        MatchDayFacets everything = repository.facets(null, null);
+        assertThat(everything.seasons()).containsExactly("2025-2026", SEASON);
+        assertThat(everything.competitions()).containsExactly("OLD", "SEGUNDA", "SUPER", "TERCERA");
+        assertThat(everything.phases()).containsExactly("1a Fase", "2a Fase", "Fase Vieja");
+
+        MatchDayFacets fcttSeason = repository.facets(PipelineSource.FCTT, SEASON);
+        assertThat(fcttSeason.seasons()).containsExactly("2025-2026", SEASON);
+        assertThat(fcttSeason.competitions()).containsExactly("SEGUNDA", "TERCERA");
+        assertThat(fcttSeason.phases()).containsExactly("1a Fase", "2a Fase");
+
+        MatchDayFacets rfetmFacets = repository.facets(PipelineSource.RFETM, SEASON);
+        assertThat(rfetmFacets.seasons()).containsExactly(SEASON);
+        assertThat(rfetmFacets.competitions()).containsExactly("SUPER");
+        assertThat(rfetmFacets.phases()).isEmpty();
+    }
+
+    @Test
+    void summariesKeepTheIgnoredCountPerStatus() {
+        MatchDay open = day(1, "2026-10-04").open(T0);
+        MatchTracking ignoredOverdue = match(open, TrackedMatchStatus.OVERDUE).ignore("ana", T0);
+        MatchTracking ignoredReported = match(open, TrackedMatchStatus.REPORTED).ignore("ana", T0);
+        repository.apply(changes(List.of(open),
+                List.of(ignoredOverdue, ignoredReported, match(open, TrackedMatchStatus.REPORTED),
+                        match(open, TrackedMatchStatus.AWAITING_RESULT)),
+                List.of()));
+
+        var summary = repository.query(new MatchDayQuery(null, null, null, null, null, false, null, null, 0, 10))
+                .items().get(0);
+
+        assertThat(summary.ignoredByStatus()).containsEntry(TrackedMatchStatus.OVERDUE, 1)
+                .containsEntry(TrackedMatchStatus.REPORTED, 1).containsEntry(TrackedMatchStatus.AWAITING_RESULT, 0);
+        assertThat(summary.totalCount()).isEqualTo(2);
+        assertThat(summary.reportedCount()).isEqualTo(1);
+        assertThat(summary.completion()).isEqualTo(MatchDayCompletion.IN_PROGRESS);
+    }
+
+    @Test
+    void refreshRequestedEventsAreStoredWithTheirRun() {
+        PipelineRun run = runs.create(queued(PipelineSource.FCTT));
+        MatchDay open = day(1, "2026-10-04").open(T0);
+        repository.apply(changes(List.of(open), List.of(), List.of()));
+
+        repository.apply(changes(List.of(repository.findById(open.id()).orElseThrow()), List.of(),
+                List.of(MatchDayEvent.of(open.id(), null, MatchDayEventKind.REFRESH_REQUESTED, "ana", T0, run.id(),
+                        null))));
+
+        assertThat(repository.findEvents(open.id())).singleElement().satisfies(event -> {
+            assertThat(event.kind()).isEqualTo(MatchDayEventKind.REFRESH_REQUESTED);
+            assertThat(event.runId()).isEqualTo(run.id());
+        });
+        assertThat(runs.findByIds(List.of(run.id(), UUID.randomUUID()))).extracting(PipelineRun::id)
+                .containsExactly(run.id());
+        assertThat(runs.findByIds(List.of())).isEmpty();
     }
 }

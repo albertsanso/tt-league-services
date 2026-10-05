@@ -11,7 +11,9 @@ import org.cttelsamicsterrassa.data.pipeline.core.tracker.TrackedMatchStatus;
 
 /**
  * A tracked match day. {@code windowEnd} is the last match date plus the platform grace days; the dates are null for
- * an undated jornada. {@code matchCounts} always holds every tracked status.
+ * an undated jornada. {@code matchCounts} always holds every tracked status and includes ignored matches.
+ * {@code completion} is the {@code TrackerRules} category; {@code reportedMatches} and {@code totalMatches} count the
+ * active (non-ignored) matches.
  */
 public record MatchDaySummaryDto(
         UUID id,
@@ -32,21 +34,22 @@ public record MatchDaySummaryDto(
         Instant openedAt,
         Instant lastRecomputedAt,
         Map<String, Integer> matchCounts,
-        int ignoredMatches) {
+        int ignoredMatches,
+        String completion,
+        int reportedMatches,
+        int totalMatches) {
 
     static MatchDaySummaryDto from(MatchDaySummary summary) {
         Map<String, Integer> counts = new LinkedHashMap<>();
         for (TrackedMatchStatus status : TrackedMatchStatus.values()) {
             counts.put(status.name(), summary.countsByStatus().get(status));
         }
-        return from(summary.day(), counts, summary.ignoredCount());
-    }
-
-    static MatchDaySummaryDto from(MatchDay day, Map<String, Integer> counts, int ignored) {
+        MatchDay day = summary.day();
         return new MatchDaySummaryDto(day.id(), day.key().source().name(), day.key().season(),
                 day.key().competition(), day.key().groupNumber(), day.key().phase(), day.key().round(),
                 day.window().firstDate(), day.window().lastDate(), day.window().end(), day.window().graceDays(),
                 day.state().name(), day.closeReason() == null ? null : day.closeReason().name(), day.closedAt(),
-                day.closedBy(), day.openedAt(), day.lastRecomputedAt(), counts, ignored);
+                day.closedBy(), day.openedAt(), day.lastRecomputedAt(), counts, summary.ignoredCount(),
+                summary.completion().name(), summary.reportedCount(), summary.totalCount());
     }
 }

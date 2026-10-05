@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.pipeline.core.run.port;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -23,6 +24,9 @@ public interface PipelineRunRepository {
     PipelineRun update(PipelineRun run);
 
     Optional<PipelineRun> findById(UUID id);
+
+    /** The runs with the given ids that exist; unknown ids are skipped and the order is unspecified. */
+    List<PipelineRun> findByIds(Collection<UUID> ids);
 
     Optional<PipelineRun> findActiveBySource(PipelineSource source);
 

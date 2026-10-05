@@ -8,6 +8,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.tracker.RunRef;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.TrackerInconsistencyException;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.RecomputeRequests;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.StaleMatchDayException;
+import org.cttelsamicsterrassa.data.pipeline.runtime.events.MatchDayChangeListener;
 import java.util.Objects;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -29,11 +30,18 @@ public final class TrackerRecomputeDispatcher implements RecomputeRequests, Smar
     private static final long STOP_WAIT_SECONDS = 10;
 
     private final MatchDayTracker tracker;
+    private final MatchDayChangeListener changes;
     private ExecutorService executor;
     private boolean running;
 
     public TrackerRecomputeDispatcher(MatchDayTracker tracker) {
+        this(tracker, (source, season, matchDayId, cause) -> { });
+    }
+
+    /** {@code changes} is told after every recompute that changed something; its failures are logged only. */
+    public TrackerRecomputeDispatcher(MatchDayTracker tracker, MatchDayChangeListener changes) {
         this.tracker = Objects.requireNonNull(tracker, "tracker is required");
+        this.changes = Objects.requireNonNull(changes, "changes is required");
     }
 
     @Override
@@ -93,12 +101,23 @@ public final class TrackerRecomputeDispatcher implements RecomputeRequests, Smar
         try {
             RecomputeOutcome outcome = tracker.recompute(source, season, run);
             LOG.info("tracker recompute for {} {} (run {}): {}", source, season, runId, outcome);
+            if (outcome.hasChanges()) {
+                notifyChanges(source, season);
+            }
         } catch (GatewayException | TrackerInconsistencyException | StaleMatchDayException e) {
             LOG.warn("tracker recompute for {} {} (run {}) dropped: {}: {}", source, season, runId,
                     e.getClass().getSimpleName(), e.getMessage());
         } catch (RuntimeException e) {
             // Task boundary of the single worker thread: an unexpected failure must not stop later recomputes.
             LOG.error("tracker recompute for {} {} (run {}) failed unexpectedly", source, season, runId, e);
+        }
+    }
+
+    private void notifyChanges(PipelineSource source, String season) {
+        try {
+            changes.matchDaysChanged(source, season, null, MatchDayChangeListener.Cause.RECOMPUTED);
+        } catch (RuntimeException e) {
+            LOG.warn("match-day change listener failed for {} {}: {}", source, season, e.toString());
         }
     }
 

@@ -5,10 +5,65 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.cttelsamicsterrassa.data.pipeline.core.tracker.TrackerFixtures.TODAY;
 import static org.cttelsamicsterrassa.data.pipeline.core.tracker.TrackerFixtures.match;
 
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class TrackerRulesTest {
+
+    private static Map<TrackedMatchStatus, Integer> counts(Object... pairs) {
+        Map<TrackedMatchStatus, Integer> counts = new EnumMap<>(TrackedMatchStatus.class);
+        for (int i = 0; i < pairs.length; i += 2) {
+            counts.put((TrackedMatchStatus) pairs[i], (Integer) pairs[i + 1]);
+        }
+        return counts;
+    }
+
+    @Test
+    void upcomingDaysAreFutureWhateverTheCounts() {
+        assertThat(TrackerRules.completion(MatchDayState.UPCOMING, counts(TrackedMatchStatus.SCHEDULED, 4)))
+                .isEqualTo(MatchDayCompletion.FUTURE);
+        assertThat(TrackerRules.completion(MatchDayState.UPCOMING, counts(TrackedMatchStatus.OVERDUE, 1)))
+                .isEqualTo(MatchDayCompletion.FUTURE);
+        assertThat(TrackerRules.completion(MatchDayState.UPCOMING, counts())).isEqualTo(MatchDayCompletion.FUTURE);
+    }
+
+    @Test
+    void anActiveOverdueMatchMakesAnOpenOrManuallyClosedDayHasOverdue() {
+        Map<TrackedMatchStatus, Integer> mixed =
+                counts(TrackedMatchStatus.REPORTED, 3, TrackedMatchStatus.OVERDUE, 1, TrackedMatchStatus.SCHEDULED, 2);
+        assertThat(TrackerRules.completion(MatchDayState.OPEN, mixed)).isEqualTo(MatchDayCompletion.HAS_OVERDUE);
+        assertThat(TrackerRules.completion(MatchDayState.CLOSED, mixed)).isEqualTo(MatchDayCompletion.HAS_OVERDUE);
+    }
+
+    @Test
+    void awaitingScheduledOrPostponedMatchesAreInProgress() {
+        for (TrackedMatchStatus pending : List.of(TrackedMatchStatus.AWAITING_RESULT, TrackedMatchStatus.SCHEDULED,
+                TrackedMatchStatus.POSTPONED)) {
+            Map<TrackedMatchStatus, Integer> mixed = counts(TrackedMatchStatus.REPORTED, 2, pending, 1);
+            assertThat(TrackerRules.completion(MatchDayState.OPEN, mixed)).isEqualTo(MatchDayCompletion.IN_PROGRESS);
+            assertThat(TrackerRules.completion(MatchDayState.CLOSED, mixed))
+                    .isEqualTo(MatchDayCompletion.IN_PROGRESS);
+        }
+    }
+
+    @Test
+    void everyActiveMatchReportedIsCompleteIncludingEmptyDays() {
+        assertThat(TrackerRules.completion(MatchDayState.OPEN, counts(TrackedMatchStatus.REPORTED, 6)))
+                .isEqualTo(MatchDayCompletion.COMPLETE);
+        assertThat(TrackerRules.completion(MatchDayState.CLOSED, counts(TrackedMatchStatus.REPORTED, 6)))
+                .isEqualTo(MatchDayCompletion.COMPLETE);
+        assertThat(TrackerRules.completion(MatchDayState.OPEN, counts())).isEqualTo(MatchDayCompletion.COMPLETE);
+        assertThat(TrackerRules.completion(MatchDayState.CLOSED, counts())).isEqualTo(MatchDayCompletion.COMPLETE);
+    }
+
+    @Test
+    void completionRequiresItsArguments() {
+        assertThatThrownBy(() -> TrackerRules.completion(null, counts())).isInstanceOf(IllegalArgumentException.class);
+        assertThatThrownBy(() -> TrackerRules.completion(MatchDayState.OPEN, null))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
 
     @Test
     void mapsEveryCalendarState() {

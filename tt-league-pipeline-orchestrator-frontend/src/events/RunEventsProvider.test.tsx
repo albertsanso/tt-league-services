@@ -133,7 +133,7 @@ describe('RunEventsProvider', () => {
     expect(screen.getByText(/^open/)).toBeInTheDocument()
   })
 
-  it('delivers typed run, step and pending-trigger events and ignores unknown ones', async () => {
+  it('delivers typed run, step, pending-trigger and match-days events and ignores unknown ones', async () => {
     const { streams } = installStreams()
     const received: PipelineEvent[] = []
     setup({ listeners: [(event) => received.push(event)] })
@@ -143,10 +143,13 @@ describe('RunEventsProvider', () => {
     streams[0].push('event: run\ndata: {"id":"r1","status":"QUEUED"}\n\n')
     streams[0].push('event: step\ndata: {"runId":"r1","kind":"INGEST"}\n\n')
     streams[0].push('event: pending-trigger\ndata: {"source":"RFETM","state":"QUEUED","requestedBy":"u"}\n\n')
+    streams[0].push(
+      'event: match-days\ndata: {"source":"FCTT","season":"2026-2027","matchDayId":null,"cause":"RECOMPUTED"}\n\n',
+    )
     streams[0].push('event: something-else\ndata: {}\n\n')
     await flush()
 
-    expect(received.map((event) => event.type)).toEqual(['run', 'step', 'pending-trigger'])
+    expect(received.map((event) => event.type)).toEqual(['run', 'step', 'pending-trigger', 'match-days'])
     expect(received[0]).toMatchObject({ payload: { id: 'r1' } })
   })
 

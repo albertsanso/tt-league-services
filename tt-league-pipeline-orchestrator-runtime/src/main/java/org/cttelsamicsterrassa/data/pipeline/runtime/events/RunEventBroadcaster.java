@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.concurrent.RejectedExecutionException;
@@ -17,6 +18,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
+import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.PendingTrigger;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.port.PendingTriggerEvents;
@@ -28,12 +30,12 @@ import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * Publishes run, step and pending-trigger changes to the Server-Sent Events subscribers. Callers (executor threads)
+ * Publishes run, step, pending-trigger and match-day changes to the Server-Sent Events subscribers. Callers (executor threads)
  * only build the payload and enqueue it: sending happens on a private single-thread pool with a bounded queue, so a
  * slow client never blocks a run. When the queue is full the event is dropped and the drop is logged at most once a
  * minute. The pools are owned here and are deliberately not {@code Executor} beans.
  */
-public final class RunEventBroadcaster implements RunObserver, PendingTriggerEvents {
+public final class RunEventBroadcaster implements RunObserver, PendingTriggerEvents, MatchDayChangeListener {
 
     static final int QUEUE_CAPACITY = 1000;
     static final long RECONNECT_MILLIS = 5000;
@@ -141,6 +143,21 @@ public final class RunEventBroadcaster implements RunObserver, PendingTriggerEve
     @Override
     public void dropped(PendingTrigger trigger, String code) {
         publish("pending-trigger", pending(trigger, "DROPPED", null, code));
+    }
+
+    @Override
+    public void matchDaysChanged(PipelineSource source, String season, UUID matchDayId, Cause cause) {
+        publish("match-days", matchDaysPayload(source, season, matchDayId, cause));
+    }
+
+    static Map<String, Object> matchDaysPayload(
+            PipelineSource source, String season, UUID matchDayId, Cause cause) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("source", source.name());
+        payload.put("season", season);
+        payload.put("matchDayId", matchDayId == null ? null : matchDayId.toString());
+        payload.put("cause", cause.name());
+        return payload;
     }
 
     private static Map<String, Object> pending(PendingTrigger trigger, String state, String runId, String code) {

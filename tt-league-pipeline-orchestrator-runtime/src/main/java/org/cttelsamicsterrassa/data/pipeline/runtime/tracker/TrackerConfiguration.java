@@ -8,6 +8,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.tracker.TrackerRunObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.PlatformMatchGateway;
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
+import org.cttelsamicsterrassa.data.pipeline.runtime.events.MatchDayChangeListener;
 import org.cttelsamicsterrassa.data.pipeline.runtime.gateway.HttpPlatformMatchGateway;
 import net.javacrumbs.shedlock.core.LockingTaskExecutor;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -40,8 +41,8 @@ public class TrackerConfiguration {
     }
 
     @Bean
-    TrackerRecomputeDispatcher trackerRecomputeDispatcher(MatchDayTracker tracker) {
-        return new TrackerRecomputeDispatcher(tracker);
+    TrackerRecomputeDispatcher trackerRecomputeDispatcher(MatchDayTracker tracker, MatchDayChangeListener changes) {
+        return new TrackerRecomputeDispatcher(tracker, changes);
     }
 
     @Bean

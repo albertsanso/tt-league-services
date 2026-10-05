@@ -14,13 +14,11 @@ import FormControlLabel from '@mui/material/FormControlLabel'
 import FormHelperText from '@mui/material/FormHelperText'
 import FormLabel from '@mui/material/FormLabel'
 import IconButton from '@mui/material/IconButton'
-import Link from '@mui/material/Link'
 import Radio from '@mui/material/Radio'
 import RadioGroup from '@mui/material/RadioGroup'
 import TextField from '@mui/material/TextField'
 import DeleteIcon from '@mui/icons-material/Delete'
 import { useState } from 'react'
-import { Link as RouterLink } from 'react-router-dom'
 import { ApiError, triggerResults } from '../api/ApiError'
 import type { TriggerResult, TriggerRunRequest } from '../api/types'
 import type { TriggerRunOutcome } from '../api/runs'
@@ -29,6 +27,7 @@ import { emptyFilter, emptyRunNowForm, hasErrors, toTriggerRequest, validateRunN
 import type { FilterDraft, RunNowErrors, RunNowForm } from './runNowForm'
 import { SCOPE_TYPE_LABELS } from './runStatus'
 import { SOURCES } from './runFilters'
+import { TriggerResultList } from './TriggerResultList'
 
 interface RunNowDialogProps {
   readonly seasonSuggestions: readonly string[]
@@ -121,22 +120,7 @@ export function RunNowDialog({ seasonSuggestions, onClose, onTriggered }: RunNow
           {rejection !== null && (
             <Alert severity="error">
               <AlertTitle>{rejection.title}</AlertTitle>
-              <ul style={{ margin: 0, paddingLeft: '1.2em' }}>
-                {rejection.results.map((result) => (
-                  <li key={result.source}>
-                    {result.source} — {result.message ?? result.outcome}
-                    {result.code !== undefined && ` (${result.code})`}
-                    {result.activeRunId !== undefined && (
-                      <>
-                        {' '}
-                        <Link component={RouterLink} to={`/runs/${result.activeRunId}`} onClick={onClose}>
-                          Open active run
-                        </Link>
-                      </>
-                    )}
-                  </li>
-                ))}
-              </ul>
+              <TriggerResultList results={rejection.results} onNavigate={onClose} />
             </Alert>
           )}
 

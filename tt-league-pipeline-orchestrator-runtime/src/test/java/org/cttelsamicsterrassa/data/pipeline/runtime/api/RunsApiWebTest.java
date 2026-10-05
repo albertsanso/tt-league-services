@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunClock;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.FakeRunClock;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.MatchDayRefresh;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.PollingSettingsProvider;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollPolicyRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollScheduleRepository;
@@ -110,6 +111,10 @@ class RunsApiWebTest {
     MatchDayQueryService matchDayQueries;
     @MockitoBean
     MatchDayActions matchDayActions;
+    @MockitoBean
+    MatchDayResultsService matchDayResults;
+    @MockitoBean
+    MatchDayRefresh matchDayRefresh;
 
     private static String token(String secret, String subject, List<String> permissions, Instant expires)
             throws Exception {

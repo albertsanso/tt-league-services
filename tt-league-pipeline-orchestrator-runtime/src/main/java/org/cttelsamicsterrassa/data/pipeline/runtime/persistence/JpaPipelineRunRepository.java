@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.persistence;
 import jakarta.persistence.criteria.Predicate;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -74,6 +75,15 @@ class JpaPipelineRunRepository implements PipelineRunRepository {
     @Transactional(readOnly = true)
     public Optional<PipelineRun> findById(UUID id) {
         return runs.findById(id).map(this::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PipelineRun> findByIds(Collection<UUID> ids) {
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        return runs.findAllById(ids).stream().map(this::toDomain).toList();
     }
 
     @Override

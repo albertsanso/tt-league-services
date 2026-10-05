@@ -138,6 +138,9 @@ public final class MatchDayTracker {
                 day = MatchDay.create(UUID.randomUUID(), key, window, now);
                 changes.created++;
             } else {
+                if (!window.equals(day.window())) {
+                    changes.changed++;
+                }
                 day = day.withWindow(window);
                 changes.updated++;
             }
@@ -154,6 +157,13 @@ public final class MatchDayTracker {
                             reportedRunId);
                     changes.matchReported(day.id(), next);
                 } else {
+                    if (existing.status() != status
+                            || !Objects.equals(existing.matchDateTime(), calendarMatch.dateTime())
+                            || !Objects.equals(existing.homeTeamName(), calendarMatch.homeTeamName())
+                            || !Objects.equals(existing.awayTeamName(), calendarMatch.awayTeamName())
+                            || !existing.matchDayId().equals(day.id())) {
+                        changes.changed++;
+                    }
                     next = existing.observe(status, calendarMatch.dateTime(), calendarMatch.homeTeamName(),
                             calendarMatch.awayTeamName(), now, reportedAt, reportedRunId);
                     if (existing.status() != TrackedMatchStatus.REPORTED && status == TrackedMatchStatus.REPORTED) {
@@ -180,6 +190,7 @@ public final class MatchDayTracker {
             for (MatchTracking match : existingByDay.getOrDefault(day.id(), List.of())) {
                 if (!processed.contains(match.matchId())) {
                     removed.add(match.matchId());
+                    changes.changed++;
                     changes.event(day.id(), match.matchId(), MatchDayEventKind.MATCH_REMOVED,
                             "No longer listed by the platform");
                 }
@@ -227,7 +238,7 @@ public final class MatchDayTracker {
             repository.apply(changeSet);
         }
         return new RecomputeOutcome(source, season, changes.created, changes.updated, changes.opened, changes.closed,
-                changes.reopened, changes.reported, skipped);
+                changes.reopened, changes.reported, skipped, changes.changed);
     }
 
     /** Accumulates days, counters and events while the change set is built. */
@@ -243,6 +254,7 @@ public final class MatchDayTracker {
         private int closed;
         private int reopened;
         private int reported;
+        private int changed;
 
         private Changes(Instant now, RunRef run) {
             this.now = now;

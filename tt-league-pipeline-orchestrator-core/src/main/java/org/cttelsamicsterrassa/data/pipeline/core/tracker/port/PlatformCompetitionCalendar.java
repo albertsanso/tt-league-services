@@ -15,7 +15,7 @@ public record PlatformCompetitionCalendar(LocalDate today, List<PlatformCalendar
         matches = List.copyOf(matches);
     }
 
-    /** Group, phase and date can be null. */
+    /** Group, phase, date and the result fields (games won per side, winner) can be null. */
     public record PlatformCalendarMatch(
             UUID id,
             String competition,
@@ -26,6 +26,9 @@ public record PlatformCompetitionCalendar(LocalDate today, List<PlatformCalendar
             String homeTeamName,
             String awayTeamName,
             String status,
-            String calendarState) {
+            String calendarState,
+            Integer homeGamesWon,
+            Integer awayGamesWon,
+            String winnerTeamName) {
     }
 }

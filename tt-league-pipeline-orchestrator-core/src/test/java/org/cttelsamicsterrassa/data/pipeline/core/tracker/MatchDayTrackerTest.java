@@ -355,7 +355,7 @@ class MatchDayTrackerTest {
 
         RecomputeOutcome outcome = recompute();
 
-        assertThat(outcome).isEqualTo(new RecomputeOutcome(SOURCE, SEASON, 0, 0, 0, 0, 0, 0, 0));
+        assertThat(outcome).isEqualTo(new RecomputeOutcome(SOURCE, SEASON, 0, 0, 0, 0, 0, 0, 0, 0));
         assertThat(repository.applyCalls()).isZero();
         assertThat(gateway.calendarReads).isEmpty();
     }

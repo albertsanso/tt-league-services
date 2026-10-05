@@ -84,6 +84,11 @@ class ApiExceptionHandler {
                 "The match day changed while it was being updated; reload it and try again");
     }
 
+    @ExceptionHandler(PlatformUnavailableException.class)
+    ProblemDetail platformUnavailable(PlatformUnavailableException e) {
+        return coded(HttpStatus.BAD_GATEWAY, "PLATFORM_UNAVAILABLE", e.getMessage());
+    }
+
     @ExceptionHandler(PollScheduleNotFoundException.class)
     ProblemDetail pollScheduleNotFound(PollScheduleNotFoundException e) {
         return coded(HttpStatus.NOT_FOUND, "POLL_SCHEDULE_NOT_FOUND", e.getMessage());

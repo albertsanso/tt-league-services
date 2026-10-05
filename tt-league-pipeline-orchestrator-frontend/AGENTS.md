@@ -23,6 +23,11 @@ signing in and calendar components may be duplicated rather than shared.
 - Run list and detail state follow the event stream through the `src/runs/`
   hooks (`useRunList`, `useRunDetail`, `useRunActivity`); screens never open
   their own event connection.
+- The completion category of a match day comes from the server (`completion` in the summary, computed by
+  `TrackerRules.completion`); `src/calendar/completion.ts` only maps it to colours and labels and never derives it
+  from the counts. Calendar and match-day detail state follow the event stream (`match-days`, `run`) through the
+  `src/calendar/` hooks (`useMatchDayCalendar`, `useMatchDayDetail`, `useMatchDayResults`); screens never open their own
+  event connection. Results are read from `GET .../results` and are never stored in the browser.
 - Client-side trigger validation mirrors `TriggerRules` and
   `PipelineRun.requireValidSeason` and never replaces the server's answer.
 - No data-fetching, state or JWT library without a decision.

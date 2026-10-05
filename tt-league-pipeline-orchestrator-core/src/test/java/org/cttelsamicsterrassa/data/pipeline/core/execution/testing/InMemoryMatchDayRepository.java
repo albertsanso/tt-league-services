@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDay;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayChangeSet;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayEvent;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayFacets;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayKey;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayPage;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayQuery;
@@ -25,7 +26,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 /** Version-checked, all-or-nothing in-memory tracker store. */
@@ -109,6 +112,9 @@ public class InMemoryMatchDayRepository implements MatchDayRepository {
                 .filter(day -> query.source() == null || day.key().source() == query.source())
                 .filter(day -> query.season() == null || day.key().season().equals(query.season()))
                 .filter(day -> query.state() == null || day.state() == query.state())
+                .filter(day -> query.competition() == null || day.key().competition().equals(query.competition()))
+                .filter(day -> query.phase() == null || query.phase().equals(day.key().phase()))
+                .filter(day -> !query.undated() || !day.window().isDated())
                 .filter(day -> overlaps(day, query.from(), query.to()))
                 .sorted(order)
                 .toList();
@@ -132,16 +138,36 @@ public class InMemoryMatchDayRepository implements MatchDayRepository {
 
     private MatchDaySummary summary(MatchDay day) {
         Map<TrackedMatchStatus, Integer> counts = new EnumMap<>(TrackedMatchStatus.class);
-        int ignored = 0;
+        Map<TrackedMatchStatus, Integer> ignored = new EnumMap<>(TrackedMatchStatus.class);
         for (MatchTracking match : matches.values()) {
             if (match.matchDayId().equals(day.id())) {
                 counts.merge(match.status(), 1, Integer::sum);
                 if (match.isIgnored()) {
-                    ignored++;
+                    ignored.merge(match.status(), 1, Integer::sum);
                 }
             }
         }
         return new MatchDaySummary(day, counts, ignored);
+    }
+
+    @Override
+    public synchronized MatchDayFacets facets(PipelineSource source, String season) {
+        Set<String> seasons = new TreeSet<>();
+        Set<String> competitions = new TreeSet<>();
+        Set<String> phases = new TreeSet<>();
+        for (MatchDay day : days.values()) {
+            if (source != null && day.key().source() != source) {
+                continue;
+            }
+            seasons.add(day.key().season());
+            if (season == null || day.key().season().equals(season)) {
+                competitions.add(day.key().competition());
+                if (day.key().phase() != null) {
+                    phases.add(day.key().phase());
+                }
+            }
+        }
+        return new MatchDayFacets(List.copyOf(seasons), List.copyOf(competitions), List.copyOf(phases));
     }
 
     @Override

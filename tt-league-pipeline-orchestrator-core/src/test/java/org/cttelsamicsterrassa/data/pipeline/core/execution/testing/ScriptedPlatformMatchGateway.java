@@ -83,7 +83,7 @@ public class ScriptedPlatformMatchGateway implements PlatformMatchGateway {
         String status = "PLAYED".equals(calendarState) ? "PLAYED" : "SCHEDULED";
         return new PlatformCalendarMatch(id, competition, group, phase, round,
                 Instant.parse("2026-10-03T16:00:00Z"), "Home " + id.toString().substring(0, 4),
-                "Away " + id.toString().substring(0, 4), status, calendarState);
+                "Away " + id.toString().substring(0, 4), status, calendarState, null, null, null);
     }
 
     @Override

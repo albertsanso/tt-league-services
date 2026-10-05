@@ -1,6 +1,10 @@
 package org.cttelsamicsterrassa.data.pipeline.runtime.persistence;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -16,6 +20,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDay;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayChangeSet;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayEvent;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayFacets;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayKey;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayPage;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayQuery;
@@ -50,12 +55,17 @@ class JpaMatchDayRepository implements MatchDayRepository {
     private final MatchDayJpaRepository days;
     private final MatchTrackingJpaRepository matches;
     private final MatchDayEventJpaRepository events;
+    private final EntityManager entityManager;
 
     JpaMatchDayRepository(
-            MatchDayJpaRepository days, MatchTrackingJpaRepository matches, MatchDayEventJpaRepository events) {
+            MatchDayJpaRepository days,
+            MatchTrackingJpaRepository matches,
+            MatchDayEventJpaRepository events,
+            EntityManager entityManager) {
         this.days = days;
         this.matches = matches;
         this.events = events;
+        this.entityManager = entityManager;
     }
 
     @Override
@@ -117,6 +127,15 @@ class JpaMatchDayRepository implements MatchDayRepository {
             if (query.state() != null) {
                 predicates.add(cb.equal(root.get("state"), query.state()));
             }
+            if (query.competition() != null) {
+                predicates.add(cb.equal(root.get("competition"), query.competition()));
+            }
+            if (query.phase() != null) {
+                predicates.add(cb.equal(root.get("phase"), query.phase()));
+            }
+            if (query.undated()) {
+                predicates.add(cb.isNull(root.get("firstDate")));
+            }
             if (query.from() != null) {
                 predicates.add(cb.greaterThanOrEqualTo(root.<java.time.LocalDate>get("lastDate"), query.from()));
             }
@@ -135,7 +154,7 @@ class JpaMatchDayRepository implements MatchDayRepository {
         Page<MatchDayEntity> page = days.findAll(spec, PageRequest.of(query.page(), query.size(), order));
         List<MatchDayEntity> content = page.getContent();
         Map<UUID, Map<TrackedMatchStatus, Integer>> counts = new HashMap<>();
-        Map<UUID, Integer> ignored = new HashMap<>();
+        Map<UUID, Map<TrackedMatchStatus, Integer>> ignored = new HashMap<>();
         if (!content.isEmpty()) {
             Set<UUID> ids = new LinkedHashSet<>();
             content.forEach(entity -> ids.add(entity.id));
@@ -143,14 +162,41 @@ class JpaMatchDayRepository implements MatchDayRepository {
                 UUID dayId = (UUID) row[0];
                 counts.computeIfAbsent(dayId, id -> new EnumMap<>(TrackedMatchStatus.class))
                         .put((TrackedMatchStatus) row[1], ((Number) row[2]).intValue());
-                ignored.merge(dayId, ((Number) row[3]).intValue(), Integer::sum);
+                ignored.computeIfAbsent(dayId, id -> new EnumMap<>(TrackedMatchStatus.class))
+                        .put((TrackedMatchStatus) row[1], ((Number) row[3]).intValue());
             }
         }
         List<MatchDaySummary> items = content.stream()
                 .map(entity -> new MatchDaySummary(toDomain(entity), counts.getOrDefault(entity.id, Map.of()),
-                        ignored.getOrDefault(entity.id, 0)))
+                        ignored.getOrDefault(entity.id, Map.of())))
                 .toList();
         return new MatchDayPage(items, page.getTotalElements(), query.page(), query.size());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public MatchDayFacets facets(PipelineSource source, String season) {
+        return new MatchDayFacets(distinct("season", source, null, false),
+                distinct("competition", source, season, false), distinct("phase", source, season, true));
+    }
+
+    private List<String> distinct(String column, PipelineSource source, String season, boolean nonNull) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<String> cq = cb.createQuery(String.class);
+        Root<MatchDayEntity> root = cq.from(MatchDayEntity.class);
+        List<Predicate> predicates = new ArrayList<>();
+        if (source != null) {
+            predicates.add(cb.equal(root.get("source"), source));
+        }
+        if (season != null) {
+            predicates.add(cb.equal(root.get("season"), season));
+        }
+        if (nonNull) {
+            predicates.add(cb.isNotNull(root.get(column)));
+        }
+        cq.select(root.<String>get(column)).distinct(true).where(predicates.toArray(new Predicate[0]))
+                .orderBy(cb.asc(root.get(column)));
+        return entityManager.createQuery(cq).getResultList();
     }
 
     @Override

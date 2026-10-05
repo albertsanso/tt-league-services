@@ -50,6 +50,7 @@ describe('App routing', () => {
 
   it.each([
     ['/calendar', 'Calendar'],
+    ['/calendar/match-days/day-1', 'TERCERA-masculino · G2 · 1a Fase · J3'],
     ['/runs', 'Runs'],
     ['/runs/run-1', 'Run details'],
     ['/statistics', 'Statistics'],

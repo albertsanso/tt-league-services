@@ -44,9 +44,14 @@ and the Flyway/JPA persistence of the run model (later features add security).
   single-thread executor, never an `Executor` bean); the `TrackerRunObserver` and the periodic
   `TrackerRecomputeSchedule` (ShedLock lock `pipeline-tracker-recompute`, private scheduler, not a bean) only
   enqueue. Platform match state is read only through `HttpPlatformMatchGateway`, which needs the service
-  credential to hold `matches:read`; the controllers in `api/` only call `MatchDayActions` and
-  `MatchDayQueryService`. Never add retries, partial writes or fallbacks to a failed recompute, and never store
-  match results.
+  credential to hold `matches:read`; the controllers in `api/` only call `MatchDayActions`,
+  `MatchDayQueryService`, `MatchDayResultsService` and the core `MatchDayRefresh` (which still creates runs only
+  through `TriggerRun`; `POST /api/pipeline/runs` and the refresh share the answer mapping in `TriggerResponses`).
+  The completion category lives only in `TrackerRules.completion`; the API and the UI never derive it. Results are
+  read through from the platform for `GET /{id}/results` and are never stored, cached or logged. Never add retries,
+  partial writes or fallbacks to a failed recompute, and never store match results. The `MatchDayChangeListener`
+  (implemented by the `RunEventBroadcaster`) is told after a recompute that changed something and after operator
+  actions; its failures are logged and never reach the dispatcher or the request.
 - Adaptive polling runs only from `AdaptivePollingTrigger` (`polling/`), which calls the core `AdaptivePollingTick`
   per source under the ShedLock lock `pipeline-polling-<SOURCE>` through `LockingTaskExecutor`; a failing source is
   logged and never stops the others. Its scheduler is private and never a bean. A source has either a cron or adaptive

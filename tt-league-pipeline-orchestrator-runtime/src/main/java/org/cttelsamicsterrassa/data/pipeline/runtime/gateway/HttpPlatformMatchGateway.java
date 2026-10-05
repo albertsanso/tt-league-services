@@ -95,7 +95,8 @@ public final class HttpPlatformMatchGateway implements PlatformMatchGateway {
                         }
                         matches.add(new PlatformCalendarMatch(match.id(), competition, group.groupNumber(),
                                 group.phase(), round.round(), instant(match.dateTime()), match.homeTeamName(),
-                                match.awayTeamName(), match.status(), match.calendarState()));
+                                match.awayTeamName(), match.status(), match.calendarState(), match.homeGamesWon(),
+                                match.awayGamesWon(), match.winnerTeamName()));
                     }
                 }
             }
@@ -178,6 +179,9 @@ public final class HttpPlatformMatchGateway implements PlatformMatchGateway {
             String homeTeamName,
             String awayTeamName,
             String status,
-            String calendarState) {
+            String calendarState,
+            Integer homeGamesWon,
+            Integer awayGamesWon,
+            String winnerTeamName) {
     }
 }

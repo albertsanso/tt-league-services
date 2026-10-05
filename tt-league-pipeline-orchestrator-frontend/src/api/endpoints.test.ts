@@ -6,8 +6,11 @@ import {
   addMatchDayNote,
   closeMatchDay,
   getMatchDay,
+  getMatchDayFacets,
+  getMatchDayResults,
   ignoreMatch,
   listMatchDays,
+  refreshMatchDay,
   reopenMatchDay,
   unignoreMatch,
 } from './matchDays'
@@ -72,9 +75,26 @@ const cases: ReadonlyArray<readonly [string, (c: HttpClient) => Promise<unknown>
   [
     'listMatchDays',
     (c) => listMatchDays(c, { source: 'FCTT', season: '2025-2026', state: 'OPEN' }),
-    { method: 'GET', path: '/api/pipeline/match-days', query: { source: 'FCTT', season: '2025-2026', state: 'OPEN', from: undefined, to: undefined, page: 0, size: 50 } },
+    { method: 'GET', path: '/api/pipeline/match-days', query: { source: 'FCTT', season: '2025-2026', state: 'OPEN', competition: undefined, phase: undefined, undated: undefined, from: undefined, to: undefined, page: 0, size: 50 } },
+  ],
+  [
+    'listMatchDays with the calendar filters',
+    (c) => listMatchDays(c, { source: 'FCTT', season: '2025-2026', competition: 'TERCERA-masculino', phase: '1a Fase', from: '2026-10-01', to: '2026-10-31', size: 200 }),
+    { method: 'GET', path: '/api/pipeline/match-days', query: { source: 'FCTT', season: '2025-2026', state: undefined, competition: 'TERCERA-masculino', phase: '1a Fase', undated: undefined, from: '2026-10-01', to: '2026-10-31', page: 0, size: 200 } },
+  ],
+  [
+    'listMatchDays undated',
+    (c) => listMatchDays(c, { undated: true }),
+    { method: 'GET', path: '/api/pipeline/match-days', query: { source: undefined, season: undefined, state: undefined, competition: undefined, phase: undefined, undated: true, from: undefined, to: undefined, page: 0, size: 50 } },
   ],
   ['getMatchDay', (c) => getMatchDay(c, 'id1'), { method: 'GET', path: '/api/pipeline/match-days/id1' }],
+  [
+    'getMatchDayFacets',
+    (c) => getMatchDayFacets(c, { source: 'FCTT', season: '2025-2026' }),
+    { method: 'GET', path: '/api/pipeline/match-days/facets', query: { source: 'FCTT', season: '2025-2026' } },
+  ],
+  ['getMatchDayResults', (c) => getMatchDayResults(c, 'id/1'), { method: 'GET', path: '/api/pipeline/match-days/id%2F1/results' }],
+  ['refreshMatchDay', (c) => refreshMatchDay(c, 'id1', true), { method: 'POST', path: '/api/pipeline/match-days/id1/refresh', body: { force: true } }],
   ['closeMatchDay', (c) => closeMatchDay(c, 'id1', 'n'), { method: 'POST', path: '/api/pipeline/match-days/id1/close', body: { note: 'n' } }],
   ['reopenMatchDay', (c) => reopenMatchDay(c, 'id1'), { method: 'POST', path: '/api/pipeline/match-days/id1/reopen', body: { note: undefined } }],
   ['ignoreMatch', (c) => ignoreMatch(c, 'id1', 'm1', 'x'), { method: 'PUT', path: '/api/pipeline/match-days/id1/matches/m1/ignore', body: { note: 'x' } }],
@@ -97,6 +117,38 @@ describe('endpoint modules', () => {
     expect(calls[0].path).toBe(expected.path)
     expect(calls[0].query).toEqual(expected.query)
     expect(calls[0].body).toEqual(expected.body)
+  })
+})
+
+describe('refreshMatchDay', () => {
+  function clientFor(response: Response) {
+    return createHttpClient({
+      baseUrl: '',
+      getToken: () => 't',
+      fetch: (async () => response) as unknown as typeof fetch,
+    })
+  }
+
+  it.each([201, 202])('returns status %i with the results', async (status) => {
+    const body = { results: [{ source: 'FCTT', outcome: 'CREATED' }] }
+    const outcome = await refreshMatchDay(
+      clientFor(new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })),
+      'id1',
+      false,
+    )
+    expect(outcome.status).toBe(status)
+    expect(outcome.response.results[0].outcome).toBe('CREATED')
+  })
+
+  it.each([409, 422])('rejects with the per-source results on %i', async (status) => {
+    const problem = { status, detail: 'nope', code: 'X', results: [{ source: 'FCTT', outcome: 'REJECTED', code: 'ACTIVE_RUN' }] }
+    const error = await refreshMatchDay(
+      clientFor(new Response(JSON.stringify(problem), { status, headers: { 'Content-Type': 'application/problem+json' } })),
+      'id1',
+      false,
+    ).catch((e: unknown) => e)
+    expect(error).toBeInstanceOf(ApiError)
+    expect(triggerResults(error)[0].code).toBe('ACTIVE_RUN')
   })
 })
 

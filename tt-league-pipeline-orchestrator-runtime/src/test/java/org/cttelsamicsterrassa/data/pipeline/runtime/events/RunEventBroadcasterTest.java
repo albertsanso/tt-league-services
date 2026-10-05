@@ -71,4 +71,31 @@ class RunEventBroadcasterTest {
 
         assertThat(broadcaster.subscriberCount()).isZero();
     }
+
+    @Test
+    void matchDayChangesCarrySourceSeasonOptionalIdAndCause() throws Exception {
+        UUID id = UUID.randomUUID();
+        ObjectMapper json = new ObjectMapper();
+
+        assertThat(json.readTree(json.writeValueAsString(RunEventBroadcaster.matchDaysPayload(PipelineSource.FCTT,
+                "2026-2027", null, MatchDayChangeListener.Cause.RECOMPUTED))))
+                .isEqualTo(json.readTree(
+                        "{\"source\":\"FCTT\",\"season\":\"2026-2027\",\"matchDayId\":null,"
+                                + "\"cause\":\"RECOMPUTED\"}"));
+        assertThat(RunEventBroadcaster.matchDaysPayload(PipelineSource.RFETM, "2026-2027", id,
+                MatchDayChangeListener.Cause.ACTION))
+                .containsEntry("matchDayId", id.toString()).containsEntry("cause", "ACTION");
+    }
+
+    @Test
+    void publishingMatchDayChangesNeverThrows() {
+        create(5, 10);
+        broadcaster.subscribe();
+
+        broadcaster.matchDaysChanged(PipelineSource.FCTT, "2026-2027", null, MatchDayChangeListener.Cause.RECOMPUTED);
+        broadcaster.matchDaysChanged(PipelineSource.FCTT, "2026-2027", UUID.randomUUID(),
+                MatchDayChangeListener.Cause.ACTION);
+
+        assertThat(broadcaster.subscriberCount()).isEqualTo(1);
+    }
 }

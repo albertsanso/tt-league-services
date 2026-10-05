@@ -84,6 +84,14 @@ public final class MatchDayActions {
         save(day, List.of(), List.of(event(matchDayId, matchId, MatchDayEventKind.NOTE, actor, now, text)));
     }
 
+    /** Records that an operator launched a refresh run from the match day; no state change, any state allowed. */
+    public void recordRefresh(UUID matchDayId, String actor, UUID runId, String note) {
+        Instant now = clock.now();
+        MatchDay day = load(matchDayId);
+        save(day, List.of(), List.of(MatchDayEvent.of(
+                matchDayId, null, MatchDayEventKind.REFRESH_REQUESTED, actor, now, runId, note)));
+    }
+
     private MatchDay load(UUID matchDayId) {
         return repository.findById(matchDayId).orElseThrow(() -> new MatchDayNotFoundException(matchDayId));
     }

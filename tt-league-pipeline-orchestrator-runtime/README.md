@@ -258,21 +258,49 @@ derives postponed, overdue or awaiting-result from dates, and stores no results.
   itself if a match becomes unresolved again, and a manually closed one only reopens through the reopen action.
   Several match days can be open at once. The full rules and tables are in
   [docs/pipeline-datamodel.md](docs/pipeline-datamodel.md).
-- **Endpoints** (`/api/pipeline/match-days`). Reads need any valid token: `GET ?source=&season=&state=&from=&to=&page=&size=`
-  (size up to 200; `from`/`to` keep match days whose first-to-last match dates overlap the range) and `GET /{id}`
-  (matches and timeline). Actions need `matches:write`, record the token subject and the time in the timeline, and
-  answer with the updated detail: `POST /{id}/close`, `POST /{id}/reopen`, `PUT /{id}/matches/{matchId}/ignore`,
+- **Endpoints** (`/api/pipeline/match-days`). Reads need any valid token:
+  `GET ?source=&season=&state=&competition=&phase=&undated=&from=&to=&page=&size=` (size up to 200; `from`/`to` keep
+  match days whose first-to-last match dates overlap the range; `competition` and `phase` are exact matches on the
+  stored values, `competition` being the category such as `TERCERA-masculino`; `undated=true` keeps only match days
+  without dates and answers `400` with `field: "undated"` when combined with `from` or `to`); `GET /facets?source=&season=`
+  (`{seasons, competitions, phases}`, distinct and sorted: seasons honour the source, competitions and phases honour
+  source and season); `GET /{id}` (matches, timeline and `runs`); and `GET /{id}/results`. Actions need
+  `matches:write`, record the token subject and the time in the timeline, and answer with the updated detail:
+  `POST /{id}/close`, `POST /{id}/reopen`, `PUT /{id}/matches/{matchId}/ignore`,
   `DELETE /{id}/matches/{matchId}/ignore` (each with an optional `{"note"}` body) and `POST /{id}/notes`
   (`{"text", "matchId"?}`). Errors are problem details with a `code`: `400` invalid input, `404`
   `MATCH_DAY_NOT_FOUND`, `409` `ILLEGAL_TRANSITION` or `STALE_MATCH_DAY`.
+- **Completion and counts.** Every summary carries `completion` (`COMPLETE`, `IN_PROGRESS`, `HAS_OVERDUE`, `FUTURE`),
+  `reportedMatches` and `totalMatches`, computed by `TrackerRules.completion` over the *active* (non-ignored)
+  matches: `FUTURE` while the day is `UPCOMING`; otherwise `HAS_OVERDUE` when an active match is overdue (also on a
+  manually closed day); otherwise `COMPLETE` when every active match is reported (a day whose matches are all ignored,
+  or without matches, is complete); otherwise `IN_PROGRESS`. `matchCounts` still counts every match, ignored ones
+  included, and `ignoredMatches` is their sum.
+- **Detail `runs`.** The runs that touched the match day, newest first and without steps: the runs referenced by its
+  events or by a match's `reportedRunId` (runs whose recompute changed it, runs that first reported one of its
+  matches, and refreshes launched from it). A run whose recompute changed nothing for the day is not listed.
+- **Results.** `GET /{id}/results` reads the platform competition calendar on demand and answers
+  `{matchDayId, platformToday, results: [{matchId, platformStatus, homeGamesWon, awayGamesWon, winnerTeamName}]}`
+  for the tracked matches of the day. Results are never stored, cached or logged. When the platform cannot be read the
+  answer is `502` with `code: "PLATFORM_UNAVAILABLE"` and the gateway message (which names a rejected API key).
+- **Refresh.** `POST /{id}/refresh` with an optional `{"force": false}` body (needs `matches:write`) re-ingests the
+  round of the match day in its group: `MatchDayRefresh` builds the ingest filters with the same `ScopeBuilder` and
+  source vocabulary as the `OPEN_MATCH_DAYS` scope and creates a `GROUP` run through `TriggerRun`, with the configured
+  conflict mode. RFETM scopes only carry the category, so an RFETM refresh covers the whole category. The answer is the
+  same as `POST /api/pipeline/runs`: `201` with the run `Location`, `202` when queued, `409` when the source has an
+  active run, `422` when the scope is unavailable (`NO_INGEST_STATUS`, `SCOPE_UNMATCHED`). A created or queued refresh
+  appends a `REFRESH_REQUESTED` event (with the run id when one was created) to the match day; it works for any state.
 - Ignoring a match is a flag next to its status, so the status keeps following the platform and an ignore can be
   undone. Ignoring the last unresolved match closes an open day; reopening a day whose matches are all resolved
   closes it again on the next recompute.
 
 ## Event stream
 
-`GET /api/pipeline/events` (Server-Sent Events): `ready`, `run`, `step` and `pending-trigger` events plus `: keep-alive`
-comments every `PIPELINE_EVENTS_HEARTBEAT` (default PT15S). There is no replay: after reconnecting, refetch
+`GET /api/pipeline/events` (Server-Sent Events): `ready`, `run`, `step`, `pending-trigger` and `match-days` events plus
+`: keep-alive` comments every `PIPELINE_EVENTS_HEARTBEAT` (default PT15S). A `match-days` event is
+`{source, season, matchDayId, cause}`: `cause` is `RECOMPUTED` (`matchDayId` null) after a tracker recompute that
+changed a match day or match, or `ACTION` (with the id) after an operator action or a created or queued refresh.
+Recomputes that change nothing, and failed ones, send nothing. There is no replay: after reconnecting, refetch
 `GET /api/pipeline/runs`. Native `EventSource` cannot send the `Authorization` header, so use `fetch` streaming.
 Limits: `PIPELINE_EVENTS_TIMEOUT` (PT30M), `PIPELINE_EVENTS_MAX_SUBSCRIBERS` (50, then `503`).
 

@@ -17,6 +17,7 @@ export type StepStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED'
 export type ScopeType = 'OPEN_MATCH_DAYS' | 'GROUP' | 'FULL_SEASON'
 export type TriggerOutcome = 'CREATED' | 'QUEUED' | 'REJECTED' | 'UNAVAILABLE'
 export type MatchDayState = 'UPCOMING' | 'OPEN' | 'CLOSED'
+export type MatchDayCompletion = 'COMPLETE' | 'IN_PROGRESS' | 'HAS_OVERDUE' | 'FUTURE'
 export type TrackedMatchStatus = 'SCHEDULED' | 'AWAITING_RESULT' | 'REPORTED' | 'POSTPONED' | 'OVERDUE'
 export type PolicyLevel =
   | 'MATCH_DAY'
@@ -168,9 +169,46 @@ export interface MatchDaySummary {
   readonly closedBy: string | null
   readonly openedAt: string | null
   readonly lastRecomputedAt: string | null
+  /** Includes the ignored matches. */
   readonly matchCounts: Readonly<Record<TrackedMatchStatus, number>>
   readonly ignoredMatches: number
+  /** Computed by the server (`TrackerRules.completion`); the UI only maps it to colours and labels. */
+  readonly completion: MatchDayCompletion
+  /** Active (non-ignored) matches that are reported, and active matches in total. */
+  readonly reportedMatches: number
+  readonly totalMatches: number
 }
+
+export interface MatchDayFacets {
+  readonly seasons: readonly string[]
+  readonly competitions: readonly string[]
+  readonly phases: readonly string[]
+}
+
+export interface MatchResult {
+  readonly matchId: string
+  readonly platformStatus: string
+  readonly homeGamesWon: number | null
+  readonly awayGamesWon: number | null
+  readonly winnerTeamName: string | null
+}
+
+export interface MatchDayResults {
+  readonly matchDayId: string
+  readonly platformToday: string
+  readonly results: readonly MatchResult[]
+}
+
+export type MatchDayEventKind =
+  | 'OPENED'
+  | 'CLOSED'
+  | 'REOPENED'
+  | 'MATCH_REPORTED'
+  | 'MATCH_IGNORED'
+  | 'MATCH_UNIGNORED'
+  | 'MATCH_REMOVED'
+  | 'NOTE'
+  | 'REFRESH_REQUESTED'
 
 export interface TrackedMatch {
   readonly matchId: string
@@ -190,7 +228,7 @@ export interface TrackedMatch {
 export interface MatchDayEvent {
   readonly id: string
   readonly matchId: string | null
-  readonly kind: string
+  readonly kind: MatchDayEventKind
   readonly actor: string
   readonly occurredAt: string
   readonly runId: string | null
@@ -201,6 +239,8 @@ export interface MatchDayDetail {
   readonly matchDay: MatchDaySummary
   readonly matches: readonly TrackedMatch[]
   readonly events: readonly MatchDayEvent[]
+  /** The runs that touched the match day, newest first, without steps. */
+  readonly runs: readonly RunSummary[]
 }
 
 export interface MatchDayActionRequest {
@@ -283,6 +323,14 @@ export interface PendingTriggerEvent {
   readonly requestedBy: string
   readonly runId?: string
   readonly code?: string
+}
+
+export interface MatchDaysEvent {
+  readonly source: PipelineSource
+  readonly season: string
+  /** Null after a recompute, which can touch any match day of the source and season. */
+  readonly matchDayId: string | null
+  readonly cause: 'RECOMPUTED' | 'ACTION'
 }
 
 export interface LoginResponse {

@@ -251,10 +251,10 @@ Append-only timeline of a match day: every lifecycle change and operator action.
 | `id` | `uuid` PK | |
 | `match_day_id` | `uuid` NOT NULL | FK `match_day(id)` |
 | `match_id` | `uuid` NULL | platform match id, **no foreign key** so it survives `MATCH_REMOVED` |
-| `kind` | `varchar(32)` NOT NULL | `OPENED`, `CLOSED`, `REOPENED`, `MATCH_REPORTED`, `MATCH_IGNORED`, `MATCH_UNIGNORED`, `MATCH_REMOVED`, `NOTE` |
+| `kind` | `varchar(32)` NOT NULL | `OPENED`, `CLOSED`, `REOPENED`, `MATCH_REPORTED`, `MATCH_IGNORED`, `MATCH_UNIGNORED`, `MATCH_REMOVED`, `NOTE`, `REFRESH_REQUESTED` |
 | `actor` | `varchar(128)` NOT NULL | JWT subject, or `system:tracker` for lifecycle changes |
 | `occurred_at` | `timestamptz` NOT NULL | |
-| `run_id` | `uuid` NULL | FK `pipeline_run(id)`; the run whose recompute made the change |
+| `run_id` | `uuid` NULL | FK `pipeline_run(id)`; the run whose recompute made the change, or the run an operator launched with `REFRESH_REQUESTED` |
 | `note` | `varchar(2000)` NULL | required (`CHECK`) when `kind = 'NOTE'` |
 
 Index `ix_match_day_event_day (match_day_id, occurred_at)`.
@@ -324,3 +324,4 @@ Written only by `PUT`/`DELETE /api/pipeline/polling/policies/{source}`; a versio
 | `V3` | `V3__scheduler_lock.sql` | `shedlock` |
 | `V4` | `V4__match_day_tracker.sql` | `match_day`, `match_tracking`, `match_day_event` |
 | `V5` | `V5__adaptive_polling.sql` | `poll_schedule`, `poll_policy` |
+| `V6` | `V6__match_day_refresh_event.sql` | `match_day_event.kind` CHECK (`match_day_event_kind_check`) also accepts `REFRESH_REQUESTED` |

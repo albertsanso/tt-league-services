@@ -1,5 +1,5 @@
 import { createContext } from 'react'
-import type { PendingTriggerEvent, RunEvent, StepEvent } from '../api/types'
+import type { MatchDaysEvent, PendingTriggerEvent, RunEvent, StepEvent } from '../api/types'
 
 export type ConnectionState = 'connecting' | 'open' | 'reconnecting' | 'stopped'
 
@@ -13,6 +13,7 @@ export type PipelineEvent =
   | { readonly type: 'run'; readonly payload: RunEvent }
   | { readonly type: 'step'; readonly payload: StepEvent }
   | { readonly type: 'pending-trigger'; readonly payload: PendingTriggerEvent }
+  | { readonly type: 'match-days'; readonly payload: MatchDaysEvent }
   | { readonly type: 'reconnected' }
 
 export type PipelineEventListener = (event: PipelineEvent) => void

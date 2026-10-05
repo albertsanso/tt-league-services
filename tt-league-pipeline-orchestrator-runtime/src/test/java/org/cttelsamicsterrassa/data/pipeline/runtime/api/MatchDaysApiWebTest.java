@@ -1,8 +1,10 @@
 package org.cttelsamicsterrassa.data.pipeline.runtime.api;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -10,6 +12,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -26,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.port.GatewayException;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.MatchDayRefresh;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.IllegalMatchDayTransitionException;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayActions;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayNotFoundException;
@@ -33,6 +38,13 @@ import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayQuery;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayState;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.StaleMatchDayException;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
+import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun.Outcome;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.PendingTrigger;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.ScopeType;
+import org.cttelsamicsterrassa.data.pipeline.runtime.events.MatchDayChangeListener;
 import org.cttelsamicsterrassa.data.pipeline.runtime.security.SecurityConfiguration;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -57,6 +69,12 @@ class MatchDaysApiWebTest {
     MatchDayQueryService queries;
     @MockitoBean
     MatchDayActions actions;
+    @MockitoBean
+    MatchDayResultsService results;
+    @MockitoBean
+    MatchDayRefresh refresh;
+    @MockitoBean
+    MatchDayChangeListener changes;
 
     private final UUID dayId = UUID.randomUUID();
     private final UUID matchId = UUID.randomUUID();
@@ -74,8 +92,8 @@ class MatchDaysApiWebTest {
         MatchDaySummaryDto summary = new MatchDaySummaryDto(dayId, "FCTT", "2026-2027", "TERCERA", 1, "1a Fase", 2,
                 LocalDate.parse("2026-10-04"), LocalDate.parse("2026-10-04"), LocalDate.parse("2026-10-06"), 2,
                 "OPEN", null, null, null, Instant.parse("2026-10-04T10:00:00Z"),
-                Instant.parse("2026-10-04T10:05:00Z"), Map.of("OVERDUE", 1), 0);
-        return new MatchDayDetailDto(summary, List.of(), List.of());
+                Instant.parse("2026-10-04T10:05:00Z"), Map.of("OVERDUE", 1), 0, "HAS_OVERDUE", 0, 1);
+        return new MatchDayDetailDto(summary, List.of(), List.of(), List.of());
     }
 
     private void stubDetail() {
@@ -242,5 +260,209 @@ class MatchDaysApiWebTest {
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("ILLEGAL_TRANSITION"));
         mvc.perform(post(BASE + "/" + dayId + "/reopen").header("Authorization", auth))
                 .andExpect(status().isConflict()).andExpect(jsonPath("$.code").value("STALE_MATCH_DAY"));
+    }
+
+    @Test
+    void summariesAndDetailExposeCompletionAndTheActiveCounts() throws Exception {
+        stubDetail();
+
+        mvc.perform(get(BASE + "/" + dayId).header("Authorization", bearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.matchDay.completion").value("HAS_OVERDUE"))
+                .andExpect(jsonPath("$.matchDay.reportedMatches").value(0))
+                .andExpect(jsonPath("$.matchDay.totalMatches").value(1))
+                .andExpect(jsonPath("$.runs").isArray());
+    }
+
+    @Test
+    void listPassesCompetitionPhaseAndUndatedToTheQuery() throws Exception {
+        when(queries.list(any())).thenReturn(new PageDto<>(List.of(), 0, 50, 0, 0));
+
+        mvc.perform(get(BASE).header("Authorization", bearer())
+                .param("competition", "TERCERA-masculino").param("phase", "1a Fase").param("undated", "true"))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<MatchDayQuery> captor = ArgumentCaptor.forClass(MatchDayQuery.class);
+        verify(queries).list(captor.capture());
+        assertThat(captor.getValue().competition()).isEqualTo("TERCERA-masculino");
+        assertThat(captor.getValue().phase()).isEqualTo("1a Fase");
+        assertThat(captor.getValue().undated()).isTrue();
+    }
+
+    @Test
+    void undatedCannotBeCombinedWithADateRangeAndFiltersMustNotBeBlank() throws Exception {
+        String auth = bearer();
+
+        mvc.perform(get(BASE).header("Authorization", auth).param("undated", "true").param("from", "2026-10-01"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.field").value("undated"));
+        mvc.perform(get(BASE).header("Authorization", auth).param("undated", "true").param("to", "2026-10-01"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.field").value("undated"));
+        mvc.perform(get(BASE).header("Authorization", auth).param("competition", "  "))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.field").value("competition"));
+        mvc.perform(get(BASE).header("Authorization", auth).param("phase", "x".repeat(256)))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.field").value("phase"));
+
+        verify(queries, never()).list(any());
+    }
+
+    @Test
+    void facetsAreReadByAnyAuthenticatedUser() throws Exception {
+        when(queries.facets(PipelineSource.FCTT, "2026-2027")).thenReturn(
+                new MatchDayFacetsDto(List.of("2026-2027"), List.of("TERCERA"), List.of("1a Fase")));
+
+        mvc.perform(get(BASE + "/facets").param("source", "fctt").param("season", "2026-2027"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get(BASE + "/facets").header("Authorization", bearer())
+                .param("source", "fctt").param("season", "2026-2027"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.seasons[0]").value("2026-2027"))
+                .andExpect(jsonPath("$.competitions[0]").value("TERCERA"))
+                .andExpect(jsonPath("$.phases[0]").value("1a Fase"));
+        mvc.perform(get(BASE + "/facets").header("Authorization", bearer()).param("season", "2026"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.field").value("season"));
+    }
+
+    @Test
+    void resultsAreReadThroughTheServiceAndPlatformFailuresAreBadGateway() throws Exception {
+        MatchResultDto result = new MatchResultDto(matchId, "PLAYED", 3, 1, "CTT A");
+        when(results.results(dayId)).thenReturn(
+                Optional.of(new MatchDayResultsDto(dayId, LocalDate.parse("2026-10-04"), List.of(result))));
+
+        mvc.perform(get(BASE + "/" + dayId + "/results")).andExpect(status().isUnauthorized());
+        mvc.perform(get(BASE + "/" + dayId + "/results").header("Authorization", bearer()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.platformToday").value("2026-10-04"))
+                .andExpect(jsonPath("$.results[0].matchId").value(matchId.toString()))
+                .andExpect(jsonPath("$.results[0].homeGamesWon").value(3))
+                .andExpect(jsonPath("$.results[0].awayGamesWon").value(1))
+                .andExpect(jsonPath("$.results[0].winnerTeamName").value("CTT A"));
+
+        when(results.results(dayId)).thenThrow(new PlatformUnavailableException(
+                "The platform rejected the request; check the configured API key",
+                new GatewayException(GatewayException.Kind.REJECTED, 403, "x")));
+        mvc.perform(get(BASE + "/" + dayId + "/results").header("Authorization", bearer()))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.code").value("PLATFORM_UNAVAILABLE"))
+                .andExpect(jsonPath("$.detail").value("The platform rejected the request; check the configured API key"));
+
+        UUID unknown = UUID.randomUUID();
+        when(results.results(unknown)).thenReturn(Optional.empty());
+        mvc.perform(get(BASE + "/" + unknown + "/results").header("Authorization", bearer()))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("MATCH_DAY_NOT_FOUND"));
+    }
+
+    private PipelineRun run() {
+        return PipelineRun.queue(runId, PipelineSource.FCTT, "2026-2027", RunScope.fullSeason(), false,
+                RunTrigger.MANUAL, "alice", null, Instant.parse("2026-10-04T10:00:00Z"));
+    }
+
+    private final UUID runId = UUID.randomUUID();
+
+    @Test
+    void refreshNeedsMatchesWriteAndAuthentication() throws Exception {
+        mvc.perform(post(BASE + "/" + dayId + "/refresh")).andExpect(status().isUnauthorized());
+        mvc.perform(post(BASE + "/" + dayId + "/refresh").header("Authorization", bearer()))
+                .andExpect(status().isForbidden());
+
+        verifyNoInteractions(refresh);
+    }
+
+    @Test
+    void refreshCreatesARunWithTheTokenSubjectAndForce() throws Exception {
+        stubDetail();
+        when(refresh.refresh(eq(dayId), eq(true), eq("alice"), any()))
+                .thenReturn(List.of(new Outcome.Created(run())));
+
+        mvc.perform(post(BASE + "/" + dayId + "/refresh").header("Authorization", bearer("matches:write"))
+                .contentType(MediaType.APPLICATION_JSON).content("{\"force\":true}"))
+                .andExpect(status().isCreated())
+                .andExpect(header().string("Location", "/api/pipeline/runs/" + runId))
+                .andExpect(jsonPath("$.results[0].outcome").value("CREATED"))
+                .andExpect(jsonPath("$.results[0].run.id").value(runId.toString()));
+
+        verify(changes).matchDaysChanged(PipelineSource.FCTT, "2026-2027", dayId,
+                MatchDayChangeListener.Cause.ACTION);
+    }
+
+    @Test
+    void refreshWithoutABodyIsNotForced() throws Exception {
+        stubDetail();
+        when(refresh.refresh(eq(dayId), eq(false), eq("alice"), any()))
+                .thenReturn(List.of(new Outcome.Created(run())));
+
+        mvc.perform(post(BASE + "/" + dayId + "/refresh").header("Authorization", bearer("matches:write")))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void aQueuedRefreshIsAcceptedAndTellsLiveViews() throws Exception {
+        stubDetail();
+        PendingTrigger pending = new PendingTrigger(PipelineSource.FCTT, "2026-2027", ScopeType.GROUP,
+                List.of(new org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter("c", null, null, null, null,
+                        List.of(2))), false, "alice", Instant.parse("2026-10-04T10:00:00Z"));
+        when(refresh.refresh(eq(dayId), eq(false), eq("alice"), any()))
+                .thenReturn(List.of(new Outcome.Queued(pending, runId)));
+
+        mvc.perform(post(BASE + "/" + dayId + "/refresh").header("Authorization", bearer("matches:write")))
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.results[0].outcome").value("QUEUED"));
+
+        verify(changes).matchDaysChanged(PipelineSource.FCTT, "2026-2027", dayId,
+                MatchDayChangeListener.Cause.ACTION);
+    }
+
+    @Test
+    void aRejectedOrUnavailableRefreshIsConflictOrUnprocessableAndTellsNobody() throws Exception {
+        stubDetail();
+        String auth = bearer("matches:write");
+        when(refresh.refresh(eq(dayId), eq(false), eq("alice"), any())).thenReturn(
+                List.of(new Outcome.Rejected(PipelineSource.FCTT, "ACTIVE_RUN", "FCTT already has an active run",
+                        runId)));
+
+        mvc.perform(post(BASE + "/" + dayId + "/refresh").header("Authorization", auth))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("ACTIVE_RUN"))
+                .andExpect(jsonPath("$.results[0].outcome").value("REJECTED"));
+
+        when(refresh.refresh(eq(dayId), eq(false), eq("alice"), any())).thenReturn(
+                List.of(new Outcome.Unavailable(PipelineSource.FCTT, "NO_INGEST_STATUS", "run a full-season ingest")));
+        mvc.perform(post(BASE + "/" + dayId + "/refresh").header("Authorization", auth))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("NO_INGEST_STATUS"));
+
+        verifyNoInteractions(changes);
+    }
+
+    @Test
+    void refreshOfAnUnknownMatchDayIsNotFound() throws Exception {
+        when(queries.detail(dayId)).thenReturn(Optional.empty());
+
+        mvc.perform(post(BASE + "/" + dayId + "/refresh").header("Authorization", bearer("matches:write")))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("MATCH_DAY_NOT_FOUND"));
+
+        verifyNoInteractions(refresh);
+    }
+
+    @Test
+    void successfulActionsTellLiveViewsAndAListenerFailureDoesNotFailTheRequest() throws Exception {
+        stubDetail();
+        doThrow(new IllegalStateException("listener down")).when(changes).matchDaysChanged(any(), any(), any(), any());
+
+        mvc.perform(post(BASE + "/" + dayId + "/close").header("Authorization", bearer("matches:write")))
+                .andExpect(status().isOk());
+
+        verify(changes).matchDaysChanged(PipelineSource.FCTT, "2026-2027", dayId,
+                MatchDayChangeListener.Cause.ACTION);
+    }
+
+    @Test
+    void failedActionsTellNobody() throws Exception {
+        doThrow(new IllegalMatchDayTransitionException(dayId, "is already closed")).when(actions)
+                .close(eq(dayId), any(), any());
+
+        mvc.perform(post(BASE + "/" + dayId + "/close").header("Authorization", bearer("matches:write")))
+                .andExpect(status().isConflict());
+
+        verifyNoInteractions(changes);
     }
 }

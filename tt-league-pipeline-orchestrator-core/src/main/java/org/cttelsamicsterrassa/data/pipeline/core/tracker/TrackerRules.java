@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.pipeline.core.tracker;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The tracker rules, one place each. Match states are only mapped from the platform calendar state, never derived
@@ -54,6 +55,31 @@ public final class TrackerRules {
                 && day.closeReason() == CloseReason.ALL_RESOLVED
                 && !matches.isEmpty()
                 && !canAutoClose(matches);
+    }
+
+    /**
+     * The completion category of a match day from its state and its active (non-ignored) match counts. An UPCOMING
+     * day is FUTURE; otherwise any overdue match makes it HAS_OVERDUE (also when closed manually), a day whose active
+     * matches are all reported (or without active matches) is COMPLETE, and everything else is IN_PROGRESS.
+     */
+    public static MatchDayCompletion completion(MatchDayState state, Map<TrackedMatchStatus, Integer> activeCounts) {
+        if (state == null) {
+            throw new IllegalArgumentException("state is required");
+        }
+        if (activeCounts == null) {
+            throw new IllegalArgumentException("activeCounts is required");
+        }
+        if (state == MatchDayState.UPCOMING) {
+            return MatchDayCompletion.FUTURE;
+        }
+        if (activeCounts.getOrDefault(TrackedMatchStatus.OVERDUE, 0) > 0) {
+            return MatchDayCompletion.HAS_OVERDUE;
+        }
+        int total = activeCounts.values().stream().mapToInt(Integer::intValue).sum();
+        if (activeCounts.getOrDefault(TrackedMatchStatus.REPORTED, 0) == total) {
+            return MatchDayCompletion.COMPLETE;
+        }
+        return MatchDayCompletion.IN_PROGRESS;
     }
 
     private static boolean shouldOpen(MatchDay day, List<MatchTracking> matches, LocalDate today) {

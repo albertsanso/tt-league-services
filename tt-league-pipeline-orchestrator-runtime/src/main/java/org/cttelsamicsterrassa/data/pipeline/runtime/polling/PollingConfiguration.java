@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import net.javacrumbs.shedlock.core.LockingTaskExecutor;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunClock;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.AdaptivePollingTick;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.MatchDayRefresh;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.PollingSettingsProvider;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.TrackerOpenMatchDayScopeResolver;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.port.IngestStatusGateway;
@@ -13,6 +14,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollingAlerts;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.BcnesaCompetitionNames;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.ScopeBuilder;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayActions;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.port.OpenMatchDayScopeResolver;
@@ -44,6 +46,16 @@ public class PollingConfiguration {
     OpenMatchDayScopeResolver openMatchDayScopeResolver(
             MatchDayRepository matchDays, IngestStatusGateway status, ScopeBuilder scopeBuilder) {
         return new TrackerOpenMatchDayScopeResolver(matchDays, status, scopeBuilder);
+    }
+
+    @Bean
+    MatchDayRefresh matchDayRefresh(
+            MatchDayRepository matchDays,
+            IngestStatusGateway status,
+            ScopeBuilder scopeBuilder,
+            TriggerRun triggerRun,
+            MatchDayActions actions) {
+        return new MatchDayRefresh(matchDays, status, scopeBuilder, triggerRun, actions);
     }
 
     @Bean

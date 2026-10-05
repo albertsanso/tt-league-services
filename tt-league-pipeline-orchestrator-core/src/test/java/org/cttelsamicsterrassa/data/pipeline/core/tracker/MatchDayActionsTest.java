@@ -194,6 +194,42 @@ class MatchDayActionsTest {
     }
 
     @Test
+    void recordRefreshAppendsOnlyAnEventWithTheRun() {
+        UUID runId = UUID.randomUUID();
+        MatchDay before = stored();
+
+        actions.recordRefresh(day.id(), "ana", runId, null);
+
+        assertThat(stored().state()).isEqualTo(before.state());
+        assertThat(events()).singleElement().satisfies(event -> {
+            assertThat(event.kind()).isEqualTo(MatchDayEventKind.REFRESH_REQUESTED);
+            assertThat(event.actor()).isEqualTo("ana");
+            assertThat(event.runId()).isEqualTo(runId);
+            assertThat(event.matchId()).isNull();
+        });
+    }
+
+    @Test
+    void recordRefreshWithoutARunKeepsTheNoteAndWorksOnClosedDays() {
+        actions.close(day.id(), "ana", null);
+
+        actions.recordRefresh(day.id(), "bea", null, "Queued behind active run 1");
+
+        assertThat(stored().state()).isEqualTo(MatchDayState.CLOSED);
+        assertThat(events()).last().satisfies(event -> {
+            assertThat(event.kind()).isEqualTo(MatchDayEventKind.REFRESH_REQUESTED);
+            assertThat(event.runId()).isNull();
+            assertThat(event.note()).isEqualTo("Queued behind active run 1");
+        });
+    }
+
+    @Test
+    void recordRefreshOfAnUnknownDayIsNotFound() {
+        assertThatThrownBy(() -> actions.recordRefresh(UUID.randomUUID(), "ana", null, null))
+                .isInstanceOf(MatchDayNotFoundException.class);
+    }
+
+    @Test
     void staleVersionIsRejectedByTheRepository() {
         MatchDay loaded = stored();
         actions.addNote(day.id(), null, "ana", "touch");

@@ -21,7 +21,7 @@ The SPA calls both backends on its own origin through two path prefixes:
 
 | Prefix | Backend | Used for |
 |---|---|---|
-| `/api/pipeline` | orchestrator runtime | runs, match days, polling, `/events` stream |
+| `/api/pipeline` | orchestrator runtime | runs, match days (list, facets, detail, results, refresh, actions), polling, `/events` stream |
 | `/api/v1` | platform REST API | `/auth/login`, `/auth/me`, `/auth/logout` |
 
 The platform has no CORS configuration, and the orchestrator's
@@ -136,6 +136,48 @@ fast feedback only; the server's answer is always shown:
 | `409` / `422` | the dialog stays open with the problem and one line per source, an "Open active run" link and the code (`NO_OPEN_MATCH_DAYS`, ...) |
 | `400` with `field` | the message on that field |
 | `403` / network error | an alert in the dialog; nothing is retried |
+
+## Calendar
+
+`/calendar` shows the tracked match days of the current month (or week) with one entry per match day and group. The
+URL carries the state, so a link reopens the same view:
+`?view=month|week&date=YYYY-MM-DD&source=&season=&competition=&phase=&state=`. Missing `view` and `date` open the
+current month (navigation only); no source, season or category is ever preselected. Invalid values are dropped and
+listed in a warning, never replaced. Weeks start on Monday and dates are plain calendar dates (no time-zone shift).
+
+- Filters: source, season, category (the tracker `competition`), phase and state; the options come from
+  `GET /api/pipeline/match-days/facets`. Changing a filter replaces the URL and keeps the period.
+- Entries sit on their first date (a match day that started before the visible period sits on its first visible day).
+  The month grid shows up to four entries per day and "+N more" opens the full list; the week view lists every entry.
+  Match days without dates are listed under the calendar.
+- Colours come from the server's `completion`: all reported (green), in progress (blue), has overdue (red), future
+  (grey). Entries also carry text (`reported / total`, a lock for closed, a calendar icon for postponed) and an
+  accessible name with the completion, state and counts, so colour is never the only signal. The legend is shown above
+  the calendar.
+- The calendar loads every page of the period (200 per page, at most 10 pages, then asks to narrow the filters) and
+  follows the `match-days` event of the filtered source and season (one debounced refetch), reconnects and failures
+  (error alert with Retry).
+
+## Match-day detail
+
+`/calendar/match-days/:id` shows the key, state, completion, `reported / total` and counts per status, the matches
+(status, result, reported at with a link to the run, who ignored it) and a timeline of the tracker and operator events
+and the runs that touched the match day, newest first. Results are read separately from the platform
+(`GET .../results`); when that fails the page shows a warning with Retry and "unavailable" in the Result column, and
+everything else keeps working. The page follows `match-days` events for this match day (or for its source and season
+after a recompute), run events for the listed runs, and refetches after a reconnect.
+
+Actions need `matches:write` (the buttons are disabled with a tooltip otherwise); nothing is retried:
+
+| Action | Request | Notes |
+|---|---|---|
+| Refresh group | `POST /match-days/{id}/refresh` | Creates a run for this round of the group (the whole category for RFETM); "Ignore the ingest no-change check" sets `force`. `201`/`202` show the result with a link to the run; `409`/`422` keep the dialog open with the per-source results |
+| Close / Reopen | `POST /match-days/{id}/close` or `/reopen` | optional note |
+| Ignore / Stop ignoring | `PUT` / `DELETE /match-days/{id}/matches/{matchId}/ignore` | optional note |
+| Add note | `POST /match-days/{id}/notes` | required text (at most 2000 characters), applies to the day or one match |
+
+A `409` (`ILLEGAL_TRANSITION`, `STALE_MATCH_DAY`) shows the server message and reloads the match day; a `400` on the
+note is shown on the field; `403`, `404` and network errors are shown as an alert.
 
 ## Layout
 

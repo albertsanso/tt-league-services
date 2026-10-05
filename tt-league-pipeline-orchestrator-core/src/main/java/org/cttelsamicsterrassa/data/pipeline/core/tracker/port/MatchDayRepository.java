@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDay;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayChangeSet;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayEvent;
+import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayFacets;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayPage;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayQuery;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchTracking;
@@ -33,6 +34,12 @@ public interface MatchDayRepository {
     Set<SourceSeason> findSourceSeasonsWithUnclosedDays();
 
     MatchDayPage query(MatchDayQuery query);
+
+    /**
+     * Distinct sorted filter values. {@code seasons} honours only {@code source}; {@code competitions} and
+     * {@code phases} honour both {@code source} and {@code season} (null means all). Absent phases are left out.
+     */
+    MatchDayFacets facets(PipelineSource source, String season);
 
     /**
      * Writes the change set atomically: days first, then matches, removals and events. A day or match that exists is

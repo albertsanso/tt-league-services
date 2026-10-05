@@ -168,4 +168,23 @@ class MatchDayTrackerMigrationTest extends AbstractPersistenceTest {
         assertThat(template.queryForObject("SELECT count(*) FROM pipeline.match_day_event WHERE match_id = ?",
                 Integer.class, removedMatch)).isEqualTo(1);
     }
+
+    @Test
+    void flywayAppliedV6AndTheEventKindsIncludeRefreshRequested() {
+        assertThat(template.queryForList(
+                "SELECT version FROM pipeline.flyway_schema_history WHERE success ORDER BY installed_rank",
+                String.class)).contains("6");
+        assertThat(template.queryForList("SELECT conname FROM pg_constraint WHERE conrelid = "
+                + "'pipeline.match_day_event'::regclass AND contype = 'c'", String.class))
+                .contains("match_day_event_kind_check");
+        UUID day = insertDay("FCTT", "2026-2027", "TERCERA", 1, null, 1);
+
+        insertEvent(day, null, "REFRESH_REQUESTED", null);
+        insertEvent(day, null, "OPENED", null);
+
+        assertThatThrownBy(() -> insertEvent(day, null, "REFRESHED", null))
+                .isInstanceOf(DataIntegrityViolationException.class);
+        assertThat(template.queryForObject("SELECT count(*) FROM pipeline.match_day_event WHERE kind = ?",
+                Integer.class, "REFRESH_REQUESTED")).isEqualTo(1);
+    }
 }

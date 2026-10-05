@@ -8,6 +8,7 @@ import { json, stubFetch } from './fakeFetch'
 import type { FakeFetch } from './fakeFetch'
 import { makeToken } from './jwt'
 import type { TestClaims } from './jwt'
+import { makeFacets, makeMatchDayDetail, makeResults, makeSummaryPage, summariesForEveryCompletion } from './matchDayFixtures'
 import { makeDetail, makePage, makeRun } from './runFixtures'
 
 export const runPage = makePage([makeRun('run-1')])
@@ -39,6 +40,18 @@ export function stubBackends(options: AppFakeOptions = {}): FakeFetch {
         status: 200,
         headers: { 'Content-Type': 'text/event-stream' },
       })
+    }
+    if (request.url.startsWith('/api/pipeline/match-days/facets')) {
+      return json(makeFacets())
+    }
+    if (/^\/api\/pipeline\/match-days\/[^/?]+\/results/.test(request.url)) {
+      return json(makeResults())
+    }
+    if (/^\/api\/pipeline\/match-days\/[^/?]+$/.test(request.url)) {
+      return json(makeMatchDayDetail())
+    }
+    if (request.url.startsWith('/api/pipeline/match-days')) {
+      return json(makeSummaryPage(request.url.includes('undated=true') ? [] : summariesForEveryCompletion()))
     }
     if (request.url.startsWith('/api/pipeline/runs/')) {
       return json(makeDetail('run-1'))

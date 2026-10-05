@@ -54,27 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00111] Pipeline calendar and match-day detail views
-- **Status:** idea
-- **Priority:** medium
-- **Effort:** large
-- **Depends on:** FEAT-00107, FEAT-00109
-
-#### Goal
-Show reported and pending matches per match day on a calendar and let operators act on a match day from its detail view.
-
-#### Acceptance Criteria
-- [ ] A month/week calendar shows one entry per match day and group, filterable by source, season, category and phase
-- [ ] Entries are coloured by completion (all reported, in progress, has overdue, future) and show `reported / total`
-- [ ] The match-day detail lists matches with status, result and reported-at, and a timeline of the runs that touched it
-- [ ] Operators can refresh just that group, close the match day, mark a match ignored and add a note
-- [ ] Tests cover colouring rules, filters and each action
-
-#### Feature Details
-→ See [FEAT-00111-DETAILS.md](./FEAT-00111-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00112] Orchestrator notifications and alerts
 - **Status:** idea
 - **Priority:** low
@@ -173,6 +152,27 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00111] Pipeline calendar and match-day detail views
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large
+- **Depends on:** FEAT-00107, FEAT-00108, FEAT-00109, FEAT-00110
+
+#### Goal
+Show reported and pending matches per match day on a calendar and let operators act on a match day from its detail view.
+
+#### Acceptance Criteria
+- [x] A month/week calendar shows one entry per match day and group, filterable by source, season, category and phase
+- [x] Entries are coloured by completion (all reported, in progress, has overdue, future) and show `reported / total`
+- [x] The match-day detail lists matches with status, result and reported-at, and a timeline of the runs that touched it
+- [x] Operators can refresh just that group, close the match day, mark a match ignored and add a note
+- [x] Tests cover colouring rules, filters and each action
+
+#### Feature Details
+→ See [FEAT-00111-DETAILS.md](./FEAT-00111-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00110] Orchestrator runs view with live logs and Run now dialog
 - **Status:** done
