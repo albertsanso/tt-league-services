@@ -54,26 +54,6 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
-### [FEAT-00110] Orchestrator runs view with live logs and Run now dialog
-- **Status:** idea
-- **Priority:** medium
-- **Effort:** medium
-- **Depends on:** FEAT-00109
-
-#### Goal
-Let operators see every run, follow the running one live and start a run on demand from the UI.
-
-#### Acceptance Criteria
-- [ ] A runs table (newest first) shows trigger, scope, duration, step badges and outcome, with filters by source, status and date
-- [ ] A run detail shows steps, issues, artifacts and the import report, and updates live while the run is active
-- [ ] A Run now dialog (source or all, scope type, force) creates a manual run and shows the 409 message when one is active
-- [ ] Tests cover table rendering, live updates and the dialog
-
-#### Feature Details
-→ See [FEAT-00110-DETAILS.md](./FEAT-00110-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
-
----
-
 ### [FEAT-00111] Pipeline calendar and match-day detail views
 - **Status:** idea
 - **Priority:** medium
@@ -193,6 +173,26 @@ Run the orchestrator, its frontend and the ingest service together on a single V
 
 ---
 ## Done
+
+### [FEAT-00110] Orchestrator runs view with live logs and Run now dialog
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large
+- **Depends on:** FEAT-00109
+
+#### Goal
+Let operators see every run, follow the running one live and start a run on demand from the UI.
+
+#### Acceptance Criteria
+- [x] A runs table (newest first) shows trigger, scope, duration, step badges and outcome, with filters by source, status and date
+- [x] A run detail shows steps, issues, artifacts and the import report, and updates live while the run is active
+- [x] A Run now dialog (source or all, scope type, force) creates a manual run and shows the 409 message when one is active
+- [x] Tests cover table rendering, live updates and the dialog
+
+#### Feature Details
+→ See [FEAT-00110-DETAILS.md](./FEAT-00110-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00109] Orchestrator frontend shell, authentication and API client
 - **Status:** done

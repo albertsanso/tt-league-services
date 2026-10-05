@@ -81,6 +81,62 @@ provider reconnects with a delay of `max(server retry, 5 s)` doubled per
 consecutive failure up to 60 s (±20 % jitter). The server has no replay, so every
 `ready` after the first emits a `reconnected` event and screens must refetch.
 
+## Runs screen
+
+`/runs` lists runs newest first (20 per page) with the columns Created, Source,
+Trigger (`Manual · ana`, `Scheduled`, `Retry`, plus a `forced` chip), Scope (full
+list in a tooltip), Duration (active rows tick every second from `startedAt` and
+the local clock), Steps (one badge per Ingest / Fetch package / Import with the
+latest attempt, `×n` when retried) and Outcome (status chip; failed or partial
+runs show the error code, the message is in a tooltip). A row opens `/runs/:id`;
+the list filters are passed along so "All runs" returns to the same view.
+
+Filters live in the query string, so a view can be bookmarked and survives a
+reload: `?source=RFETM&source=FCTT&status=FAILED&from=2026-10-01&to=2026-10-05&page=2`
+(`page` is 1-based). `from` and `to` are local dates; the "to" day is **inclusive**
+(the request sends the start of the next day, because the API bound is
+exclusive). Unknown values are dropped and reported in a warning, never replaced
+by another value; `from` after `to` sends no request. Changing a filter resets
+the page.
+
+Live updates come from the single event stream (`useRunEvents`): `run` and `step`
+events patch the visible rows in place, an unknown run on the first page
+triggers one debounced (300 ms) refetch, on later pages a "New runs available"
+action appears, and a reconnect refetches. The "Live activity" panel is built in
+the browser from the events received **since the page was opened** (there is no
+replay and no log endpoint): run status changes, step starts and ends with
+outcome or error, and queued-trigger changes (last 200 entries).
+
+## Run detail
+
+`/runs/:id` shows the header (source, season, status, trigger, requester, times,
+live duration), the linked ids (`retryOfRunId`, ingest run id, import job id),
+the scope, **every** step attempt, issues, artifacts (size and SHA-256), the
+import report counters and a live activity log for the run. While the run is
+active it follows `run` and `step` events; a terminal `run` event refetches the
+detail (artifacts, report and issues only come from the GET), and a reconnect
+refetches. An unknown or malformed id shows "Run not found".
+
+## Run now dialog
+
+Needs the `matches:write` permission (the button is disabled with a tooltip
+otherwise). There are no defaults: choose the source (or All sources), type the
+season (suggestions only come from the runs already loaded) and choose the scope
+(Open match days, Group, Full season). Group needs exactly one source and a
+filter editor (category, group, phase, territory, gender, match days as `3, 4`;
+blank fields are not sent). "Ignore the ingest no-change check" sets `force`.
+
+The client checks the same rules as the API (`PipelineRun.requireValidSeason`:
+`YYYY-YYYY` with consecutive years; `TriggerRules`: group scope, filters) for
+fast feedback only; the server's answer is always shown:
+
+| Answer | Shown as |
+|---|---|
+| `201` / `202` | dialog closes; the page lists every source result (created with a link, queued, rejected) |
+| `409` / `422` | the dialog stays open with the problem and one line per source, an "Open active run" link and the code (`NO_OPEN_MATCH_DAYS`, ...) |
+| `400` with `field` | the message on that field |
+| `403` / network error | an alert in the dialog; nothing is retried |
+
 ## Layout
 
 ```text
@@ -88,5 +144,6 @@ src/api/      typed HTTP client, endpoint modules, DTO types (types.ts)
 src/auth/     token storage and claims, AuthProvider, permissions, Can
 src/events/   SSE parser and RunEventsProvider
 src/layout/   app shell, navigation list, route error boundary
+src/runs/     run list/detail hooks, table, filters, activity log, Run now dialog
 src/pages/    lazy-loaded screens (Calendar, Runs, Run detail, Statistics), login
 ```

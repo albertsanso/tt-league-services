@@ -51,7 +51,7 @@ describe('App routing', () => {
   it.each([
     ['/calendar', 'Calendar'],
     ['/runs', 'Runs'],
-    ['/runs/abc', 'Run details'],
+    ['/runs/run-1', 'Run details'],
     ['/statistics', 'Statistics'],
   ])('renders the lazy route %s', async (path, heading) => {
     stubBackends()

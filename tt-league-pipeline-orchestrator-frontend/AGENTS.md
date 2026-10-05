@@ -20,6 +20,11 @@ signing in and calendar components may be duplicated rather than shared.
 - UI permission checks mirror `SecurityConfiguration` and never replace server
   checks.
 - DTO types live in `src/api/types.ts` and change with the runtime DTOs.
+- Run list and detail state follow the event stream through the `src/runs/`
+  hooks (`useRunList`, `useRunDetail`, `useRunActivity`); screens never open
+  their own event connection.
+- Client-side trigger validation mirrors `TriggerRules` and
+  `PipelineRun.requireValidSeason` and never replaces the server's answer.
 - No data-fetching, state or JWT library without a decision.
 - Tests use Vitest + React Testing Library (not Jest).
 - `package-lock.json` is committed; the Maven build uses `npm ci`. If a fresh

@@ -8,27 +8,9 @@ import { json, stubFetch } from './fakeFetch'
 import type { FakeFetch } from './fakeFetch'
 import { makeToken } from './jwt'
 import type { TestClaims } from './jwt'
+import { makeDetail, makePage, makeRun } from './runFixtures'
 
-export const runPage = {
-  items: [
-    {
-      id: 'run-1',
-      source: 'RFETM',
-      season: '2025-2026',
-      filters: [],
-      fullSeason: false,
-      trigger: 'MANUAL',
-      requestedBy: 'ana',
-      force: false,
-      status: 'SUCCEEDED',
-      createdAt: '2026-10-01T10:00:00Z',
-    },
-  ],
-  page: 0,
-  size: 20,
-  totalItems: 1,
-  totalPages: 1,
-}
+export const runPage = makePage([makeRun('run-1')])
 
 export interface AppFakeOptions {
   /** Claims of the token returned by the platform login endpoint. */
@@ -57,6 +39,9 @@ export function stubBackends(options: AppFakeOptions = {}): FakeFetch {
         status: 200,
         headers: { 'Content-Type': 'text/event-stream' },
       })
+    }
+    if (request.url.startsWith('/api/pipeline/runs/')) {
+      return json(makeDetail('run-1'))
     }
     if (request.url.startsWith('/api/pipeline/runs')) {
       return json(options.runs ?? runPage)

@@ -123,7 +123,7 @@ export interface TriggerRunRequest {
   readonly source: PipelineSource | 'ALL'
   readonly season: string
   readonly scopeType: ScopeType
-  readonly filters?: readonly ScopeFilter[]
+  readonly filters?: readonly Partial<ScopeFilter>[]
   readonly force: boolean
 }
 
