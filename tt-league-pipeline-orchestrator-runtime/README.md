@@ -69,8 +69,8 @@ HTTP connect timeouts are `PT10S`; read timeouts are `PT1M` (ingest) and `PT5M`
 (platform, which validates the upload synchronously). They are set in
 `application.yml` (`tt.pipeline.*.connect-timeout`, `read-timeout`).
 
-`/actuator/health`, `/actuator/info` and `/actuator/prometheus` are exposed; see
-[Observability](#observability). `PIPELINE_LOG_FORMAT` (default `logstash`) selects the console log format.
+`/actuator/health` (with the `/actuator/health/liveness` and `/readiness` probes), `/actuator/info` and
+`/actuator/prometheus` are exposed; see [Observability](#observability). `PIPELINE_LOG_FORMAT` (default `logstash`) selects the console log format.
 
 ## Run execution
 
@@ -519,3 +519,21 @@ Docker; without Docker they are reported as skipped, not passed.
 mvn -pl tt-league-pipeline-orchestrator-runtime -am test
 java -jar tt-league-pipeline-orchestrator-runtime/target/tt-league-pipeline-orchestrator-runtime-0.0.1-SNAPSHOT.jar
 ```
+
+## Container image
+
+`Dockerfile` builds the runtime image from the Boot jar built on the host (the `org.albertsanso` dependencies exist only
+in the local Maven repository). The build context is this module directory; `.dockerignore` lets only the jar in.
+
+```text
+mvn -pl tt-league-pipeline-orchestrator-runtime -am clean package -DskipTests
+docker build -t tt-league/orchestrator-runtime --build-arg GIT_SHA=$(git rev-parse --short HEAD) tt-league-pipeline-orchestrator-runtime
+```
+
+The image runs as uid/gid `10001`, exposes `8095`, and its health check calls
+`http://localhost:8095/actuator/health/liveness`. The artifact directory `/var/lib/tt-pipeline/artifacts` is a volume
+mount point. The image presets `JAVA_TOOL_OPTIONS` (`-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError`) and
+`PIPELINE_ARTIFACTS_DIR=/var/lib/tt-pipeline/artifacts`; the required database, platform, ingest and `JWT_SIGNING_SECRET`
+variables have no default and must be set at run time. Logs stay in the `logstash` JSON format. The Compose project that
+wires it to PostgreSQL, the platform, ingest and the proxy is described in [deploy/README.md](../deploy/README.md);
+`/actuator/prometheus` must not be routed through a public proxy.

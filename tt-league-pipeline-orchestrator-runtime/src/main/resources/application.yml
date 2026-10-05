@@ -161,6 +161,11 @@ management:
     web:
       exposure:
         include: health,info,prometheus
+  endpoint:
+    health:
+      # Enables /actuator/health/liveness and /readiness, which the container health check calls (FEAT-00116).
+      probes:
+        enabled: true
   metrics:
     tags:
       application: ${spring.application.name}

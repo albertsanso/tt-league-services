@@ -9,6 +9,9 @@ dashboard inicial (FEAT-00001) amb shell de navegació, overview i pàgines bàs
 - Backend opcional: si no hi ha `/api/stats/community`, el frontend usa dades mock
   deterministes. Les rutes del dashboard requereixen una sessió autenticada.
 
+En producció (desplegament en una sola VM) el frontend el serveix la imatge del proxy, `deploy/proxy/Dockerfile`;
+veure [deploy/README.md](../deploy/README.md).
+
 ## Scripts npm
 
 ```bash

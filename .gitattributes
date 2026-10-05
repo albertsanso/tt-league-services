@@ -1,0 +1,7 @@
+# Container build inputs must keep LF line endings on every checkout: a CRLF breaks Dockerfile continuations
+# and the shell script that PostgreSQL runs on first start (FEAT-00116).
+Dockerfile text eol=lf
+**/Dockerfile text eol=lf
+*.dockerignore text eol=lf
+deploy/**/*.sh text eol=lf
+deploy/**/*.conf text eol=lf

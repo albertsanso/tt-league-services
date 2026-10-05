@@ -23,6 +23,10 @@ data. The root aggregator is `tt-data-league-services` and currently contains:
   that adapts the core ports (REST clients, scheduler, persistence).
 - `tt-league-pipeline-orchestrator-frontend`: React + TypeScript + Material UI
   pipeline control centre, built through `frontend-maven-plugin`.
+- `deploy/`: single-VM Docker Compose project and reverse-proxy image (nginx
+  serving both frontends), outside the Maven reactor. Each service's
+  `Dockerfile` lives in its own module; `.podman/` stays the local-development
+  database. See `deploy/README.md`.
 
 Keep dependencies directed inward: domain code must not depend on Spring or
 JPA; import code must not depend on persistence adapters; and runtime modules

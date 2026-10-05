@@ -262,6 +262,22 @@ under [Run outcome and exit codes](#run-outcome-and-exit-codes). `outcome` is `n
 the run ends; `retryable` is `false` until then. Each stage lists its `skipped` reason. If the pipeline itself
 raises, `status` and `outcome` are `FAILED`, `retryable` is `false` and `error` holds the exception.
 
+## Container image
+
+`Dockerfile` builds the REST service only (`tt-league-ingest-rest`); the build context is this directory, and
+`.dockerignore` leaves out `.venv`, caches and tests.
+
+```text
+docker build -t tt-league/ingest --build-arg GIT_SHA=$(git rev-parse --short HEAD) tt-league-ingest
+```
+
+The build runs `uv sync --frozen --no-dev --no-editable`, so it fails when `uv.lock` is stale instead of re-resolving
+(`uv lock --check` shows the same). The image runs as uid/gid `10001`, exposes `8091`, and its health check calls
+`GET /health`. The data directory `/var/lib/tt-ingest/data` is a volume mount point. The image presets
+`TT_INGEST_REST_HOST=0.0.0.0`, `TT_INGEST_REST_PORT=8091` and `TT_INGEST_DATA_DIR=/var/lib/tt-ingest/data`;
+`TT_INGEST_REST_API_KEY` is required and has no default. The `upload` step needs `TT_LEAGUE_API_URL`/`TT_LEAGUE_API_TOKEN`
+and is not used by the orchestrator. See [deploy/README.md](../deploy/README.md) for the Compose project.
+
 ## Tests
 
 ```text

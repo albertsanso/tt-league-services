@@ -54,26 +54,28 @@ No features currently in progress.
 No features currently in review.
 ## Backlog
 
+No features currently in the backlog.
+## Done
+
 ### [FEAT-00116] Container packaging for orchestrator and ingest services
-- **Status:** idea
+- **Status:** done
 - **Priority:** medium
-- **Effort:** medium
+- **Effort:** large
 - **Depends on:** FEAT-00096, FEAT-00104
 
 #### Goal
 Run the orchestrator, its frontend and the ingest service together on a single VM with Docker Compose.
 
 #### Acceptance Criteria
-- [ ] Container images exist for `tt-league-ingest-rest` and the orchestrator runtime (serving or alongside the built frontend)
-- [ ] A Docker Compose setup for a single VM runs the platform, orchestrator runtime and frontend, `tt-league-ingest-rest` and PostgreSQL, wired through environment variables and a reverse proxy, with no committed secrets
-- [ ] Images run as non-root, expose health checks, and keep data and artifact directories on volumes
-- [ ] READMEs document build and run commands
+- [x] Container images exist for `tt-league-ingest-rest` and the orchestrator runtime (serving or alongside the built frontend)
+- [x] A Docker Compose setup for a single VM runs the platform, orchestrator runtime and frontend, `tt-league-ingest-rest` and PostgreSQL, wired through environment variables and a reverse proxy, with no committed secrets
+- [x] Images run as non-root, expose health checks, and keep data and artifact directories on volumes
+- [x] READMEs document build and run commands
 
 #### Feature Details
 → See [FEAT-00116-DETAILS.md](./FEAT-00116-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-## Done
 
 ### [FEAT-00115] Orchestrator metrics and run-correlated logging
 - **Status:** done

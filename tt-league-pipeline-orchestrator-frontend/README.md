@@ -15,6 +15,9 @@ npm run build
 `mvn -pl tt-league-pipeline-orchestrator-frontend -am test` installs Node
 v20.19.0 locally under `target/node` and runs `npm ci`, lint and tests.
 
+In production (single-VM deployment) the built SPA is served by the proxy image, `deploy/proxy/Dockerfile`, which also
+routes `/api/pipeline/` and `/api/v1/` on the same origin; see [deploy/README.md](../deploy/README.md).
+
 ## API routing
 
 The SPA calls both backends on its own origin through two path prefixes:

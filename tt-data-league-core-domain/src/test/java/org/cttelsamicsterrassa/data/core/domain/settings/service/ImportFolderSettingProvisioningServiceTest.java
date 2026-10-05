@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -51,6 +52,47 @@ class ImportFolderSettingProvisioningServiceTest {
         Setting result = provisioningService.ensureDefaultExists();
 
         assertEquals("d:\\custom-repository", result.getValue());
+        verify(settingRepository, never()).save(any(Setting.class));
+    }
+
+    @Test
+    void createsTheSettingWithTheSuppliedInitialValueWhenAbsent() {
+        SettingRepository settingRepository = mock(SettingRepository.class);
+        when(settingRepository.findByCategoryAndName(SettingCategory.IMPORT, "repository-folder"))
+                .thenReturn(Optional.empty());
+        ImportFolderSettingProvisioningService provisioningService = new ImportFolderSettingProvisioningService(
+                new SettingFinderService(settingRepository), new SettingCreationService(settingRepository));
+
+        Setting created = provisioningService.ensureExists("/var/lib/tt-league/repository");
+
+        assertEquals("/var/lib/tt-league/repository", created.getValue());
+        verify(settingRepository).save(any(Setting.class));
+    }
+
+    @Test
+    void keepsTheStoredValueWhenAnInitialValueIsSuppliedAndTheSettingExists() {
+        SettingRepository settingRepository = mock(SettingRepository.class);
+        Setting existing = Setting.createExisting(
+                UUID.randomUUID(), SettingCategory.IMPORT, "repository-folder", "d:\\custom-repository");
+        when(settingRepository.findByCategoryAndName(SettingCategory.IMPORT, "repository-folder"))
+                .thenReturn(Optional.of(existing));
+        ImportFolderSettingProvisioningService provisioningService = new ImportFolderSettingProvisioningService(
+                new SettingFinderService(settingRepository), new SettingCreationService(settingRepository));
+
+        Setting result = provisioningService.ensureExists("/var/lib/tt-league/repository");
+
+        assertEquals("d:\\custom-repository", result.getValue());
+        verify(settingRepository, never()).save(any(Setting.class));
+    }
+
+    @Test
+    void rejectsABlankInitialValue() {
+        SettingRepository settingRepository = mock(SettingRepository.class);
+        ImportFolderSettingProvisioningService provisioningService = new ImportFolderSettingProvisioningService(
+                new SettingFinderService(settingRepository), new SettingCreationService(settingRepository));
+
+        assertThrows(IllegalArgumentException.class, () -> provisioningService.ensureExists(" "));
+        assertThrows(IllegalArgumentException.class, () -> provisioningService.ensureExists(null));
         verify(settingRepository, never()).save(any(Setting.class));
     }
 }

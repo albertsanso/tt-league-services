@@ -54,6 +54,9 @@ spring:
 tt:
   league:
     import:
+      # Optional absolute path used only when the IMPORT/repository-folder setting is created for the first
+      # time (it never overwrites an existing setting). Blank keeps the built-in default.
+      repository-folder-initial: ${IMPORT_REPOSITORY_FOLDER_INITIAL:}
       execution:
         batch-size: ${IMPORT_EXECUTION_BATCH_SIZE:50}
         club-consolidation: ${IMPORT_EXECUTION_CLUB_CONSOLIDATION:write}
@@ -89,12 +92,19 @@ management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: health,info
 
   metrics:
     tags:
       application: tt-data-league-api-runtime
 
+  health:
+    # An unreachable SMTP server (password-recovery e-mail only) must not turn /actuator/health DOWN.
+    mail:
+      enabled: false
+
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
+      probes:
+        enabled: true

@@ -28,6 +28,7 @@ The application reads its configuration from environment variables at startup; d
 | `MAIL_HOST` | `localhost` | SMTP host |
 | `MAIL_PORT` | `25` | SMTP port |
 | `MAIL_USERNAME` / `MAIL_PASSWORD` | empty | SMTP credentials |
+| `IMPORT_REPOSITORY_FOLDER_INITIAL` | empty | Absolute path stored as the `IMPORT/repository-folder` setting when it is created for the first time; an existing setting is never overwritten. Empty keeps the built-in default (`c:	t-repository`); a relative path fails startup. The container image presets `/var/lib/tt-league/repository` |
 | `IMPORT_UPLOAD_MAX_FILE_SIZE` | `100MB` | Max ZIP import upload file size |
 | `IMPORT_UPLOAD_MAX_REQUEST_SIZE` | `100MB` | Max import upload request size; must be `>=` the file size limit |
 | `IMPORT_EXECUTION_BATCH_SIZE` | `50` | Import batch size |
@@ -38,7 +39,7 @@ The application reads its configuration from environment variables at startup; d
 | `IMPORT_JOBS_BUSY_TIMEOUT` | `PT2H` | ISO-8601 duration an import job may wait for another import before it fails; a zero, negative or malformed value fails startup |
 | `CALENDAR_OVERDUE_GRACE_DAYS` | `7` | Days a scheduled match remains pending before it becomes overdue (FEAT-00092); a negative or non-numeric value fails startup |
 
-The HTTP API listens on the default Spring Boot port (`8080`); a separate Actuator management port is exposed on `9090`, including `http://localhost:9090/actuator/health`.
+The HTTP API listens on the default Spring Boot port (`8080`); a separate Actuator management port is exposed on `9090`. Only `health` and `info` are exposed (`http://localhost:9090/actuator/health`, plus the `/actuator/health/liveness` and `/actuator/health/readiness` probes); health details are shown only to authorized callers, and the mail health indicator is disabled so that an unreachable SMTP server does not turn the service `DOWN`. Keep the management port internal.
 
 ## Build
 
@@ -94,12 +95,30 @@ Notes for a deployment target:
 - `InitialUserStartupInitializer` seeds two fixed ADMIN accounts (`albert`/`albert`, `oscar`/`Oscar&1234`) at startup if an account with that username or email does not already exist; a persistence failure here fails application boot. These credentials are hardcoded in source (not env-configurable) and do not meet the normal password-strength rules enforced elsewhere. Change or remove these accounts before exposing any non-development environment.
 - The run registry backing the async import endpoints is in-memory per JVM; it does not survive a restart or a multi-instance deployment. Import jobs (`import_job`, `import_job_season`) are persisted and recovered at startup, but they rely on that registry and on a per-JVM submission lock, so run a single instance.
 - Run the process as a long-lived service (for example, a Windows service via NSSM, or a systemd unit on Linux) so it restarts on failure and on host reboot; there is no bundled service unit in this repository.
-- Monitor `http://<host>:9090/actuator/health` for liveness once deployed.
+- Monitor `http://<host>:9090/actuator/health/liveness` for liveness once deployed.
 
 ZIP import uploads accept files up to 100 MB by default. Override
 `IMPORT_UPLOAD_MAX_FILE_SIZE` and `IMPORT_UPLOAD_MAX_REQUEST_SIZE` when a
 different deployment limit is required; the request limit must be at least as
 large as the file limit.
+
+## Container image
+
+`Dockerfile` builds the runtime image from the Boot jar built on the host (the `org.albertsanso` dependencies exist only
+in the local Maven repository, so Maven cannot run inside the image build). The build context is this module directory;
+`.dockerignore` lets only the jar in.
+
+```text
+mvn -pl tt-data-league-api-runtime -am clean package -DskipTests
+docker build -t tt-league/api-runtime --build-arg GIT_SHA=$(git rev-parse --short HEAD) tt-data-league-api-runtime
+```
+
+The image runs as uid/gid `10001`, exposes `8080` (API) and `9090` (management), and its health check calls
+`http://localhost:9090/actuator/health/liveness`. The import folder `/var/lib/tt-league/repository` is a volume
+mount point. The image presets `JAVA_TOOL_OPTIONS` (`-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError`) and
+`IMPORT_REPOSITORY_FOLDER_INITIAL=/var/lib/tt-league/repository`; every other variable of the
+[Configuration](#configuration) table is set at run time. The single-VM Compose project that runs it with PostgreSQL,
+the orchestrator and the proxy is described in [deploy/README.md](../deploy/README.md).
 
 ## ZIP import upload contract
 
