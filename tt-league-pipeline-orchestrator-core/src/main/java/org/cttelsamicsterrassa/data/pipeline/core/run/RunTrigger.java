@@ -4,5 +4,6 @@ package org.cttelsamicsterrassa.data.pipeline.core.run;
 public enum RunTrigger {
     SCHEDULED,
     MANUAL,
-    RETRY
+    RETRY,
+    UNIT_RETRY
 }

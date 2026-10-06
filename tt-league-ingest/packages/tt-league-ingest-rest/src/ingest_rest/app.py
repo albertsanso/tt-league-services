@@ -78,9 +78,12 @@ class RunRecord:
     report: RunReport | None = None
     error: str | None = None
     outcome: RunOutcome | None = None  # set when the run ends; FAILED when the pipeline itself raised
+    # Progress of the stage being run: replaced as a whole by the worker thread, read as a snapshot by to_dict.
+    progress: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         stages = self.report.stages if self.report else self.stages
+        progress = self.progress  # one read: the worker thread may replace it at any time
         return {
             "runId": self.run_id,
             "correlationId": self.correlation_id,
@@ -88,6 +91,7 @@ class RunRecord:
             "season": str(self.request.season),
             "status": self.status,
             "currentStage": self.current_stage,
+            "progress": dict(progress) if progress else None,
             "createdAt": self.created_at.isoformat(),
             "finishedAt": self.report.finished_at.isoformat() if self.report and self.report.finished_at else None,
             "outcome": self.outcome.value if self.outcome else None,
@@ -134,14 +138,28 @@ class RunRegistry:
 
 
 class _RecordListener:
+    """Runs on the worker thread: keeps the stage progress of the run and replaces it as a whole on every change."""
+
     def __init__(self, record: RunRecord) -> None:
         self._record = record
 
     def stage_started(self, stage: IngestStage) -> None:
         self._record.current_stage = stage.value
+        self._record.progress = {"stage": stage.value, "itemsProcessed": 0, "itemsTotal": None, "currentItem": None}
+
+    def stage_total(self, stage: IngestStage, total: int) -> None:
+        current = self._record.progress
+        if current is not None and current["stage"] == stage.value:
+            self._record.progress = {**current, "itemsTotal": max(int(total), current["itemsProcessed"])}
 
     def item_processed(self, stage: IngestStage, item: str) -> None:
-        pass
+        current = self._record.progress
+        if current is None or current["stage"] != stage.value:
+            return
+        processed = current["itemsProcessed"] + 1
+        known = current["itemsTotal"]
+        self._record.progress = {**current, "itemsProcessed": processed, "currentItem": item,
+                                 "itemsTotal": known if known is None else max(known, processed)}
 
     def stage_finished(self, report: StageReport) -> None:
         self._record.stages.append(report)
@@ -172,11 +190,13 @@ def create_app(settings: IngestSettings, api_key: str, ingestors: dict[Source, S
                 record.status = RunStatus.FAILED.value
                 record.outcome = RunOutcome.FAILED
                 record.error = f"{type(error).__name__}: {error}"
+                record.progress = None
                 LOGGER.error("run failed: %s", record.error, exc_info=True)
             else:
                 record.report = report
                 record.outcome = report.outcome
                 record.current_stage = None
+                record.progress = None
                 record.status = report.status.value
             LOGGER.info("run finished: status=%s outcome=%s", record.status,
                         record.outcome.value if record.outcome else None)

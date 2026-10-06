@@ -16,11 +16,13 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.FakeRunClock
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryAlertRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryMatchDayRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryPipelineRunRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryRunUnitRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.RecordingNotifier;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
 import org.cttelsamicsterrassa.data.pipeline.runtime.polling.LoggingPollingAlerts;
 import org.junit.jupiter.api.AfterEach;
@@ -37,6 +39,7 @@ class AlertsIntegrationTest {
 
     private final InMemoryAlertRepository alerts = new InMemoryAlertRepository();
     private final InMemoryPipelineRunRepository runs = new InMemoryPipelineRunRepository();
+    private final InMemoryRunUnitRepository units = new InMemoryRunUnitRepository(runs);
     private final RecordingNotifier notifier = new RecordingNotifier();
     private final FakeRunClock clock = new FakeRunClock(T0.plus(Duration.ofHours(1)));
     private AlertDispatcher dispatcher;
@@ -46,7 +49,7 @@ class AlertsIntegrationTest {
     void wire() {
         AlertSettings settings = new AlertSettings(Duration.ofHours(48), Duration.ofHours(24), Duration.ofDays(1));
         AlertEvaluator evaluator =
-                new AlertEvaluator(alerts, new InMemoryMatchDayRepository(), runs, notifier, clock, settings);
+                new AlertEvaluator(alerts, new InMemoryMatchDayRepository(), runs, units, notifier, clock, settings);
         dispatcher = new AlertDispatcher(evaluator, notifier);
         dispatcher.start();
         observer = CompositeRunObserver.of(List.of(new AlertRunObserver(dispatcher)));
@@ -71,8 +74,8 @@ class AlertsIntegrationTest {
         Instant created = T0.plus(Duration.ofMinutes(minutes));
         PipelineRun ok = PipelineRun.queue(UUID.randomUUID(), PipelineSource.FCTT, "2026-2027", RunScope.fullSeason(),
                 false, RunTrigger.SCHEDULED, "system:scheduler", null, created)
-                .startIngest("ingest", created.plusSeconds(1))
-                .noChanges(created.plusSeconds(30));
+                .start(created.plusSeconds(1))
+                .finish(RunStatus.NO_CHANGES, null, created.plusSeconds(30));
         runs.create(ok);
         observer.runChanged(ok);
         dispatcher.awaitIdle();

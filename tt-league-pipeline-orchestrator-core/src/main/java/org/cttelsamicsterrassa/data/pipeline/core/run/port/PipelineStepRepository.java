@@ -8,7 +8,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 
 public interface PipelineStepRepository {
 
-    /** Inserts or updates by id; a second step with the same run, kind and attempt is rejected. */
+    /** Inserts or updates by id; a second step with the same unit, kind and attempt is rejected. */
     PipelineStep save(PipelineStep step);
 
     /** Ordered by start time, then attempt. */

@@ -16,6 +16,8 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepositor
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineStepRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunArtifactRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunUnitRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.RetryUnit;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.PendingTriggerDrainer;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.TrackerRunObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun;
@@ -98,6 +100,7 @@ public class RunExecutionConfiguration {
     @Bean
     RunExecutor runExecutor(
             PipelineRunRepository runs,
+            RunUnitRepository units,
             PipelineStepRepository steps,
             RunArtifactRepository artifactRows,
             ImportReportRepository reports,
@@ -107,8 +110,13 @@ public class RunExecutionConfiguration {
             RunClock clock,
             RunObserver observer,
             ExecutionSettings settings) {
-        return new RunExecutor(runs, steps, artifactRows, reports, ingest, importGateway, artifacts, clock,
+        return new RunExecutor(runs, units, steps, artifactRows, reports, ingest, importGateway, artifacts, clock,
                 observer, settings);
+    }
+
+    @Bean
+    RetryUnit retryUnit(PipelineRunRepository runs, RunUnitRepository units, RunLauncher launcher) {
+        return new RetryUnit(runs, units, launcher);
     }
 
     @Bean

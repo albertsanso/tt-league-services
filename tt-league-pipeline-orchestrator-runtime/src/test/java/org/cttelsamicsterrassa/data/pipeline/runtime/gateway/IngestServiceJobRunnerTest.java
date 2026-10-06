@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.port.FetchedPackage;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.GatewayException;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.GatewayException.Kind;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestMode;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestProgress;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunRequest;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunState;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.StoredArtifact;
@@ -254,6 +255,47 @@ class IngestServiceJobRunnerTest {
         assertThat(failureOf(() -> gateway.getRun("r1")).kind()).isEqualTo(Kind.PROTOCOL);
         assertThat(failureOf(() -> gateway.getRun("r1")).kind()).isEqualTo(Kind.PROTOCOL);
         assertThat(failureOf(() -> gateway.getRun("r1")).kind()).isEqualTo(Kind.PROTOCOL);
+    }
+
+    private static String withProgress(String progress) {
+        return "{\"runId\":\"r1\",\"status\":\"RUNNING\",\"outcome\":null,\"retryable\":false,\"package\":null,"
+                + "\"error\":null,\"progress\":" + progress + "}";
+    }
+
+    @Test
+    void mapsTheProgressOfARunningRun() {
+        server.on("GET", RUNS + "/r1",
+                Response.json(200, withProgress("{\"stage\":\"DOWNLOAD\",\"itemsProcessed\":3,\"itemsTotal\":10,"
+                        + "\"currentItem\":\"group-1\",\"unknown\":true}")),
+                Response.json(200, withProgress("{\"stage\":\"PARSE\",\"itemsProcessed\":0,\"itemsTotal\":null,"
+                        + "\"currentItem\":null}")),
+                Response.json(200, withProgress("{\"itemsProcessed\":5}")));
+
+        assertThat(gateway.getRun("r1").progress()).isEqualTo(new IngestProgress("DOWNLOAD", 3L, 10L, "group-1"));
+        assertThat(gateway.getRun("r1").progress()).isEqualTo(new IngestProgress("PARSE", 0L, null, null));
+        assertThat(gateway.getRun("r1").progress()).isEqualTo(new IngestProgress(null, 5L, null, null));
+    }
+
+    @Test
+    void anAbsentOrNullProgressMeansTheServiceReportsNone() {
+        server.on("GET", RUNS + "/r1", Response.json(200, withProgress("null")),
+                Response.json(200, "{\"runId\":\"r1\",\"status\":\"RUNNING\"}"));
+
+        assertThat(gateway.getRun("r1").progress()).isNull();
+        assertThat(gateway.getRun("r1").progress()).isNull();
+    }
+
+    @Test
+    void aProgressWithoutItemsOrWithInconsistentCountsIsAProtocolError() {
+        server.on("GET", RUNS + "/r1",
+                Response.json(200, withProgress("{\"stage\":\"DOWNLOAD\"}")),
+                Response.json(200, withProgress("{\"itemsProcessed\":-1}")),
+                Response.json(200, withProgress("{\"itemsProcessed\":5,\"itemsTotal\":4}")),
+                Response.json(200, withProgress("{\"itemsProcessed\":\"many\"}")));
+
+        for (int i = 0; i < 4; i++) {
+            assertThat(failureOf(() -> gateway.getRun("r1")).kind()).isEqualTo(Kind.PROTOCOL);
+        }
     }
 
     private static String state(String status, String outcome, String pkg, String error) {

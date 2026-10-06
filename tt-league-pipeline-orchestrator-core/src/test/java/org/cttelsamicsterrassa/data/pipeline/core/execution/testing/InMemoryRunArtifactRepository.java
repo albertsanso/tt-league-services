@@ -23,6 +23,11 @@ public class InMemoryRunArtifactRepository implements RunArtifactRepository {
     }
 
     @Override
+    public synchronized List<RunArtifact> findByUnitId(UUID unitId) {
+        return artifacts.stream().filter(artifact -> artifact.unitId().equals(unitId)).toList();
+    }
+
+    @Override
     public synchronized List<RunArtifact> findByStorageKey(String storageKey) {
         return artifacts.stream().filter(artifact -> artifact.storageKey().equals(storageKey)).toList();
     }
@@ -33,7 +38,7 @@ public class InMemoryRunArtifactRepository implements RunArtifactRepository {
         for (int i = 0; i < artifacts.size(); i++) {
             RunArtifact artifact = artifacts.get(i);
             if (artifact.storageKey().equals(storageKey) && !artifact.isPurged()) {
-                artifacts.set(i, new RunArtifact(artifact.id(), artifact.runId(), artifact.kind(),
+                artifacts.set(i, new RunArtifact(artifact.id(), artifact.runId(), artifact.unitId(), artifact.kind(),
                         artifact.storageKey(), artifact.sha256(), artifact.sizeBytes(), artifact.createdAt(), at));
                 changed++;
             }

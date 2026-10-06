@@ -227,6 +227,48 @@ class FcttActasDirectoryNavigatorTest {
     }
 
     @Test
+    void importsTheIngestLayoutUsingPayloadGenderAndLowercaseGroupFolder() throws IOException {
+        Path folder = Files.createDirectories(baseFolder.resolve("2026-2027/tdm/g1/regular"));
+        Path reportFile = folder.resolve("jornada_10_local_team_130_away_team_151.json");
+        Files.writeString(reportFile, reportWithGender(10, "HOME", "AWAY", "masculino"));
+
+        TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(new TraversalSummary(1, 1, 0, 0), summary);
+        FcttMatchReportContext context = injected.single();
+        assertEquals("tercera-nacional-masculino", context.competition());
+        assertEquals(1, context.groupNumber().orElseThrow());
+        assertEquals(10, context.round());
+        assertEquals(reportFile, context.matchReportFile());
+    }
+
+    @Test
+    void ingestLayoutWithoutNumberedGroupDispatchesWithANullGroup() throws IOException {
+        Path folder = Files.createDirectories(baseFolder.resolve("2026-2027/copa-catalana-femenina/other/regular"));
+        Files.writeString(folder.resolve("jornada_1_local_team_1_away_team_2.json"),
+                reportWithGender(1, "HOME", "AWAY", "femenino"));
+
+        navigatorWith(injected).traverse(baseFolder);
+
+        FcttMatchReportContext context = injected.single();
+        assertEquals("copa-catalana-femenina-femenino", context.competition());
+        assertNull(context.group());
+    }
+
+    @Test
+    void ingestLayoutWithAnUnknownPayloadGenderFailsTheRunInsteadOfSkipping() throws IOException {
+        Path folder = Files.createDirectories(baseFolder.resolve("2026-2027/tdm/g1/regular"));
+        Files.writeString(folder.resolve("jornada_1_local_team_1_away_team_2.json"),
+                report(1, "HOME", "AWAY"));
+
+        TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(1, summary.processorFailures());
+        assertEquals(1, summary.issues().size());
+        assertTrue(injected.contexts.isEmpty());
+    }
+
+    @Test
     void rejectsABaseFolderThatIsNotADirectory() {
         assertThrows(IOException.class, () -> navigatorWith(injected).traverse(baseFolder.resolve("missing")));
     }

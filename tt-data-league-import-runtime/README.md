@@ -152,7 +152,13 @@ actas-json/
         jornada-1-partido-5678.json
 ```
 
-- The gender folder (`male` or `female`) is required and is folded into the
+- The layout written by `tt-league-ingest` is also accepted:
+  `<season>/<category>/<g<n>>/<phase>/jornada_<day>_local_team_<id>_away_team_<id>.json`
+  (for example `2026-2027/tdm/g1/regular/...`). The competition is the category folder (`tdm` is stored as `tercera-nacional`, the legacy name, so both layouts share one competition), the gender
+  comes from the payload `genero` (`masculino`/`femenino`; any other value is an issue and fails the
+  run), the phase folder is informational (the payload `fase` wins), and a group folder that is not
+  `g<n>` dispatches with no group.
+- In the legacy layout the gender folder (`male` or `female`) is required and is folded into the
   stored competition name, following the RFETM convention (for example
   `tercera-nacional-masculino`, `copa-catalana-femenina-1a-femenino`). Any
   other folder at that level is logged and skipped.

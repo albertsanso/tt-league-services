@@ -145,7 +145,7 @@ describe('MatchDayDetailPage', () => {
     const runItem = items.find((item) => item.textContent?.includes('Run run-2'))
     expect(runItem).toHaveTextContent('Manual by ana')
     expect(within(runItem!).getByRole('link', { name: 'Run run-2' })).toHaveAttribute('href', '/runs/run-2')
-    expect(runItem).toHaveTextContent('Running ingest')
+    expect(runItem).toHaveTextContent('Running')
     expect(items.some((item) => item.textContent?.includes('Match reported · Home m-reported'))).toBe(true)
     expect(items.some((item) => item.textContent?.includes('Called the club'))).toBe(true)
   })
@@ -363,12 +363,12 @@ describe('MatchDayDetailPage', () => {
     it('updates a run of the timeline from a run event without a request', async () => {
       const { bus, mocks } = setup()
       const timeline = await screen.findByRole('list', { name: 'Timeline' })
-      expect(within(timeline).getByText('Running ingest')).toBeInTheDocument()
+      expect(within(timeline).getByText('Running')).toBeInTheDocument()
 
       await bus.emit({ type: 'run', payload: { ...makeRun('run-2', { createdAt: '2026-10-05T07:30:00Z', requestedBy: 'ana' }), status: 'SUCCEEDED' } })
 
       expect(await within(timeline).findAllByText('Succeeded')).toHaveLength(2)
-      expect(within(timeline).queryByText('Running ingest')).not.toBeInTheDocument()
+      expect(within(timeline).queryByText('Running')).not.toBeInTheDocument()
       expect(mocks.getMatchDay).toHaveBeenCalledTimes(1)
     })
 

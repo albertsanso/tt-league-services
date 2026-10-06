@@ -464,9 +464,11 @@ public record PipelineOrchestratorProperties(
             Duration evaluateInterval,
             Duration unreportedAfter,
             Duration noSuccessWindow,
-            Duration closedLookback) {
+            Duration closedLookback,
+            UnitFailures unitFailures) {
 
         public Notifications {
+            unitFailures = unitFailures == null ? UnitFailures.all() : unitFailures;
             mail = mail == null ? Mail.blank() : mail;
             evaluateInterval = evaluateInterval == null ? Duration.ofMinutes(15) : evaluateInterval;
             unreportedAfter = unreportedAfter == null ? Duration.ofHours(48) : unreportedAfter;
@@ -482,7 +484,7 @@ public record PipelineOrchestratorProperties(
         }
 
         static Notifications disabled() {
-            return new Notifications(null, null, null, null, null);
+            return new Notifications(null, null, null, null, null, null);
         }
 
         public boolean enabled() {
@@ -490,7 +492,28 @@ public record PipelineOrchestratorProperties(
         }
 
         public AlertSettings alertSettings() {
-            return new AlertSettings(unreportedAfter, noSuccessWindow, closedLookback);
+            return new AlertSettings(unreportedAfter, noSuccessWindow, closedLookback, unitFailures.unitKeys());
+        }
+    }
+
+    /**
+     * Limits the unit failure alerts to the listed unit keys ({@code tt.pipeline.notifications.unit-failures.unit-keys});
+     * empty (the default) alerts for every unit. A key is the {@code unitKey} shown by the runs API.
+     */
+    public record UnitFailures(Set<String> unitKeys) {
+
+        public UnitFailures {
+            unitKeys = unitKeys == null ? Set.of() : Set.copyOf(unitKeys);
+            for (String key : unitKeys) {
+                if (key == null || key.isBlank() || key.length() > 64) {
+                    throw new IllegalArgumentException(
+                            "notifications.unit-failures.unit-keys must hold keys of 1 to 64 characters");
+                }
+            }
+        }
+
+        static UnitFailures all() {
+            return new UnitFailures(null);
         }
     }
 

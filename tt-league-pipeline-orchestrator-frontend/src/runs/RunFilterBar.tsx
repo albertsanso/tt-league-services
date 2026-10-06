@@ -3,20 +3,34 @@ import Button from '@mui/material/Button'
 import ListSubheader from '@mui/material/ListSubheader'
 import MenuItem from '@mui/material/MenuItem'
 import TextField from '@mui/material/TextField'
+import { useState } from 'react'
 import type { PipelineSource, RunStatus } from '../api/types'
-import { hasActiveFilters, hasRangeError, SOURCES } from './runFilters'
+import { hasActiveFilters, hasRangeError, MAX_UNIT_KEY, SOURCES } from './runFilters'
 import type { RunFilters } from './runFilters'
 import { ACTIVE_STATUSES, STATUS_LABELS, TERMINAL_STATUSES } from './runStatus'
 
 interface RunFilterBarProps {
   readonly filters: RunFilters
   /** `replace` is true while typing a date, so the history does not fill with partial values. */
-  readonly onChange: (next: Partial<Pick<RunFilters, 'sources' | 'statuses' | 'fromDate' | 'toDate'>>, replace: boolean) => void
+  readonly onChange: (
+    next: Partial<Pick<RunFilters, 'sources' | 'statuses' | 'unitKey' | 'fromDate' | 'toDate'>>,
+    replace: boolean,
+  ) => void
   readonly onClear: () => void
 }
 
 export function RunFilterBar({ filters, onChange, onClear }: RunFilterBarProps) {
   const rangeError = hasRangeError(filters)
+  // The unit key is typed freely, so it is applied on Enter or when the field loses focus, not on every keystroke.
+  const [draft, setDraft] = useState<{ readonly of: string | null; readonly text: string } | null>(null)
+  const unitText = draft !== null && draft.of === filters.unitKey ? draft.text : (filters.unitKey ?? '')
+  const applyUnit = () => {
+    const next = unitText.trim() === '' ? null : unitText.trim().slice(0, MAX_UNIT_KEY)
+    setDraft(null)
+    if (next !== filters.unitKey) {
+      onChange({ unitKey: next }, false)
+    }
+  }
   return (
     <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start', mb: 2 }}>
       <TextField
@@ -61,6 +75,21 @@ export function RunFilterBar({ filters, onChange, onClear }: RunFilterBarProps) 
           </MenuItem>
         ))}
       </TextField>
+      <TextField
+        size="small"
+        label="Unit key"
+        sx={{ minWidth: 200 }}
+        value={unitText}
+        helperText="A unit of the run, as shown in its details"
+        slotProps={{ htmlInput: { maxLength: MAX_UNIT_KEY } }}
+        onChange={(event) => setDraft({ of: filters.unitKey, text: event.target.value })}
+        onBlur={applyUnit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') {
+            applyUnit()
+          }
+        }}
+      />
       <TextField
         size="small"
         type="date"

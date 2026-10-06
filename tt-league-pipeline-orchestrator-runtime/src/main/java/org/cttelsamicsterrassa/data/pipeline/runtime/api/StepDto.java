@@ -3,9 +3,10 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.api;
 import java.time.Instant;
 import java.util.UUID;
 
-/** One step attempt. {@code importJobReused} is set on IMPORT steps: the platform returned an existing job. */
+/** One step attempt of a unit. {@code importJobReused} is set on IMPORT steps: the platform returned an existing job. */
 public record StepDto(
         UUID runId,
+        UUID unitId,
         String kind,
         int attempt,
         String status,

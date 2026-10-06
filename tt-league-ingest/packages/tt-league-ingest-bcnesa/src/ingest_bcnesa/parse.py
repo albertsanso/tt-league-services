@@ -57,7 +57,7 @@ from bs4 import BeautifulSoup, Tag
 from jsonschema import Draft202012Validator
 
 from ingest_bcnesa import acta_parser
-from ingest_common import health, logs
+from ingest_common import health, logs, progress
 from ingest_common.validation import ACTA_SCHEMA_PATH
 
 
@@ -306,6 +306,7 @@ def main(argv: list[str] | None = None) -> int:
     LOGGER.info("Parsing %d jornada file(s) for season %s (force=%s)", len(files), args.season, args.force)
 
     stats: Counter = Counter()
+    progress.total(len(files))
     for html_path in files:
         try:
             process_file(html_path, args.input_dir, args.output_dir, validator, args.force, stats)
@@ -314,6 +315,7 @@ def main(argv: list[str] | None = None) -> int:
             if not isinstance(exc, OSError):
                 health.parse_error()
             LOGGER.error("%s: %s", html_path.relative_to(args.input_dir), exc)
+        progress.item(str(html_path.relative_to(args.input_dir)))
     summary = ", ".join(f"{count} {name}" for name, count in sorted(stats.items())) or "nothing to do"
     LOGGER.info("Summary: %s", summary)
     return 1 if stats["jornadas failed"] or stats["matches failed"] else 0

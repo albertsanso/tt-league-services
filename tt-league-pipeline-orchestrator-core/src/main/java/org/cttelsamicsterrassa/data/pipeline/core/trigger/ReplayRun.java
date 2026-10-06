@@ -16,8 +16,8 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunArtifactRepository;
 
 /**
- * The only creator of RETRY runs. A replay re-submits the original's stored package: it is never queued behind an
- * active run and never calls ingest.
+ * The only creator of RETRY runs. A replay re-submits the stored packages of the original's units: it is never
+ * queued behind an active run and never calls ingest.
  */
 public final class ReplayRun {
 
@@ -65,11 +65,10 @@ public final class ReplayRun {
         if (!eligibility.allowed()) {
             return new NotReplayable(eligibility.code(), message(eligibility.code(), originalRunId));
         }
-        RunArtifact zip = rows.stream()
-                .filter(artifact -> artifact.kind() == ArtifactKind.ZIP)
-                .findFirst()
-                .orElseThrow();
-        if (!artifacts.exists(zip.storageKey())) {
+        boolean anyStored = rows.stream()
+                .filter(artifact -> artifact.kind() == ArtifactKind.ZIP && !artifact.isPurged())
+                .anyMatch(artifact -> artifacts.exists(artifact.storageKey()));
+        if (!anyStored) {
             return new NotReplayable(ReplayEligibility.ARTIFACT_PURGED,
                     message(ReplayEligibility.ARTIFACT_PURGED, originalRunId));
         }

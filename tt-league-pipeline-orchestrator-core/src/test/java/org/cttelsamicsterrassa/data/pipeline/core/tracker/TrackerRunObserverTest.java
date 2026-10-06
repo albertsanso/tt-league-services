@@ -10,6 +10,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
 import org.junit.jupiter.api.Test;
 
@@ -32,11 +33,9 @@ class TrackerRunObserverTest {
     @Test
     void nonTerminalStatusesRequestNothing() {
         PipelineRun queued = queued();
-        PipelineRun ingest = queued.startIngest("abc", T0.plusSeconds(1));
-        PipelineRun packed = ingest.packed(T0.plusSeconds(2));
-        PipelineRun importing = packed.startImport(UUID.randomUUID(), T0.plusSeconds(3));
+        PipelineRun running = queued.start(T0.plusSeconds(1));
 
-        for (PipelineRun run : List.of(queued, ingest, packed, importing)) {
+        for (PipelineRun run : List.of(queued, running)) {
             observer.runChanged(run);
         }
 
@@ -45,13 +44,12 @@ class TrackerRunObserverTest {
 
     @Test
     void everyTerminalStatusRequestsARecomputeWithTheRunReference() {
-        PipelineRun ingest = queued().startIngest("abc", T0.plusSeconds(1));
-        PipelineRun importing = ingest.packed(T0.plusSeconds(2)).startImport(UUID.randomUUID(), T0.plusSeconds(3));
+        PipelineRun running = queued().start(T0.plusSeconds(1));
         List<PipelineRun> terminal = List.of(
-                ingest.noChanges(T0.plusSeconds(10)),
-                importing.succeed(T0.plusSeconds(11)),
-                importing.partial(T0.plusSeconds(12)),
-                importing.fail(new RunError("IMPORT_FAILED", "boom"), T0.plusSeconds(13)));
+                running.finish(RunStatus.NO_CHANGES, null, T0.plusSeconds(10)),
+                running.finish(RunStatus.SUCCEEDED, null, T0.plusSeconds(11)),
+                running.finish(RunStatus.PARTIAL, null, T0.plusSeconds(12)),
+                running.fail(new RunError("IMPORT_FAILED", "boom"), T0.plusSeconds(13)));
 
         terminal.forEach(observer::runChanged);
 

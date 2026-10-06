@@ -15,9 +15,17 @@ export interface HttpResponse<T> {
   readonly data: T
 }
 
+/** A binary download: the body and the file name the server suggested. */
+export interface BlobResponse {
+  readonly blob: Blob
+  readonly filename: string | null
+}
+
 export interface HttpClient {
   request<T>(method: string, path: string, options?: RequestOptions): Promise<T>
   requestWithStatus<T>(method: string, path: string, options?: RequestOptions): Promise<HttpResponse<T>>
+  /** GET a binary body (a ZIP package) with the same authentication and error handling as `request`. */
+  requestBlob(path: string, options?: RequestOptions): Promise<BlobResponse>
 }
 
 export interface HttpClientOptions {
@@ -52,12 +60,14 @@ function isJsonContentType(contentType: string | null): boolean {
 export function createHttpClient(options: HttpClientOptions): HttpClient {
   const doFetch = options.fetch ?? ((input, init) => fetch(input, init))
 
-  async function requestWithStatus<T>(
+  /** Sends the request and returns the successful response; any other answer throws the matching ApiError. */
+  async function send(
     method: string,
     path: string,
-    requestOptions: RequestOptions = {},
-  ): Promise<HttpResponse<T>> {
-    const headers: Record<string, string> = { Accept: 'application/json' }
+    accept: string,
+    requestOptions: RequestOptions,
+  ): Promise<Response> {
+    const headers: Record<string, string> = { Accept: accept }
     const token = options.getToken()
     if (token) {
       headers.Authorization = `Bearer ${token}`
@@ -93,7 +103,22 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
       }
       throw new ApiError(response.status, problem, problemMessage(response.status, problem))
     }
+    return response
+  }
 
+  async function requestBlob(path: string, requestOptions: RequestOptions = {}): Promise<BlobResponse> {
+    const response = await send('GET', path, 'application/zip, application/octet-stream', requestOptions)
+    const disposition = response.headers.get('content-disposition')
+    const match = disposition === null ? null : /filename="?([^";]+)"?/i.exec(disposition)
+    return { blob: await response.blob(), filename: match === null ? null : match[1] }
+  }
+
+  async function requestWithStatus<T>(
+    method: string,
+    path: string,
+    requestOptions: RequestOptions = {},
+  ): Promise<HttpResponse<T>> {
+    const response = await send(method, path, 'application/json', requestOptions)
     if (response.status === 204) {
       return { status: response.status, data: undefined as T }
     }
@@ -103,6 +128,7 @@ export function createHttpClient(options: HttpClientOptions): HttpClient {
 
   return {
     requestWithStatus,
+    requestBlob,
     async request<T>(method: string, path: string, requestOptions?: RequestOptions): Promise<T> {
       return (await requestWithStatus<T>(method, path, requestOptions)).data
     },

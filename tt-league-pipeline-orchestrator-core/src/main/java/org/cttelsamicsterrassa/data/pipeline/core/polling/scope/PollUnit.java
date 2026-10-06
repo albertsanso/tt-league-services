@@ -1,11 +1,8 @@
 package org.cttelsamicsterrassa.data.pipeline.core.polling.scope;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.HexFormat;
 import java.util.List;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitKey;
 
 /**
  * Identity of one ingest group without its match days, limited to the fields the source supports. The scope key
@@ -14,22 +11,10 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
 public record PollUnit(String category, String group, String phase, String territory, String gender) {
 
     public String scopeKey() {
-        String canonical = String.join("|",
-                "category=" + empty(category), "group=" + empty(group), "phase=" + empty(phase),
-                "territory=" + empty(territory), "gender=" + empty(gender));
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(canonical.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 is not available", e);
-        }
+        return UnitKey.of(category, group, phase, territory, gender);
     }
 
     public ScopeFilter filter(List<Integer> matchDays) {
         return new ScopeFilter(category, group, phase, territory, gender, matchDays);
-    }
-
-    private static String empty(String value) {
-        return value == null ? "" : value;
     }
 }

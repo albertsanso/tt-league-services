@@ -3,7 +3,7 @@ import type { RunListQuery } from '../api/runs'
 import type { Page, RunSummary } from '../api/types'
 import { createEventBus } from '../test/eventBus'
 import { FakeEvents } from '../test/FakeEvents'
-import { makePage, makeRun, makeStep } from '../test/runFixtures'
+import { makePage, makeRun, makeStep, makeUnit } from '../test/runFixtures'
 import { TestApiProvider } from '../test/TestApiProvider'
 import { useRunList } from './useRunList'
 
@@ -18,6 +18,9 @@ function Harness({ query }: { query: RunListQuery | null }) {
         {page?.items.map((run) => (
           <li key={run.id}>
             {run.id}:{run.status}:{run.steps?.map((step) => `${step.kind}=${step.status}`).join(',')}
+            <span data-testid={`units-${run.id}`}>
+              {run.units?.map((unit) => `${unit.id}=${unit.status}${unit.progress?.itemsProcessed ?? ''}`).join(',')}
+            </span>
           </li>
         ))}
       </ul>
@@ -83,9 +86,53 @@ describe('useRunList', () => {
     const { bus } = setup(listRuns)
     await screen.findByText(/^a:QUEUED/)
 
-    await bus.emit({ type: 'run', payload: makeRun('a', { status: 'RUNNING_INGEST' }) })
+    await bus.emit({ type: 'run', payload: makeRun('a', { status: 'RUNNING' }) })
 
-    expect(screen.getByText(/^a:RUNNING_INGEST/)).toBeInTheDocument()
+    expect(screen.getByText(/^a:RUNNING/)).toBeInTheDocument()
+    expect(listRuns).toHaveBeenCalledTimes(1)
+  })
+
+  it('patches the unit of a row from a unit event without a request', async () => {
+    const listRuns = vi
+      .fn()
+      .mockResolvedValue(makePage([makeRun('a', { status: 'RUNNING', units: [makeUnit('u1', { status: 'PENDING' }), makeUnit('u2', { ordinal: 1 })] })]))
+    const { bus } = setup(listRuns)
+    await screen.findByText(/^a:/)
+
+    await bus.emit({ type: 'unit', payload: makeUnit('u1', { runId: 'a', status: 'RUNNING_INGEST' }) })
+
+    expect(screen.getByTestId('units-a')).toHaveTextContent('u1=RUNNING_INGEST,u2=SUCCEEDED')
+    expect(listRuns).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores a unit event of a run that is not on the page, and a late progress event', async () => {
+    const progress = (itemsProcessed: number, updatedAt: string) => ({
+      step: 'INGEST' as const,
+      stage: null,
+      itemsProcessed,
+      itemsTotal: null,
+      percent: null,
+      currentItem: null,
+      updatedAt,
+    })
+    const listRuns = vi.fn().mockResolvedValue(
+      makePage([
+        makeRun('a', {
+          status: 'RUNNING',
+          units: [makeUnit('u1', { status: 'RUNNING_INGEST', progress: progress(5, '2026-10-01T10:00:10Z') })],
+        }),
+      ]),
+    )
+    const { bus } = setup(listRuns)
+    await screen.findByText(/^a:/)
+
+    await bus.emit({ type: 'unit', payload: makeUnit('u9', { runId: 'other', status: 'FAILED' }) })
+    await bus.emit({
+      type: 'unit',
+      payload: makeUnit('u1', { runId: 'a', status: 'RUNNING_INGEST', progress: progress(3, '2026-10-01T10:00:05Z') }),
+    })
+
+    expect(screen.getByTestId('units-a')).toHaveTextContent('u1=RUNNING_INGEST5')
     expect(listRuns).toHaveBeenCalledTimes(1)
   })
 
@@ -122,13 +169,13 @@ describe('useRunList', () => {
   })
 
   it('updates step badges from step events', async () => {
-    const listRuns = vi.fn().mockResolvedValue(makePage([makeRun('a', { status: 'RUNNING_INGEST' })]))
+    const listRuns = vi.fn().mockResolvedValue(makePage([makeRun('a', { status: 'RUNNING' })]))
     const { bus } = setup(listRuns)
     await screen.findByText(/^a:/)
 
     await bus.emit({ type: 'step', payload: makeStep('a', { kind: 'INGEST', status: 'RUNNING' }) })
 
-    expect(screen.getByText('a:RUNNING_INGEST:INGEST=RUNNING')).toBeInTheDocument()
+    expect(screen.getByText('a:RUNNING:INGEST=RUNNING')).toBeInTheDocument()
     expect(listRuns).toHaveBeenCalledTimes(1)
   })
 
@@ -147,7 +194,7 @@ describe('useRunList', () => {
     const listRuns = vi
       .fn()
       .mockReturnValueOnce(first.promise)
-      .mockResolvedValue(makePage([makeRun('a', { status: 'IMPORTING' })]))
+      .mockResolvedValue(makePage([makeRun('a', { status: 'RUNNING' })]))
     const { bus } = setup(listRuns)
     expect(screen.getByTestId('loading')).toHaveTextContent('true')
 
@@ -158,7 +205,7 @@ describe('useRunList', () => {
     })
     await flush()
 
-    expect(await screen.findByText(/^a:IMPORTING/)).toBeInTheDocument()
+    expect(await screen.findByText(/^a:RUNNING/)).toBeInTheDocument()
     expect(screen.queryByText(/^a:QUEUED/)).not.toBeInTheDocument()
     expect(listRuns).toHaveBeenCalledTimes(2)
   })

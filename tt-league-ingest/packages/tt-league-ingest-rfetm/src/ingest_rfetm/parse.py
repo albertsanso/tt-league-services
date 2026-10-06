@@ -35,13 +35,14 @@ import codecs
 import argparse
 import logging
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import urlparse, parse_qs
 
 from bs4 import BeautifulSoup
 
-from ingest_common import health
+from ingest_common import health, progress
 from ingest_common.validation import ACTA_SCHEMA_PATH
 
 # ══════════════════════════════════════════
@@ -154,9 +155,12 @@ def parse_fecha_hora(text: Optional[str]):
         return fecha, hora
     m = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", text)
     if m:
-        fecha = f"{m.group(3)}-{m.group(2).zfill(2)}-{m.group(1).zfill(2)}"
+        try:
+            fecha = date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat()
+        except ValueError:
+            logger.warning("Fecha de partido inválida '%s'", m.group(0))
     m = re.search(r"\b(\d{1,2}):(\d{2})\b", text)
-    if m:
+    if m and int(m.group(1)) < 24 and int(m.group(2)) < 60:
         hora = f"{m.group(1).zfill(2)}:{m.group(2)}"
     return fecha, hora
 
@@ -453,18 +457,22 @@ def convert_season(season: str, category: Optional[str], jornadas: Optional[List
     # Detección de colisiones: dos partidos del mismo cruce en la misma jornada/carpeta
     generados: Dict[Path, str] = {}
 
-    for cat, jornada, genero, grupo, html_path in iter_html_files(season, category, jornadas):
+    html_files = list(iter_html_files(season, category, jornadas))
+    progress.total(len(html_files))
+    for cat, jornada, genero, grupo, html_path in html_files:
         rel_html = html_path.relative_to(WORKSPACE_ROOT)
         try:
             pagina = parse_html_matches(read_html(html_path))
         except Exception as e:
             stats.error(f"{rel_html}: error leyendo HTML: {e}")
             health.parse_error()
+            progress.item(str(rel_html))
             continue
         stats.html_procesados += 1
 
         if not pagina["partidos"]:
             logger.debug(f"{rel_html}: sin partidos")
+            progress.item(str(rel_html))
             continue
 
         out_dir = OUTPUT_DIR / season / cat / str(jornada) / genero
@@ -515,6 +523,7 @@ def convert_season(season: str, category: Optional[str], jornadas: Optional[List
                 logger.debug(f"Guardado: {out_path.relative_to(WORKSPACE_ROOT)}")
             except OSError as e:
                 stats.error(f"{origen}: error guardando {out_path}: {e}")
+        progress.item(str(rel_html))
 
     return stats
 

@@ -44,6 +44,10 @@ function recordingClient(): { client: HttpClient; calls: Call[] } {
       calls.push({ method, path, query: options?.query, body: options?.body })
       return { status: 201, data: { results: [] } as never }
     },
+    async requestBlob(path, options) {
+      calls.push({ method: 'GET', path, query: options?.query })
+      return { blob: new Blob(['zip']), filename: 'package.zip' }
+    },
   }
   return { client, calls }
 }

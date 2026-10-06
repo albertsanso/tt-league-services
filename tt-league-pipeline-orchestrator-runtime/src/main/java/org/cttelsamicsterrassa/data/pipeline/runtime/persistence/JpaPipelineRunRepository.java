@@ -1,6 +1,8 @@
 package org.cttelsamicsterrassa.data.pipeline.runtime.persistence;
 
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -109,12 +111,25 @@ class JpaPipelineRunRepository implements PipelineRunRepository {
             if (query.createdTo() != null) {
                 predicates.add(cb.lessThan(root.<java.time.Instant>get("createdAt"), query.createdTo()));
             }
+            if (query.unitKey() != null) {
+                Subquery<Integer> withUnit = cq.subquery(Integer.class);
+                Root<RunUnitEntity> unit = withUnit.from(RunUnitEntity.class);
+                withUnit.select(cb.literal(1)).where(
+                        cb.equal(unit.get("runId"), root.get("id")), cb.equal(unit.get("unitKey"), query.unitKey()));
+                predicates.add(cb.exists(withUnit));
+            }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
         Sort order = Sort.by(Sort.Direction.DESC, "createdAt").and(Sort.by(Sort.Direction.DESC, "id"));
         Page<PipelineRunEntity> page = runs.findAll(spec, PageRequest.of(query.page(), query.size(), order));
         return new RunPage(page.getContent().stream().map(this::toDomain).toList(), query.page(), query.size(),
                 page.getTotalElements());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<PipelineRun> findRetriesOfUnit(UUID unitId) {
+        return runs.findByRetryOfUnitIdOrderByCreatedAtAsc(unitId).stream().map(this::toDomain).toList();
     }
 
     @Override
@@ -152,12 +167,11 @@ class JpaPipelineRunRepository implements PipelineRunRepository {
         entity.trigger = run.trigger();
         entity.requestedBy = run.requestedBy();
         entity.retryOfRunId = run.retryOfRunId();
+        entity.retryOfUnitId = run.retryOfUnitId();
         entity.status = run.status();
         entity.createdAt = run.createdAt();
         entity.startedAt = run.startedAt();
         entity.finishedAt = run.finishedAt();
-        entity.ingestRunId = run.ingestRunId();
-        entity.importJobId = run.importJobId();
         entity.errorCode = run.error() == null ? null : run.error().code();
         entity.errorMessage = run.error() == null ? null : run.error().message();
     }
@@ -168,7 +182,7 @@ class JpaPipelineRunRepository implements PipelineRunRepository {
                 : new RunError(entity.errorCode, entity.errorMessage);
         return PipelineRun.restore(
                 entity.id, entity.source, entity.season, scopeJson.read(entity.scope), entity.force, entity.trigger,
-                entity.requestedBy, entity.retryOfRunId, entity.status, entity.createdAt, entity.startedAt,
-                entity.finishedAt, entity.ingestRunId, entity.importJobId, error, entity.version);
+                entity.requestedBy, entity.retryOfRunId, entity.retryOfUnitId, entity.status, entity.createdAt,
+                entity.startedAt, entity.finishedAt, error, entity.version);
     }
 }

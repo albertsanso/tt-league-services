@@ -6,6 +6,7 @@ import type {
   RunOutcomesResponse,
   SourceHealthResponse,
   TimeToReportResponse,
+  UnitOutcomesResponse,
 } from '../api/types'
 import { json } from './fakeFetch'
 
@@ -42,6 +43,16 @@ export function makeRunOutcomes(): RunOutcomesResponse {
     zone: 'Europe/Madrid',
     days: [{ date: '2026-10-03', source: 'FCTT', succeeded: 2, noChanges: 1, partial: 0, failed: 1 }],
     stepAverages: [{ source: 'FCTT', kind: 'INGEST', attempts: 5, avgStepSeconds: 90 }],
+  }
+}
+
+export function makeUnitOutcomes(): UnitOutcomesResponse {
+  return {
+    zone: 'Europe/Madrid',
+    units: [
+      { source: 'FCTT', unitKey: 'season', label: 'Full season', succeeded: 5, noChanges: 2, partial: 0, failed: 1, skipped: 0, avgSeconds: 125 },
+      { source: 'FCTT', unitKey: 'a'.repeat(64), label: 'Tercera Group 1', succeeded: 3, noChanges: 0, partial: 1, failed: 2, skipped: 1, avgSeconds: null },
+    ],
   }
 }
 
@@ -126,6 +137,7 @@ export function makeProgress(): ReportingProgressResponse {
 export interface StatisticsOverrides {
   daily?: unknown
   runs?: unknown
+  units?: unknown
   timeToReport?: unknown
   pending?: unknown
   corrections?: unknown
@@ -149,6 +161,9 @@ export function statisticsResponse(url: string, overrides: StatisticsOverrides =
   if (url.startsWith('/api/pipeline/statistics/runs')) {
     return json(overrides.runs ?? makeRunOutcomes())
   }
+  if (url.startsWith('/api/pipeline/statistics/units')) {
+    return json(overrides.units ?? makeUnitOutcomes())
+  }
   if (url.startsWith('/api/pipeline/statistics/time-to-report')) {
     return json(overrides.timeToReport ?? makeTimeToReport())
   }
@@ -169,6 +184,7 @@ export function statisticsResponse(url: string, overrides: StatisticsOverrides =
 
 export const emptyDaily: DailyStatsResponse = { zone: 'Europe/Madrid', rows: [] }
 export const emptyRuns: RunOutcomesResponse = { zone: 'Europe/Madrid', days: [], stepAverages: [] }
+export const emptyUnits: UnitOutcomesResponse = { zone: 'Europe/Madrid', units: [] }
 export const emptyCorrections: CorrectionsResponse = { zone: 'Europe/Madrid', days: [], totals: [] }
 export const emptyHealth: SourceHealthResponse = { zone: 'Europe/Madrid', days: [], totals: [] }
 export const emptyPending: PendingResponse = { asOf: '2026-10-05T08:00:00Z', sources: [] }

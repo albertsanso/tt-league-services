@@ -30,7 +30,7 @@ class RetentionRulesTest {
     private static RetainedArtifact retained(
             String key, ArtifactKind kind, Instant createdAt, PipelineSource source, String season, boolean active) {
         return new RetainedArtifact(
-                new RunArtifact(UUID.randomUUID(), UUID.randomUUID(), kind, key, SHA, 1, createdAt), source, season,
+                new RunArtifact(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), kind, key, SHA, 1, createdAt), source, season,
                 active);
     }
 

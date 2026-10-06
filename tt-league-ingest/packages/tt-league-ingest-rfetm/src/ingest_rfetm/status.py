@@ -17,7 +17,10 @@ PAGE_RE = re.compile(r"grupo_(\d+)\.html")
 def _starts_at(partido: dict) -> datetime | None:
     if not partido.get("fecha"):
         return None
-    return datetime.fromisoformat(f"{partido['fecha']}T{partido.get('hora') or '00:00'}")
+    try:
+        return datetime.fromisoformat(f"{partido['fecha']}T{partido.get('hora') or '00:00'}")
+    except ValueError:
+        return None
 
 
 def scan(content_dir: Path) -> ScanResult:

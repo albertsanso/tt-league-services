@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 
@@ -19,6 +20,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository
 public final class RunMetricsObserver implements RunObserver {
 
     static final String RUNS_FINISHED = "pipeline.runs.finished";
+    static final String UNITS_FINISHED = "pipeline.unit.finished";
     static final String RUN_DURATION = "pipeline.run.duration";
     static final String STEP_DURATION = "pipeline.step.duration";
 
@@ -52,6 +54,23 @@ public final class RunMetricsObserver implements RunObserver {
             timer(RUN_DURATION, "source", source, "trigger", trigger, "outcome", outcome)
                     .record(Duration.between(run.startedAt(), run.finishedAt()));
         }
+    }
+
+    /**
+     * Counts a finished unit once (a unit reaches its terminal status once). Tagged by source and status only: the unit
+     * key is an unbounded set and never a tag.
+     */
+    @Override
+    public void unitChanged(RunUnit unit) {
+        if (!unit.status().isTerminal()) {
+            return;
+        }
+        PipelineSource source = runs.findById(unit.runId())
+                .orElseThrow(() -> new IllegalStateException("run " + unit.runId() + " of a finished unit is missing"))
+                .source();
+        Counter.builder(UNITS_FINISHED)
+                .tag("source", source.name()).tag("status", unit.status().name())
+                .register(registry).increment();
     }
 
     @Override

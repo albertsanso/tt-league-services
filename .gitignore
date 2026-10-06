@@ -21,3 +21,6 @@ __pycache__/
 
 # Deployment environment (FEAT-00116): holds real secrets, never commit
 deploy/.env
+
+# Local IDE run configuration secrets (.env.local.example), never commit
+.env.local

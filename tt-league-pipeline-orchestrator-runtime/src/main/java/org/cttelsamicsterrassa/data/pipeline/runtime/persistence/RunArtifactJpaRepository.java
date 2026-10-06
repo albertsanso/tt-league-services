@@ -12,6 +12,8 @@ interface RunArtifactJpaRepository extends JpaRepository<RunArtifactEntity, UUID
 
     List<RunArtifactEntity> findByRunIdOrderByCreatedAtAsc(UUID runId);
 
+    List<RunArtifactEntity> findByUnitIdOrderByCreatedAtAsc(UUID unitId);
+
     List<RunArtifactEntity> findByStorageKeyOrderByCreatedAtAsc(String storageKey);
 
     @Modifying(flushAutomatically = true, clearAutomatically = true)

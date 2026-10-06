@@ -4,13 +4,14 @@ import java.time.Instant;
 import java.util.UUID;
 
 /**
- * One attempt of a step within a run. Only a RUNNING step can finish. An INGEST step may carry the source health the
+ * One attempt of a step within a run unit. Only a RUNNING step can finish. An INGEST step may carry the source health the
  * ingest run reported; it is set only when the step finishes.
  */
 public final class PipelineStep {
 
     private final UUID id;
     private final UUID runId;
+    private final UUID unitId;
     private final StepKind kind;
     private final int attempt;
     private final StepStatus status;
@@ -27,6 +28,7 @@ public final class PipelineStep {
     private PipelineStep(
             UUID id,
             UUID runId,
+            UUID unitId,
             StepKind kind,
             int attempt,
             StepStatus status,
@@ -41,6 +43,7 @@ public final class PipelineStep {
             Boolean importJobReused) {
         this.id = Checks.required(id, "id");
         this.runId = Checks.required(runId, "runId");
+        this.unitId = Checks.required(unitId, "unitId");
         this.kind = Checks.required(kind, "kind");
         if (attempt < 1) {
             throw new IllegalArgumentException("attempt must be at least 1");
@@ -77,15 +80,16 @@ public final class PipelineStep {
     }
 
     public static PipelineStep start(
-            UUID id, UUID runId, StepKind kind, int attempt, Instant startedAt, String externalRef) {
+            UUID id, UUID runId, UUID unitId, StepKind kind, int attempt, Instant startedAt, String externalRef) {
         return new PipelineStep(
-                id, runId, kind, attempt, StepStatus.RUNNING, startedAt, null, externalRef, null, null, null, null, null, null);
+                id, runId, unitId, kind, attempt, StepStatus.RUNNING, startedAt, null, externalRef, null, null, null, null, null, null);
     }
 
     /** Rebuilds a stored step; used by adapters only. */
     public static PipelineStep restore(
             UUID id,
             UUID runId,
+            UUID unitId,
             StepKind kind,
             int attempt,
             StepStatus status,
@@ -99,7 +103,7 @@ public final class PipelineStep {
             IngestHealth ingestHealth,
             Boolean importJobReused) {
         return new PipelineStep(
-                id, runId, kind, attempt, status, startedAt, finishedAt, externalRef, outcome, retryable, error,
+                id, runId, unitId, kind, attempt, status, startedAt, finishedAt, externalRef, outcome, retryable, error,
                 logRef, ingestHealth, importJobReused);
     }
 
@@ -111,7 +115,7 @@ public final class PipelineStep {
         requireRunning(StepStatus.SUCCEEDED);
         Checks.required(at, "at");
         return new PipelineStep(
-                id, runId, kind, attempt, StepStatus.SUCCEEDED, startedAt, at, externalRef, outcome, retryable,
+                id, runId, unitId, kind, attempt, StepStatus.SUCCEEDED, startedAt, at, externalRef, outcome, retryable,
                 null, logRef, health, importJobReused);
     }
 
@@ -125,7 +129,7 @@ public final class PipelineStep {
         Checks.required(at, "at");
         Checks.required(error, "error");
         return new PipelineStep(
-                id, runId, kind, attempt, StepStatus.FAILED, startedAt, at, externalRef, outcome, retryable, error,
+                id, runId, unitId, kind, attempt, StepStatus.FAILED, startedAt, at, externalRef, outcome, retryable, error,
                 logRef, health, importJobReused);
     }
 
@@ -140,7 +144,7 @@ public final class PipelineStep {
         }
         PipelineStep with = withExternalRef(importJobId.toString());
         return new PipelineStep(
-                with.id, with.runId, with.kind, with.attempt, with.status, with.startedAt, null, with.externalRef,
+                with.id, with.runId, with.unitId, with.kind, with.attempt, with.status, with.startedAt, null, with.externalRef,
                 with.outcome, with.retryable, null, with.logRef, null, reused);
     }
 
@@ -154,7 +158,7 @@ public final class PipelineStep {
             throw new IllegalStateException("externalRef must be non-blank and at most 64 characters");
         }
         return new PipelineStep(
-                id, runId, kind, attempt, status, startedAt, null, ref, outcome, retryable, null, logRef, null,
+                id, runId, unitId, kind, attempt, status, startedAt, null, ref, outcome, retryable, null, logRef, null,
                 importJobReused);
     }
 
@@ -170,6 +174,11 @@ public final class PipelineStep {
 
     public UUID runId() {
         return runId;
+    }
+
+    /** The run unit this attempt belongs to; attempts are numbered per unit and kind. */
+    public UUID unitId() {
+        return unitId;
     }
 
     public StepKind kind() {

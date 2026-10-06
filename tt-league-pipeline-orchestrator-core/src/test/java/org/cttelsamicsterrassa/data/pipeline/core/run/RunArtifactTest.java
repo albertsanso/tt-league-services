@@ -15,7 +15,7 @@ class RunArtifactTest {
     private static final Instant NOW = Instant.parse("2026-10-04T10:00:00Z");
 
     private static RunArtifact artifact(String key, String sha, long size) {
-        return new RunArtifact(UUID.randomUUID(), UUID.randomUUID(), ArtifactKind.ZIP, key, sha, size, NOW);
+        return new RunArtifact(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), ArtifactKind.ZIP, key, sha, size, NOW);
     }
 
     @Test
@@ -53,10 +53,10 @@ class RunArtifactTest {
     void purgedAtIsOptionalAndNotBeforeCreation() {
         RunArtifact kept = artifact("k.zip", SHA, 1);
         assertThat(kept.isPurged()).isFalse();
-        RunArtifact purged = new RunArtifact(kept.id(), kept.runId(), kept.kind(), "k.zip", SHA, 1, NOW,
+        RunArtifact purged = new RunArtifact(kept.id(), kept.runId(), kept.unitId(), kept.kind(), "k.zip", SHA, 1, NOW,
                 NOW.plusSeconds(1));
         assertThat(purged.isPurged()).isTrue();
-        assertThatThrownBy(() -> new RunArtifact(kept.id(), kept.runId(), kept.kind(), "k.zip", SHA, 1, NOW,
+        assertThatThrownBy(() -> new RunArtifact(kept.id(), kept.runId(), kept.unitId(), kept.kind(), "k.zip", SHA, 1, NOW,
                 NOW.minusSeconds(1))).isInstanceOf(IllegalArgumentException.class);
     }
 }

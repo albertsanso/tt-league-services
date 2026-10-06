@@ -21,15 +21,22 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.ScriptedInge
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.ScriptedIngestGateway.PackageResponse;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ArtifactKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
+import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunArtifact;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
+import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitKey;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitPlanner;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitStatus;
 import org.junit.jupiter.api.Test;
 
-/** Each resume rule: the executor continues from stored run and step state instead of starting over. */
+/** Each resume rule: the executor continues from stored run, unit and step state instead of starting over. */
 class RunExecutorResumeTest {
 
     private static final byte[] ZIP = "zip-content".getBytes(StandardCharsets.UTF_8);
@@ -45,35 +52,69 @@ class RunExecutorResumeTest {
         return h.run(run.id());
     }
 
+    private RunUnit unit(PipelineRun run) {
+        return h.units.findByRunId(run.id()).get(0);
+    }
+
+    private RunUnit unit(PipelineRun run, int ordinal) {
+        return h.units.findByRunId(run.id()).get(ordinal);
+    }
+
     private List<PipelineStep> steps(PipelineRun run, StepKind kind) {
         return h.steps.findByRunId(run.id()).stream().filter(s -> s.kind() == kind).toList();
     }
 
-    private PipelineStep runningStep(PipelineRun run, StepKind kind, String ref) {
-        return h.steps.save(PipelineStep.start(UUID.randomUUID(), run.id(), kind, 1, h.clock.now(), ref));
+    private PipelineStep runningStep(RunUnit unit, StepKind kind, String ref) {
+        return h.steps.save(
+                PipelineStep.start(UUID.randomUUID(), unit.runId(), unit.id(), kind, 1, h.clock.now(), ref));
     }
 
-    private PipelineRun runningIngest(String ingestRunId) {
-        PipelineRun run = h.queueRun();
-        return h.runs.update(run.startIngest(ingestRunId, h.clock.now()));
+    /** A run that was started by an earlier executor: units planned and the run RUNNING. */
+    private PipelineRun startedRun(RunScope scope) {
+        PipelineRun queued = h.queueRun(PipelineSource.RFETM, scope);
+        h.units.addAll(UnitPlanner.plan(queued.id(), scope));
+        return h.runs.update(queued.start(h.clock.now()));
     }
 
-    private PipelineRun packed(String ingestRunId) {
-        PipelineRun run = runningIngest(ingestRunId);
-        return h.runs.update(run.packed(h.clock.now()));
+    private PipelineRun startedRun() {
+        return startedRun(RunScope.fullSeason());
     }
 
-    private RunArtifact storeZip(PipelineRun run) {
-        String key = "rfetm/2025-2026/" + run.id() + "/ingest-" + run.ingestRunId() + ".zip";
+    private RunUnit update(RunUnit unit) {
+        return h.units.update(unit);
+    }
+
+    private RunUnit runningIngest(PipelineRun run, String ingestRunId) {
+        return update(unit(run).startIngest(ingestRunId, h.clock.now()));
+    }
+
+    private RunUnit packed(PipelineRun run, String ingestRunId) {
+        return update(runningIngest(run, ingestRunId).packed(h.clock.now()));
+    }
+
+    private RunArtifact storeZip(RunUnit unit) {
+        String key = "rfetm/2025-2026/" + unit.runId() + "/0-season/ingest-" + unit.ingestRunId() + ".zip";
         StoredArtifact stored = store.store(key, new java.io.ByteArrayInputStream(ZIP));
-        return h.artifactRows.add(new RunArtifact(UUID.randomUUID(), run.id(), ArtifactKind.ZIP, key,
+        return h.artifactRows.add(new RunArtifact(UUID.randomUUID(), unit.runId(), unit.id(), ArtifactKind.ZIP, key,
                 stored.sha256(), stored.sizeBytes(), h.clock.now()));
     }
 
     @Test
-    void queuedRunWithRunningIngestStepIsInterruptedThenStartedAgain() {
-        PipelineRun run = h.queueRun();
-        runningStep(run, StepKind.INGEST, null);
+    void aQueuedRunWithPlannedUnitsIsStartedWithoutPlanningAgain() {
+        PipelineRun queued = h.queueRun();
+        h.units.addAll(UnitPlanner.plan(queued.id(), RunScope.fullSeason()));
+        ingest.start("ing1").poll(finished("ing1", "NO_CHANGES", false));
+
+        PipelineRun result = execute(queued);
+
+        assertThat(result.status()).isEqualTo(RunStatus.NO_CHANGES);
+        assertThat(h.units.findByRunId(queued.id())).hasSize(1);
+    }
+
+    @Test
+    void aPendingUnitWithARunningIngestStepIsInterruptedThenStartedAgain() {
+        PipelineRun run = startedRun();
+        runningStep(unit(run), StepKind.INGEST, null);
         ingest.start("ing2").poll(finished("ing2", "NO_CHANGES", false));
 
         PipelineRun result = execute(run);
@@ -87,9 +128,10 @@ class RunExecutorResumeTest {
     }
 
     @Test
-    void runningIngestWithARefKeepsPollingTheSameIngestRun() {
-        PipelineRun run = runningIngest("ing1");
-        runningStep(run, StepKind.INGEST, "ing1");
+    void aRunningIngestWithARefKeepsPollingTheSameIngestRun() {
+        PipelineRun run = startedRun();
+        runningIngest(run, "ing1");
+        runningStep(unit(run), StepKind.INGEST, "ing1");
         ingest.poll(running("ing1")).poll(finished("ing1", "NO_CHANGES", false));
 
         PipelineRun result = execute(run);
@@ -102,34 +144,38 @@ class RunExecutorResumeTest {
     }
 
     @Test
-    void runningIngestWithoutARefIsInterruptedAndRestartedOnTheSameRun() {
-        PipelineRun run = runningIngest("ing1");
-        runningStep(run, StepKind.INGEST, null);
+    void aRunningIngestWithoutARefIsInterruptedAndRestartedOnTheSameUnit() {
+        PipelineRun run = startedRun();
+        runningIngest(run, "ing1");
+        runningStep(unit(run), StepKind.INGEST, null);
         ingest.start("ing2").poll(finished("ing2", "NO_CHANGES", false));
 
         PipelineRun result = execute(run);
 
         assertThat(result.status()).isEqualTo(RunStatus.NO_CHANGES);
-        assertThat(result.ingestRunId()).isEqualTo("ing2");
+        assertThat(unit(result).ingestRunId()).isEqualTo("ing2");
         assertThat(steps(result, StepKind.INGEST).get(0).error().code()).isEqualTo("INTERRUPTED");
     }
 
     @Test
-    void finishedIngestStepDerivesTheRunTransition() {
-        PipelineRun run = runningIngest("ing1");
-        PipelineStep step = runningStep(run, StepKind.INGEST, "ing1");
+    void aFinishedIngestStepDerivesTheUnitTransition() {
+        PipelineRun run = startedRun();
+        RunUnit unit = runningIngest(run, "ing1");
+        PipelineStep step = runningStep(unit, StepKind.INGEST, "ing1");
         h.steps.save(step.succeed(h.clock.now(), "NO_CHANGES"));
 
         PipelineRun result = execute(run);
 
         assertThat(result.status()).isEqualTo(RunStatus.NO_CHANGES);
+        assertThat(unit(result).status()).isEqualTo(UnitStatus.NO_CHANGES);
         assertThat(ingest.polledIds).isEmpty();
     }
 
     @Test
-    void succeededIngestStepWithAnotherOutcomeMovesOnToThePackage() {
-        PipelineRun run = runningIngest("ing1");
-        PipelineStep step = runningStep(run, StepKind.INGEST, "ing1");
+    void aSucceededIngestStepWithAnotherOutcomeMovesOnToThePackage() {
+        PipelineRun run = startedRun();
+        RunUnit unit = runningIngest(run, "ing1");
+        PipelineStep step = runningStep(unit, StepKind.INGEST, "ing1");
         h.steps.save(step.succeed(h.clock.now(), "SUCCEEDED"));
         ingest.packageResponse(PackageResponse.valid(ZIP));
         platform.submit(created(jobId)).poll(job(jobId, "SUCCEEDED", null,
@@ -143,27 +189,32 @@ class RunExecutorResumeTest {
     }
 
     @Test
-    void failedRetryableIngestStepIsRetriedAndNonRetryableFailsTheRun() {
-        PipelineRun retryable = runningIngest("ing1");
-        PipelineStep step = runningStep(retryable, StepKind.INGEST, "ing1");
+    void aFailedRetryableIngestStepIsRetriedAndANonRetryableFailsTheUnit() {
+        PipelineRun retryable = startedRun();
+        RunUnit retryUnit = runningIngest(retryable, "ing1");
+        PipelineStep step = runningStep(retryUnit, StepKind.INGEST, "ing1");
         h.steps.save(step.fail(h.clock.now(), "SOURCE_UNAVAILABLE", new RunError("SOURCE_UNAVAILABLE", "down"), true));
         ingest.start("ing2").poll(finished("ing2", "NO_CHANGES", false));
         assertThat(execute(retryable).status()).isEqualTo(RunStatus.NO_CHANGES);
 
-        PipelineRun fatal = h.runs.update(h.queueRun().startIngest("ingX", h.clock.now()));
-        PipelineStep fatalStep = runningStep(fatal, StepKind.INGEST, "ingX");
+        PipelineRun fatal = h.runs.update(h.queueRun(PipelineSource.BCNESA, RunScope.fullSeason()).start(h.clock.now()));
+        h.units.addAll(UnitPlanner.plan(fatal.id(), RunScope.fullSeason()));
+        RunUnit fatalUnit = update(unit(fatal).startIngest("ingX", h.clock.now()));
+        PipelineStep fatalStep = runningStep(fatalUnit, StepKind.INGEST, "ingX");
         h.steps.save(fatalStep.fail(h.clock.now(), "FAILED", new RunError("INGEST_FAILED", "boom"), false));
 
         PipelineRun result = execute(fatal);
 
         assertThat(result.status()).isEqualTo(RunStatus.FAILED);
         assertThat(result.error().code()).isEqualTo("INGEST_FAILED");
+        assertThat(unit(result).status()).isEqualTo(UnitStatus.FAILED);
     }
 
     @Test
-    void packedRunWithoutArtifactInterruptsTheRunningFetchAndFetchesAgain() {
-        PipelineRun run = packed("ing1");
-        runningStep(run, StepKind.FETCH_PACKAGE, "ing1");
+    void aPackedUnitWithoutArtifactInterruptsTheRunningFetchAndFetchesAgain() {
+        PipelineRun run = startedRun();
+        RunUnit unit = packed(run, "ing1");
+        runningStep(unit, StepKind.FETCH_PACKAGE, "ing1");
         ingest.packageResponse(PackageResponse.valid(ZIP));
         platform.submit(created(jobId)).poll(job(jobId, "SUCCEEDED", null,
                 season("2025-2026", "SUCCEEDED", counters(1, 1))));
@@ -178,26 +229,28 @@ class RunExecutorResumeTest {
     }
 
     @Test
-    void packedRunWithRunningImportStepAndRefBindsTheJobAndPollsIt() {
-        PipelineRun run = packed("ing1");
-        storeZip(run);
-        runningStep(run, StepKind.IMPORT, jobId.toString());
+    void aPackedUnitWithARunningImportStepAndRefBindsTheJobAndPollsIt() {
+        PipelineRun run = startedRun();
+        RunUnit unit = packed(run, "ing1");
+        storeZip(unit);
+        runningStep(unit, StepKind.IMPORT, jobId.toString());
         platform.poll(job(jobId, "SUCCEEDED", null, season("2025-2026", "SUCCEEDED", counters(2, 2))));
 
         PipelineRun result = execute(run);
 
         assertThat(result.status()).isEqualTo(RunStatus.SUCCEEDED);
-        assertThat(result.importJobId()).isEqualTo(jobId);
+        assertThat(unit(result).importJobId()).isEqualTo(jobId);
         assertThat(platform.submissions).isEmpty();
         assertThat(ingest.fetchedIds).isEmpty();
-        assertThat(h.reports.findByRunId(run.id())).isPresent();
+        assertThat(h.reports.findByUnitId(unit.id())).isPresent();
     }
 
     @Test
-    void packedRunWithRunningImportStepWithoutRefIsInterruptedAndResubmitted() {
-        PipelineRun run = packed("ing1");
-        storeZip(run);
-        runningStep(run, StepKind.IMPORT, null);
+    void aPackedUnitWithARunningImportStepWithoutRefIsInterruptedAndResubmitted() {
+        PipelineRun run = startedRun();
+        RunUnit unit = packed(run, "ing1");
+        storeZip(unit);
+        runningStep(unit, StepKind.IMPORT, null);
         platform.submit(created(jobId)).poll(job(jobId, "SUCCEEDED", null,
                 season("2025-2026", "SUCCEEDED", counters(1, 1))));
 
@@ -211,17 +264,19 @@ class RunExecutorResumeTest {
     }
 
     @Test
-    void importingRunPollsItsBoundJob() {
-        PipelineRun run = packed("ing1");
-        storeZip(run);
-        PipelineStep step = runningStep(run, StepKind.IMPORT, jobId.toString());
-        PipelineRun importing = h.runs.update(run.startImport(jobId, h.clock.now()));
+    void anImportingUnitPollsItsBoundJob() {
+        PipelineRun run = startedRun();
+        RunUnit unit = packed(run, "ing1");
+        storeZip(unit);
+        PipelineStep step = runningStep(unit, StepKind.IMPORT, jobId.toString());
+        update(unit.startImport(jobId, h.clock.now()));
         platform.poll(job(jobId, "IMPORTING", null))
                 .poll(job(jobId, "PARTIAL", null, season("2025-2026", "FAILED", null)));
 
-        PipelineRun result = execute(importing);
+        PipelineRun result = execute(run);
 
         assertThat(result.status()).isEqualTo(RunStatus.PARTIAL);
+        assertThat(unit(result).status()).isEqualTo(UnitStatus.PARTIAL);
         assertThat(platform.polledIds).containsExactly(jobId, jobId);
         assertThat(platform.submissions).isEmpty();
         assertThat(h.steps.findByRunId(run.id()).stream().filter(s -> s.id().equals(step.id())).findFirst()
@@ -229,14 +284,15 @@ class RunExecutorResumeTest {
     }
 
     @Test
-    void importingRunWhoseJobDisappearedFailsWithoutAnotherAttempt() {
-        PipelineRun run = packed("ing1");
-        storeZip(run);
-        runningStep(run, StepKind.IMPORT, jobId.toString());
-        PipelineRun importing = h.runs.update(run.startImport(jobId, h.clock.now()));
+    void anImportingUnitWhoseJobDisappearedFailsWithoutAnotherAttempt() {
+        PipelineRun run = startedRun();
+        RunUnit unit = packed(run, "ing1");
+        storeZip(unit);
+        runningStep(unit, StepKind.IMPORT, jobId.toString());
+        update(unit.startImport(jobId, h.clock.now()));
         platform.pollFails(Kind.NOT_FOUND, 404);
 
-        PipelineRun result = execute(importing);
+        PipelineRun result = execute(run);
 
         assertThat(result.status()).isEqualTo(RunStatus.FAILED);
         assertThat(result.error().code()).isEqualTo("IMPORT_JOB_LOST");
@@ -244,16 +300,96 @@ class RunExecutorResumeTest {
     }
 
     @Test
-    void importingRunWithASucceededStepFinishesFromTheStep() {
-        PipelineRun run = packed("ing1");
-        storeZip(run);
-        PipelineStep step = runningStep(run, StepKind.IMPORT, jobId.toString());
+    void anImportingUnitWithASucceededStepFinishesFromTheStep() {
+        PipelineRun run = startedRun();
+        RunUnit unit = packed(run, "ing1");
+        storeZip(unit);
+        PipelineStep step = runningStep(unit, StepKind.IMPORT, jobId.toString());
         h.steps.save(step.succeed(h.clock.now(), "SUCCEEDED"));
-        PipelineRun importing = h.runs.update(run.startImport(jobId, h.clock.now()));
+        update(unit.startImport(jobId, h.clock.now()));
 
-        PipelineRun result = execute(importing);
+        PipelineRun result = execute(run);
 
         assertThat(result.status()).isEqualTo(RunStatus.SUCCEEDED);
         assertThat(platform.polledIds).isEmpty();
+    }
+
+    @Test
+    void resumingBetweenUnitsSkipsTheFinishedOnesAndContinuesAtTheFirstActiveOne() {
+        RunScope scope = new RunScope(List.of(
+                new ScopeFilter("SENIOR", "G1", null, null, null, List.of(1)),
+                new ScopeFilter("SENIOR", "G2", null, null, null, List.of(1)),
+                new ScopeFilter("SENIOR", "G3", null, null, null, List.of(1))));
+        PipelineRun run = startedRun(scope);
+        update(unit(run, 0).startIngest("done", h.clock.now()).noChanges(h.clock.now()));
+        ingest.start("ing2").poll(finished("ing2", "NO_CHANGES", false))
+                .start("ing3").poll(finished("ing3", "NO_CHANGES", false));
+
+        PipelineRun result = execute(run);
+
+        assertThat(result.status()).isEqualTo(RunStatus.NO_CHANGES);
+        assertThat(ingest.startRequests).hasSize(2);
+        assertThat(h.units.findByRunId(run.id())).extracting(RunUnit::status)
+                .containsOnly(UnitStatus.NO_CHANGES);
+        assertThat(h.units.findByRunId(run.id())).extracting(RunUnit::ingestRunId)
+                .containsExactly("done", "ing2", "ing3");
+    }
+
+    @Test
+    void resumingMidUnitContinuesThatUnitBeforeTheNextOne() {
+        RunScope scope = new RunScope(List.of(
+                new ScopeFilter("SENIOR", "G1", null, null, null, List.of(1)),
+                new ScopeFilter("SENIOR", "G2", null, null, null, List.of(1))));
+        PipelineRun run = startedRun(scope);
+        RunUnit first = update(unit(run, 0).startIngest("ing1", h.clock.now()));
+        runningStep(first, StepKind.INGEST, "ing1");
+        ingest.poll(finished("ing1", "NO_CHANGES", false))
+                .start("ing2").poll(finished("ing2", "NO_CHANGES", false));
+
+        PipelineRun result = execute(run);
+
+        assertThat(result.status()).isEqualTo(RunStatus.NO_CHANGES);
+        assertThat(ingest.polledIds).containsExactly("ing1", "ing2");
+        assertThat(ingest.startRequests).hasSize(1);
+    }
+
+    @Test
+    void aRunWithOnlyFinishedUnitsIsFinishedFromThem() {
+        PipelineRun run = startedRun();
+        update(unit(run).startIngest("ing1", h.clock.now()).noChanges(h.clock.now()));
+
+        PipelineRun result = execute(run);
+
+        assertThat(result.status()).isEqualTo(RunStatus.NO_CHANGES);
+        assertThat(ingest.startRequests).isEmpty();
+    }
+
+    @Test
+    void aBackfilledLegacyUnitIsResumedLikeAnyOther() {
+        PipelineRun queued = h.queueRun(PipelineSource.RFETM,
+                new RunScope(List.of(new ScopeFilter("SENIOR", "G1", null, null, null, List.of(1)),
+                        new ScopeFilter("JUNIOR", null, null, null, null, List.of()))));
+        h.units.addAll(List.of(RunUnit.plan(UUID.randomUUID(), queued.id(), 0, UnitKey.LEGACY, "Legacy scope",
+                queued.scope())));
+        PipelineRun run = h.runs.update(queued.start(h.clock.now()));
+        ingest.start("ing1").poll(finished("ing1", "NO_CHANGES", false));
+
+        PipelineRun result = execute(run);
+
+        assertThat(result.status()).isEqualTo(RunStatus.NO_CHANGES);
+        assertThat(unit(result).unitKey()).isEqualTo(UnitKey.LEGACY);
+        assertThat(ingest.startRequests).singleElement()
+                .satisfies(request -> assertThat(request.scope().filters()).hasSize(2));
+    }
+
+    @Test
+    void aRunningRunWithoutUnitsFailsWithAnInternalError() {
+        PipelineRun queued = h.queueRun();
+        PipelineRun run = h.runs.update(queued.start(h.clock.now()));
+
+        PipelineRun result = execute(run);
+
+        assertThat(result.status()).isEqualTo(RunStatus.FAILED);
+        assertThat(result.error().code()).isEqualTo("INTERNAL_ERROR");
     }
 }

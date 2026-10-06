@@ -13,7 +13,22 @@ class PipelineStepTest {
     private static final RunError ERROR = new RunError("E", "failed");
 
     private static PipelineStep started() {
-        return PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), StepKind.INGEST, 1, T0, "abc");
+        return PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), StepKind.INGEST, 1, T0, "abc");
+    }
+
+    @Test
+    void carriesTheUnitItBelongsTo() {
+        UUID runId = UUID.randomUUID();
+        UUID unitId = UUID.randomUUID();
+
+        PipelineStep step = PipelineStep.start(UUID.randomUUID(), runId, unitId, StepKind.INGEST, 1, T0, null);
+
+        assertThat(step.runId()).isEqualTo(runId);
+        assertThat(step.unitId()).isEqualTo(unitId);
+        assertThat(step.succeed(T0.plusSeconds(1), "OK").unitId()).isEqualTo(unitId);
+        assertThat(step.withExternalRef("x").unitId()).isEqualTo(unitId);
+        assertThatThrownBy(() -> PipelineStep.start(UUID.randomUUID(), runId, null, StepKind.INGEST, 1, T0, null))
+                .isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -50,9 +65,9 @@ class PipelineStepTest {
     @Test
     void validatesFields() {
         UUID id = UUID.randomUUID();
-        assertThatThrownBy(() -> PipelineStep.start(id, id, StepKind.IMPORT, 0, T0, null))
+        assertThatThrownBy(() -> PipelineStep.start(id, id, id, StepKind.IMPORT, 0, T0, null))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> PipelineStep.start(id, id, StepKind.IMPORT, 1, T0, "x".repeat(65)))
+        assertThatThrownBy(() -> PipelineStep.start(id, id, id, StepKind.IMPORT, 1, T0, "x".repeat(65)))
                 .isInstanceOf(IllegalArgumentException.class);
         assertThatThrownBy(() -> started().succeed(T0.plusSeconds(1), "x".repeat(33)))
                 .isInstanceOf(IllegalArgumentException.class);
@@ -63,11 +78,11 @@ class PipelineStepTest {
     @Test
     void restoreRejectsInconsistentState() {
         UUID id = UUID.randomUUID();
-        assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.FAILED, T0,
+        assertThatThrownBy(() -> PipelineStep.restore(id, id, id, StepKind.INGEST, 1, StepStatus.FAILED, T0,
                 T0.plusSeconds(1), null, null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.RUNNING, T0,
+        assertThatThrownBy(() -> PipelineStep.restore(id, id, id, StepKind.INGEST, 1, StepStatus.RUNNING, T0,
                 T0.plusSeconds(1), null, null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.SUCCEEDED, T0, null,
+        assertThatThrownBy(() -> PipelineStep.restore(id, id, id, StepKind.INGEST, 1, StepStatus.SUCCEEDED, T0, null,
                 null, null, null, null, null, null, null)).isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -87,12 +102,12 @@ class PipelineStepTest {
     void healthIsRejectedOnNonIngestStepsAndWhileRunning() {
         IngestHealth health = new IngestHealth(0, 0, 0);
         PipelineStep importing =
-                PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), StepKind.IMPORT, 1, T0, "abc");
+                PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), StepKind.IMPORT, 1, T0, "abc");
         UUID id = UUID.randomUUID();
 
         assertThatThrownBy(() -> importing.succeed(T0.plusSeconds(1), "SUCCEEDED", health))
                 .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.RUNNING, T0, null,
+        assertThatThrownBy(() -> PipelineStep.restore(id, id, id, StepKind.INGEST, 1, StepStatus.RUNNING, T0, null,
                 null, null, null, null, null, health, null)).isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -105,7 +120,7 @@ class PipelineStepTest {
 
     @Test
     void attachesExternalRefOnceWhileRunning() {
-        PipelineStep step = PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), StepKind.INGEST, 1, T0, null)
+        PipelineStep step = PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), StepKind.INGEST, 1, T0, null)
                 .withExternalRef("ingest-1");
 
         assertThat(step.externalRef()).isEqualTo("ingest-1");
@@ -115,7 +130,7 @@ class PipelineStepTest {
 
     @Test
     void externalRefIsRejectedWhenBlankTooLongOrStepFinished() {
-        PipelineStep fresh = PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), StepKind.INGEST, 1, T0, null);
+        PipelineStep fresh = PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), StepKind.INGEST, 1, T0, null);
         assertThatThrownBy(() -> fresh.withExternalRef(" ")).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> fresh.withExternalRef("x".repeat(65))).isInstanceOf(IllegalStateException.class);
         PipelineStep finished = fresh.succeed(T0.plusSeconds(1), "OK");
@@ -125,7 +140,7 @@ class PipelineStepTest {
     @Test
     void importJobCarriesTheReusedFlagOnImportStepsOnly() {
         UUID job = UUID.randomUUID();
-        PipelineStep step = PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), StepKind.IMPORT, 1, T0, null);
+        PipelineStep step = PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), StepKind.IMPORT, 1, T0, null);
         assertThat(step.importJobReused()).isNull();
 
         PipelineStep reused = step.withImportJob(job, true);
@@ -137,7 +152,7 @@ class PipelineStepTest {
         PipelineStep ingest = started();
         assertThatThrownBy(() -> ingest.withImportJob(job, false)).isInstanceOf(IllegalStateException.class);
         UUID id = UUID.randomUUID();
-        assertThatThrownBy(() -> PipelineStep.restore(id, id, StepKind.INGEST, 1, StepStatus.RUNNING, T0, null,
+        assertThatThrownBy(() -> PipelineStep.restore(id, id, id, StepKind.INGEST, 1, StepStatus.RUNNING, T0, null,
                 null, null, null, null, null, null, true)).isInstanceOf(IllegalArgumentException.class);
     }
 }

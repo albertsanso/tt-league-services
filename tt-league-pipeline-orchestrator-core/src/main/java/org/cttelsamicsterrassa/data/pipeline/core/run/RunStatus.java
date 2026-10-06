@@ -3,13 +3,14 @@ package org.cttelsamicsterrassa.data.pipeline.core.run;
 import java.util.EnumSet;
 import java.util.Set;
 
-/** Lifecycle state of a {@link PipelineRun} with its allowed successors. */
+/**
+ * Lifecycle state of a {@link PipelineRun} with its allowed successors. Only {@code RunOutcomeRules} derives the
+ * terminal status, from the run's units; the intermediate steps live on {@link UnitStatus}.
+ */
 public enum RunStatus {
     QUEUED,
-    RUNNING_INGEST,
+    RUNNING,
     NO_CHANGES,
-    PACKED,
-    IMPORTING,
     SUCCEEDED,
     PARTIAL,
     FAILED;
@@ -17,10 +18,8 @@ public enum RunStatus {
     private Set<RunStatus> successors;
 
     static {
-        QUEUED.successors = EnumSet.of(RUNNING_INGEST, PACKED, FAILED);
-        RUNNING_INGEST.successors = EnumSet.of(NO_CHANGES, PACKED, FAILED);
-        PACKED.successors = EnumSet.of(IMPORTING, FAILED);
-        IMPORTING.successors = EnumSet.of(SUCCEEDED, PARTIAL, FAILED);
+        QUEUED.successors = EnumSet.of(RUNNING, FAILED);
+        RUNNING.successors = EnumSet.of(NO_CHANGES, SUCCEEDED, PARTIAL, FAILED);
         NO_CHANGES.successors = EnumSet.noneOf(RunStatus.class);
         SUCCEEDED.successors = EnumSet.noneOf(RunStatus.class);
         PARTIAL.successors = EnumSet.noneOf(RunStatus.class);

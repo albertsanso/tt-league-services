@@ -29,6 +29,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.CorrectionFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.DailyStats;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.MatchFacts;
@@ -36,6 +37,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.statistics.RunFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.StatisticsQueries;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.StatisticsSettings;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.StepFacts;
+import org.cttelsamicsterrassa.data.pipeline.core.statistics.UnitFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDay;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayChangeSet;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayKey;
@@ -64,6 +66,7 @@ class StatisticsApiWebTest {
     private static final ZoneId MADRID = ZoneId.of("Europe/Madrid");
     private static final Instant PLAYED = Instant.parse("2026-10-03T16:00:00Z");
     private static final Instant SEEN = Instant.parse("2026-10-03T17:00:00Z");
+    private static final String UNIT_KEY = "cd".repeat(32);
 
     static final InMemoryStatisticsReadRepository READS = new InMemoryStatisticsReadRepository();
     static final InMemoryDailyStatsRepository DAILY = new InMemoryDailyStatsRepository();
@@ -74,9 +77,15 @@ class StatisticsApiWebTest {
                 Duration.ofSeconds(7200), 2, NOW)));
         READS.add(new RunFacts(UUID.randomUUID(), PipelineSource.FCTT, RunStatus.SUCCEEDED,
                 Instant.parse("2026-10-05T09:00:00Z"), Instant.parse("2026-10-05T10:00:00Z")));
-        READS.add(new StepFacts(UUID.randomUUID(), PipelineSource.FCTT, StepKind.INGEST, StepStatus.SUCCEEDED,
+        READS.add(new StepFacts(UUID.randomUUID(), "season", PipelineSource.FCTT, StepKind.INGEST, StepStatus.SUCCEEDED,
                 "SUCCEEDED", Instant.parse("2026-10-05T09:00:00Z"), Instant.parse("2026-10-05T09:05:00Z"),
                 new IngestHealth(3, 2, 1)));
+        READS.add(new UnitFacts(UUID.randomUUID(), PipelineSource.FCTT, "season", "Full season", UnitStatus.SUCCEEDED,
+                Instant.parse("2026-10-05T09:00:00Z"), Instant.parse("2026-10-05T09:10:00Z")));
+        READS.add(new UnitFacts(UUID.randomUUID(), PipelineSource.FCTT, "season", "Full season", UnitStatus.FAILED,
+                Instant.parse("2026-10-05T11:00:00Z"), Instant.parse("2026-10-05T11:20:00Z")));
+        READS.add(new UnitFacts(UUID.randomUUID(), PipelineSource.BCNESA, UNIT_KEY, "Superdivision", UnitStatus.SKIPPED,
+                null, Instant.parse("2026-10-05T12:00:00Z")));
         READS.add(new MatchFacts(UUID.randomUUID(), UUID.randomUUID(), PipelineSource.FCTT, "2026-2027", "TERCERA",
                 MatchDayState.OPEN, TrackedMatchStatus.REPORTED, PLAYED, SEEN, PLAYED.plus(Duration.ofHours(6)),
                 false));
@@ -117,7 +126,7 @@ class StatisticsApiWebTest {
     @Test
     void everyEndpointRequiresAuthentication() throws Exception {
         for (String path : List.of("/daily?from=2026-10-01&to=2026-10-07", "/runs?from=2026-10-01&to=2026-10-07",
-                "/time-to-report?season=2026-2027", "/pending", "/corrections?from=2026-10-01&to=2026-10-07",
+                "/units?from=2026-10-01&to=2026-10-07", "/time-to-report?season=2026-2027", "/pending", "/corrections?from=2026-10-01&to=2026-10-07",
                 "/reporting-progress?source=FCTT&season=2026-2027", "/source-health?from=2026-10-01&to=2026-10-07")) {
             mvc.perform(get(BASE + path)).andExpect(status().isUnauthorized());
         }
@@ -151,6 +160,43 @@ class StatisticsApiWebTest {
                 .andExpect(jsonPath("$.days[0].failed").value(0))
                 .andExpect(jsonPath("$.stepAverages[0].kind").value("INGEST"))
                 .andExpect(jsonPath("$.stepAverages[0].avgStepSeconds").value(300));
+    }
+
+    @Test
+    void unitsReturnsTheOutcomesPerSourceAndUnitKey() throws Exception {
+        mvc.perform(get(BASE + "/units?from=2026-10-01&to=2026-10-07").header("Authorization", user()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.zone").value("Europe/Madrid"))
+                .andExpect(jsonPath("$.units.length()").value(2))
+                .andExpect(jsonPath("$.units[0].source").value("BCNESA"))
+                .andExpect(jsonPath("$.units[0].unitKey").value(UNIT_KEY))
+                .andExpect(jsonPath("$.units[0].label").value("Superdivision"))
+                .andExpect(jsonPath("$.units[0].skipped").value(1))
+                .andExpect(jsonPath("$.units[0].avgSeconds").doesNotExist())
+                .andExpect(jsonPath("$.units[1].source").value("FCTT"))
+                .andExpect(jsonPath("$.units[1].unitKey").value("season"))
+                .andExpect(jsonPath("$.units[1].succeeded").value(1))
+                .andExpect(jsonPath("$.units[1].failed").value(1))
+                .andExpect(jsonPath("$.units[1].avgSeconds").value(900));
+    }
+
+    @Test
+    void unitsAreLimitedBySourceAndUnitKey() throws Exception {
+        mvc.perform(get(BASE + "/units?from=2026-10-01&to=2026-10-07&source=FCTT").header("Authorization", user()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.units.length()").value(1))
+                .andExpect(jsonPath("$.units[0].source").value("FCTT"));
+        mvc.perform(get(BASE + "/units?from=2026-10-01&to=2026-10-07&unitKey=" + UNIT_KEY)
+                        .header("Authorization", user()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.units.length()").value(1))
+                .andExpect(jsonPath("$.units[0].unitKey").value(UNIT_KEY));
+        mvc.perform(get(BASE + "/units?from=2026-10-01&to=2026-10-07&unitKey=unknown")
+                        .header("Authorization", user()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.units.length()").value(0));
+        mvc.perform(get(BASE + "/runs?from=2026-10-01&to=2026-10-07&unitKey=season").header("Authorization", user()))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -227,6 +273,11 @@ class StatisticsApiWebTest {
                 "/daily?from=nope&to=2026-10-01",
                 "/daily?to=2026-10-01",
                 "/runs?from=2026-10-01",
+                "/units?from=2026-10-01",
+                "/units?from=2026-10-07&to=2026-10-01",
+                "/units?from=2026-10-01&to=2026-10-07&unitKey=",
+                "/units?from=2026-10-01&to=2026-10-07&unitKey=" + "x".repeat(65),
+                "/runs?from=2026-10-01&to=2026-10-07&unitKey=" + "x".repeat(65),
                 "/corrections?from=2026-10-01&to=2026-10-07&source=NOPE",
                 "/source-health?to=2026-10-07",
                 "/time-to-report",

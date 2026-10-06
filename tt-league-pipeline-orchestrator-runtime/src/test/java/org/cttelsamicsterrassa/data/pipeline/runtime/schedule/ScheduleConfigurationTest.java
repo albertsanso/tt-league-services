@@ -15,6 +15,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepositor
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineStepRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunArtifactRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunUnitRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.port.PendingTriggerRepository;
 import org.cttelsamicsterrassa.data.pipeline.runtime.api.RunDtoMapper;
 import org.cttelsamicsterrassa.data.pipeline.runtime.api.TriggerConfiguration;
@@ -193,6 +194,11 @@ class ScheduleConfigurationTest {
         @Bean
         PipelineStepRepository steps() {
             return mock(PipelineStepRepository.class);
+        }
+
+        @Bean
+        RunUnitRepository units() {
+            return mock(RunUnitRepository.class);
         }
 
         @Bean

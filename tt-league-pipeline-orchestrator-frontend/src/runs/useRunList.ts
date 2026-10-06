@@ -3,7 +3,7 @@ import type { RunListQuery } from '../api/runs'
 import type { Page, RunSummary } from '../api/types'
 import { useApi } from '../api/useApi'
 import { useRunEvents } from '../events/useRunEvents'
-import { mergeRunEvent, mergeStepSummary } from './format'
+import { mergeRunEvent, mergeStepSummary, upsertUnit } from './format'
 
 const REFETCH_DEBOUNCE_MS = 300
 
@@ -137,6 +137,14 @@ export function useRunList(query: RunListQuery | null): RunListResult {
       const step = event.payload
       if (pageRef.current?.items.some((row) => row.id === step.runId)) {
         setSettled((previous) => patchRow(previous, step.runId, (row) => ({ ...row, steps: mergeStepSummary(row.steps, step) })))
+        markStale()
+      }
+      return
+    }
+    if (event.type === 'unit') {
+      const unit = event.payload
+      if (pageRef.current?.items.some((row) => row.id === unit.runId)) {
+        setSettled((previous) => patchRow(previous, unit.runId, (row) => ({ ...row, units: upsertUnit(row.units, unit) })))
         markStale()
       }
       return

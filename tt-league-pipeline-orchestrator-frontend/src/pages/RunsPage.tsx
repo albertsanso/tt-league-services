@@ -64,10 +64,12 @@ export default function RunsPage() {
 
   const write = (next: Omit<RunFilters, 'errors'>, replace: boolean) =>
     setSearchParams(serializeRunFilters(next), { replace })
-  const changeFilters = (patch: Partial<Pick<RunFilters, 'sources' | 'statuses' | 'fromDate' | 'toDate'>>, replace: boolean) =>
-    write({ ...filters, ...patch, page: 1 }, replace)
+  const changeFilters = (
+    patch: Partial<Pick<RunFilters, 'sources' | 'statuses' | 'unitKey' | 'fromDate' | 'toDate'>>,
+    replace: boolean,
+  ) => write({ ...filters, ...patch, page: 1 }, replace)
   const clearFilters = () =>
-    write({ sources: [], statuses: [], fromDate: null, toDate: null, page: 1 }, false)
+    write({ sources: [], statuses: [], unitKey: null, fromDate: null, toDate: null, page: 1 }, false)
 
   const seasons = useMemo(
     () => [...new Set(page?.items.map((run) => run.season) ?? [])].sort().reverse(),

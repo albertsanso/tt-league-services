@@ -105,7 +105,8 @@ class ReplayHttpTest {
 
         PipelineRun result = h.run(replay.id());
         assertThat(result.status()).isEqualTo(RunStatus.SUCCEEDED);
-        assertThat(result.importJobId()).isEqualTo(replayJob);
+        assertThat(h.units.findByRunId(result.id())).singleElement()
+                .satisfies(unit -> assertThat(unit.importJobId()).isEqualTo(replayJob));
         assertThat(ingest.requestsTo("POST", RUNS)).hasSize(1);
         assertThat(ingest.requestsTo("GET", RUNS + "/ing1/package")).hasSize(1);
         assertThat(platform.requestsTo("POST", JOBS)).hasSize(2);
@@ -129,12 +130,13 @@ class ReplayHttpTest {
 
         PipelineRun result = h.run(replay.id());
         assertThat(result.status()).isEqualTo(RunStatus.SUCCEEDED);
-        assertThat(result.importJobId()).isEqualTo(originalJob);
+        assertThat(h.units.findByRunId(result.id())).singleElement()
+                .satisfies(unit -> assertThat(unit.importJobId()).isEqualTo(originalJob));
         assertThat(h.steps.findByRunId(result.id())).singleElement().satisfies(step -> {
             assertThat(step.importJobReused()).isTrue();
             assertThat(step.externalRef()).isEqualTo(originalJob.toString());
         });
         assertThat(ingest.requestsTo("POST", RUNS)).hasSize(1);
-        assertThat(h.reports.findByRunId(result.id())).isPresent();
+        assertThat(h.reports.findByRunId(result.id())).hasSize(1);
     }
 }

@@ -10,6 +10,8 @@ export interface StatisticsFilters {
   readonly sources: readonly PipelineSource[]
   /** The season of the time-to-report and reporting-progress panels; null until one is chosen. */
   readonly season: string | null
+  /** The unit key the run outcomes are limited to; null for every unit. */
+  readonly unitKey: string | null
   /** Local `YYYY-MM-DD`, inclusive. */
   readonly fromDate: string
   readonly toDate: string
@@ -17,6 +19,8 @@ export interface StatisticsFilters {
 }
 
 const SEASON_PATTERN = /^(\d{4})-(\d{4})$/
+/** The server accepts unit keys of 1 to 64 characters. */
+const MAX_UNIT_KEY = 64
 
 export function isValidSeason(value: string): boolean {
   const match = SEASON_PATTERN.exec(value)
@@ -81,6 +85,15 @@ export function parseStatisticsFilters(params: URLSearchParams, today: Date = ne
       errors.push(`Invalid season "${rawSeason}" was ignored.`)
     }
   }
+  let unitKey: string | null = null
+  const rawUnit = params.get('unit')
+  if (rawUnit !== null && rawUnit !== '') {
+    if (rawUnit.length <= MAX_UNIT_KEY) {
+      unitKey = rawUnit
+    } else {
+      errors.push('The unit was ignored: it is longer than 64 characters.')
+    }
+  }
   const defaults = defaultRange(today)
   const date = (name: 'from' | 'to', fallback: string): string => {
     const value = params.get(name)
@@ -95,7 +108,7 @@ export function parseStatisticsFilters(params: URLSearchParams, today: Date = ne
   }
   const fromDate = date('from', defaults.fromDate)
   const toDate = date('to', defaults.toDate)
-  return { sources, season, fromDate, toDate, errors }
+  return { sources, season, unitKey, fromDate, toDate, errors }
 }
 
 export function serializeStatisticsFilters(filters: Omit<StatisticsFilters, 'errors'>): URLSearchParams {
@@ -103,6 +116,9 @@ export function serializeStatisticsFilters(filters: Omit<StatisticsFilters, 'err
   filters.sources.forEach((source) => params.append('source', source))
   if (filters.season !== null) {
     params.set('season', filters.season)
+  }
+  if (filters.unitKey !== null) {
+    params.set('unit', filters.unitKey)
   }
   params.set('from', filters.fromDate)
   params.set('to', filters.toDate)

@@ -22,19 +22,26 @@ class ReplayRetentionMigrationTest extends AbstractPersistenceTest {
         template.update("INSERT INTO pipeline.pipeline_run (id, source, season, scope, trigger, requested_by, "
                 + "status, created_at, version) VALUES (?, 'RFETM', '2025-2026', '{\"scopes\":[]}'::jsonb, "
                 + "'MANUAL', 'ana', 'QUEUED', now(), 0)", runId);
+        template.update("INSERT INTO pipeline.pipeline_unit (id, run_id, ordinal, unit_key, label, scope, status) "
+                + "VALUES (?, ?, 0, 'season', 'Full season', '{\"scopes\":[]}'::jsonb, 'PENDING')",
+                UUID.randomUUID(), runId);
         return runId;
     }
 
+    private UUID unitOf(UUID runId) {
+        return template.queryForObject("SELECT id FROM pipeline.pipeline_unit WHERE run_id = ?", UUID.class, runId);
+    }
+
     private void insertArtifact(UUID runId, String key, String purgedAtExpression) {
-        template.update("INSERT INTO pipeline.run_artifact (id, run_id, kind, storage_key, sha256, size_bytes, "
-                + "created_at, purged_at) VALUES (?, ?, 'ZIP', ?, ?, 1, now(), " + purgedAtExpression + ")",
-                UUID.randomUUID(), runId, key, SHA);
+        template.update("INSERT INTO pipeline.run_artifact (id, run_id, unit_id, kind, storage_key, sha256, "
+                + "size_bytes, created_at, purged_at) VALUES (?, ?, ?, 'ZIP', ?, ?, 1, now(), " + purgedAtExpression
+                + ")", UUID.randomUUID(), runId, unitOf(runId), key, SHA);
     }
 
     private void insertStep(UUID runId, String kind, int attempt, String reused) {
-        template.update("INSERT INTO pipeline.pipeline_step (id, run_id, kind, attempt, status, started_at, "
-                + "import_job_reused) VALUES (?, ?, ?, ?, 'RUNNING', now(), " + reused + ")",
-                UUID.randomUUID(), runId, kind, attempt);
+        template.update("INSERT INTO pipeline.pipeline_step (id, run_id, unit_id, kind, attempt, status, "
+                + "started_at, import_job_reused) VALUES (?, ?, ?, ?, ?, 'RUNNING', now(), " + reused + ")",
+                UUID.randomUUID(), runId, unitOf(runId), kind, attempt);
     }
 
     @Test

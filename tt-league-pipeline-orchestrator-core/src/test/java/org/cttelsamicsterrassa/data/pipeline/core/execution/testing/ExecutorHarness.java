@@ -25,6 +25,7 @@ public class ExecutorHarness {
             new PollIntervals(Duration.ofSeconds(15), Duration.ofSeconds(10)));
 
     public final InMemoryPipelineRunRepository runs = new InMemoryPipelineRunRepository();
+    public final InMemoryRunUnitRepository units = new InMemoryRunUnitRepository(runs);
     public final InMemoryPipelineStepRepository steps = new InMemoryPipelineStepRepository();
     public final InMemoryRunArtifactRepository artifactRows = new InMemoryRunArtifactRepository();
     public final InMemoryImportReportRepository reports = new InMemoryImportReportRepository();
@@ -41,7 +42,7 @@ public class ExecutorHarness {
             FakeRunClock clock, ExecutionSettings settings) {
         this.fakeClock = clock;
         this.clock = clock;
-        this.executor = new RunExecutor(runs, steps, artifactRows, reports, ingest, importGateway, artifacts, clock,
+        this.executor = new RunExecutor(runs, units, steps, artifactRows, reports, ingest, importGateway, artifacts, clock,
                 observer, settings);
     }
 

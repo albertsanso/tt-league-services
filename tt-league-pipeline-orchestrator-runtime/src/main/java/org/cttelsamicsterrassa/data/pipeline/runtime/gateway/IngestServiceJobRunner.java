@@ -8,6 +8,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.port.GatewayExceptio
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.GatewayException.Kind;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestGateway;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestMode;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestProgress;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunRequest;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunState;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.PackageSink;
@@ -77,7 +78,27 @@ public final class IngestServiceJobRunner implements IngestGateway {
             throw GatewayErrors.protocol("GET", RUN, "the run state has no status", null);
         }
         return new IngestRunState(ingestRunId, body.status(), body.outcome(), body.retryable(),
-                body.packageRef() != null, body.error(), health(body.stages()));
+                body.packageRef() != null, body.error(), health(body.stages()), progress(body.progress()));
+    }
+
+    /**
+     * The optional {@code progress} object of the run state: absent or null means the ingest service reports none
+     * (an older service, or a run that has not started a stage). A missing {@code itemsProcessed}, a negative count or
+     * a total below the processed count is a protocol error.
+     */
+    private static IngestProgress progress(ProgressBody progress) {
+        if (progress == null) {
+            return null;
+        }
+        if (progress.itemsProcessed() == null) {
+            throw GatewayErrors.protocol("GET", RUN, "the progress has no itemsProcessed", null);
+        }
+        try {
+            return new IngestProgress(progress.stage(), progress.itemsProcessed(), progress.itemsTotal(),
+                    progress.currentItem());
+        } catch (IllegalArgumentException e) {
+            throw GatewayErrors.protocol("GET", RUN, "the progress counts are inconsistent", e);
+        }
     }
 
     /**
@@ -196,7 +217,12 @@ public final class IngestServiceJobRunner implements IngestGateway {
             boolean retryable,
             @JsonProperty("package") Object packageRef,
             String error,
-            List<StageBody> stages) {
+            List<StageBody> stages,
+            ProgressBody progress) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ProgressBody(String stage, Long itemsProcessed, Long itemsTotal, String currentItem) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

@@ -94,14 +94,10 @@ class AdaptivePollingTickTest {
     private void finish(UUID runId, RunStatus terminal) {
         PipelineRun run = run(runId);
         Instant at = clock.now();
-        PipelineRun started = run.startIngest("ingest-1", at);
-        PipelineRun done = switch (terminal) {
-            case NO_CHANGES -> started.noChanges(at);
-            case SUCCEEDED -> started.packed(at).startImport(UUID.randomUUID(), at).succeed(at);
-            case PARTIAL -> started.packed(at).startImport(UUID.randomUUID(), at).partial(at);
-            default -> throw new IllegalArgumentException(terminal.toString());
-        };
-        runs.update(done);
+        if (terminal != RunStatus.NO_CHANGES && terminal != RunStatus.SUCCEEDED && terminal != RunStatus.PARTIAL) {
+            throw new IllegalArgumentException(terminal.toString());
+        }
+        runs.update(run.start(at).finish(terminal, null, at));
     }
 
     private PollSchedule full() {

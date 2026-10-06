@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
@@ -50,12 +51,27 @@ class StatisticsController {
     }
 
     @GetMapping("/runs")
-    @Operation(summary = "Terminal runs by outcome per day and source, and average step durations")
+    @Operation(summary = "Terminal runs by outcome per day and source, and average step durations",
+            description = "unitKey keeps the runs that have a finished unit with that key and the steps of that unit.")
     StatisticsDtos.RunOutcomesDto runs(
             @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(name = "source", required = false) List<String> sources) {
-        return StatisticsDtos.RunOutcomesDto.of(zone(), queries.runs(range(from, to), sources(sources)));
+            @RequestParam(name = "source", required = false) List<String> sources,
+            @RequestParam(name = "unitKey", required = false) String unitKey) {
+        return StatisticsDtos.RunOutcomesDto.of(zone(),
+                queries.runs(range(from, to), sources(sources), unitKey(unitKey)));
+    }
+
+    @GetMapping("/units")
+    @Operation(summary = "Terminal units by outcome per source and unit key, with the average duration",
+            description = "Failure rates per unit; unitKey limits the answer to one unit.")
+    StatisticsDtos.UnitOutcomesDto units(
+            @RequestParam("from") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(name = "source", required = false) List<String> sources,
+            @RequestParam(name = "unitKey", required = false) String unitKey) {
+        return StatisticsDtos.UnitOutcomesDto.of(zone(),
+                queries.units(range(from, to), sources(sources), unitKey(unitKey)));
     }
 
     @GetMapping("/time-to-report")
@@ -114,6 +130,16 @@ class StatisticsController {
             @RequestParam("to") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(name = "source", required = false) List<String> sources) {
         return StatisticsDtos.SourceHealthDto.of(zone(), queries.sourceHealth(range(from, to), sources(sources)));
+    }
+
+    private static Optional<String> unitKey(String value) {
+        if (value == null) {
+            return Optional.empty();
+        }
+        if (value.isBlank() || value.length() > 64) {
+            throw new InvalidRequestException("unitKey", "unitKey must be 1 to 64 characters");
+        }
+        return Optional.of(value);
     }
 
     private String zone() {

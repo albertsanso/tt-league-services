@@ -2,12 +2,14 @@ package org.cttelsamicsterrassa.data.pipeline.core.statistics.port;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.CorrectionFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.MatchFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.RunFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.StepFacts;
+import org.cttelsamicsterrassa.data.pipeline.core.statistics.UnitFacts;
 
 /**
  * Read-only access to the facts the statistics are computed from. Every method is source-filtered, and an empty set
@@ -20,6 +22,10 @@ public interface StatisticsReadRepository {
 
     /** Finished step attempts (succeeded or failed) with {@code finishedAt} in the range. */
     List<StepFacts> stepsFinishedBetween(Instant from, Instant to, Set<PipelineSource> sources);
+
+    /** Terminal units with {@code finishedAt} in the range; a present key keeps only the units with that key. */
+    List<UnitFacts> unitsFinishedBetween(
+            Instant from, Instant to, Set<PipelineSource> sources, Optional<String> unitKey);
 
     /** Tracked matches of the season; a null season means every season. */
     List<MatchFacts> matchesBySeason(Set<PipelineSource> sources, String season);

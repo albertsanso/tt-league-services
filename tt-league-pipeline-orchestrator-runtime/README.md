@@ -61,6 +61,7 @@ positive (ISO-8601, for example `PT30S`) and invalid values fail startup:
 | `PIPELINE_ALERTS_UNREPORTED_AFTER` | `PT48H` | How long after its date a match may stay unreported |
 | `PIPELINE_ALERTS_NO_SUCCESS_WINDOW` | `PT24H` | How long a source may go without a successful run while it has an open match day |
 | `PIPELINE_ALERTS_CLOSED_LOOKBACK` | `P1D` | How far back a closed match day still raises an alert |
+| `PIPELINE_ALERTS_UNIT_KEYS` | empty (every unit) | Comma-separated unit keys (`tt.pipeline.notifications.unit-failures.unit-keys`, 1 to 64 characters each) that may raise a [unit failure alert](#notifications); empty alerts for every unit |
 
 Scheduled runs are off unless configured; see [Scheduled runs](#scheduled-runs) for the per-source cron variables and
 [Adaptive polling](#adaptive-polling) for the alternative that follows the open match days.
@@ -75,13 +76,24 @@ HTTP connect timeouts are `PT10S`; read timeouts are `PT1M` (ingest) and `PT5M`
 ## Run execution
 
 `RunLauncher` queues a run and dispatches it to a private pool of
-`pipeline-run-N` threads; `RunExecutor` then drives it:
+`pipeline-run-N` threads; `RunExecutor` then drives it. A run is split into **units** (FEAT-00117): one per ingest group
+of its scope (one category/group/phase/territory/gender identity, with its match days merged) or a single `season` unit for a
+full-season run. Units run **one after another** in order, each with its own steps, attempts, deadlines, package ZIP, import
+job and import report, so a failing group no longer hides the others. A unit has the statuses `PENDING`, `RUNNING_INGEST`,
+`PACKED`, `IMPORTING` and the terminal `NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED`, `SKIPPED`; the run itself is `QUEUED`,
+`RUNNING` and then a status derived from its units by `RunOutcomeRules` (all `NO_CHANGES`: `NO_CHANGES`; all succeeded or
+unchanged: `SUCCEEDED`; any `PARTIAL`, or failed or skipped units next to successful ones: `PARTIAL`; every unit failed or
+skipped: `FAILED`). A unit failing with `INGEST_UNAVAILABLE`, `INGEST_BUSY`, `PLATFORM_UNAVAILABLE`,
+`ARTIFACT_STORE_FAILED` or `INTERNAL_ERROR` aborts the run: the units still pending are `SKIPPED` (`UNIT_SKIPPED`). Any other
+failure only fails that unit. The unit key (`season`, `legacy` for runs from before the units existed, or the SHA-256 identity of
+the group, the same key as an adaptive-polling `scopeKey`) identifies the same group across runs. Each unit follows these
+steps:
 
 1. **INGEST.** `POST /api/v1/ingest/runs` with stages `download`, `parse` and
    `package` (mode `snapshot` for a full season, `delta` for a scoped run), then
    poll `GET /api/v1/ingest/runs/{id}`. The ingest `outcome` maps to the run:
 
-   | Ingest outcome | Step | Run |
+   | Ingest outcome | Step | Unit |
    | --- | --- | --- |
    | `NO_CHANGES` | succeeded | `NO_CHANGES` (terminal) |
    | `SUCCEEDED` / `COMPLETED_WITH_ISSUES` with a package | succeeded | `PACKED` |
@@ -89,13 +101,18 @@ HTTP connect timeouts are `PT10S`; read timeouts are `PT1M` (ingest) and `PT5M`
    | `SOURCE_UNAVAILABLE` | `SOURCE_UNAVAILABLE` (retryable) | retry, then `FAILED` |
    | `FAILED` | `INGEST_FAILED` | `FAILED` |
 
+   While an ingest run is `RUNNING`, the orchestrator reads the optional `progress` object of the ingest run state (stage,
+   processed and total items, current item; absent for an ingest service without it) and stores it on the unit when it
+   changed: the download and parse stages report real counts, fetch and import only step-level progress. A negative count
+   or a total below the processed count is a protocol error.
+
 2. **FETCH_PACKAGE.** Download the ZIP, compare the declared `X-Content-SHA256`
    with the stored SHA-256 and store it as
-   `<dir>/<source>/<season>/<runId>/ingest-<ingestRunId>.zip` (one `run_artifact`
-   row). A mismatch deletes the file and fails with `PACKAGE_CHECKSUM_MISMATCH`.
+   `<dir>/<source>/<season>/<runId>/<ordinal>-<first 12 characters of the unit key>/ingest-<ingestRunId>.zip` (one `run_artifact`
+   row of the unit). A mismatch deletes the file and fails with `PACKAGE_CHECKSUM_MISMATCH`.
 3. **IMPORT.** Upload the ZIP to `POST /api/v1/administration/import/jobs` (the
    orchestrator run id is the job `runId`), poll the job and store the counters
-   summed over its seasons in `import_report`. The run ends `SUCCEEDED`,
+   summed over its seasons in the unit's `import_report`. The unit ends `SUCCEEDED`,
    `PARTIAL` or `FAILED` (`IMPORT_FAILED`).
 
 **Retries.** `UNAVAILABLE` (HTTP 5xx, connection or read failure) from a start
@@ -104,13 +121,13 @@ polling, `INGEST_RUN_LOST`) and more than `PIPELINE_MAX_RETRIES` consecutive
 failed polls start a new attempt (a new `pipeline_step` row) after an
 exponential back-off. A failed poll is first repeated inside the attempt. Every
 other failure is final, including `INGEST_BUSY` (409), `IMPORT_SHRINK` (409),
-`IMPORT_REJECTED`, `IMPORT_FAILED` and any timeout. Once the run is `IMPORTING`
+`IMPORT_REJECTED`, `IMPORT_FAILED` and any timeout. Once the unit is `IMPORTING`
 the job is only polled, never resubmitted.
 
 **Timeouts.** The deadline of a step kind is its first attempt start plus the
 configured timeout, so retries and back-off count toward it. Waits are shortened
 to the deadline and a back-off that would cross it is not taken. A step that
-passes its deadline fails with `STEP_TIMEOUT` and the run fails. Ingest has no
+passes its deadline fails with `STEP_TIMEOUT` and its unit fails. Ingest has no
 cancel API, so a timed-out ingest run keeps running; the next run for that
 source can then be answered with 409 (`INGEST_BUSY`).
 
@@ -119,12 +136,12 @@ source can then be answered with 409 (`INGEST_BUSY`).
 `INGEST_NO_PACKAGE`, `PACKAGE_UNAVAILABLE`, `PACKAGE_GONE`,
 `PACKAGE_CHECKSUM_MISMATCH`, `ARTIFACT_STORE_FAILED`, `PLATFORM_UNAVAILABLE`,
 `IMPORT_REJECTED`, `IMPORT_SHRINK`, `IMPORT_JOB_LOST`, `IMPORT_FAILED`,
-`STEP_TIMEOUT`, `PROTOCOL_ERROR`, `INTERRUPTED`, `DISPATCH_FAILED` and
-`INTERNAL_ERROR`.
+`STEP_TIMEOUT`, `PROTOCOL_ERROR`, `INTERRUPTED`, `DISPATCH_FAILED`,
+`INTERNAL_ERROR` and `UNIT_SKIPPED`.
 
 **Recovery.** At startup (`PIPELINE_RECOVER_ON_STARTUP`) every active run is
-dispatched again, oldest first, and continues from its stored status and step
-rows: an `IMPORTING` run polls its job, a `RUNNING_INGEST` run keeps polling its
+dispatched again, oldest first, and continues from its stored unit statuses and step
+rows (finished units are not repeated): an `IMPORTING` unit polls its job, a `RUNNING_INGEST` unit keeps polling its
 ingest run (a 404 after an ingest restart leads to a new attempt), and an
 attempt that was interrupted before its external id was stored is failed as
 `INTERRUPTED` (retryable). On shutdown running executions are interrupted and
@@ -134,7 +151,7 @@ stay active.
 
 Every `/api/**` request needs a platform JWT in `Authorization: Bearer ...`. The decoder uses the shared secret and
 picks HS256 (32-47 bytes), HS384 (48-63) or HS512 (64+) like the platform. Authorities are the `permissions` claim as
-is plus `ROLE_<role>`; `sub` is the user name. `POST /api/pipeline/runs`, `POST /api/pipeline/runs/{id}/replay` and every mutation under `/api/pipeline/match-days` (`POST`, `PUT`, `DELETE`) need
+is plus `ROLE_<role>`; `sub` is the user name. `POST /api/pipeline/runs`, `POST /api/pipeline/runs/{id}/replay`, `POST /api/pipeline/runs/{id}/units/{unitId}/retry` and every mutation under `/api/pipeline/match-days` (`POST`, `PUT`, `DELETE`) need
 `matches:write`; everything else needs any valid token. Health, info, Prometheus, `/v3/api-docs` and `/swagger-ui` are public. Tokens revoked by a platform logout stay
 valid here until they expire. `PIPELINE_CORS_ALLOWED_ORIGINS` (comma-separated origins, default none) enables CORS
 for those browser origins.
@@ -147,8 +164,20 @@ for those browser origins.
   unavailable (`OPEN_MATCH_DAYS` answers `NO_OPEN_MATCH_DAYS`, `NO_INGEST_STATUS` or `SCOPE_UNMATCHED`, see
   [Adaptive polling](#adaptive-polling)). The body lists each
   source's outcome under `results`.
-- `GET /api/pipeline/runs` (`source`, `status`, `from`, `to`, `page`, `size` up to 100; newest first) and
-  `GET /api/pipeline/runs/{id}` (steps, artifacts, import report, issues).
+- `GET /api/pipeline/runs` (`source`, `status`, `unitKey` (runs that have a unit with that key), `from`, `to`, `page`,
+  `size` up to 100; newest first) and `GET /api/pipeline/runs/{id}` (units with their own steps, artifacts, counters, progress,
+  storage folder, package link and retry decision; every step and artifact of the run; the import report summed over the
+  units; issues). A run summary carries `currentUnitId` and, in lists and events, a `units` summary (without counters);
+  `ingestRunId` and `importJobId` of a run are the legacy values, a unit carries its own.
+- `POST /api/pipeline/runs/{id}/units/{unitId}/retry` (no body, `matches:write`): re-runs one `FAILED` or `SKIPPED` unit of a
+  finished run as a new `UNIT_RETRY` run with that unit's scope (`retryOfRunId`, `retryOfUnitId`); the original run and unit
+  stay as they are. `202` with `{runId}` and a `Location`, `404` for an unknown run or unit (or a unit of another run), `409`
+  with `code: RUN_ACTIVE` when the run or its source has an active run (a retry is never queued), `422` with `code:
+  UNIT_NOT_RETRYABLE` when the unit is not `FAILED` or `SKIPPED`. The decision is `retry: {eligible, reason}` on every unit of
+  the run detail (`UnitRetryRules`), plus `retriedBy`, the `UNIT_RETRY` runs created for the unit.
+- `GET /api/pipeline/runs/{id}/units/{unitId}/package`: streams the stored ZIP of the unit as `application/zip` through the
+  artifact store (`404` for an unknown unit or a unit without a package, `410` with `ARTIFACT_PURGED` when it was purged); the
+  unit lists the link as `packageUrl` only while an unpurged ZIP exists.
 - `POST /api/pipeline/runs/{id}/replay` (no body): replays the import of a past run, see [Replay](#replay). `201` with the
   new `RETRY` run (`RunSummary`) and its `Location`, `404` for an unknown run, `409` with `code: ACTIVE_RUN` and
   `activeRunId` when the source has an active run (a replay is never queued), `422` with `code` `RUN_ACTIVE`,
@@ -168,8 +197,10 @@ follows the import like any run. The platform keeps its content deduplication: w
 rejected or never ran (for example after a platform fix). A replay of an `IMPORT_SHRINK` failure fails the same way: the
 published-acta shrink guard is never bypassed.
 
-A run can be replayed when it is finished and its ZIP exists (`NO_CHANGES` runs and runs that failed before the package was
-stored have none). The replay shares the original's ZIP file and stays replayable itself.
+A run can be replayed when it is finished and at least one of its units has a ZIP (`NO_CHANGES` runs and runs that failed
+before any package was stored have none). The replay plans the same units, each shares the ZIP file of the original's unit
+with the same ordinal (a unit without a retained package fails with `ARTIFACT_PURGED` while the others replay) and stays
+replayable itself. To re-run only one failed unit, including its ingest, use the unit retry of the [Runs API](#runs-api).
 
 ## Artifact retention
 
@@ -363,11 +394,14 @@ derives postponed, overdue or awaiting-result from dates, and stores no results.
 
 ## Event stream
 
-`GET /api/pipeline/events` (Server-Sent Events): `ready`, `run`, `step`, `pending-trigger` and `match-days` events plus
+`GET /api/pipeline/events` (Server-Sent Events): `ready`, `run`, `unit`, `step`, `pending-trigger` and `match-days` events plus
 `: keep-alive` comments every `PIPELINE_EVENTS_HEARTBEAT` (default PT15S). A `match-days` event is
 `{source, season, matchDayId, cause}`: `cause` is `RECOMPUTED` (`matchDayId` null) after a tracker recompute that
 changed a match day or match, or `ACTION` (with the id) after an operator action or a created or queued refresh.
-Recomputes that change nothing, and failed ones, send nothing. There is no replay: after reconnecting, refetch
+Recomputes that change nothing, and failed ones, send nothing. A `run` event carries the run with the summary of its
+units; a `unit` event is one unit (status, timings, error and `progress`, plus the import `counters` once the unit ended) and is sent on every status change and when the
+progress changed, through the same bounded queue and drop rule as the other events, so progress never slows a run. A client
+ignores a `unit` event whose `progress.updatedAt` is older than the one it already has for the same status. There is no replay: after reconnecting, refetch
 `GET /api/pipeline/runs`. Native `EventSource` cannot send the `Authorization` header, so use `fetch` streaming.
 Limits: `PIPELINE_EVENTS_TIMEOUT` (PT30M), `PIPELINE_EVENTS_MAX_SUBSCRIBERS` (50, then `503`).
 
@@ -391,6 +425,7 @@ The adapter keeps its sender private. SMTP timeouts are constants: connect `10 s
 | --- | --- | --- | --- |
 | Match day closed | match day id | the day is `CLOSED` with `closedAt` within `PIPELINE_ALERTS_CLOSED_LOOKBACK` (every close reason, named in the e-mail) | the day is reopened or removed; a later close raises again |
 | Two failed runs | source | the two newest finished runs of the source are both `FAILED` | the newest finished run is not `FAILED` (`PARTIAL` breaks the streak) |
+| Unit failures | source and unit key | the same unit failed (`FAILED`, never `SKIPPED`) in its two newest finished occurrences; limited to `PIPELINE_ALERTS_UNIT_KEYS` when that is set | the newest occurrence of the unit did not fail |
 | Match unreported | match id | the match of an open day is not ignored, still `SCHEDULED`, `AWAITING_RESULT` or `OVERDUE`, and its date plus `PIPELINE_ALERTS_UNREPORTED_AFTER` has passed | it is reported, postponed, ignored or removed, or its day is no longer open |
 | No recent success | source | the source has an open match day and neither a successful run nor the opening of its earliest open day falls within `PIPELINE_ALERTS_NO_SUCCESS_WINDOW` | a successful run inside the window, or no open day left |
 
@@ -443,7 +478,8 @@ days; a bad or missing parameter is a `400`):
 | Path | Parameters | Returns |
 | --- | --- | --- |
 | `/api/pipeline/statistics/daily` | `from`, `to`, `source` | the stored daily rows (time to report in seconds) and the `zone` |
-| `/api/pipeline/statistics/runs` | `from`, `to`, `source` | per day and source: `succeeded`, `noChanges`, `partial`, `failed`; `avgStepSeconds` per source and step kind |
+| `/api/pipeline/statistics/runs` | `from`, `to`, `source`, optional `unitKey` | per day and source: `succeeded`, `noChanges`, `partial`, `failed`; `avgStepSeconds` per source and step kind. With `unitKey`, only the runs that have a finished unit with that key and the steps of that unit |
+| `/api/pipeline/statistics/units` | `from`, `to`, `source`, optional `unitKey` | per source and unit key: `label` (of the newest unit), `succeeded`, `noChanges`, `partial`, `failed`, `skipped` and `avgSeconds` (null when no unit of the key ran) |
 | `/api/pipeline/statistics/time-to-report` | `season`, `source` | per source and competition, plus a source total (`competition` null): `count`, `medianSeconds`, `p90Seconds` |
 | `/api/pipeline/statistics/pending` | optional `season`, `source` | per source: the four age buckets and `overdue`, plus `asOf` |
 | `/api/pipeline/statistics/corrections` | `from`, `to`, `source` | per day and source `amendedPlayed`, plus totals |
@@ -470,6 +506,7 @@ after the first run finishes. Counters are per process and reset on restart; the
 | --- | --- | --- | --- |
 | `pipeline.runs.finished` (`pipeline_runs_finished_total`) | counter | `source`, `trigger`, `outcome`, `error` | One per run that reaches a terminal status (`NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED`); `error` is the failure code or `none` |
 | `pipeline.run.duration` (`pipeline_run_duration_seconds_*`) | timer | `source`, `trigger`, `outcome` | `finishedAt - startedAt`; a run that failed at launch has no duration |
+| `pipeline.unit.finished` (`pipeline_unit_finished_total`) | counter | `source`, `status` | One per unit that reaches a terminal status (`NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED`, `SKIPPED`); the unit key is never a tag |
 | `pipeline.step.duration` (`pipeline_step_duration_seconds_*`) | timer | `source`, `step`, `status` | One sample per finished step attempt (`INGEST`, `FETCH_PACKAGE`, `IMPORT`) |
 | `pipeline.matches.pending` (`pipeline_matches_pending`) | gauge | `source`, `age` | Matches still waiting for a result by age bucket (`under_1_day`, `days_1_to_2`, `days_2_to_7`, `over_7_days`) |
 | `pipeline.matches.overdue` (`pipeline_matches_overdue`) | gauge | `source` | Pending matches with status OVERDUE |
@@ -497,7 +534,7 @@ development. Any other value fails startup. The `logstash` fields are `@timestam
 `thread_name`, `message` and `stack_trace`, plus the MDC and key-value fields below.
 
 Every line written while a run executes carries `runId` (the orchestrator run id), including the core's own lines and
-the gateway lines. The run observer lines add `source`, `status`, `step`, `attempt`, `outcome` and `error`. The
+the gateway lines, and while a unit executes also `unitKey` (a hash, safe in logs; the unit lines add `unit`, its ordinal). The run observer lines add `source`, `status`, `step`, `attempt`, `outcome` and `error`. The
 orchestrator sends the same id to `tt-league-ingest` as `correlationId` in the `POST /api/v1/ingest/runs` body, and
 ingest writes it as `runId` on every log line of that run (with its own id as `ingestRunId`), so one query,
 `runId = <uuid>`, returns the lines of both services. An ingest service from before FEAT-00115 ignores the field.

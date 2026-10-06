@@ -515,6 +515,36 @@ class PipelineOrchestratorPropertiesTest {
     }
 
     @Test
+    void unitFailureAlertsCoverEveryUnitUnlessKeysAreListed() {
+        runner.withPropertyValues(withMail().toArray(String[]::new)).run(context -> {
+            assertThat(context).hasNotFailed();
+            assertThat(context.getBean(PipelineOrchestratorProperties.class).notifications().alertSettings().unitKeys())
+                    .isEmpty();
+        });
+        // a blank PIPELINE_ALERTS_UNIT_KEYS binds as an empty value
+        runner.withPropertyValues(withMail("tt.pipeline.notifications.unit-failures.unit-keys=").toArray(String[]::new))
+                .run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(PipelineOrchestratorProperties.class).notifications()
+                            .alertSettings().unitKeys()).isEmpty();
+                });
+        runner.withPropertyValues(withMail("tt.pipeline.notifications.unit-failures.unit-keys=season," + "ab".repeat(32))
+                .toArray(String[]::new)).run(context -> {
+                    assertThat(context).hasNotFailed();
+                    assertThat(context.getBean(PipelineOrchestratorProperties.class).notifications()
+                            .alertSettings().unitKeys()).containsExactlyInAnyOrder("season", "ab".repeat(32));
+                });
+    }
+
+    @Test
+    void unitFailureKeysMustBeOneToSixtyFourCharacters() {
+        assertFails(withMail("tt.pipeline.notifications.unit-failures.unit-keys=season," + "x".repeat(65)),
+                "notifications.unit-failures.unit-keys");
+        assertFails(withMail("tt.pipeline.notifications.unit-failures.unit-keys=season, ,legacy"),
+                "notifications.unit-failures.unit-keys");
+    }
+
+    @Test
     void enabledNotificationsRequireFromAndRecipients() {
         assertFails(withMailWithout("tt.pipeline.notifications.mail.from"), "notifications.mail.from");
         assertFails(withMailWithout("tt.pipeline.notifications.mail.to"), "notifications.mail.to");

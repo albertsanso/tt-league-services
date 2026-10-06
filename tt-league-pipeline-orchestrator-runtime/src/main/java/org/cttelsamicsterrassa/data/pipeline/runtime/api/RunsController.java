@@ -20,10 +20,15 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ReplayRun;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.RetryUnit;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.UnitRetryEligibility;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun;
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
 import org.cttelsamicsterrassa.data.pipeline.runtime.security.CurrentUser;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.http.ContentDisposition;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -47,14 +52,18 @@ class RunsController {
 
     private final TriggerRun triggerRun;
     private final ReplayRun replayRun;
+    private final RetryUnit retryUnit;
+    private final UnitPackageService packages;
     private final RunQueryService queries;
     private final RunDtoMapper mapper;
     private final PipelineOrchestratorProperties.Triggers triggers;
 
-    RunsController(TriggerRun triggerRun, ReplayRun replayRun, RunQueryService queries, RunDtoMapper mapper,
-            PipelineOrchestratorProperties.Triggers triggers) {
+    RunsController(TriggerRun triggerRun, ReplayRun replayRun, RetryUnit retryUnit, UnitPackageService packages,
+            RunQueryService queries, RunDtoMapper mapper, PipelineOrchestratorProperties.Triggers triggers) {
         this.triggerRun = triggerRun;
         this.replayRun = replayRun;
+        this.retryUnit = retryUnit;
+        this.packages = packages;
         this.queries = queries;
         this.mapper = mapper;
         this.triggers = triggers;
@@ -74,10 +83,12 @@ class RunsController {
     }
 
     @GetMapping
-    @Operation(summary = "List runs, newest first")
+    @Operation(summary = "List runs, newest first",
+            description = "unitKey keeps the runs that have a unit with that key.")
     PageDto<RunSummaryDto> list(
             @RequestParam(name = "source", required = false) List<String> sources,
             @RequestParam(name = "status", required = false) List<String> statuses,
+            @RequestParam(name = "unitKey", required = false) String unitKey,
             @RequestParam(name = "from", required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(name = "to", required = false)
@@ -93,12 +104,15 @@ class RunsController {
         if (from != null && to != null && from.isAfter(to)) {
             throw new InvalidRequestException("from", "from must not be after to");
         }
+        if (unitKey != null && (unitKey.isBlank() || unitKey.length() > 64)) {
+            throw new InvalidRequestException("unitKey", "unitKey must be 1 to 64 characters");
+        }
         return queries.list(new RunQuery(enums(sources, PipelineSource.class, "source"),
-                enums(statuses, RunStatus.class, "status"), from, to, page, size));
+                enums(statuses, RunStatus.class, "status"), from, to, unitKey, page, size));
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Run detail with steps, artifacts, import report and issues")
+    @Operation(summary = "Run detail with units, steps, artifacts, import report and issues")
     @ApiResponse(responseCode = "404", description = "Unknown run")
     RunDetailDto detail(@PathVariable("id") UUID id) {
         return queries.detail(id).orElseThrow(() -> new RunNotFoundException(id));
@@ -125,6 +139,58 @@ class RunsController {
             case ReplayRun.Rejected rejected -> problem(HttpStatus.CONFLICT, rejected.code(), rejected.message(),
                     rejected.activeRunId());
         };
+    }
+
+    @PostMapping("/{id}/units/{unitId}/retry")
+    @Operation(summary = "Retry one failed or skipped unit",
+            description = "Creates a UNIT_RETRY run that re-runs ingest, fetch and import for the scope of the unit "
+                    + "without touching the original run. Needs the matches:write authority.")
+    @ApiResponse(responseCode = "202", description = "The retry run was created")
+    @ApiResponse(responseCode = "404", description = "Unknown run or unit, or the unit belongs to another run")
+    @ApiResponse(responseCode = "409", description = "The run or its source has an active run (code RUN_ACTIVE)")
+    @ApiResponse(responseCode = "422", description = "The unit is not FAILED or SKIPPED (code UNIT_NOT_RETRYABLE)")
+    ResponseEntity<Object> retryUnit(@PathVariable("id") UUID id, @PathVariable("unitId") UUID unitId,
+            Authentication authentication) {
+        RetryUnit.Outcome outcome = retryUnit.retry(id, unitId, CurrentUser.name(authentication));
+        return switch (outcome) {
+            case RetryUnit.Created created -> ResponseEntity
+                    .accepted()
+                    .location(URI.create("/api/pipeline/runs/" + created.run().id()))
+                    .body(new UnitRetryResponse(created.run().id()));
+            case RetryUnit.NotFound notFound -> throw new RunNotFoundException(id, unitId);
+            case RetryUnit.NotRetryable notRetryable -> problem(
+                    UnitRetryEligibility.RUN_ACTIVE.equals(notRetryable.code())
+                            ? HttpStatus.CONFLICT : HttpStatus.UNPROCESSABLE_ENTITY,
+                    notRetryable.code(), notRetryable.message(), null);
+            case RetryUnit.Rejected rejected -> problem(HttpStatus.CONFLICT, UnitRetryEligibility.RUN_ACTIVE,
+                    rejected.message(), rejected.activeRunId());
+        };
+    }
+
+    @GetMapping("/{id}/units/{unitId}/package")
+    @Operation(summary = "Download the stored ZIP package of a unit")
+    @ApiResponse(responseCode = "404", description = "Unknown run or unit, or the unit has no package (NO_PACKAGE)")
+    @ApiResponse(responseCode = "410", description = "The package was purged (ARTIFACT_PURGED)")
+    ResponseEntity<Object> unitPackage(@PathVariable("id") UUID id, @PathVariable("unitId") UUID unitId) {
+        UnitPackageService.Result result = packages.find(id, unitId);
+        return switch (result) {
+            case UnitPackageService.UnitMissing missing -> throw new RunNotFoundException(id, unitId);
+            case UnitPackageService.NoPackage none -> problem(HttpStatus.NOT_FOUND, "NO_PACKAGE",
+                    "Unit " + unitId + " has no stored package", null);
+            case UnitPackageService.Purged purged -> problem(HttpStatus.GONE, "ARTIFACT_PURGED",
+                    "The stored package of unit " + unitId + " has been purged", null);
+            case UnitPackageService.Available available -> ResponseEntity.ok()
+                    .contentType(MediaType.parseMediaType("application/zip"))
+                    .contentLength(available.content().size())
+                    .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.attachment()
+                            .filename(id + "-" + available.unit().ordinal() + ".zip").build().toString())
+                    .header("X-Content-SHA256", available.artifact().sha256())
+                    .body(new InputStreamResource(available.content().open()));
+        };
+    }
+
+    /** The run created for a unit retry. */
+    record UnitRetryResponse(UUID runId) {
     }
 
     private static ResponseEntity<Object> problem(HttpStatus status, String code, String message, UUID activeRunId) {

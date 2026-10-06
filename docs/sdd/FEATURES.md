@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00117: More granularity in Orchestration pipeline runs](### [FEAT-00117] More granularity in Orchestration pipeline runs)
+
 - [FEAT-00116: Container packaging for orchestrator and ingest services](### [FEAT-00116] Container packaging for orchestrator and ingest services)
 - [FEAT-00115: Orchestrator metrics and run-correlated logging](### [FEAT-00115] Orchestrator metrics and run-correlated logging)
 - [FEAT-00114: Replay import from retained run artifacts](### [FEAT-00114] Replay import from retained run artifacts)
@@ -56,6 +58,42 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00117] More granularity in Orchestration pipeline runs
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large
+- **Depends on:** FEAT-00105, FEAT-00108, FEAT-00110
+
+#### Goal
+Break a pipeline run into per-scope units and finer-grained steps so operators can see, diagnose and retry exactly which part of a run succeeded or failed.
+
+#### Description
+Each run currently has a single status, timing and counters for all the groups it processed. 
+If one group fails, the whole run is marked failed and the progress of the others is hidden. 
+Operators cannot retry just the failing group without re-running the whole run.
+
+Each run must display the status, timing, counters and errors of each group it processed, and each step must report finer-grained progress while it is running.
+- Collapsible per-unit sections in the runs view and run detail show the breakdown, and history statistics and alerts can filter by unit.
+- Progress percentages, items processed and current unit are reported while a step is running, visible through the runs API and live events.
+- Display donwload folder for contents of each unit, and allow retrying a failed or timed-out unit on its own without re-running the whole run.
+- Display json of the run and its units, including the unit's scope, status, timings, counters and errors.
+
+
+#### Acceptance Criteria
+- [x] A run exposes per-scope units (one per group/category/match day) with their own status, timings, counters and errors, so a single failing group no longer hides the progress of the others
+- [x] Run steps report finer-grained progress (items processed, current unit) while a step is running, visible through the runs API and live events
+- [x] A failed or timed-out unit can be retried on its own without re-running the whole run, and run-level status is derived from its units (including partial success)
+- [x] The runs view and run detail show the per-unit breakdown, and history statistics and alerts can filter by unit
+- [x] Any new tables or columns ship as a Flyway migration with pipeline-datamodel.md updated; existing runs remain readable
+- [x] Tests cover unit status aggregation, partial success, unit retry and the API and persistence mapping
+- [x] The runs API and live events include the unit's scope, status, timings, counters and errors, and the run JSON includes the units
+- [x] Documentation is updated to reflect the new per-unit status, progress reporting and retry capabilities
+
+#### Feature Details
+→ See [FEAT-00117-DETAILS.md](./FEAT-00117-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00116] Container packaging for orchestrator and ingest services
 - **Status:** done

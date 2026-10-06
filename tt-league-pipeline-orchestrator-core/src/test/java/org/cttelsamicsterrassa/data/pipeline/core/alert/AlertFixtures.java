@@ -4,6 +4,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.CloseReason;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDay;
@@ -55,24 +56,20 @@ final class AlertFixtures {
 
     static PipelineRun succeededRun(PipelineSource source, Instant finishedAt) {
         return queued(source, finishedAt.minusSeconds(60))
-                .startIngest("ing", finishedAt.minusSeconds(50))
-                .packed(finishedAt.minusSeconds(40))
-                .startImport(UUID.randomUUID(), finishedAt.minusSeconds(30))
-                .succeed(finishedAt);
+                .start(finishedAt.minusSeconds(50))
+                .finish(RunStatus.SUCCEEDED, null, finishedAt);
     }
 
     static PipelineRun partialRun(PipelineSource source, Instant finishedAt) {
         return queued(source, finishedAt.minusSeconds(60))
-                .startIngest("ing", finishedAt.minusSeconds(50))
-                .packed(finishedAt.minusSeconds(40))
-                .startImport(UUID.randomUUID(), finishedAt.minusSeconds(30))
-                .partial(finishedAt);
+                .start(finishedAt.minusSeconds(50))
+                .finish(RunStatus.PARTIAL, null, finishedAt);
     }
 
     static PipelineRun noChangesRun(PipelineSource source, Instant finishedAt) {
         return queued(source, finishedAt.minusSeconds(60))
-                .startIngest("ing", finishedAt.minusSeconds(50))
-                .noChanges(finishedAt);
+                .start(finishedAt.minusSeconds(50))
+                .finish(RunStatus.NO_CHANGES, null, finishedAt);
     }
 
     private static PipelineRun queued(PipelineSource source, Instant createdAt) {

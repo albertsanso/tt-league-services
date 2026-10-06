@@ -5,9 +5,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 
-/** Platform import counters summed over the job's seasons, plus the raw job JSON as opaque text. */
+/** Platform import counters of one unit's job summed over its seasons, plus the raw job JSON as opaque text. */
 public record ImportReport(
         UUID runId,
+        UUID unitId,
         UUID importJobId,
         String importStatus,
         long filesSeen,
@@ -29,6 +30,7 @@ public record ImportReport(
 
     public ImportReport {
         Checks.required(runId, "runId");
+        Checks.required(unitId, "unitId");
         Checks.required(importJobId, "importJobId");
         Checks.required(importStatus, "importStatus");
         if (!STATUSES.contains(importStatus)) {

@@ -11,6 +11,8 @@ public interface RunArtifactRepository {
 
     List<RunArtifact> findByRunId(UUID runId);
 
+    List<RunArtifact> findByUnitId(UUID unitId);
+
     List<RunArtifact> findByStorageKey(String storageKey);
 
     /** Marks every not yet purged row of the key as purged and returns how many rows changed. */

@@ -49,6 +49,9 @@ class Silent:
     def stage_started(self, stage):
         pass
 
+    def stage_total(self, stage, total):
+        pass
+
     def item_processed(self, stage, item):
         pass
 

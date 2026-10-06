@@ -53,7 +53,7 @@ final class StatisticsFixtures {
     }
 
     static StepFacts ingestStep(PipelineSource source, String outcome, Instant finishedAt, IngestHealth health) {
-        return new StepFacts(UUID.randomUUID(), source, StepKind.INGEST, StepStatus.SUCCEEDED, outcome,
+        return new StepFacts(UUID.randomUUID(), "season", source, StepKind.INGEST, StepStatus.SUCCEEDED, outcome,
                 finishedAt.minusSeconds(30), finishedAt, health);
     }
 }

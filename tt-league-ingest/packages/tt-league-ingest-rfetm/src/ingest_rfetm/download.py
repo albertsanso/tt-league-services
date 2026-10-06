@@ -43,7 +43,7 @@ from urllib.parse import urljoin, urlparse, parse_qs
 import requests
 from bs4 import BeautifulSoup
 
-from ingest_common import health
+from ingest_common import health, progress
 from ingest_rfetm.parse import parse_html_matches
 
 # ══════════════════════════════════════════
@@ -377,7 +377,10 @@ def save_file(content: bytes, path: Path) -> bool:
 def _match_start(partido: Dict[str, object]) -> Optional[datetime]:
     if not partido.get("fecha"):
         return None
-    return datetime.fromisoformat(f"{partido['fecha']}T{partido.get('hora') or '00:00'}")
+    try:
+        return datetime.fromisoformat(f"{partido['fecha']}T{partido.get('hora') or '00:00'}")
+    except ValueError:
+        return None
 
 
 def jornada_status(html: str, now: datetime) -> str:
@@ -480,6 +483,7 @@ def download_season(downloader: Downloader, season: str, jornadas: List[int],
         stats.error(f"No hay páginas que descargar (¿categoría '{category_filter}' inexistente?)")
         return stats
     logger.info(f"{len(tareas)} páginas de jornada a procesar")
+    progress.total(len(tareas))
 
     for i, tarea in enumerate(tareas, 1):
         folder = get_folder(season, tarea["category"], tarea["jornada"], tarea["sexo"])
@@ -489,15 +493,13 @@ def download_season(downloader: Downloader, season: str, jornadas: List[int],
         )
 
         html = download_jornada_html(downloader, tarea, folder / f"grupo_{tarea['grupo']}.html", force, stats)
-        if html is None or not with_pdf:
-            continue
-
-        actas = extract_acta_links(html)
-        if not actas:
-            logger.info("  Sin actas en esta jornada")
-            continue
-        for acta_url, partido_id in actas:
-            download_acta_pdf(downloader, acta_url, folder / f"acta_{partido_id}.pdf", force, stats)
+        if html is not None and with_pdf:
+            actas = extract_acta_links(html)
+            if not actas:
+                logger.info("  Sin actas en esta jornada")
+            for acta_url, partido_id in actas:
+                download_acta_pdf(downloader, acta_url, folder / f"acta_{partido_id}.pdf", force, stats)
+        progress.item(f"{tarea['category']} grupo {tarea['grupo']} J{tarea['jornada']} {tarea['sexo']}")
 
     return stats
 

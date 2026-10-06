@@ -23,11 +23,12 @@ class JpaPipelineStepRepository implements PipelineStepRepository {
         this.steps = steps;
     }
 
-    /** A duplicate (run, kind, attempt) surfaces as a DataIntegrityViolationException from the unique key. */
+    /** A duplicate (unit, kind, attempt) surfaces as a DataIntegrityViolationException from the unique key. */
     @Override
     public PipelineStep save(PipelineStep step) {
         PipelineStepEntity entity = steps.findById(step.id()).orElseGet(() -> new PipelineStepEntity(step.id()));
         entity.runId = step.runId();
+        entity.unitId = step.unitId();
         entity.kind = step.kind();
         entity.attempt = step.attempt();
         entity.status = step.status();
@@ -73,7 +74,7 @@ class JpaPipelineStepRepository implements PipelineStepRepository {
                 ? null
                 : new IngestHealth(entity.httpErrors, entity.timeouts, entity.parseErrors);
         return PipelineStep.restore(
-                entity.id, entity.runId, entity.kind, entity.attempt, entity.status, entity.startedAt,
+                entity.id, entity.runId, entity.unitId, entity.kind, entity.attempt, entity.status, entity.startedAt,
                 entity.finishedAt, entity.externalRef, entity.outcome, entity.retryable, error, entity.logRef, health,
                 entity.importJobReused);
     }

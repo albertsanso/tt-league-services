@@ -36,6 +36,12 @@ signing in and calendar components may be duplicated rather than shared.
 - Whether a run can be replayed comes from the server (`replay` in the run detail, decided by `ReplayRules`);
   `src/runs/replay.ts` only maps its `code` to labels and the UI never derives eligibility from the status or the
   artifacts. A purged artifact and a reused import job are shown from `purgedAt` and `importJobReused`.
+- Run units: whether a unit can be retried comes from the server (`retry` on each unit of the run detail, decided by
+  `UnitRetryRules`); `src/runs/retry.ts` only maps its `reason` to labels. Unit progress, percentages and the run and unit statuses
+  are server values: `UnitProgressBar` shows `percent` as sent and the UI never derives a run status from its units. `unit` events
+  are applied by unit id and a late progress event (older `progress.updatedAt` for the same status) is ignored (`patchUnit`);
+  a finished unit refetches the run detail for the counters, artifacts and retry decision. The package ZIP is downloaded through
+  the authenticated client (`requestBlob`), never through a plain link.
 - Client-side trigger validation mirrors `TriggerRules` and
   `PipelineRun.requireValidSeason` and never replaces the server's answer.
 - No data-fetching, state or JWT library without a decision.

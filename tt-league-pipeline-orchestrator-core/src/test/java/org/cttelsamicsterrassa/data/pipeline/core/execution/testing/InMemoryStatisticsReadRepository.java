@@ -3,12 +3,14 @@ package org.cttelsamicsterrassa.data.pipeline.core.execution.testing;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.CorrectionFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.MatchFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.RunFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.StepFacts;
+import org.cttelsamicsterrassa.data.pipeline.core.statistics.UnitFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.port.StatisticsReadRepository;
 
 /** Facts added by the test and filtered like the real repository: sources, half-open ranges and the day prefilter. */
@@ -16,6 +18,7 @@ public class InMemoryStatisticsReadRepository implements StatisticsReadRepositor
 
     private final List<RunFacts> runs = new ArrayList<>();
     private final List<StepFacts> steps = new ArrayList<>();
+    private final List<UnitFacts> units = new ArrayList<>();
     private final List<MatchFacts> matches = new ArrayList<>();
     private final List<CorrectionFacts> corrections = new ArrayList<>();
 
@@ -26,6 +29,11 @@ public class InMemoryStatisticsReadRepository implements StatisticsReadRepositor
 
     public InMemoryStatisticsReadRepository add(StepFacts step) {
         steps.add(step);
+        return this;
+    }
+
+    public InMemoryStatisticsReadRepository add(UnitFacts unit) {
+        units.add(unit);
         return this;
     }
 
@@ -51,6 +59,16 @@ public class InMemoryStatisticsReadRepository implements StatisticsReadRepositor
     public List<StepFacts> stepsFinishedBetween(Instant from, Instant to, Set<PipelineSource> sources) {
         return steps.stream()
                 .filter(step -> inSources(step.source(), sources) && within(step.finishedAt(), from, to))
+                .toList();
+    }
+
+    @Override
+    public List<UnitFacts> unitsFinishedBetween(
+            Instant from, Instant to, Set<PipelineSource> sources, Optional<String> unitKey) {
+        return units.stream()
+                .filter(unit -> unit.status().isTerminal() && inSources(unit.source(), sources)
+                        && within(unit.finishedAt(), from, to)
+                        && unitKey.map(unit.unitKey()::equals).orElse(true))
                 .toList();
     }
 

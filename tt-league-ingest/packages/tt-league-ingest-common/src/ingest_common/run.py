@@ -203,13 +203,22 @@ class RunReport:
 class ProgressListener(Protocol):
     def stage_started(self, stage: IngestStage) -> None: ...
 
-    def item_processed(self, stage: IngestStage, item: str) -> None: ...
+    def stage_total(self, stage: IngestStage, total: int) -> None:
+        """The number of items the stage is going to process, once its work list is known."""
+        ...
+
+    def item_processed(self, stage: IngestStage, item: str) -> None:
+        """One item of the stage is done; ``item`` names it."""
+        ...
 
     def stage_finished(self, report: StageReport) -> None: ...
 
 
 class NoOpListener:
     def stage_started(self, stage: IngestStage) -> None:
+        pass
+
+    def stage_total(self, stage: IngestStage, total: int) -> None:
         pass
 
     def item_processed(self, stage: IngestStage, item: str) -> None:

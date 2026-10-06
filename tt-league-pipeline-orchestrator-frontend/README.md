@@ -87,23 +87,25 @@ consecutive failure up to 60 s (±20 % jitter). The server has no replay, so eve
 ## Runs screen
 
 `/runs` lists runs newest first (20 per page) with the columns Created, Source,
-Trigger (`Manual · ana`, `Scheduled`, `Replay`, plus a `forced` chip), Scope (full
+Trigger (`Manual · ana`, `Scheduled`, `Replay`, `Unit retry`, plus a `forced` chip), Scope (full
 list in a tooltip), Duration (active rows tick every second from `startedAt` and
 the local clock), Steps (one badge per Ingest / Fetch package / Import with the
 latest attempt, `×n` when retried) and Outcome (status chip; failed or partial
-runs show the error code, the message is in a tooltip). A row opens `/runs/:id`;
-the list filters are passed along so "All runs" returns to the same view.
+runs show the error code, the message is in a tooltip, and a run with several units shows "n/m units"). The arrow at the
+start of a row expands the run's units (status, label, duration, error code and a thin progress bar for the unit that is running).
+A row opens `/runs/:id`; the list filters are passed along so "All runs" returns to the same view.
 
 Filters live in the query string, so a view can be bookmarked and survives a
-reload: `?source=RFETM&source=FCTT&status=FAILED&from=2026-10-01&to=2026-10-05&page=2`
-(`page` is 1-based). `from` and `to` are local dates; the "to" day is **inclusive**
+reload: `?source=RFETM&source=FCTT&status=FAILED&unit=season&from=2026-10-01&to=2026-10-05&page=2`
+(`page` is 1-based; `unit` is a unit key, applied on Enter or when the field loses focus, and keeps the runs that have such a
+unit). `from` and `to` are local dates; the "to" day is **inclusive**
 (the request sends the start of the next day, because the API bound is
 exclusive). Unknown values are dropped and reported in a warning, never replaced
 by another value; `from` after `to` sends no request. Changing a filter resets
 the page.
 
-Live updates come from the single event stream (`useRunEvents`): `run` and `step`
-events patch the visible rows in place, an unknown run on the first page
+Live updates come from the single event stream (`useRunEvents`): `run`, `unit` and `step`
+events patch the visible rows (and their units) in place, an unknown run on the first page
 triggers one debounced (300 ms) refetch, on later pages a "New runs available"
 action appears, and a reconnect refetches. The "Live activity" panel is built in
 the browser from the events received **since the page was opened** (there is no
@@ -112,11 +114,20 @@ outcome or error, and queued-trigger changes (last 200 entries).
 
 ## Run detail
 
-`/runs/:id` shows the header (source, season, status, trigger, requester, times,
+`/runs/:id` has an **Overview** and a **JSON** tab (the detail payload as the API sent it, pretty-printed, with a copy button).
+The overview shows the header (source, season, status, trigger, requester, times,
 live duration), the linked ids (`retryOfRunId`, ingest run id, import job id),
-the scope, **every** step attempt, issues, artifacts (size and SHA-256), the
-import report counters and a live activity log for the run. While the run is
-active it follows `run` and `step` events; a terminal `run` event refetches the
+the scope, a **Units** section, **every** step attempt, issues, artifacts (size and SHA-256), the
+import report counters (summed over the units) and a live activity log for the run. The Units section has one accordion per
+unit (failed, skipped and running units, and the only unit of a run, are open): its status, timings, error, the progress
+bar of the step it is running (determinate when the server sent a `percent`, indeterminate otherwise, with the stage and the
+current item), unit key, ingest run id, import job id and storage folder with copy buttons, its own steps, artifacts and import
+counters, a **Download package** button (the authenticated client fetches the ZIP; it only shows while the unit has an unpurged
+package) and, with `matches:write`, a **Retry unit** button. The button is enabled only when the server says the unit can be
+retried (`retry.eligible`; otherwise a tooltip for its `reason`); after a confirmation it creates a `UNIT_RETRY` run and opens it,
+and the units the retries came from show "Retried by" links while a unit retry run shows "Retry of a unit of <id>" in its
+header. While the run is
+active it follows `run`, `unit` and `step` events; a terminal `run` event refetches the
 detail (artifacts, report and issues only come from the GET), and a reconnect
 refetches. An unknown or malformed id shows "Run not found".
 
@@ -201,7 +212,9 @@ equivalent of the chart): daily overview, runs by outcome, time to report (media
 expandable table), pending by age, corrections after the first report, source health (HTTP errors, timeouts and parse
 errors per source) and the reporting progress of a match day. All figures come from
 `GET /api/pipeline/statistics/...`; the browser only formats them (durations in hours with one decimal) and the page
-notes that days are grouped in the server time zone. Corrections stay at zero unless the platform runs with amended-acta
+notes that days are grouped in the server time zone. A **Unit** filter (`?unit=<unit key>`, options from the units the
+statistics know) limits the runs by outcome to the runs that had that unit, and the "Units by outcome" panel lists every
+unit's outcomes, skipped count and average duration. Corrections stay at zero unless the platform runs with amended-acta
 detection.
 
 ## Layout
@@ -211,7 +224,7 @@ src/api/      typed HTTP client, endpoint modules, DTO types (types.ts)
 src/auth/     token storage and claims, AuthProvider, permissions, Can
 src/events/   SSE parser and RunEventsProvider
 src/layout/   app shell, navigation list, route error boundary
-src/runs/     run list/detail hooks, table, filters, activity log, Run now dialog
+src/runs/     run list/detail hooks, table, units list and accordions, filters, activity log, Run now and Retry unit dialogs
 src/statistics/ statistics filters, hooks and the dashboard panels
 src/pages/    lazy-loaded screens (Calendar, Runs, Run detail, Statistics), login
 ```

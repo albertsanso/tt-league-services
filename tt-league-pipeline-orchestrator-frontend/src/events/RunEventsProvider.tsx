@@ -56,7 +56,7 @@ export function RunEventsProvider({ children }: { children: ReactNode }) {
         }
         return
       }
-      if (name !== 'run' && name !== 'step' && name !== 'pending-trigger' && name !== 'match-days') {
+      if (name !== 'run' && name !== 'step' && name !== 'unit' && name !== 'pending-trigger' && name !== 'match-days') {
         return
       }
       let payload: unknown

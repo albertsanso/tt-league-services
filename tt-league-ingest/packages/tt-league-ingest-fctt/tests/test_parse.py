@@ -242,6 +242,31 @@ class IncrementalRunTest(ParserTestCase):
         self.assertFalse(output.exists())
         self.assertTrue((folder / "jornada_1_local_team_130_away_team_152.json").exists())
 
+    def test_the_run_reports_its_page_count_and_each_finished_page(self):
+        from ingest_common import progress
+        from ingest_common.run import IngestStage, NoOpListener
+
+        class Recorder(NoOpListener):
+            def __init__(self):
+                self.events = []
+
+            def stage_total(self, stage, total):
+                self.events.append(("total", total))
+
+            def item_processed(self, stage, item):
+                self.events.append(("item", item))
+
+        self.write_page(page([played_match()]), group="g1")
+        self.write_page(page([played_match()]), group="g2")
+        recorder = Recorder()
+
+        with progress.bind(recorder, IngestStage.PARSE):
+            ok, _ = self.run_parser()
+
+        self.assertTrue(ok)
+        self.assertEqual(recorder.events[0], ("total", 2))
+        self.assertEqual(len([event for event in recorder.events if event[0] == "item"]), 2)
+
     def test_dry_run_writes_nothing_and_filters_apply(self):
         self.write_page(page([played_match()]), group="g1")
         self.write_page(page([played_match()]), group="g2")

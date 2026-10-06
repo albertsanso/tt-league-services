@@ -3,7 +3,7 @@ import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import MenuItem from '@mui/material/MenuItem'
 import TextField from '@mui/material/TextField'
-import type { PipelineSource } from '../api/types'
+import type { PipelineSource, UnitOutcomesRow } from '../api/types'
 import { SOURCES } from '../runs/runFilters'
 import { rangeError } from './statisticsFilters'
 import type { StatisticsFilters } from './statisticsFilters'
@@ -13,8 +13,10 @@ interface StatisticsFilterBarProps {
   /** The season in use: the chosen one, or the latest the facets offer. */
   readonly season: string | null
   readonly seasons: readonly string[]
+  /** The units the statistics know, to choose the unit filter from. */
+  readonly units: readonly Pick<UnitOutcomesRow, 'unitKey' | 'label'>[]
   readonly onChange: (
-    patch: Partial<Pick<StatisticsFilters, 'sources' | 'season' | 'fromDate' | 'toDate'>>,
+    patch: Partial<Pick<StatisticsFilters, 'sources' | 'season' | 'unitKey' | 'fromDate' | 'toDate'>>,
     replace: boolean,
   ) => void
   readonly onReset: () => void
@@ -22,10 +24,28 @@ interface StatisticsFilterBarProps {
   readonly refreshing: boolean
 }
 
+/** One option per unit key (the label of the first unit with that key), keeping a chosen key the data no longer has. */
+function unitOptions(
+  units: readonly Pick<UnitOutcomesRow, 'unitKey' | 'label'>[],
+  chosen: string | null,
+): readonly Pick<UnitOutcomesRow, 'unitKey' | 'label'>[] {
+  const byKey = new Map<string, Pick<UnitOutcomesRow, 'unitKey' | 'label'>>()
+  units.forEach((unit) => {
+    if (!byKey.has(unit.unitKey)) {
+      byKey.set(unit.unitKey, unit)
+    }
+  })
+  if (chosen !== null && !byKey.has(chosen)) {
+    byKey.set(chosen, { unitKey: chosen, label: chosen })
+  }
+  return [...byKey.values()].sort((a, b) => a.label.localeCompare(b.label))
+}
+
 export function StatisticsFilterBar({
   filters,
   season,
   seasons,
+  units,
   onChange,
   onReset,
   onRefresh,
@@ -33,6 +53,7 @@ export function StatisticsFilterBar({
 }: StatisticsFilterBarProps) {
   const error = rangeError(filters)
   const offered = season !== null && !seasons.includes(season) ? [season, ...seasons] : seasons
+  const offeredUnits = unitOptions(units, filters.unitKey)
   return (
     <Box role="group" aria-label="Statistics filters" sx={{ display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'flex-start', mb: 2 }}>
       <TextField
@@ -70,6 +91,22 @@ export function StatisticsFilterBar({
         {offered.map((value) => (
           <MenuItem key={value} value={value}>
             {value}
+          </MenuItem>
+        ))}
+      </TextField>
+      <TextField
+        select
+        size="small"
+        label="Unit"
+        sx={{ minWidth: 200 }}
+        value={filters.unitKey ?? ''}
+        slotProps={{ select: { displayEmpty: true }, inputLabel: { shrink: true } }}
+        onChange={(event) => onChange({ unitKey: event.target.value === '' ? null : event.target.value }, false)}
+      >
+        <MenuItem value="">All units</MenuItem>
+        {offeredUnits.map((unit) => (
+          <MenuItem key={unit.unitKey} value={unit.unitKey}>
+            {unit.label}
           </MenuItem>
         ))}
       </TextField>

@@ -72,7 +72,7 @@ mvn -pl tt-data-league-api-runtime,tt-league-pipeline-orchestrator-runtime -am c
 cp deploy/.env.example deploy/.env
 ```
 
-Edit `deploy/.env`: replace every `<placeholder>`, using the commands in the comments (`openssl rand -base64 32`, and
+Edit `deploy/.env`: replace every `CHANGE_ME_...` value, using the commands in the comments (`openssl rand -base64 32`, and
 the SHA-256 command for `ORCHESTRATOR_PLATFORM_API_KEY_SHA256`). `deploy/.env` is ignored by Git; never commit it.
 Then check the configuration and build the images:
 
@@ -140,6 +140,25 @@ Notes:
   [Operation](#operation).
 - An exported shell variable overrides the same name in `deploy/.env`, see "Shell variables win over `deploy/.env`" under
   [Operation](#operation).
+
+## Running from the IDE (no containers)
+
+For debugging, run each service as a plain process instead of a container. Only PostgreSQL 16 (database
+`ttleaguedata`) is needed: a native install on `localhost:5432`, or just the `postgres` service of
+`.podman/podman-compose.yaml` on `localhost:15432` (then change the two JDBC URLs).
+
+1. Copy `.env.local.example` (repository root) to `.env.local`, which Git ignores, and replace every `CHANGE_ME_...` value.
+   The key hash and secrets follow the same rules as `deploy/.env.example`. Create the two directories named by
+   `TT_INGEST_DATA_DIR` and `PIPELINE_ARTIFACTS_DIR`.
+2. The shared run configurations in `.run/` are `Platform API` (`APIApplication`, port 8080), `Pipeline Orchestrator` (port 8095) and the compound `Platform + Orchestrator`. They carry no variables, so no secret is committed: in each one, open *Modify options > Environment variables* and fill the field from `.env.local`, either with the dialog's *Load variables from file* button (when your IDE version has it) or by pasting the file's lines into the dialog. IntelliJ stores them in `.idea/`, which Git ignores, so you do this once. Start them with Debug.
+3. Ingest REST (port 8091), debugged as a Python run configuration: module `ingest_rest.main`, interpreter
+   `tt-league-ingest/.venv`, working directory `tt-league-ingest`, and the same variables in its environment field. Without a
+   debugger: `cd tt-league-ingest && uv run tt-league-ingest-rest` with the variables exported.
+4. Frontends: `npm run dev` in `tt-data-league-frontend` and in `tt-league-pipeline-orchestrator-frontend`; their Vite
+   dev servers already proxy to `localhost:8080` and `localhost:8095`.
+
+The orchestrator connects as the database user in `.env.local`, so the restricted `pipeline` role of the Compose
+deployment is not needed locally.
 
 ## Before exposing it
 

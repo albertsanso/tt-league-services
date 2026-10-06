@@ -15,6 +15,8 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitKey;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepository;
@@ -70,10 +72,11 @@ class JpaStatisticsReadRepositoryTest extends AbstractPersistenceTest {
         PipelineRun run = runs.create(PipelineRun.queue(UUID.randomUUID(), source, "2026-2027",
                 org.cttelsamicsterrassa.data.pipeline.core.run.RunScope.fullSeason(), false,
                 org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger.MANUAL, "ana", null, start));
-        run = runs.update(run.startIngest("ing-1", start));
-        run = runs.update(run.packed(start.plusSeconds(10)));
-        run = runs.update(run.startImport(UUID.randomUUID(), start.plusSeconds(20)));
-        return runs.update(run.succeed(finishedAt));
+        RunUnit unit = unit(run);
+        unitRepo.update(unit.startIngest("ing-1", start).packed(start.plusSeconds(10))
+                .startImport(UUID.randomUUID(), start.plusSeconds(20)).succeed(finishedAt));
+        run = runs.update(run.start(start));
+        return runs.update(run.finish(RunStatus.SUCCEEDED, null, finishedAt));
     }
 
     @Test
@@ -99,18 +102,20 @@ class JpaStatisticsReadRepositoryTest extends AbstractPersistenceTest {
     void stepsCarryTheSourceOfTheirRunAndTheirHealth() {
         PipelineRun fctt = failedRun(PipelineSource.FCTT, FROM.plusSeconds(100));
         PipelineRun rfetm = failedRun(PipelineSource.RFETM, FROM.plusSeconds(100));
-        PipelineStep ingest = PipelineStep.start(UUID.randomUUID(), fctt.id(), StepKind.INGEST, 1,
+        UUID fcttUnit = unit(fctt).id();
+        UUID rfetmUnit = unit(rfetm).id();
+        PipelineStep ingest = PipelineStep.start(UUID.randomUUID(), fctt.id(), fcttUnit, StepKind.INGEST, 1,
                 FROM.plusSeconds(10), null);
         steps.save(ingest);
         steps.save(ingest.succeed(FROM.plusSeconds(40), "SUCCEEDED", new IngestHealth(4, 2, 1)));
-        PipelineStep unknown = PipelineStep.start(UUID.randomUUID(), rfetm.id(), StepKind.INGEST, 1,
+        PipelineStep unknown = PipelineStep.start(UUID.randomUUID(), rfetm.id(), rfetmUnit, StepKind.INGEST, 1,
                 FROM.plusSeconds(10), null);
         steps.save(unknown);
         steps.save(unknown.succeed(FROM.plusSeconds(50), "NO_CHANGES"));
-        PipelineStep running = PipelineStep.start(UUID.randomUUID(), rfetm.id(), StepKind.IMPORT, 1,
+        PipelineStep running = PipelineStep.start(UUID.randomUUID(), rfetm.id(), rfetmUnit, StepKind.IMPORT, 1,
                 FROM.plusSeconds(10), null);
         steps.save(running);
-        PipelineStep outside = PipelineStep.start(UUID.randomUUID(), fctt.id(), StepKind.IMPORT, 1,
+        PipelineStep outside = PipelineStep.start(UUID.randomUUID(), fctt.id(), fcttUnit, StepKind.IMPORT, 1,
                 FROM.minusSeconds(100), null);
         steps.save(outside);
         steps.save(outside.succeed(FROM.minusSeconds(1), "SUCCEEDED"));
@@ -121,6 +126,7 @@ class JpaStatisticsReadRepositoryTest extends AbstractPersistenceTest {
         StepFacts withHealth = found.stream().filter(step -> step.source() == PipelineSource.FCTT).findFirst()
                 .orElseThrow();
         assertThat(withHealth.health()).isEqualTo(new IngestHealth(4, 2, 1));
+        assertThat(withHealth.unitKey()).isEqualTo(UnitKey.SEASON);
         assertThat(withHealth.status()).isEqualTo(StepStatus.SUCCEEDED);
         assertThat(found.stream().filter(step -> step.source() == PipelineSource.RFETM).findFirst().orElseThrow()
                 .health()).isNull();
@@ -131,8 +137,8 @@ class JpaStatisticsReadRepositoryTest extends AbstractPersistenceTest {
     void importReportsGiveTheAmendedCountPerSourceWithinTheRange() {
         PipelineRun fctt = succeededRun(PipelineSource.FCTT, FROM.plusSeconds(500));
         PipelineRun rfetm = succeededRun(PipelineSource.RFETM, FROM.plusSeconds(500));
-        reports.add(report(fctt.id(), 3, FROM.plusSeconds(600)));
-        reports.add(report(rfetm.id(), 1, TO));
+        reports.add(report(fctt.id(), unitRepo.findByRunId(fctt.id()).get(0).id(), 3, FROM.plusSeconds(600)));
+        reports.add(report(rfetm.id(), unitRepo.findByRunId(rfetm.id()).get(0).id(), 1, TO));
 
         List<CorrectionFacts> found = reads.importReportsReceivedBetween(FROM, TO, Set.of());
 
@@ -191,8 +197,8 @@ class JpaStatisticsReadRepositoryTest extends AbstractPersistenceTest {
                 reportedInside.matchId(), reportedAtEnd.matchId(), pendingDated.matchId());
     }
 
-    private static ImportReport report(UUID runId, long amended, Instant receivedAt) {
-        return new ImportReport(runId, UUID.randomUUID(), "SUCCEEDED", 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, amended,
+    private static ImportReport report(UUID runId, UUID unitId, long amended, Instant receivedAt) {
+        return new ImportReport(runId, unitId, UUID.randomUUID(), "SUCCEEDED", 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, amended,
                 List.of(), "{}", receivedAt);
     }
 

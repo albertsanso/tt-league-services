@@ -257,6 +257,12 @@ with `seasons` set to that season and the match-day counters of `summary` recomp
 `unreadablePages` stay whole-file counts). `404` when no download has written the file yet or the season has no
 match day in it, `400` for an unknown source or a malformed season.
 
+While a run is `RUNNING`, `GET /runs/{runId}` also carries `progress` (`null` before the first stage starts and after the run
+ends): `{stage, itemsProcessed, itemsTotal, currentItem}` for the stage being executed. The download and parse stages of the
+three federations report their work list through `ingest_common.progress` (`total()` once the list is known, `item()` per
+finished page, league or document); `itemsTotal` is `null` while it is unknown and never below `itemsProcessed`. The counts are
+informational and do not change `status`, `outcome` or the exit codes; the pipeline orchestrator shows them per unit.
+
 A run exposes `status`, plus `outcome`, `retryable` and `changes` (`contentChanged`, `actasChanged`) as described
 under [Run outcome and exit codes](#run-outcome-and-exit-codes). `outcome` is `null` and `changes` is empty until
 the run ends; `retryable` is `false` until then. Each stage lists its `skipped` reason. If the pipeline itself

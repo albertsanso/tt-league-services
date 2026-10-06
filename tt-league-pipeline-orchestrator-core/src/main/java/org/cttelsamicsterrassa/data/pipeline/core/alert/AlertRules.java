@@ -3,6 +3,8 @@ package org.cttelsamicsterrassa.data.pipeline.core.alert;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDay;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayState;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchTracking;
@@ -40,6 +42,7 @@ public final class AlertRules {
         runFailures(facts, holding);
         unreportedMatches(facts, settings, now, holding);
         noRecentSuccess(facts, settings, now, holding);
+        unitFailures(facts, settings, holding);
         return holding;
     }
 
@@ -71,6 +74,29 @@ public final class AlertRules {
                 out.add(new AlertCondition(AlertKind.RUN_FAILURES, source.name(), source, null,
                         AlertTexts.failuresTitle(source),
                         AlertTexts.failuresDetail(source, List.of(runs.get(0), runs.get(1)))));
+            }
+        }
+    }
+
+    /**
+     * The same unit failed ({@code FAILED}, never {@code SKIPPED}) in its two newest finished occurrences. A unit key
+     * outside {@code settings.unitKeys()} is ignored when that set is not empty.
+     */
+    private static void unitFailures(AlertFacts facts, AlertSettings settings, Set<AlertCondition> out) {
+        for (PipelineSource source : PipelineSource.values()) {
+            Map<String, List<RunUnit>> byKey = facts.newestTerminalUnits().getOrDefault(source, Map.of());
+            for (Map.Entry<String, List<RunUnit>> entry : byKey.entrySet()) {
+                List<RunUnit> newest = entry.getValue();
+                if ((!settings.unitKeys().isEmpty() && !settings.unitKeys().contains(entry.getKey()))
+                        || newest.size() < 2
+                        || newest.get(0).status() != UnitStatus.FAILED
+                        || newest.get(1).status() != UnitStatus.FAILED) {
+                    continue;
+                }
+                RunUnit latest = newest.get(0);
+                out.add(new AlertCondition(AlertKind.UNIT_FAILURES, source.name() + ":" + entry.getKey(), source, null,
+                        AlertTexts.unitFailuresTitle(source, latest),
+                        AlertTexts.unitFailuresDetail(source, List.of(newest.get(0), newest.get(1)))));
             }
         }
     }

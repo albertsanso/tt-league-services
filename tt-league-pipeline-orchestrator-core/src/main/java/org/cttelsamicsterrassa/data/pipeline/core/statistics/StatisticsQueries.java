@@ -63,11 +63,27 @@ public final class StatisticsQueries {
     }
 
     public RunOutcomeStats runs(DateRange range, Set<PipelineSource> sources) {
+        return runs(range, sources, Optional.empty());
+    }
+
+    /**
+     * Run outcomes and step averages; a present unit key keeps only the runs that have a finished unit with that key
+     * and only the steps that ran for it.
+     */
+    public RunOutcomeStats runs(DateRange range, Set<PipelineSource> sources, Optional<String> unitKey) {
         ZoneId zone = settings.zone();
         Instant from = range.startInstant(zone);
         Instant to = range.endInstant(zone);
+        Set<UUID> runsWithUnit = unitKey.isEmpty()
+                ? null
+                : reads.unitsFinishedBetween(from, to, sources, unitKey).stream()
+                        .map(UnitFacts::runId)
+                        .collect(Collectors.toSet());
         Map<DayKey, int[]> counts = new TreeMap<>();
         for (RunFacts run : reads.terminalRunsFinishedBetween(from, to, sources)) {
+            if (runsWithUnit != null && !runsWithUnit.contains(run.runId())) {
+                continue;
+            }
             int[] row = counts.computeIfAbsent(
                     new DayKey(LocalDate.ofInstant(run.finishedAt(), zone), run.source()), key -> new int[4]);
             switch (run.status()) {
@@ -85,6 +101,9 @@ public final class StatisticsQueries {
                 .toList();
         Map<SourceKind, List<Duration>> durations = new TreeMap<>();
         for (StepFacts step : reads.stepsFinishedBetween(from, to, sources)) {
+            if (unitKey.isPresent() && !unitKey.get().equals(step.unitKey())) {
+                continue;
+            }
             durations
                     .computeIfAbsent(new SourceKind(step.source(), step.kind()), key -> new ArrayList<>())
                     .add(Duration.between(step.startedAt(), step.finishedAt()));
@@ -97,6 +116,13 @@ public final class StatisticsQueries {
                         StatisticsRules.mean(e.getValue())))
                 .toList();
         return new RunOutcomeStats(days, averages);
+    }
+
+    /** Terminal units by outcome per source and unit key, optionally limited to one unit key. */
+    public UnitOutcomeStats units(DateRange range, Set<PipelineSource> sources, Optional<String> unitKey) {
+        ZoneId zone = settings.zone();
+        return new UnitOutcomeStats(StatisticsRules.unitOutcomes(
+                reads.unitsFinishedBetween(range.startInstant(zone), range.endInstant(zone), sources, unitKey)));
     }
 
     public TimeToReportStats timeToReport(String season, Set<PipelineSource> sources) {

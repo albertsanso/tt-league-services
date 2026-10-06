@@ -2,7 +2,7 @@ package org.cttelsamicsterrassa.data.pipeline.runtime.api;
 
 import java.time.Instant;
 
-/** Platform import counters of a run; the raw job JSON is not exposed. */
+/** Platform import counters of a unit, or summed over the units of a run; the raw job JSON is not exposed. */
 public record ImportReportDto(
         String status,
         long filesSeen,

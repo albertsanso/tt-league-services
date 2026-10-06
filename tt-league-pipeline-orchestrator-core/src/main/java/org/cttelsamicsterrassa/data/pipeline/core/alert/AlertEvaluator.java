@@ -11,7 +11,9 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunQuery;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunUnitRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDay;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayState;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchTracking;
@@ -48,6 +50,7 @@ public final class AlertEvaluator {
     private final AlertRepository alerts;
     private final MatchDayRepository matchDays;
     private final PipelineRunRepository runs;
+    private final RunUnitRepository units;
     private final Notifier notifier;
     private final RunClock clock;
     private final AlertSettings settings;
@@ -56,12 +59,14 @@ public final class AlertEvaluator {
             AlertRepository alerts,
             MatchDayRepository matchDays,
             PipelineRunRepository runs,
+            RunUnitRepository units,
             Notifier notifier,
             RunClock clock,
             AlertSettings settings) {
         this.alerts = Objects.requireNonNull(alerts, "alerts is required");
         this.matchDays = Objects.requireNonNull(matchDays, "matchDays is required");
         this.runs = Objects.requireNonNull(runs, "runs is required");
+        this.units = Objects.requireNonNull(units, "units is required");
         this.notifier = Objects.requireNonNull(notifier, "notifier is required");
         this.clock = Objects.requireNonNull(clock, "clock is required");
         this.settings = Objects.requireNonNull(settings, "settings is required");
@@ -164,13 +169,15 @@ public final class AlertEvaluator {
         }
         Map<PipelineSource, List<PipelineRun>> newestTerminal = new EnumMap<>(PipelineSource.class);
         Map<PipelineSource, Instant> newestSuccess = new EnumMap<>(PipelineSource.class);
+        Map<PipelineSource, Map<String, List<RunUnit>>> newestUnits = new EnumMap<>(PipelineSource.class);
         for (PipelineSource source : PipelineSource.values()) {
             newestTerminal.put(source, runs.find(new RunQuery(Set.of(source), TERMINAL, null, null, 0, 2)).items());
             runs.find(new RunQuery(Set.of(source), SUCCESS, null, null, 0, 1)).items().stream()
                     .findFirst()
                     .ifPresent(run -> newestSuccess.put(source, run.finishedAt()));
+            newestUnits.put(source, units.findNewestFinishedBySource(source, 2, settings.unitKeys()));
         }
-        return new AlertFacts(open, closed, openMatches, alertDays, newestTerminal, newestSuccess);
+        return new AlertFacts(open, closed, openMatches, alertDays, newestTerminal, newestSuccess, newestUnits);
     }
 
     private static Optional<UUID> matchDayId(Alert alert) {

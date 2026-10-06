@@ -46,7 +46,7 @@ from ingest_fctt.download import (
     Node, atomic_write, parse_filter, parse_html, parse_match_days, query_param, slugify,
 )
 
-from ingest_common import health, logs
+from ingest_common import health, logs, progress
 from ingest_common.validation import ACTA_SCHEMA_PATH
 
 try:
@@ -652,10 +652,12 @@ class IncrementalParser:
             LOGGER.warning("No match day pages found in %s for the selected filters", options.input_dir)
             return True
         LOGGER.info("%s match day page(s) to check in %s", len(pages), options.input_dir)
+        progress.total(len(pages))
         try:
             for page in pages:
                 self.counters["pages"] += 1
                 self._process(page)
+                progress.item(str(page.relative))
         finally:
             self._save_state()
         return self.counters["pages_failed"] == 0 and self.counters["invalid"] == 0

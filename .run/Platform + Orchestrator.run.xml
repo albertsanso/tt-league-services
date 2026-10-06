@@ -1,0 +1,7 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Platform + Orchestrator" type="CompoundRunConfigurationType">
+    <toRun type="SpringBootApplicationConfigurationType" name="Platform API" />
+    <toRun type="SpringBootApplicationConfigurationType" name="Pipeline Orchestrator" />
+    <method v="2" />
+  </configuration>
+</component>

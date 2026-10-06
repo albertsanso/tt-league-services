@@ -246,7 +246,7 @@ class StatisticsQueriesTest {
 
     private static StepFacts step(PipelineSource source, StepKind kind, StepStatus status, long seconds) {
         Instant finished = at("2026-10-06T10:00:00Z");
-        return new StepFacts(UUID.randomUUID(), source, kind, status, null, finished.minusSeconds(seconds), finished,
+        return new StepFacts(UUID.randomUUID(), "season", source, kind, status, null, finished.minusSeconds(seconds), finished,
                 null);
     }
 

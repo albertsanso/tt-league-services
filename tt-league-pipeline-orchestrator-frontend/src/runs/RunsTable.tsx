@@ -1,6 +1,10 @@
+import ExpandLessIcon from '@mui/icons-material/ExpandLess'
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
+import Collapse from '@mui/material/Collapse'
+import IconButton from '@mui/material/IconButton'
 import Link from '@mui/material/Link'
 import Table from '@mui/material/Table'
 import TableBody from '@mui/material/TableBody'
@@ -11,10 +15,12 @@ import TablePagination from '@mui/material/TablePagination'
 import TableRow from '@mui/material/TableRow'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
+import { Fragment, useState } from 'react'
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom'
 import type { Page, RunSummary } from '../api/types'
-import { elapsedMs, formatDuration, formatInstant, scopeDetails, scopeLabel } from './format'
+import { elapsedMs, formatDuration, formatInstant, scopeDetails, scopeLabel, unitsSummary } from './format'
 import { RunStatusChip } from './RunStatusChip'
+import { RunUnitsList } from './RunUnitsList'
 import { isActiveStatus, TRIGGER_LABELS } from './runStatus'
 import { StepBadges } from './StepBadges'
 import { useNow } from './useNow'
@@ -39,6 +45,16 @@ export function RunsTable({ page, filtered, onPageChange, onClearFilters }: Runs
   const location = useLocation()
   const anyActive = page.items.some((run) => isActiveStatus(run.status))
   const now = useNow(1000, anyActive)
+  const [expanded, setExpanded] = useState<ReadonlySet<string>>(new Set())
+
+  const toggle = (id: string) =>
+    setExpanded((previous) => {
+      const next = new Set(previous)
+      if (!next.delete(id)) {
+        next.add(id)
+      }
+      return next
+    })
 
   if (page.items.length === 0 && page.page === 0) {
     return (
@@ -61,6 +77,9 @@ export function RunsTable({ page, filtered, onPageChange, onClearFilters }: Runs
         <Table size="small" aria-label="Runs">
           <TableHead>
             <TableRow>
+              <TableCell padding="checkbox">
+                <span style={{ position: 'absolute', left: -9999 }}>Units</span>
+              </TableCell>
               <TableCell>Created</TableCell>
               <TableCell>Source</TableCell>
               <TableCell>Trigger</TableCell>
@@ -75,8 +94,26 @@ export function RunsTable({ page, filtered, onPageChange, onClearFilters }: Runs
               const duration = isActiveStatus(run.status)
                 ? elapsedMs(run.startedAt, run.finishedAt, now)
                 : (run.durationMs ?? elapsedMs(run.startedAt, run.finishedAt, now))
+              const units = run.units ?? []
+              const open_ = expanded.has(run.id)
               return (
-                <TableRow key={run.id} hover sx={{ cursor: 'pointer' }} onClick={() => open(run.id)}>
+                <Fragment key={run.id}>
+                <TableRow hover sx={{ cursor: 'pointer', '& > td': { borderBottom: open_ ? 'none' : undefined } }} onClick={() => open(run.id)}>
+                  <TableCell padding="checkbox">
+                    {units.length > 0 && (
+                      <IconButton
+                        size="small"
+                        aria-label={`${open_ ? 'Hide' : 'Show'} units of the run created ${formatInstant(run.createdAt)}`}
+                        aria-expanded={open_}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          toggle(run.id)
+                        }}
+                      >
+                        {open_ ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+                      </IconButton>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <Link
                       component={RouterLink}
@@ -119,9 +156,26 @@ export function RunsTable({ page, filtered, onPageChange, onClearFilters }: Runs
                           </Typography>
                         </Tooltip>
                       )}
+                      {units.length > 1 && (
+                        <Typography variant="caption" color="text.secondary">
+                          {unitsSummary(units)}
+                        </Typography>
+                      )}
                     </Box>
                   </TableCell>
                 </TableRow>
+                {units.length > 0 && (
+                  <TableRow>
+                    <TableCell colSpan={8} sx={{ py: 0, border: open_ ? undefined : 'none' }}>
+                      <Collapse in={open_} timeout="auto" unmountOnExit>
+                        <Box sx={{ py: 1, pl: 2 }}>
+                          <RunUnitsList units={units} now={now} />
+                        </Box>
+                      </Collapse>
+                    </TableCell>
+                  </TableRow>
+                )}
+                </Fragment>
               )
             })}
           </TableBody>

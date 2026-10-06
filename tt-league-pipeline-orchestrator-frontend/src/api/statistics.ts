@@ -8,6 +8,7 @@ import type {
   RunOutcomesResponse,
   SourceHealthResponse,
   TimeToReportResponse,
+  UnitOutcomesResponse,
 } from './types'
 
 const BASE = '/api/pipeline/statistics'
@@ -17,10 +18,16 @@ export interface RangeQuery {
   readonly from: string
   readonly to: string
   readonly source?: readonly PipelineSource[]
+  /** Limits the answer to one unit key (runs that had it, steps of that unit, or that unit's outcomes). */
+  readonly unitKey?: string | null
 }
 
 function rangeQuery(query: RangeQuery) {
   return { from: query.from, to: query.to, source: query.source }
+}
+
+function unitRangeQuery(query: RangeQuery) {
+  return { ...rangeQuery(query), unitKey: query.unitKey ?? undefined }
 }
 
 export function getDailyStats(client: HttpClient, query: RangeQuery, signal?: AbortSignal): Promise<DailyStatsResponse> {
@@ -28,7 +35,12 @@ export function getDailyStats(client: HttpClient, query: RangeQuery, signal?: Ab
 }
 
 export function getRunOutcomes(client: HttpClient, query: RangeQuery, signal?: AbortSignal): Promise<RunOutcomesResponse> {
-  return client.request<RunOutcomesResponse>('GET', `${BASE}/runs`, { query: rangeQuery(query), signal })
+  return client.request<RunOutcomesResponse>('GET', `${BASE}/runs`, { query: unitRangeQuery(query), signal })
+}
+
+/** Terminal units by outcome per source and unit key, with the average duration. */
+export function getUnitOutcomes(client: HttpClient, query: RangeQuery, signal?: AbortSignal): Promise<UnitOutcomesResponse> {
+  return client.request<UnitOutcomesResponse>('GET', `${BASE}/units`, { query: unitRangeQuery(query), signal })
 }
 
 export function getTimeToReport(

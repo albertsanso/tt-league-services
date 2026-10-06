@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.pipeline.core.execution.port;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -20,9 +21,12 @@ public record IngestRunRequest(PipelineSource source, String season, IngestMode 
         Objects.requireNonNull(correlationId, "correlationId is required");
     }
 
-    /** A full-season run is a snapshot; ingest rejects a scoped snapshot that includes the package stage. */
-    public static IngestRunRequest forRun(PipelineRun run) {
-        IngestMode mode = run.scope().isFullSeason() ? IngestMode.SNAPSHOT : IngestMode.DELTA;
-        return new IngestRunRequest(run.source(), run.season(), mode, run.scope(), run.force(), run.id());
+    /**
+     * The request for one unit: the unit's own scope. Only the full-season unit is a snapshot; ingest rejects a scoped
+     * snapshot that includes the package stage.
+     */
+    public static IngestRunRequest forUnit(PipelineRun run, RunUnit unit) {
+        IngestMode mode = unit.scope().isFullSeason() ? IngestMode.SNAPSHOT : IngestMode.DELTA;
+        return new IngestRunRequest(run.source(), run.season(), mode, unit.scope(), run.force(), run.id());
     }
 }

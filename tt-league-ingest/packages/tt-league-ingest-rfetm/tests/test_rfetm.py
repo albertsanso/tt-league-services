@@ -25,6 +25,33 @@ def convert(root: Path, *extra: str) -> int:
                        "--season", "2026-2027", "--validate", *extra])
 
 
+def test_the_parse_reports_the_page_count_and_each_finished_page(content):
+    from ingest_common import progress
+    from ingest_common.run import IngestStage, NoOpListener
+
+    class Recorder(NoOpListener):
+        def __init__(self):
+            self.events = []
+
+        def stage_total(self, stage, total):
+            self.events.append(("total", total))
+
+        def item_processed(self, stage, item):
+            self.events.append(("item", item))
+
+    recorder = Recorder()
+
+    with progress.bind(recorder, IngestStage.PARSE):
+        assert convert(content) == 0
+
+    pages = len(list((content / "content" / "2026-2027").glob("*/*/*/grupo_*.html")))
+    assert pages > 0
+    assert recorder.events[0] == ("total", pages)
+    items = [item for kind, item in recorder.events if kind == "item"]
+    assert len(items) == pages
+    assert recorder.events.count(("total", pages)) == 1
+
+
 def test_category_mapping_and_unknown_code_behaviour():
     assert download.map_liga_to_category("MQ==") == "super-divisio"
     assert download.map_liga_to_category("Mg==") == "divisio-honor"
@@ -138,6 +165,21 @@ def test_jornada_status():
     assert download.jornada_status(NOT_PLAYED_HTML, BEFORE) == "future"
     assert download.jornada_status(NOT_PLAYED_HTML, DURING) == "partial"
     assert download.jornada_status("<html><body><table></table></body></html>", DURING) == "empty"
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("26/09/2026 16:00", ("2026-09-26", "16:00")),
+    ("00/00/0000 16:00", (None, "16:00")),
+    ("31/02/2026 25:99", (None, None)),
+])
+def test_invalid_match_dates_and_times_are_dropped(text, expected):
+    assert parse.parse_fecha_hora(text) == expected
+
+
+def test_unparseable_stored_date_does_not_break_jornada_status():
+    placeholder = {"fecha": "0000-00-00", "hora": None}
+    assert download._match_start(placeholder) is None
+    assert download._match_start({"fecha": "2026-09-26", "hora": "16:00"}) == datetime(2026, 9, 26, 16, 0)
 
 
 @pytest.mark.parametrize("saved,now", [(COMPLETE_HTML, DURING), (NOT_PLAYED_HTML, BEFORE),

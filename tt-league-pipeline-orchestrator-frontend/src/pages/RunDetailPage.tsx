@@ -1,29 +1,28 @@
-import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import Alert from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Chip from '@mui/material/Chip'
-import IconButton from '@mui/material/IconButton'
 import Link from '@mui/material/Link'
-import Table from '@mui/material/Table'
-import TableBody from '@mui/material/TableBody'
-import TableCell from '@mui/material/TableCell'
-import TableContainer from '@mui/material/TableContainer'
-import TableHead from '@mui/material/TableHead'
-import TableRow from '@mui/material/TableRow'
+import Tab from '@mui/material/Tab'
+import Tabs from '@mui/material/Tabs'
 import Tooltip from '@mui/material/Tooltip'
 import Typography from '@mui/material/Typography'
 import type { ReactNode } from 'react'
 import { useState } from 'react'
 import { Link as RouterLink, useLocation, useNavigate, useParams } from 'react-router-dom'
-import type { ImportReport, RunDetail, StepHealth } from '../api/types'
+import type { RunDetail } from '../api/types'
 import { Can } from '../auth/Can'
-import { elapsedMs, formatBytes, formatDuration, formatInstant, scopeDetails } from '../runs/format'
+import { ArtifactsTable } from '../runs/ArtifactsTable'
+import { CopyValue } from '../runs/CopyValue'
+import { elapsedMs, formatDuration, formatInstant, scopeDetails } from '../runs/format'
+import { ImportReportView } from '../runs/ImportReportView'
 import { REUSED_IMPORT_LABEL, replayBlockedLabel } from '../runs/replay'
 import { ReplayRunDialog } from '../runs/ReplayRunDialog'
 import { RunActivityLog } from '../runs/RunActivityLog'
 import { RunStatusChip } from '../runs/RunStatusChip'
-import { isActiveStatus, STEP_LABELS, STEP_STATUS_LABELS, stepStatusColor, TRIGGER_LABELS } from '../runs/runStatus'
+import { RunUnitsSection } from '../runs/RunUnitsSection'
+import { isActiveStatus, TRIGGER_LABELS } from '../runs/runStatus'
+import { StepsTable } from '../runs/StepsTable'
 import { useNow } from '../runs/useNow'
 import { useRunDetail } from '../runs/useRunDetail'
 
@@ -36,80 +35,6 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
       {children}
     </Box>
   )
-}
-
-function CopyId({ label, value }: { label: string; value: string }) {
-  return (
-    <Box component="span" sx={{ mr: 2, whiteSpace: 'nowrap' }}>
-      {label}: <code>{value}</code>
-      <Tooltip title="Copy">
-        <IconButton
-          size="small"
-          aria-label={`Copy ${label}`}
-          onClick={() => void navigator.clipboard?.writeText(value)}
-        >
-          <ContentCopyIcon fontSize="inherit" />
-        </IconButton>
-      </Tooltip>
-    </Box>
-  )
-}
-
-const REPORT_COUNTERS: ReadonlyArray<readonly [keyof ImportReport, string]> = [
-  ['filesSeen', 'Files seen'],
-  ['itemsPersisted', 'Items persisted'],
-  ['skipped', 'Skipped'],
-  ['processorFailures', 'Processor failures'],
-  ['scheduledCreated', 'Scheduled created'],
-  ['upgradedToPlayed', 'Upgraded to played'],
-  ['rescheduled', 'Rescheduled'],
-  ['partialActas', 'Partial actas'],
-  ['invalidActas', 'Invalid actas'],
-  ['unresolvedPendingFixtures', 'Unresolved pending fixtures'],
-  ['amendedPlayed', 'Amended played'],
-]
-
-function ImportReportView({ report, active }: { report: ImportReport | null; active: boolean }) {
-  if (report === null) {
-    return <Typography color="text.secondary">{active ? 'No import report yet.' : 'No import report.'}</Typography>
-  }
-  return (
-    <Box component="dl" sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 1, m: 0 }}>
-      <Box>
-        <Typography component="dt" variant="caption" color="text.secondary">
-          Status
-        </Typography>
-        <Typography component="dd" sx={{ m: 0 }}>
-          {report.status}
-        </Typography>
-      </Box>
-      <Box>
-        <Typography component="dt" variant="caption" color="text.secondary">
-          Received
-        </Typography>
-        <Typography component="dd" sx={{ m: 0 }}>
-          {formatInstant(report.receivedAt)}
-        </Typography>
-      </Box>
-      {REPORT_COUNTERS.map(([field, label]) => (
-        <Box key={field}>
-          <Typography component="dt" variant="caption" color="text.secondary">
-            {label}
-          </Typography>
-          <Typography component="dd" sx={{ m: 0 }}>
-            {String(report[field])}
-          </Typography>
-        </Box>
-      ))}
-    </Box>
-  )
-}
-
-/** The source failures an ingest attempt reported; a dash when the ingest service did not report them. */
-function healthText(health: StepHealth | null): string {
-  return health === null
-    ? '—'
-    : `HTTP ${health.httpErrors} · timeouts ${health.timeouts} · parse ${health.parseErrors}`
 }
 
 /** Enabled only when the server says the run can be replayed; the reason for a refusal is a label of its code. */
@@ -161,16 +86,35 @@ function Header({ run, now, onReplay }: { run: RunDetail; now: number; onReplay:
       <Box sx={{ mt: 1 }}>
         {run.retryOfRunId !== null && (
           <Box component="span" sx={{ mr: 2 }}>
-            Replay of{' '}
+            {run.retryOfUnitId !== null ? 'Retry of a unit of' : 'Replay of'}{' '}
             <Link component={RouterLink} to={`/runs/${run.retryOfRunId}`}>
               {run.retryOfRunId}
             </Link>
           </Box>
         )}
-        {run.ingestRunId !== null && <CopyId label="Ingest run" value={run.ingestRunId} />}
-        {run.importJobId !== null && <CopyId label="Import job" value={run.importJobId} />}
+        {run.ingestRunId !== null && <CopyValue label="Ingest run" value={run.ingestRunId} />}
+        {run.importJobId !== null && <CopyValue label="Import job" value={run.importJobId} />}
       </Box>
     </>
+  )
+}
+
+/** The run detail payload as the API sent it, pretty-printed, with a copy button. */
+function RunJson({ run }: { run: RunDetail }) {
+  const text = JSON.stringify(run, null, 2)
+  return (
+    <Box sx={{ mt: 2 }}>
+      <Button variant="outlined" size="small" onClick={() => void navigator.clipboard?.writeText(text)}>
+        Copy JSON
+      </Button>
+      <Box
+        component="pre"
+        aria-label="Run JSON"
+        sx={{ mt: 1, p: 2, overflow: 'auto', maxHeight: '70vh', bgcolor: 'action.hover', borderRadius: 1, fontSize: 13 }}
+      >
+        {text}
+      </Box>
+    </Box>
   )
 }
 
@@ -181,6 +125,7 @@ export default function RunDetailPage() {
   const { run, loading, error, notFound, refetch } = useRunDetail(runId)
   const navigate = useNavigate()
   const [replayOpen, setReplayOpen] = useState(false)
+  const [tab, setTab] = useState<'overview' | 'json'>('overview')
   const active = run !== null && isActiveStatus(run.status)
   const now = useNow(1000, active)
 
@@ -254,58 +199,29 @@ export default function RunDetailPage() {
         />
       )}
 
+      <Tabs value={tab} onChange={(_event, value: 'overview' | 'json') => setTab(value)} sx={{ mt: 2 }} aria-label="Run views">
+        <Tab label="Overview" value="overview" />
+        <Tab label="JSON" value="json" />
+      </Tabs>
+
+      {tab === 'json' && <RunJson run={run} />}
+      {tab === 'overview' && (
+        <>
       <Section title="Scope">
         {scopeDetails(run).map((line) => (
           <Typography key={line}>{line}</Typography>
         ))}
       </Section>
 
+      <Section title="Units">
+        <RunUnitsSection run={run} now={now} />
+      </Section>
+
       <Section title="Steps">
         {run.steps.length === 0 ? (
           <Typography color="text.secondary">No steps yet.</Typography>
         ) : (
-          <TableContainer>
-            <Table size="small" aria-label="Steps">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Step</TableCell>
-                  <TableCell>Attempt</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Started</TableCell>
-                  <TableCell>Finished</TableCell>
-                  <TableCell>Duration</TableCell>
-                  <TableCell>Reference</TableCell>
-                  <TableCell>Outcome</TableCell>
-                  <TableCell>Source health</TableCell>
-                  <TableCell>Retryable</TableCell>
-                  <TableCell>Error</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {run.steps.map((step) => (
-                  <TableRow key={`${step.kind}-${step.attempt}`}>
-                    <TableCell>{STEP_LABELS[step.kind]}</TableCell>
-                    <TableCell>{step.attempt}</TableCell>
-                    <TableCell>
-                      <Chip size="small" color={stepStatusColor(step.status)} label={STEP_STATUS_LABELS[step.status]} />
-                    </TableCell>
-                    <TableCell>{formatInstant(step.startedAt)}</TableCell>
-                    <TableCell>{formatInstant(step.finishedAt)}</TableCell>
-                    <TableCell>
-                      {formatDuration(
-                        step.status === 'RUNNING' ? elapsedMs(step.startedAt, step.finishedAt, now) : step.durationMs,
-                      )}
-                    </TableCell>
-                    <TableCell>{step.externalRef ?? '—'}</TableCell>
-                    <TableCell>{step.outcome ?? '—'}</TableCell>
-                    <TableCell>{healthText(step.health)}</TableCell>
-                    <TableCell>{step.retryable === null ? '—' : step.retryable ? 'Yes' : 'No'}</TableCell>
-                    <TableCell>{step.error ? `${step.error.code}: ${step.error.message}` : '—'}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <StepsTable steps={run.steps} now={now} label="Steps" />
         )}
       </Section>
 
@@ -325,42 +241,7 @@ export default function RunDetailPage() {
         {run.artifacts.length === 0 ? (
           <Typography color="text.secondary">No artifacts</Typography>
         ) : (
-          <TableContainer>
-            <Table size="small" aria-label="Artifacts">
-              <TableHead>
-                <TableRow>
-                  <TableCell>Kind</TableCell>
-                  <TableCell>Size</TableCell>
-                  <TableCell>Created</TableCell>
-                  <TableCell>SHA-256</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {run.artifacts.map((artifact) => (
-                  <TableRow key={`${artifact.kind}-${artifact.sha256}`}>
-                    <TableCell>
-                      {artifact.kind}
-                      {artifact.purgedAt !== null && (
-                        <Chip size="small" variant="outlined" sx={{ ml: 1 }} label={`Purged ${formatInstant(artifact.purgedAt)}`} />
-                      )}
-                    </TableCell>
-                    <TableCell>{formatBytes(artifact.sizeBytes)}</TableCell>
-                    <TableCell>{formatInstant(artifact.createdAt)}</TableCell>
-                    <TableCell>
-                      <Tooltip title={artifact.sha256}>
-                        <Box
-                          component="code"
-                          sx={{ display: 'inline-block', maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'bottom' }}
-                        >
-                          {artifact.sha256}
-                        </Box>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+          <ArtifactsTable artifacts={run.artifacts} label="Artifacts" />
         )}
       </Section>
 
@@ -376,6 +257,8 @@ export default function RunDetailPage() {
       <Section title="Live activity">
         <RunActivityLog runId={run.id} />
       </Section>
+        </>
+      )}
     </>
   )
 }

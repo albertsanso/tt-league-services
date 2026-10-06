@@ -12,6 +12,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.statistics.ReportingProgress;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.RunOutcomeStats;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.SourceHealthStats;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.TimeToReportStats;
+import org.cttelsamicsterrassa.data.pipeline.core.statistics.UnitOutcomeStats;
 
 /**
  * Response shapes of the statistics API. Durations are whole seconds; days are local dates in the statistics
@@ -60,6 +61,29 @@ public final class StatisticsDtos {
                                     seconds(a.average())))
                             .toList());
         }
+    }
+
+    /** Terminal units by outcome per source and unit key; {@code avgSeconds} is null when no unit of the key ran. */
+    public record UnitOutcomesDto(String zone, List<UnitOutcomesRowDto> units) {
+
+        static UnitOutcomesDto of(String zone, UnitOutcomeStats stats) {
+            return new UnitOutcomesDto(zone, stats.units().stream()
+                    .map(u -> new UnitOutcomesRowDto(u.source().name(), u.unitKey(), u.label(), u.succeeded(),
+                            u.noChanges(), u.partial(), u.failed(), u.skipped(), seconds(u.averageDuration())))
+                    .toList());
+        }
+    }
+
+    public record UnitOutcomesRowDto(
+            String source,
+            String unitKey,
+            String label,
+            int succeeded,
+            int noChanges,
+            int partial,
+            int failed,
+            int skipped,
+            Long avgSeconds) {
     }
 
     public record DayOutcomesDto(

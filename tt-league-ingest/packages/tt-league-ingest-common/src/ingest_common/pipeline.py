@@ -6,6 +6,7 @@ from importlib.metadata import entry_points
 from pathlib import Path, PurePosixPath
 from typing import Protocol
 
+from ingest_common import progress
 from ingest_common.fingerprint import content_fingerprint, count_changes, file_digest, json_fingerprint
 from ingest_common.packaging import PackagingError, package_season
 from ingest_common.run import (FILTER_FIELDS, STAGE_ORDER, IngestFilters, IngestRequest, IngestStage, NoOpListener,
@@ -135,12 +136,14 @@ class IngestPipeline:
 
     def _execute(self, stage: IngestStage, ingestor: SourceIngestor, request: IngestRequest,
                  report: RunReport) -> StageReport:
-        if stage is IngestStage.DOWNLOAD:
-            return ingestor.download(request, self._settings, self._listener)
-        if stage is IngestStage.PARSE:
-            return ingestor.parse(request, self._settings, self._listener)
-        if stage is IngestStage.TEAMS:
-            return ingestor.teams(request, self._settings, self._listener)
+        # The legacy scripts report their work list and finished items through ``ingest_common.progress``.
+        with progress.bind(self._listener, stage):
+            if stage is IngestStage.DOWNLOAD:
+                return ingestor.download(request, self._settings, self._listener)
+            if stage is IngestStage.PARSE:
+                return ingestor.parse(request, self._settings, self._listener)
+            if stage is IngestStage.TEAMS:
+                return ingestor.teams(request, self._settings, self._listener)
         if stage is IngestStage.PACKAGE:
             return self._package(ingestor, request, report)
         return self._upload(request, report)

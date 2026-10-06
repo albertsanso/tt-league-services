@@ -7,6 +7,7 @@ import type {
   RunOutcomesResponse,
   SourceHealthResponse,
   TimeToReportResponse,
+  UnitOutcomesResponse,
 } from '../api/types'
 import { useApi } from '../api/useApi'
 
@@ -14,6 +15,8 @@ export interface StatisticsQuery {
   readonly sources: readonly PipelineSource[]
   /** Needed by the time-to-report panel; without it that panel is skipped and pending counts every season. */
   readonly season: string | null
+  /** Limits the run outcomes to the runs that had this unit; the unit outcomes always list every unit. */
+  readonly unitKey: string | null
   readonly from: string
   readonly to: string
 }
@@ -21,6 +24,7 @@ export interface StatisticsQuery {
 export interface StatisticsData {
   readonly daily: DailyStatsResponse
   readonly runs: RunOutcomesResponse
+  readonly units: UnitOutcomesResponse
   readonly timeToReport: TimeToReportResponse | null
   readonly pending: PendingResponse
   readonly corrections: CorrectionsResponse
@@ -61,7 +65,8 @@ export function useStatistics(query: StatisticsQuery | null): StatisticsResult {
     const requestKey = `${key}#${reloads}`
     Promise.all([
       api.statistics.getDailyStats(range, controller.signal),
-      api.statistics.getRunOutcomes(range, controller.signal),
+      api.statistics.getRunOutcomes({ ...range, unitKey: request.unitKey }, controller.signal),
+      api.statistics.getUnitOutcomes(range, controller.signal),
       request.season === null
         ? Promise.resolve(null)
         : api.statistics.getTimeToReport({ season: request.season, source: request.sources }, controller.signal),
@@ -72,9 +77,9 @@ export function useStatistics(query: StatisticsQuery | null): StatisticsResult {
       api.statistics.getCorrections(range, controller.signal),
       api.statistics.getSourceHealth(range, controller.signal),
     ])
-      .then(([daily, runs, timeToReport, pending, corrections, sourceHealth]) => {
+      .then(([daily, runs, units, timeToReport, pending, corrections, sourceHealth]) => {
         if (!controller.signal.aborted) {
-          setSettled({ key: requestKey, data: { daily, runs, timeToReport, pending, corrections, sourceHealth }, error: null })
+          setSettled({ key: requestKey, data: { daily, runs, units, timeToReport, pending, corrections, sourceHealth }, error: null })
         }
       })
       .catch((failure: unknown) => {

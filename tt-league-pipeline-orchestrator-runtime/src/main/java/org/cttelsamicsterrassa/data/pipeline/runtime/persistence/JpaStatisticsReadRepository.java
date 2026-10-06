@@ -5,6 +5,7 @@ import jakarta.persistence.PersistenceContext;
 import jakarta.persistence.Query;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.cttelsamicsterrassa.data.pipeline.core.run.IngestHealth;
@@ -12,10 +13,12 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.CorrectionFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.MatchFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.RunFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.StepFacts;
+import org.cttelsamicsterrassa.data.pipeline.core.statistics.UnitFacts;
 import org.cttelsamicsterrassa.data.pipeline.core.statistics.port.StatisticsReadRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayState;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.TrackedMatchStatus;
@@ -57,9 +60,10 @@ class JpaStatisticsReadRepository implements StatisticsReadRepository {
 
     @Override
     public List<StepFacts> stepsFinishedBetween(Instant from, Instant to, Set<PipelineSource> sources) {
-        String jpql = "select s.runId, r.source, s.kind, s.status, s.outcome, s.startedAt, s.finishedAt, "
-                + "s.httpErrors, s.timeouts, s.parseErrors from PipelineStepEntity s, PipelineRunEntity r "
-                + "where s.runId = r.id and s.finishedAt >= :from and s.finishedAt < :to "
+        String jpql = "select s.runId, u.unitKey, r.source, s.kind, s.status, s.outcome, s.startedAt, "
+                + "s.finishedAt, s.httpErrors, s.timeouts, s.parseErrors "
+                + "from PipelineStepEntity s, PipelineRunEntity r, RunUnitEntity u "
+                + "where s.runId = r.id and s.unitId = u.id and s.finishedAt >= :from and s.finishedAt < :to "
                 + "and s.status in :finished" + sourceFilter("r", sources);
         Query query = entityManager.createQuery(jpql)
                 .setParameter("from", from)
@@ -67,9 +71,29 @@ class JpaStatisticsReadRepository implements StatisticsReadRepository {
                 .setParameter("finished", List.of(StepStatus.SUCCEEDED, StepStatus.FAILED));
         bindSources(query, sources);
         return rows(query).stream()
-                .map(row -> new StepFacts((UUID) row[0], (PipelineSource) row[1], (StepKind) row[2],
-                        (StepStatus) row[3], (String) row[4], (Instant) row[5], (Instant) row[6],
-                        row[7] == null ? null : new IngestHealth((Long) row[7], (Long) row[8], (Long) row[9])))
+                .map(row -> new StepFacts((UUID) row[0], (String) row[1], (PipelineSource) row[2],
+                        (StepKind) row[3], (StepStatus) row[4], (String) row[5], (Instant) row[6], (Instant) row[7],
+                        row[8] == null ? null : new IngestHealth((Long) row[8], (Long) row[9], (Long) row[10])))
+                .toList();
+    }
+
+    @Override
+    public List<UnitFacts> unitsFinishedBetween(
+            Instant from, Instant to, Set<PipelineSource> sources, Optional<String> unitKey) {
+        String jpql = "select u.runId, r.source, u.unitKey, u.label, u.status, u.startedAt, u.finishedAt "
+                + "from RunUnitEntity u, PipelineRunEntity r "
+                + "where u.runId = r.id and u.finishedAt >= :from and u.finishedAt < :to and u.status in :terminal"
+                + (unitKey.isPresent() ? " and u.unitKey = :unitKey" : "") + sourceFilter("r", sources);
+        Query query = entityManager.createQuery(jpql)
+                .setParameter("from", from)
+                .setParameter("to", to)
+                .setParameter("terminal", List.of(UnitStatus.NO_CHANGES, UnitStatus.SUCCEEDED, UnitStatus.PARTIAL,
+                        UnitStatus.FAILED, UnitStatus.SKIPPED));
+        unitKey.ifPresent(key -> query.setParameter("unitKey", key));
+        bindSources(query, sources);
+        return rows(query).stream()
+                .map(row -> new UnitFacts((UUID) row[0], (PipelineSource) row[1], (String) row[2], (String) row[3],
+                        (UnitStatus) row[4], (Instant) row[5], (Instant) row[6]))
                 .toList();
     }
 

@@ -17,6 +17,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.FakeRunClock
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryAlertRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryMatchDayRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryPipelineRunRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryRunUnitRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.RecordingNotifier;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
@@ -55,7 +56,7 @@ class AlertDispatcherTest {
     }
 
     private AlertEvaluator evaluator() {
-        return new AlertEvaluator(alerts, matchDays, runs, notifier, clock, settings);
+        return new AlertEvaluator(alerts, matchDays, runs, new InMemoryRunUnitRepository(runs), notifier, clock, settings);
     }
 
     private void failTwice() {
@@ -95,7 +96,7 @@ class AlertDispatcherTest {
                 return super.findByState(state);
             }
         };
-        AlertEvaluator evaluator = new AlertEvaluator(alerts, blocking, runs, notifier, clock, settings);
+        AlertEvaluator evaluator = new AlertEvaluator(alerts, blocking, runs, new InMemoryRunUnitRepository(runs), notifier, clock, settings);
         started(evaluator, notifier).request();
         assertThat(blocked.await(5, TimeUnit.SECONDS)).isTrue();
 
@@ -136,7 +137,8 @@ class AlertDispatcherTest {
                 return super.find(query);
             }
         };
-        AlertEvaluator evaluator = new AlertEvaluator(alerts, matchDays, failingOnce, notifier, clock, settings);
+        AlertEvaluator evaluator = new AlertEvaluator(alerts, matchDays, failingOnce, new InMemoryRunUnitRepository(failingOnce), notifier, clock,
+                settings);
         started(evaluator, notifier).request();
         dispatcher.awaitIdle();
 

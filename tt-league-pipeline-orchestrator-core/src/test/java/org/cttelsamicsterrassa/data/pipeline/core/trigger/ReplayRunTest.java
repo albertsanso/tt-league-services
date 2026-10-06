@@ -43,7 +43,7 @@ class ReplayRunTest {
 
     private void storeZip(PipelineRun run) {
         var stored = store.store(KEY, new ByteArrayInputStream(ZIP));
-        artifactRows.add(new RunArtifact(UUID.randomUUID(), run.id(), ArtifactKind.ZIP, KEY, stored.sha256(),
+        artifactRows.add(new RunArtifact(UUID.randomUUID(), run.id(), UUID.randomUUID(), ArtifactKind.ZIP, KEY, stored.sha256(),
                 stored.sizeBytes(), clock.now()));
     }
 

@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.pipeline.core.alert;
 
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDay;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayKey;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchTracking;
@@ -9,8 +10,8 @@ import java.time.Instant;
 import java.util.List;
 
 /**
- * Titles and details of the alerts. Plain text only: no URL, key or token, and a run failure is described by its
- * {@code RunError.code}, never its message.
+ * Titles and details of the alerts. Plain text only: no URL, key or token, and a run or unit failure is described by
+ * its {@code RunError.code}, never its message.
  */
 final class AlertTexts {
 
@@ -53,6 +54,21 @@ final class AlertTexts {
                     .append(" (").append(run.trigger()).append(", season ").append(run.season()).append(")")
                     .append("\n  Finished at: ").append(run.finishedAt())
                     .append("\n  Error code: ").append(run.error().code());
+        }
+        return detail.toString();
+    }
+
+    static String unitFailuresTitle(PipelineSource source, RunUnit unit) {
+        return title(source + ": unit " + unit.label() + " failed twice in a row");
+    }
+
+    static String unitFailuresDetail(PipelineSource source, List<RunUnit> units) {
+        StringBuilder detail = new StringBuilder("The two newest finished occurrences of unit "
+                + units.get(0).label() + " of " + source + " failed.\n");
+        for (RunUnit unit : units) {
+            detail.append("\nRun ").append(unit.runId())
+                    .append("\n  Finished at: ").append(unit.finishedAt())
+                    .append("\n  Error code: ").append(unit.error().code());
         }
         return detail.toString();
     }

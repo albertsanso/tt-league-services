@@ -21,6 +21,7 @@ import {
 import type { StatisticsFilters } from '../statistics/statisticsFilters'
 import { StatisticsFilterBar } from '../statistics/StatisticsFilterBar'
 import { TimeToReportPanel } from '../statistics/TimeToReportPanel'
+import { UnitOutcomesPanel } from '../statistics/UnitOutcomesPanel'
 import { useStatistics } from '../statistics/useStatistics'
 import type { StatisticsData } from '../statistics/useStatistics'
 
@@ -28,6 +29,7 @@ function hasAnyData(data: StatisticsData): boolean {
   return (
     data.daily.rows.length > 0 ||
     data.runs.days.length > 0 ||
+    data.units.units.length > 0 ||
     data.corrections.days.length > 0 ||
     data.sourceHealth.days.length > 0 ||
     (data.timeToReport?.rows.length ?? 0) > 0 ||
@@ -66,18 +68,24 @@ export default function StatisticsPage() {
     () =>
       invalidRange || seasonPending
         ? null
-        : { sources: filters.sources, season, from: filters.fromDate, to: filters.toDate },
-    [invalidRange, seasonPending, filters.sources, season, filters.fromDate, filters.toDate],
+        : {
+            sources: filters.sources,
+            season,
+            unitKey: filters.unitKey,
+            from: filters.fromDate,
+            to: filters.toDate,
+          },
+    [invalidRange, seasonPending, filters.sources, season, filters.unitKey, filters.fromDate, filters.toDate],
   )
   const { data, loading, error, reload } = useStatistics(query)
 
   const write = (next: Omit<StatisticsFilters, 'errors'>, replace: boolean) =>
     setSearchParams(serializeStatisticsFilters(next), { replace })
   const change = (
-    patch: Partial<Pick<StatisticsFilters, 'sources' | 'season' | 'fromDate' | 'toDate'>>,
+    patch: Partial<Pick<StatisticsFilters, 'sources' | 'season' | 'unitKey' | 'fromDate' | 'toDate'>>,
     replace: boolean,
   ) => write({ ...filters, ...patch }, replace)
-  const reset = () => write({ sources: [], season: null, ...defaultRange(new Date()) }, false)
+  const reset = () => write({ sources: [], season: null, unitKey: null, ...defaultRange(new Date()) }, false)
 
   return (
     <>
@@ -95,6 +103,7 @@ export default function StatisticsPage() {
         filters={filters}
         season={season}
         seasons={facets?.seasons ?? []}
+        units={data?.units.units ?? []}
         onChange={change}
         onReset={reset}
         onRefresh={reload}
@@ -135,6 +144,7 @@ export default function StatisticsPage() {
         >
           <DailyOverviewPanel data={data.daily} />
           <RunOutcomesPanel data={data.runs} />
+          <UnitOutcomesPanel data={data.units} />
           <TimeToReportPanel data={data.timeToReport} season={season} />
           <PendingByAgePanel data={data.pending} />
           <CorrectionsPanel data={data.corrections} />

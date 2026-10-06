@@ -59,7 +59,7 @@ const representative = [
     steps: [{ kind: 'IMPORT', status: 'FAILED', attempt: 2 }],
   }),
   makeRun('active', {
-    status: 'RUNNING_INGEST',
+    status: 'RUNNING',
     finishedAt: null,
     durationMs: null,
     steps: [{ kind: 'INGEST', status: 'RUNNING', attempt: 1 }],
@@ -87,7 +87,7 @@ describe('RunsPage', () => {
     expect(within(rows[2]).getByText('IMPORT_FAILED')).toBeInTheDocument()
     expect(within(rows[2]).getByLabelText('Import: failed, attempt 2')).toBeInTheDocument()
 
-    expect(within(rows[3]).getByText('Running ingest')).toBeInTheDocument()
+    expect(within(rows[3]).getByText('Running')).toBeInTheDocument()
     expect(within(rows[3]).getByLabelText('Ingest: running, attempt 1')).toBeInTheDocument()
   })
 
@@ -143,14 +143,14 @@ describe('RunsPage', () => {
     })
     await screen.findByRole('table', { name: 'Runs' })
 
-    await bus.emit({ type: 'run', payload: makeRun('a', { status: 'RUNNING_INGEST', finishedAt: null }) })
+    await bus.emit({ type: 'run', payload: makeRun('a', { status: 'RUNNING', finishedAt: null }) })
     await bus.emit({ type: 'step', payload: makeStep('a', { kind: 'INGEST', status: 'RUNNING' }) })
 
     const row = within(screen.getByRole('table', { name: 'Runs' })).getAllByRole('row')[1]
-    expect(within(row).getByText('Running ingest')).toBeInTheDocument()
+    expect(within(row).getByText('Running')).toBeInTheDocument()
     expect(within(row).getByLabelText('Ingest: running, attempt 1')).toBeInTheDocument()
     const log = screen.getByRole('log')
-    expect(within(log).getByText(/Run running ingest/)).toBeInTheDocument()
+    expect(within(log).getByText(/Run running/)).toBeInTheDocument()
     expect(within(log).getByText(/Ingest started/)).toBeInTheDocument()
   })
 
@@ -159,7 +159,7 @@ describe('RunsPage', () => {
     setup({
       listRuns: vi
         .fn()
-        .mockResolvedValue(makePage([makeRun('a', { status: 'RUNNING_INGEST', startedAt: started, finishedAt: null, durationMs: null })])),
+        .mockResolvedValue(makePage([makeRun('a', { status: 'RUNNING', startedAt: started, finishedAt: null, durationMs: null })])),
     })
     await screen.findByRole('table', { name: 'Runs' })
     const before = within(screen.getByRole('table', { name: 'Runs' })).getAllByRole('row')[1].textContent

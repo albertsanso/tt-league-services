@@ -16,10 +16,10 @@ public class InMemoryPipelineStepRepository implements PipelineStepRepository {
     @Override
     public synchronized PipelineStep save(PipelineStep step) {
         for (PipelineStep other : steps.values()) {
-            if (!other.id().equals(step.id()) && other.runId().equals(step.runId()) && other.kind() == step.kind()
+            if (!other.id().equals(step.id()) && other.unitId().equals(step.unitId()) && other.kind() == step.kind()
                     && other.attempt() == step.attempt()) {
                 throw new IllegalArgumentException(
-                        "Duplicate step " + step.kind() + "/" + step.attempt() + " for run " + step.runId());
+                        "Duplicate step " + step.kind() + "/" + step.attempt() + " for unit " + step.unitId());
             }
         }
         steps.put(step.id(), step);

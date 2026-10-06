@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.pipeline.core.execution.port;
 
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
 import java.util.List;
 import java.util.Objects;
 
@@ -32,6 +33,17 @@ public final class CompositeRunObserver implements RunObserver {
                 observer.runChanged(run);
             } catch (RuntimeException e) {
                 warn(run.id().toString(), observer, e);
+            }
+        }
+    }
+
+    @Override
+    public void unitChanged(RunUnit unit) {
+        for (RunObserver observer : observers) {
+            try {
+                observer.unitChanged(unit);
+            } catch (RuntimeException e) {
+                warn(unit.runId().toString(), observer, e);
             }
         }
     }

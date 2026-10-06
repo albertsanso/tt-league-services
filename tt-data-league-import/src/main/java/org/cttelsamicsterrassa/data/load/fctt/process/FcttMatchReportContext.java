@@ -42,7 +42,7 @@ public record FcttMatchReportContext(
                 new ImportRunContext(org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.FCTT, season));
     }
 
-    private static final Pattern GROUP_NUMBER_PATTERN = Pattern.compile("G?(\\d+)");
+    private static final Pattern GROUP_NUMBER_PATTERN = Pattern.compile("(?i)G?(\\d+)");
 
     public FcttMatchReportContext {
         Objects.requireNonNull(season, "season");

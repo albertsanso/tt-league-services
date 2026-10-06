@@ -16,10 +16,15 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.LongFunction;
+import java.util.function.Supplier;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
+import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunUnitRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.PendingTrigger;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.port.PendingTriggerEvents;
 import org.cttelsamicsterrassa.data.pipeline.runtime.api.RunDtoMapper;
@@ -30,7 +35,9 @@ import org.springframework.http.MediaType;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * Publishes run, step, pending-trigger and match-day changes to the Server-Sent Events subscribers. Callers (executor threads)
+ * Publishes run, unit, step, pending-trigger and match-day changes to the Server-Sent Events subscribers. A {@code run}
+ * event carries the run with the summary of its units, a {@code unit} event one unit with its progress (the same
+ * bounded queue and drop rule apply, so progress never blocks a run). Callers (executor threads)
  * only build the payload and enqueue it: sending happens on a private single-thread pool with a bounded queue, so a
  * slow client never blocks a run. When the queue is full the event is dropped and the drop is logged at most once a
  * minute. The pools are owned here and are deliberately not {@code Executor} beans.
@@ -51,6 +58,9 @@ public final class RunEventBroadcaster implements RunObserver, PendingTriggerEve
     }
 
     private final RunDtoMapper mapper;
+    private final LongFunction<SseEmitter> emitterFactory;
+    private final RunUnitRepository units;
+    private final ImportReportRepository reports;
     private final ObjectMapper json;
     private final PipelineOrchestratorProperties.Events settings;
     private final Set<SseEmitter> emitters = new CopyOnWriteArraySet<>();
@@ -59,15 +69,24 @@ public final class RunEventBroadcaster implements RunObserver, PendingTriggerEve
     private final AtomicLong dropped = new AtomicLong();
     private long lastDropLogNanos = System.nanoTime() - DROP_LOG_INTERVAL_NANOS;
 
-    public RunEventBroadcaster(
-            RunDtoMapper mapper, ObjectMapper json, PipelineOrchestratorProperties.Events settings) {
-        this(mapper, json, settings, QUEUE_CAPACITY);
+    public RunEventBroadcaster(RunDtoMapper mapper, RunUnitRepository units, ImportReportRepository reports, ObjectMapper json,
+            PipelineOrchestratorProperties.Events settings) {
+        this(mapper, units, reports, json, settings, QUEUE_CAPACITY);
     }
 
-    RunEventBroadcaster(
-            RunDtoMapper mapper, ObjectMapper json, PipelineOrchestratorProperties.Events settings,
-            int queueCapacity) {
+    RunEventBroadcaster(RunDtoMapper mapper, RunUnitRepository units, ImportReportRepository reports, ObjectMapper json,
+            PipelineOrchestratorProperties.Events settings, int queueCapacity) {
+        this(mapper, units, reports, json, settings, queueCapacity, SseEmitter::new);
+    }
+
+    /** The emitter factory lets a test capture what is sent to a subscriber. */
+    RunEventBroadcaster(RunDtoMapper mapper, RunUnitRepository units, ImportReportRepository reports, ObjectMapper json,
+            PipelineOrchestratorProperties.Events settings, int queueCapacity,
+            LongFunction<SseEmitter> emitterFactory) {
+        this.emitterFactory = emitterFactory;
         this.mapper = mapper;
+        this.units = units;
+        this.reports = reports;
         this.json = json;
         this.settings = settings;
         ThreadFactory sendThreads = daemon("run-events-sender");
@@ -94,7 +113,7 @@ public final class RunEventBroadcaster implements RunObserver, PendingTriggerEve
         if (emitters.size() >= settings.maxSubscribers()) {
             throw new TooManySubscribersException(settings.maxSubscribers());
         }
-        SseEmitter emitter = new SseEmitter(settings.emitterTimeout().toMillis());
+        SseEmitter emitter = emitterFactory.apply(settings.emitterTimeout().toMillis());
         emitter.onCompletion(() -> emitters.remove(emitter));
         emitter.onTimeout(() -> {
             emitters.remove(emitter);
@@ -122,32 +141,40 @@ public final class RunEventBroadcaster implements RunObserver, PendingTriggerEve
 
     @Override
     public void runChanged(PipelineRun run) {
-        publish("run", mapper.summary(run, null));
+        // the units are read only when somebody listens
+        publish("run", () -> mapper.summary(run, null, units.findByRunId(run.id())));
+    }
+
+    @Override
+    public void unitChanged(RunUnit unit) {
+        // a unit that ended its import carries the counters of its platform job, so a listener needs no extra request
+        publish("unit", () -> mapper.unit(unit, unit.status().isTerminal()
+                ? reports.findByUnitId(unit.id()).orElse(null) : null));
     }
 
     @Override
     public void stepChanged(PipelineStep step) {
-        publish("step", mapper.step(step));
+        publish("step", () -> mapper.step(step));
     }
 
     @Override
     public void queued(PendingTrigger trigger) {
-        publish("pending-trigger", pending(trigger, "QUEUED", null, null));
+        publish("pending-trigger", () -> pending(trigger, "QUEUED", null, null));
     }
 
     @Override
     public void launched(PendingTrigger trigger, PipelineRun run) {
-        publish("pending-trigger", pending(trigger, "LAUNCHED", run.id().toString(), null));
+        publish("pending-trigger", () -> pending(trigger, "LAUNCHED", run.id().toString(), null));
     }
 
     @Override
     public void dropped(PendingTrigger trigger, String code) {
-        publish("pending-trigger", pending(trigger, "DROPPED", null, code));
+        publish("pending-trigger", () -> pending(trigger, "DROPPED", null, code));
     }
 
     @Override
     public void matchDaysChanged(PipelineSource source, String season, UUID matchDayId, Cause cause) {
-        publish("match-days", matchDaysPayload(source, season, matchDayId, cause));
+        publish("match-days", () -> matchDaysPayload(source, season, matchDayId, cause));
     }
 
     static Map<String, Object> matchDaysPayload(
@@ -174,13 +201,13 @@ public final class RunEventBroadcaster implements RunObserver, PendingTriggerEve
         return payload;
     }
 
-    private void publish(String name, Object payload) {
+    private void publish(String name, Supplier<Object> payload) {
         if (emitters.isEmpty()) {
             return;
         }
         String data;
         try {
-            data = json.writeValueAsString(payload);
+            data = json.writeValueAsString(payload.get());
         } catch (JsonProcessingException e) {
             LOG.warn("event {} not published: cannot serialize payload ({})", name, e.getClass().getSimpleName());
             return;

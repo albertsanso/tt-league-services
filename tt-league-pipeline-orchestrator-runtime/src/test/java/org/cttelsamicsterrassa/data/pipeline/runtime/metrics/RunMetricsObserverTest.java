@@ -8,6 +8,7 @@ import io.micrometer.core.instrument.Timer;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryPipelineRunRepository;
@@ -16,8 +17,12 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
+import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitKey;
 import org.junit.jupiter.api.Test;
 
 class RunMetricsObserverTest {
@@ -45,19 +50,17 @@ class RunMetricsObserverTest {
     }
 
     private static PipelineStep step(PipelineRun run, StepKind kind, int attempt) {
-        return PipelineStep.start(UUID.randomUUID(), run.id(), kind, attempt, T0, null);
+        return PipelineStep.start(UUID.randomUUID(), run.id(), UUID.randomUUID(), kind, attempt, T0, null);
     }
 
     @Test
     void countsEachTerminalStatusOnceWithItsDuration() {
         PipelineRun noChanges = queued(PipelineSource.RFETM, RunTrigger.SCHEDULED)
-                .startIngest("i1", T0).noChanges(T0.plusSeconds(20));
+                .start(T0).finish(RunStatus.NO_CHANGES, null, T0.plusSeconds(20));
         PipelineRun succeeded = queued(PipelineSource.BCNESA, RunTrigger.MANUAL)
-                .startIngest("i2", T0).packed(T0.plusSeconds(5)).startImport(UUID.randomUUID(), T0.plusSeconds(6))
-                .succeed(T0.plusSeconds(120));
+                .start(T0).finish(RunStatus.SUCCEEDED, null, T0.plusSeconds(120));
         PipelineRun partial = queued(PipelineSource.FCTT, RunTrigger.RETRY)
-                .startIngest("i3", T0).packed(T0.plusSeconds(5)).startImport(UUID.randomUUID(), T0.plusSeconds(6))
-                .partial(T0.plusSeconds(60));
+                .start(T0).finish(RunStatus.PARTIAL, null, T0.plusSeconds(60));
 
         observer.runChanged(noChanges);
         observer.runChanged(succeeded);
@@ -74,7 +77,7 @@ class RunMetricsObserverTest {
 
     @Test
     void aFailedRunCarriesItsErrorCode() {
-        PipelineRun failed = queued(PipelineSource.RFETM, RunTrigger.MANUAL).startIngest("i1", T0)
+        PipelineRun failed = queued(PipelineSource.RFETM, RunTrigger.MANUAL).start(T0)
                 .fail(new RunError("INGEST_TIMEOUT", "took too long"), T0.plusSeconds(30));
 
         observer.runChanged(failed);
@@ -100,9 +103,62 @@ class RunMetricsObserverTest {
         PipelineRun run = queued(PipelineSource.RFETM, RunTrigger.MANUAL);
 
         observer.runChanged(run);
-        observer.runChanged(run.startIngest("i1", T0));
+        observer.runChanged(run.start(T0));
         observer.stepChanged(step(run, StepKind.INGEST, 1));
 
+        assertThat(registry.getMeters()).isEmpty();
+    }
+
+    private static RunUnit unit(PipelineRun run, String group) {
+        ScopeFilter filter = new ScopeFilter("SENIOR", group, null, null, null, List.of(1));
+        return RunUnit.plan(UUID.randomUUID(), run.id(), 0, UnitKey.of(filter), "SENIOR " + group,
+                new RunScope(List.of(filter)));
+    }
+
+    private double unitsFinished(String source, String status) {
+        var counter = registry.find("pipeline.unit.finished").tags("source", source, "status", status).counter();
+        return counter == null ? 0 : counter.count();
+    }
+
+    @Test
+    void countsEachFinishedUnitOnceBySourceAndStatusOnly() {
+        PipelineRun run = queued(PipelineSource.BCNESA, RunTrigger.MANUAL);
+        RunUnit succeeded = unit(run, "G1").startIngest("i", T0).packed(T0).startImport(UUID.randomUUID(), T0)
+                .succeed(T0.plusSeconds(5));
+        RunUnit failed = unit(run, "G2").startIngest("i", T0).fail(new RunError("INGEST_FAILED", "boom"),
+                T0.plusSeconds(6));
+        RunUnit skipped = unit(run, "G3").skip(new RunError("UNIT_SKIPPED", "skipped"), T0.plusSeconds(7));
+
+        for (RunUnit unit : new RunUnit[] {succeeded, failed, skipped}) {
+            observer.unitChanged(unit);
+        }
+
+        assertThat(unitsFinished("BCNESA", "SUCCEEDED")).isEqualTo(1);
+        assertThat(unitsFinished("BCNESA", "FAILED")).isEqualTo(1);
+        assertThat(unitsFinished("BCNESA", "SKIPPED")).isEqualTo(1);
+        registry.getMeters().forEach(meter -> meter.getId().getTags().forEach(tag -> {
+            assertThat(tag.getKey()).isIn("source", "status");
+            assertThat(tag.getValue()).doesNotContain(succeeded.unitKey()).doesNotContain(failed.unitKey());
+        }));
+    }
+
+    @Test
+    void unitsThatAreStillActiveRecordNothing() {
+        PipelineRun run = queued(PipelineSource.BCNESA, RunTrigger.MANUAL);
+        RunUnit pending = unit(run, "G1");
+
+        observer.unitChanged(pending);
+        observer.unitChanged(pending.startIngest("i", T0));
+
+        assertThat(registry.getMeters()).isEmpty();
+    }
+
+    @Test
+    void aFinishedUnitOfAMissingRunFailsAndRecordsNothing() {
+        RunUnit orphan = RunUnit.plan(UUID.randomUUID(), UUID.randomUUID(), 0, UnitKey.SEASON, "Full season",
+                RunScope.fullSeason()).startIngest("i", T0).noChanges(T0.plusSeconds(1));
+
+        assertThatThrownBy(() -> observer.unitChanged(orphan)).isInstanceOf(IllegalStateException.class);
         assertThat(registry.getMeters()).isEmpty();
     }
 
@@ -127,7 +183,7 @@ class RunMetricsObserverTest {
 
     @Test
     void noMeterTagCarriesARunIdOrFreeText() {
-        PipelineRun run = queued(PipelineSource.RFETM, RunTrigger.MANUAL).startIngest("ing-1", T0)
+        PipelineRun run = queued(PipelineSource.RFETM, RunTrigger.MANUAL).start(T0)
                 .fail(new RunError("IMPORT_FAILED", "secret message"), T0.plusSeconds(5));
         observer.runChanged(run);
         observer.stepChanged(step(run, StepKind.INGEST, 1).succeed(T0.plusSeconds(5), "OK"));
@@ -139,8 +195,8 @@ class RunMetricsObserverTest {
 
     @Test
     void aStepOfAMissingRunFailsAndRecordsNothing() {
-        PipelineStep orphan = PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), StepKind.INGEST, 1, T0, null)
-                .succeed(T0.plusSeconds(1), "OK");
+        PipelineStep orphan = PipelineStep.start(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(),
+                StepKind.INGEST, 1, T0, null).succeed(T0.plusSeconds(1), "OK");
 
         assertThatThrownBy(() -> observer.stepChanged(orphan)).isInstanceOf(IllegalStateException.class);
         assertThat(registry.getMeters()).isEmpty();
@@ -148,8 +204,8 @@ class RunMetricsObserverTest {
 
     @Test
     void durationTimersPublishTheFixedBuckets() {
-        PipelineRun run = queued(PipelineSource.RFETM, RunTrigger.MANUAL).startIngest("i", T0)
-                .noChanges(T0.plus(Duration.ofMinutes(2)));
+        PipelineRun run = queued(PipelineSource.RFETM, RunTrigger.MANUAL).start(T0)
+                .finish(RunStatus.NO_CHANGES, null, T0.plus(Duration.ofMinutes(2)));
 
         observer.runChanged(run);
 

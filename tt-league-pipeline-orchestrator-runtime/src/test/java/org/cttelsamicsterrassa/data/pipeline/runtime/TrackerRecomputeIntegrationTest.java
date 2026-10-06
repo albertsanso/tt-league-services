@@ -14,6 +14,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.RecordingDis
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.runtime.gateway.StubHttpServer;
@@ -112,7 +113,8 @@ class TrackerRecomputeIntegrationTest {
     @BeforeEach
     void clean() {
         jdbc.execute("TRUNCATE pipeline.match_day, pipeline.pending_trigger, pipeline.import_report, "
-                + "pipeline.run_artifact, pipeline.pipeline_step, pipeline.pipeline_run CASCADE");
+                + "pipeline.run_artifact, pipeline.pipeline_step, pipeline.pipeline_unit, pipeline.pipeline_run "
+                + "CASCADE");
         platform.requests.clear();
     }
 
@@ -120,10 +122,8 @@ class TrackerRecomputeIntegrationTest {
         Instant t0 = Instant.parse("2026-10-04T10:00:00Z");
         PipelineRun run = runs.create(PipelineRun.queue(UUID.randomUUID(), PipelineSource.FCTT, "2026-2027",
                 RunScope.fullSeason(), false, RunTrigger.MANUAL, "alice", null, t0));
-        run = runs.update(run.startIngest("ingest-1", t0.plusSeconds(1)));
-        run = runs.update(run.packed(t0.plusSeconds(2)));
-        run = runs.update(run.startImport(UUID.randomUUID(), t0.plusSeconds(3)));
-        return runs.update(run.succeed(t0.plusSeconds(60)));
+        run = runs.update(run.start(t0.plusSeconds(1)));
+        return runs.update(run.finish(RunStatus.SUCCEEDED, null, t0.plusSeconds(60)));
     }
 
     private static void await(BooleanSupplier condition) throws InterruptedException {

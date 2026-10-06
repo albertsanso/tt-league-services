@@ -240,7 +240,7 @@ class PollingPolicyTest {
         assertThat(policy.applyOutcome(state, RunStatus.SUCCEEDED).consecutiveNoChange()).isZero();
         assertThat(policy.applyOutcome(state, RunStatus.PARTIAL).consecutiveNoChange()).isZero();
         assertThat(policy.applyOutcome(state, RunStatus.FAILED).consecutiveNoChange()).isEqualTo(2);
-        assertThatThrownBy(() -> policy.applyOutcome(state, RunStatus.IMPORTING))
+        assertThatThrownBy(() -> policy.applyOutcome(state, RunStatus.RUNNING))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

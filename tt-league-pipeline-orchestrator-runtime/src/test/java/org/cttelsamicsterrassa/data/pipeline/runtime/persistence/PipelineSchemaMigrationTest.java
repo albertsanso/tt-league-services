@@ -62,10 +62,14 @@ class PipelineSchemaMigrationTest extends AbstractPersistenceTest {
     @Test
     void databaseRejectsBadSha256() {
         UUID runId = insertRun("RFETM", "2025-2026", "MANUAL", "NO_CHANGES", null);
+        UUID unitId = UUID.randomUUID();
+        template.update("INSERT INTO pipeline.pipeline_unit (id, run_id, ordinal, unit_key, label, scope, status, "
+                + "started_at, finished_at) VALUES (?, ?, 0, 'season', 'Full season', '{\"scopes\":[]}'::jsonb, "
+                + "'NO_CHANGES', now(), now())", unitId, runId);
         assertThatThrownBy(() -> template.update(
-                "INSERT INTO pipeline.run_artifact (id, run_id, kind, storage_key, sha256, size_bytes, created_at) "
-                        + "VALUES (?, ?, 'ZIP', 'k.zip', ?, 1, now())",
-                UUID.randomUUID(), runId, "NOT-A-HASH".repeat(7).substring(0, 64)))
+                "INSERT INTO pipeline.run_artifact (id, run_id, unit_id, kind, storage_key, sha256, size_bytes, "
+                        + "created_at) VALUES (?, ?, ?, 'ZIP', 'k.zip', ?, 1, now())",
+                UUID.randomUUID(), runId, unitId, "NOT-A-HASH".repeat(7).substring(0, 64)))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 

@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.pipeline.runtime.persistence;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ImportReport;
@@ -21,10 +22,11 @@ class JpaImportReportRepository implements ImportReportRepository {
 
     @Override
     public ImportReport add(ImportReport report) {
-        if (reports.existsById(report.runId())) {
-            throw new IllegalStateException("Run " + report.runId() + " already has an import report");
+        if (reports.existsById(report.unitId())) {
+            throw new IllegalStateException("Unit " + report.unitId() + " already has an import report");
         }
-        ImportReportEntity entity = new ImportReportEntity(report.runId());
+        ImportReportEntity entity = new ImportReportEntity(report.unitId());
+        entity.runId = report.runId();
         entity.importJobId = report.importJobId();
         entity.importStatus = report.importStatus();
         entity.filesSeen = report.filesSeen();
@@ -46,13 +48,19 @@ class JpaImportReportRepository implements ImportReportRepository {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<ImportReport> findByRunId(UUID runId) {
-        return reports.findById(runId).map(this::toDomain);
+    public Optional<ImportReport> findByUnitId(UUID unitId) {
+        return reports.findById(unitId).map(this::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<ImportReport> findByRunId(UUID runId) {
+        return reports.findByRunIdOrderByReceivedAtAsc(runId).stream().map(this::toDomain).toList();
     }
 
     private ImportReport toDomain(ImportReportEntity e) {
         return new ImportReport(
-                e.runId, e.importJobId, e.importStatus, e.filesSeen, e.itemsPersisted, e.skipped,
+                e.runId, e.unitId, e.importJobId, e.importStatus, e.filesSeen, e.itemsPersisted, e.skipped,
                 e.processorFailures, e.scheduledCreated, e.upgradedToPlayed, e.rescheduled, e.partialActas,
                 e.invalidActas, e.unresolvedPendingFixtures, e.amendedPlayed, json.readIssues(e.issues), e.rawReport,
                 e.receivedAt);

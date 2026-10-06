@@ -35,7 +35,7 @@ class ArtifactCleanupTest {
     private String oldArtifact(String key, byte[] bytes, boolean activeRun) {
         UUID runId = UUID.randomUUID();
         var stored = store.store(key, new ByteArrayInputStream(bytes));
-        rows.add(new RunArtifact(UUID.randomUUID(), runId, ArtifactKind.ZIP, key, stored.sha256(),
+        rows.add(new RunArtifact(UUID.randomUUID(), runId, UUID.randomUUID(), ArtifactKind.ZIP, key, stored.sha256(),
                 stored.sizeBytes(), clock.now().minus(Duration.ofDays(3))));
         retention.run(runId, PipelineSource.RFETM, "2025-2026", activeRun);
         return key;

@@ -11,8 +11,10 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.ImportReport;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.ImportReportRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineStepRepository;
@@ -71,7 +73,7 @@ class RunExecutionPersistenceTest extends AbstractPersistenceTest {
         HttpImportGateway importGateway = new HttpImportGateway(HttpClientsConfiguration.restClient(
                 RestClient.builder(), platform.baseUrl(), "k", Duration.ofSeconds(2), Duration.ofSeconds(5)),
                 new ObjectMapper());
-        return new RunExecutor(runs, steps, artifactRows, reports, ingestGateway, importGateway,
+        return new RunExecutor(runs, unitRepo, steps, artifactRows, reports, ingestGateway, importGateway,
                 new FileSystemArtifactStore(artifacts), new FakeRunClock(T0), RunObserver.none(),
                 ExecutorHarness.DEFAULT_SETTINGS);
     }
@@ -102,15 +104,20 @@ class RunExecutionPersistenceTest extends AbstractPersistenceTest {
 
         PipelineRun run = runs.findById(queued.id()).orElseThrow();
         assertThat(run.status()).isEqualTo(RunStatus.SUCCEEDED);
-        assertThat(run.ingestRunId()).isEqualTo("ing1");
-        assertThat(run.importJobId()).isEqualTo(jobId);
-        assertThat(run.version()).isGreaterThanOrEqualTo(4);
+        RunUnit unit = unitRepo.findByRunId(run.id()).get(0);
+        assertThat(unit.status()).isEqualTo(UnitStatus.SUCCEEDED);
+        assertThat(unit.ingestRunId()).isEqualTo("ing1");
+        assertThat(unit.importJobId()).isEqualTo(jobId);
+        assertThat(unit.finishedAt()).isNotNull();
+        assertThat(run.version()).isGreaterThanOrEqualTo(2);
         assertThat(steps.findByRunId(run.id())).extracting(s -> s.kind() + "/" + s.status() + "/" + s.externalRef())
                 .containsExactly("INGEST/SUCCEEDED/ing1", "FETCH_PACKAGE/SUCCEEDED/ing1",
                         "IMPORT/SUCCEEDED/" + jobId);
-        assertThat(artifactRows.findByRunId(run.id())).singleElement()
-                .satisfies(a -> assertThat(a.sha256()).isEqualTo(sha256(ZIP)));
-        ImportReport report = reports.findByRunId(run.id()).orElseThrow();
+        assertThat(artifactRows.findByRunId(run.id())).singleElement().satisfies(a -> {
+            assertThat(a.sha256()).isEqualTo(sha256(ZIP));
+            assertThat(a.unitId()).isEqualTo(unit.id());
+        });
+        ImportReport report = reports.findByUnitId(unit.id()).orElseThrow();
         assertThat(report.filesSeen()).isEqualTo(6);
         assertThat(report.itemsPersisted()).isEqualTo(4);
     }
@@ -118,10 +125,11 @@ class RunExecutionPersistenceTest extends AbstractPersistenceTest {
     @Test
     void recoversAStoredImportingRunByPollingItsJob() {
         PipelineRun run = runs.create(queued(org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource.BCNESA));
-        run = runs.update(run.startIngest("ing1", T0));
-        run = runs.update(run.packed(T0));
-        run = runs.update(run.startImport(jobId, T0));
-        steps.save(PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.IMPORT, 1, T0, jobId.toString()));
+        run = runs.update(run.start(T0));
+        RunUnit unit = unit(run);
+        unitRepo.update(unit.startIngest("ing1", T0).packed(T0).startImport(jobId, T0));
+        steps.save(PipelineStep.start(UUID.randomUUID(), run.id(), unit.id(), StepKind.IMPORT, 1, T0,
+                jobId.toString()));
         platform.on("GET", JOBS + "/" + jobId, Response.json(200, job("SUCCEEDED")));
 
         executor().execute(run.id());
@@ -130,7 +138,9 @@ class RunExecutionPersistenceTest extends AbstractPersistenceTest {
         assertThat(result.status()).isEqualTo(RunStatus.SUCCEEDED);
         assertThat(steps.findByRunId(run.id())).singleElement()
                 .satisfies(s -> assertThat(s.status()).isEqualTo(StepStatus.SUCCEEDED));
-        assertThat(reports.findByRunId(run.id())).isPresent();
+        assertThat(reports.findByUnitId(unit.id())).isPresent();
+        assertThat(unitRepo.findByRunId(run.id())).singleElement()
+                .satisfies(stored -> assertThat(stored.status()).isEqualTo(UnitStatus.SUCCEEDED));
         assertThat(platform.requestsTo("POST", JOBS)).isEmpty();
     }
 }

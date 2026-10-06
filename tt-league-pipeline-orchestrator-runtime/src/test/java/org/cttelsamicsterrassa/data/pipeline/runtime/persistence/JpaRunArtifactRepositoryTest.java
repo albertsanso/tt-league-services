@@ -8,6 +8,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.ArtifactKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunArtifact;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunArtifactRepository;
 import org.junit.jupiter.api.Test;
@@ -27,36 +28,70 @@ class JpaRunArtifactRepositoryTest extends AbstractPersistenceTest {
     @Test
     void roundTrips() {
         PipelineRun run = runs.create(queued(PipelineSource.RFETM));
-        RunArtifact artifact = new RunArtifact(UUID.randomUUID(), run.id(), ArtifactKind.ZIP, "runs/a/pack.zip", SHA,
-                1234, T0);
+        RunUnit unit = unit(run);
+        RunArtifact artifact = new RunArtifact(UUID.randomUUID(), run.id(), unit.id(), ArtifactKind.ZIP,
+                "runs/a/pack.zip", SHA, 1234, T0);
         artifacts.add(artifact);
-        RunArtifact manifest = new RunArtifact(UUID.randomUUID(), run.id(), ArtifactKind.MANIFEST, "runs/a/m.json",
-                SHA, 0, T0.plusSeconds(1));
+        RunArtifact manifest = new RunArtifact(UUID.randomUUID(), run.id(), unit.id(), ArtifactKind.MANIFEST,
+                "runs/a/m.json", SHA, 0, T0.plusSeconds(1));
         artifacts.add(manifest);
 
         assertThat(artifacts.findByRunId(run.id())).containsExactly(artifact, manifest);
+        assertThat(artifacts.findByUnitId(unit.id())).containsExactly(artifact, manifest);
+        assertThat(artifacts.findByUnitId(UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
+    void findsTheArtifactsOfEachUnitOfARun() {
+        PipelineRun run = runs.create(queued(PipelineSource.RFETM));
+        java.util.List<RunUnit> units = units(run,
+                new org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter("A", null, null, null, null,
+                        java.util.List.of(1)),
+                new org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter("B", null, null, null, null,
+                        java.util.List.of(1)));
+        RunArtifact first = artifacts.add(new RunArtifact(UUID.randomUUID(), run.id(), units.get(0).id(),
+                ArtifactKind.ZIP, "u0/pack.zip", SHA, 1, T0));
+        RunArtifact second = artifacts.add(new RunArtifact(UUID.randomUUID(), run.id(), units.get(1).id(),
+                ArtifactKind.ZIP, "u1/pack.zip", SHA, 1, T0));
+
+        assertThat(artifacts.findByUnitId(units.get(0).id())).containsExactly(first);
+        assertThat(artifacts.findByUnitId(units.get(1).id())).containsExactly(second);
+        assertThat(artifacts.findByRunId(run.id())).containsExactlyInAnyOrder(first, second);
     }
 
     @Test
     void duplicateKeyForSameRunAndKindIsRejected() {
         PipelineRun run = runs.create(queued(PipelineSource.RFETM));
-        artifacts.add(new RunArtifact(UUID.randomUUID(), run.id(), ArtifactKind.ZIP, "k.zip", SHA, 1, T0));
+        RunUnit unit = unit(run);
+        artifacts.add(new RunArtifact(UUID.randomUUID(), run.id(), unit.id(), ArtifactKind.ZIP, "k.zip", SHA, 1, T0));
 
         assertThatThrownBy(() -> artifacts.add(
-                new RunArtifact(UUID.randomUUID(), run.id(), ArtifactKind.ZIP, "k.zip", SHA, 1, T0)))
+                new RunArtifact(UUID.randomUUID(), run.id(), unit.id(), ArtifactKind.ZIP, "k.zip", SHA, 1, T0)))
                 .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void anArtifactNeedsAnExistingUnit() {
+        PipelineRun run = runs.create(queued(PipelineSource.RFETM));
+
+        assertThatThrownBy(() -> artifacts.add(new RunArtifact(UUID.randomUUID(), run.id(), UUID.randomUUID(),
+                ArtifactKind.ZIP, "k.zip", SHA, 1, T0))).isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void roundTripsPurgedAtAndFindsRowsBySharedStorageKey() {
         PipelineRun original = runs.create(queued(PipelineSource.RFETM));
-        RunArtifact first = new RunArtifact(UUID.randomUUID(), original.id(), ArtifactKind.ZIP, "k.zip", SHA, 1, T0);
+        RunUnit originalUnit = unit(original);
+        RunArtifact first = new RunArtifact(UUID.randomUUID(), original.id(), originalUnit.id(), ArtifactKind.ZIP,
+                "k.zip", SHA, 1, T0);
         artifacts.add(first);
         PipelineRun other = runs.create(queued(PipelineSource.BCNESA));
-        RunArtifact shared = new RunArtifact(UUID.randomUUID(), other.id(), ArtifactKind.ZIP, "k.zip", SHA, 1,
-                T0.plusSeconds(5));
+        RunUnit otherUnit = unit(other);
+        RunArtifact shared = new RunArtifact(UUID.randomUUID(), other.id(), otherUnit.id(), ArtifactKind.ZIP, "k.zip",
+                SHA, 1, T0.plusSeconds(5));
         artifacts.add(shared);
-        artifacts.add(new RunArtifact(UUID.randomUUID(), other.id(), ArtifactKind.MANIFEST, "other.json", SHA, 1, T0));
+        artifacts.add(new RunArtifact(UUID.randomUUID(), other.id(), otherUnit.id(), ArtifactKind.MANIFEST,
+                "other.json", SHA, 1, T0));
 
         assertThat(artifacts.findByStorageKey("k.zip")).containsExactly(first, shared);
         assertThat(artifacts.findByStorageKey("missing")).isEmpty();

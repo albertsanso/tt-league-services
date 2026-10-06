@@ -63,7 +63,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 import requests
 from bs4 import BeautifulSoup, Tag
 
-from ingest_common import health, logs
+from ingest_common import health, logs, progress
 
 
 INDEX_URL = "https://fctt.cat/competicions-estatals/"
@@ -1149,6 +1149,7 @@ def main(argv: list[str] | None = None) -> int:
             logger.error("No league matches the territory/category/group filters")
             return 2
         logger.info("Found %d league(s) to process", len(leagues))
+        progress.total(len(leagues))
 
         for league in leagues:
             try:
@@ -1156,6 +1157,7 @@ def main(argv: list[str] | None = None) -> int:
             except Exception as exc:  # Keep processing the remaining leagues.
                 metrics.count("leagues failed")
                 logger.exception("%s / %s: unexpected error: %s", league.territory, league.title, exc)
+            progress.item(f"{league.territory} {league.title}")
     finally:
         counters = metrics.run_counters
         summary = ", ".join(f"{count} {name}" for name, count in sorted(counters.items())) or "nothing to do"

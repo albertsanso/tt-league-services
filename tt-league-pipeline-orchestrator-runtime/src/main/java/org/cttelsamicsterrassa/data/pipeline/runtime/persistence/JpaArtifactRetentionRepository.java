@@ -33,8 +33,8 @@ class JpaArtifactRetentionRepository implements ArtifactRetentionRepository {
         for (Object[] row : rows) {
             RunArtifactEntity entity = (RunArtifactEntity) row[0];
             RunStatus status = (RunStatus) row[3];
-            RunArtifact artifact = new RunArtifact(entity.id, entity.runId, entity.kind, entity.storageKey,
-                    entity.sha256, entity.sizeBytes, entity.createdAt, entity.purgedAt);
+            RunArtifact artifact = new RunArtifact(entity.id, entity.runId, entity.unitId, entity.kind,
+                    entity.storageKey, entity.sha256, entity.sizeBytes, entity.createdAt, entity.purgedAt);
             result.add(new RetainedArtifact(
                     artifact, (PipelineSource) row[1], (String) row[2], RunStatus.active().contains(status)));
         }

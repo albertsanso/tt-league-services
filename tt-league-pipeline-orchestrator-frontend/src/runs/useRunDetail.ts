@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '../api/ApiError'
-import type { RunDetail } from '../api/types'
+import type { RunDetail, RunUnit } from '../api/types'
 import { useApi } from '../api/useApi'
 import { useRunEvents } from '../events/useRunEvents'
-import { upsertStep } from './format'
-import { isActiveStatus } from './runStatus'
+import { patchUnit, upsertStep } from './format'
+import { isActiveStatus, isTerminalUnitStatus } from './runStatus'
 
 export interface RunDetailResult {
   readonly run: RunDetail | null
@@ -98,22 +98,62 @@ export function useRunDetail(runId: string): RunDetailResult {
         return
       }
       setSettled((previous) =>
-        previous.run === null ? previous : { ...previous, run: { ...previous.run, steps: upsertStep(previous.run.steps, step) } },
+        previous.run === null
+          ? previous
+          : {
+              ...previous,
+              run: {
+                ...previous.run,
+                steps: upsertStep(previous.run.steps, step),
+                units: previous.run.units.map((unit) =>
+                  unit.id === step.unitId ? { ...unit, steps: upsertStep(unit.steps, step) } : unit,
+                ),
+              },
+            },
       )
       if (inflightRef.current !== null) {
         staleRef.current = true
       }
       return
     }
-    if (event.type === 'run' && event.payload.id === runId) {
-      const changed = event.payload
+    if (event.type === 'unit') {
+      const unit = event.payload
+      if (unit.runId !== runId) {
+        return
+      }
       setSettled((previous) =>
-        previous.run === null ? previous : { ...previous, run: { ...previous.run, ...changed, importJobReused: changed.importJobReused ?? previous.run.importJobReused } },
+        previous.run === null ? previous : { ...previous, run: { ...previous.run, units: patchUnit(previous.run.units, unit) } },
+      )
+      if (inflightRef.current !== null) {
+        staleRef.current = true
+      } else if (isTerminalUnitStatus(unit.status)) {
+        // The counters, the artifacts and whether the unit can be retried only come from the GET.
+        refetch()
+      }
+      return
+    }
+    if (event.type === 'run' && event.payload.id === runId) {
+      const { units: changedUnits, ...changed } = event.payload
+      setSettled((previous) =>
+        previous.run === null
+          ? previous
+          : {
+              ...previous,
+              run: {
+                ...previous.run,
+                ...changed,
+                importJobReused: changed.importJobReused ?? previous.run.importJobReused,
+                units: (changedUnits ?? []).reduce<RunDetail['units']>(
+                  (units, unit: RunUnit) => patchUnit(units, unit),
+                  previous.run.units,
+                ),
+              },
+            },
       )
       if (inflightRef.current !== null) {
         staleRef.current = true
       } else if (!isActiveStatus(changed.status)) {
-        // Artifacts, the import report and the issues only come from the GET.
+        // Artifacts, the import report, the issues and the retry and replay decisions only come from the GET.
         refetch()
       }
     }

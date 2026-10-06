@@ -9,6 +9,7 @@ import {
   emptyPending,
   emptyRuns,
   emptyTimeToReport,
+  emptyUnits,
   makeProgress,
 } from '../test/statisticsFixtures'
 import type { StatisticsOverrides } from '../test/statisticsFixtures'
@@ -96,6 +97,38 @@ describe('StatisticsPage', () => {
     expect(within(table).getByRole('row', { name: /PREFERENT/ })).toHaveTextContent('FCTTPREFERENT120.0 h20.0 h')
   })
 
+  it('lists the units by outcome with their average duration', async () => {
+    await openStatistics()
+
+    const units = within(await panel('Units by outcome'))
+    const table = units.getByRole('table', { name: 'Units by outcome table' })
+    expect(within(table).getByRole('row', { name: /Full season/ })).toHaveTextContent('Full seasonFCTT520102 min 05 s')
+    expect(within(table).getByRole('row', { name: /Tercera Group 1/ })).toHaveTextContent('Tercera Group 1FCTT30121—')
+  })
+
+  it('offers the units in the unit filter and limits the run outcomes to the chosen one', async () => {
+    const user = userEvent.setup()
+    const fake = await openStatistics({}, '/statistics?from=2026-09-01&to=2026-09-30&season=2026-2027')
+    await panel('Runs by outcome')
+    expect(statisticsCalls(fake, 'runs')[0].url).not.toContain('unitKey')
+
+    await user.click(screen.getByRole('combobox', { name: 'Unit' }))
+    await user.click(await screen.findByRole('option', { name: 'Tercera Group 1' }))
+
+    await waitFor(() => expect(statisticsCalls(fake, 'runs')).toHaveLength(2))
+    expect(statisticsCalls(fake, 'runs')[1].url).toContain(`unitKey=${'a'.repeat(64)}`)
+    // the unit panel keeps listing every unit, whatever the filter
+    expect(statisticsCalls(fake, 'units')[1].url).not.toContain('unitKey')
+  })
+
+  it('reads the unit filter from the URL', async () => {
+    const fake = await openStatistics({}, '/statistics?from=2026-09-01&to=2026-09-30&season=2026-2027&unit=season')
+    await panel('Runs by outcome')
+
+    expect(statisticsCalls(fake, 'runs')[0].url).toContain('unitKey=season')
+    expect(screen.getByRole('combobox', { name: 'Unit' })).toHaveTextContent('Full season')
+  })
+
   it('notes that days are grouped in the server zone', async () => {
     await openStatistics()
 
@@ -165,6 +198,7 @@ describe('StatisticsPage', () => {
     await openStatistics({
       daily: emptyDaily,
       runs: emptyRuns,
+      units: emptyUnits,
       corrections: emptyCorrections,
       sourceHealth: emptyHealth,
       pending: emptyPending,

@@ -80,6 +80,11 @@ and the Flyway/JPA persistence of the run model (later features add security).
 - `POST /api/pipeline/runs/{id}/replay` only translates to the core `ReplayRun` (the only creator of `RETRY` runs) and needs
   `matches:write` through its own matcher in `SecurityConfiguration`; `RunQueryService` exposes the decision of
   `ReplayRules.check` and the controller never derives it.
+- `POST /api/pipeline/runs/{id}/units/{unitId}/retry` only translates to the core `RetryUnit` (the only creator of `UNIT_RETRY`
+  runs, also behind `matches:write`); `RunDtoMapper` exposes `UnitRetryRules` as `retry` on each detail unit and never
+  derives it. `GET .../units/{unitId}/package` goes through `UnitPackageService`, which reads the stored ZIP only through the
+  `ArtifactStore`. Unit progress comes from the optional `progress` of the ingest run state (`IngestServiceJobRunner`); a
+  missing object is "none reported" and a malformed one is a protocol error. Never log or tag a unit key as a metric tag.
 - Run observers never throw into the executor (`CompositeRunObserver` isolates
   them). The `RunEventBroadcaster` sends on its own private pool, which is not
   an `Executor` bean, and never on a run thread.

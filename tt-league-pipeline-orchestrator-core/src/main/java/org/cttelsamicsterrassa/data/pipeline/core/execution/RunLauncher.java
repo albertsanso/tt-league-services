@@ -16,7 +16,10 @@ import java.util.UUID;
 /** The single trigger path: queues a run and hands it to the dispatcher. */
 public final class RunLauncher {
 
-    /** What a caller asks for; {@code retryOfRunId} is set exactly for RETRY runs. */
+    /**
+     * What a caller asks for; {@code retryOfRunId} is set exactly for RETRY and UNIT_RETRY runs and
+     * {@code retryOfUnitId} exactly for UNIT_RETRY runs.
+     */
     public record LaunchRequest(
             PipelineSource source,
             String season,
@@ -24,7 +27,20 @@ public final class RunLauncher {
             boolean force,
             RunTrigger trigger,
             String requestedBy,
-            UUID retryOfRunId) {
+            UUID retryOfRunId,
+            UUID retryOfUnitId) {
+
+        /** A request that does not retry a unit. */
+        public LaunchRequest(
+                PipelineSource source,
+                String season,
+                RunScope scope,
+                boolean force,
+                RunTrigger trigger,
+                String requestedBy,
+                UUID retryOfRunId) {
+            this(source, season, scope, force, trigger, requestedBy, retryOfRunId, null);
+        }
     }
 
     private final PipelineRunRepository runs;
@@ -47,7 +63,7 @@ public final class RunLauncher {
     public PipelineRun launch(LaunchRequest request) {
         Instant now = clock.now();
         PipelineRun queued = PipelineRun.queue(UUID.randomUUID(), request.source(), request.season(),
-                request.scope(), request.force(), request.trigger(), request.requestedBy(), request.retryOfRunId(), now);
+                request.scope(), request.force(), request.trigger(), request.requestedBy(), request.retryOfRunId(), request.retryOfUnitId(), now);
         PipelineRun created = runs.create(queued);
         observer.runChanged(created);
         try {

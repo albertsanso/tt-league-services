@@ -4,10 +4,15 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.TreeMap;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.MatchDayState;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.TrackedMatchStatus;
 
@@ -139,6 +144,35 @@ public final class StatisticsRules {
         int pending = (int) sourceMatches.stream().filter(match -> isPendingAt(match, end)).count();
         return new DailyStats(
                 date, source, dayRuns.size(), failures, arrivals.size(), mean(times), pending, computedAt);
+    }
+
+    /**
+     * Terminal units counted by outcome per source and unit key, with the mean duration of the units that ran. The
+     * label is the one of the newest unit of the key. Sorted by source, then unit key.
+     */
+    public static List<UnitOutcomeStats.UnitOutcomes> unitOutcomes(List<UnitFacts> units) {
+        Map<String, List<UnitFacts>> grouped = new TreeMap<>();
+        for (UnitFacts unit : units) {
+            grouped.computeIfAbsent(unit.source().ordinal() + "/" + unit.unitKey(), key -> new ArrayList<>())
+                    .add(unit);
+        }
+        List<UnitOutcomeStats.UnitOutcomes> outcomes = new ArrayList<>();
+        for (List<UnitFacts> group : grouped.values()) {
+            UnitFacts newest = group.stream().max(Comparator.comparing(UnitFacts::finishedAt)).orElseThrow();
+            List<Duration> durations = group.stream()
+                    .filter(unit -> unit.startedAt() != null)
+                    .map(unit -> Duration.between(unit.startedAt(), unit.finishedAt()))
+                    .toList();
+            outcomes.add(new UnitOutcomeStats.UnitOutcomes(newest.source(), newest.unitKey(), newest.label(),
+                    count(group, UnitStatus.SUCCEEDED), count(group, UnitStatus.NO_CHANGES),
+                    count(group, UnitStatus.PARTIAL), count(group, UnitStatus.FAILED),
+                    count(group, UnitStatus.SKIPPED), mean(durations)));
+        }
+        return outcomes;
+    }
+
+    private static int count(List<UnitFacts> units, UnitStatus status) {
+        return (int) units.stream().filter(unit -> unit.status() == status).count();
     }
 
     /** Mean rounded to the second; null when there are no durations. */

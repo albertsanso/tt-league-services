@@ -28,9 +28,11 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitStatus;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
@@ -51,6 +53,10 @@ class RunExecutorTest {
     private PipelineRun execute(PipelineRun run) {
         h.executor.execute(run.id());
         return h.run(run.id());
+    }
+
+    private RunUnit unit(PipelineRun run) {
+        return h.units.findByRunId(run.id()).stream().findFirst().orElseThrow();
     }
 
     private List<PipelineStep> steps(PipelineRun run, StepKind kind) {
@@ -78,26 +84,29 @@ class RunExecutorTest {
         PipelineRun run = execute(queued);
 
         assertThat(run.status()).isEqualTo(RunStatus.SUCCEEDED);
-        assertThat(run.ingestRunId()).isEqualTo("ing1");
-        assertThat(run.importJobId()).isEqualTo(jobId);
+        assertThat(unit(run).status()).isEqualTo(UnitStatus.SUCCEEDED);
+        assertThat(unit(run).ingestRunId()).isEqualTo("ing1");
+        assertThat(unit(run).importJobId()).isEqualTo(jobId);
         assertThat(h.steps.findByRunId(run.id())).extracting(s -> s.kind() + "/" + s.attempt() + "/" + s.status())
                 .containsExactly("INGEST/1/SUCCEEDED", "FETCH_PACKAGE/1/SUCCEEDED", "IMPORT/1/SUCCEEDED");
         assertThat(steps(run, StepKind.INGEST).get(0).externalRef()).isEqualTo("ing1");
         assertThat(steps(run, StepKind.IMPORT).get(0).externalRef()).isEqualTo(jobId.toString());
 
-        String key = "rfetm/2025-2026/" + run.id() + "/ingest-ing1.zip";
+        String key = "rfetm/2025-2026/" + run.id() + "/0-season/ingest-ing1.zip";
         assertThat(h.artifactRows.findByRunId(run.id())).singleElement().satisfies(artifact -> {
+            assertThat(artifact.unitId()).isEqualTo(unit(run).id());
             assertThat(artifact.kind()).isEqualTo(ArtifactKind.ZIP);
             assertThat(artifact.storageKey()).isEqualTo(key);
             assertThat(artifact.sha256()).isEqualTo(InMemoryArtifactStore.sha256(ZIP));
             assertThat(artifact.sizeBytes()).isEqualTo(ZIP.length);
         });
         assertThat(platform.submissions).singleElement().satisfies(sent -> {
-            assertThat(sent.fileName()).isEqualTo(run.id() + ".zip");
+            assertThat(sent.fileName()).isEqualTo(run.id() + "-0.zip");
             assertThat(sent.bytes()).isEqualTo(ZIP);
             assertThat(sent.clientRunId()).isEqualTo(run.id());
         });
-        ImportReport report = h.reports.findByRunId(run.id()).orElseThrow();
+        ImportReport report = h.reports.findByUnitId(unit(run).id()).orElseThrow();
+        assertThat(report.runId()).isEqualTo(run.id());
         assertThat(report.filesSeen()).isEqualTo(7);
         assertThat(report.itemsPersisted()).isEqualTo(7);
         assertThat(report.importStatus()).isEqualTo("SUCCEEDED");
@@ -151,8 +160,9 @@ class RunExecutorTest {
             assertThat(step.status()).isEqualTo(StepStatus.SUCCEEDED);
             assertThat(step.outcome()).isEqualTo("NO_CHANGES");
         });
-        assertThat(h.observer.events).containsExactly("step:INGEST/1:RUNNING", "step:INGEST/1:RUNNING",
-                "run:RUNNING_INGEST", "step:INGEST/1:SUCCEEDED", "run:NO_CHANGES");
+        assertThat(h.observer.events).containsExactly("run:RUNNING", "step:INGEST/1:RUNNING",
+                "step:INGEST/1:RUNNING", "step:INGEST/1:SUCCEEDED", "run:NO_CHANGES");
+        assertThat(h.observer.unitEvents).containsExactly("unit:0:RUNNING_INGEST", "unit:0:NO_CHANGES");
     }
 
     @Test
@@ -236,7 +246,7 @@ class RunExecutorTest {
         PipelineRun run = execute(h.queueRun());
 
         assertThat(run.status()).isEqualTo(RunStatus.NO_CHANGES);
-        assertThat(run.ingestRunId()).isEqualTo("ing3");
+        assertThat(unit(run).ingestRunId()).isEqualTo("ing3");
         List<PipelineStep> attempts = steps(run, StepKind.INGEST);
         assertThat(attempts).extracting(PipelineStep::attempt).containsExactly(1, 2, 3);
         assertThat(attempts.get(0).error().code()).isEqualTo("SOURCE_UNAVAILABLE");
@@ -327,7 +337,7 @@ class RunExecutorTest {
         PipelineRun run = execute(h.queueRun());
 
         assertThat(run.status()).isEqualTo(RunStatus.NO_CHANGES);
-        assertThat(run.ingestRunId()).isEqualTo("ing2");
+        assertThat(unit(run).ingestRunId()).isEqualTo("ing2");
         PipelineStep first = steps(run, StepKind.INGEST).get(0);
         assertThat(first.error().code()).isEqualTo("INGEST_RUN_LOST");
         assertThat(first.retryable()).isTrue();
@@ -377,6 +387,8 @@ class RunExecutorTest {
         PipelineRun run = local.run(queued.id());
         assertThat(run.status()).isEqualTo(RunStatus.FAILED);
         assertThat(run.error().code()).isEqualTo("STEP_TIMEOUT");
+        assertThat(local.units.findByRunId(queued.id())).singleElement()
+                .satisfies(u -> assertThat(u.status()).isEqualTo(UnitStatus.FAILED));
         List<Duration> sleeps = local.fakeClock.sleeps;
         assertThat(sleeps.get(sleeps.size() - 1)).isEqualTo(Duration.ofSeconds(10));
         assertThat(sleeps.stream().reduce(Duration.ZERO, Duration::plus)).isEqualTo(Duration.ofSeconds(100));
@@ -438,7 +450,7 @@ class RunExecutorTest {
 
         assertThat(run.status()).isEqualTo(RunStatus.FAILED);
         assertThat(run.error().code()).isEqualTo("PACKAGE_CHECKSUM_MISMATCH");
-        assertThat(store.exists("rfetm/2025-2026/" + run.id() + "/ingest-ing1.zip")).isFalse();
+        assertThat(store.exists("rfetm/2025-2026/" + run.id() + "/0-season/ingest-ing1.zip")).isFalse();
         assertThat(h.artifactRows.findByRunId(run.id())).isEmpty();
         assertThat(steps(run, StepKind.FETCH_PACKAGE)).hasSize(1);
     }
@@ -484,7 +496,8 @@ class RunExecutorTest {
 
         assertThat(run.status()).isEqualTo(RunStatus.PARTIAL);
         assertThat(steps(run, StepKind.IMPORT).get(0).outcome()).isEqualTo("PARTIAL");
-        assertThat(h.reports.findByRunId(run.id()).orElseThrow().importStatus()).isEqualTo("PARTIAL");
+        assertThat(unit(run).status()).isEqualTo(UnitStatus.PARTIAL);
+        assertThat(h.reports.findByUnitId(unit(run).id()).orElseThrow().importStatus()).isEqualTo("PARTIAL");
     }
 
     @Test
@@ -498,8 +511,9 @@ class RunExecutorTest {
         assertThat(run.status()).isEqualTo(RunStatus.FAILED);
         assertThat(run.error().code()).isEqualTo("IMPORT_FAILED");
         assertThat(run.error().message()).isEqualTo("platform exploded");
-        assertThat(run.importJobId()).isEqualTo(jobId);
-        ImportReport report = h.reports.findByRunId(run.id()).orElseThrow();
+        assertThat(unit(run).status()).isEqualTo(UnitStatus.FAILED);
+        assertThat(unit(run).importJobId()).isEqualTo(jobId);
+        ImportReport report = h.reports.findByUnitId(unit(run).id()).orElseThrow();
         assertThat(report.importStatus()).isEqualTo("FAILED");
         assertThat(report.issues()).containsExactly("platform exploded");
         assertThat(steps(run, StepKind.IMPORT)).hasSize(1);
@@ -583,9 +597,10 @@ class RunExecutorTest {
             @Override
             public String startRun(IngestRunRequest request) {
                 onStart.get().run();
-                return "ing1";
+                return super.startRun(request);
             }
         };
+        racing.start("ing1").poll(finished("ing1", "NO_CHANGES", false));
         ExecutorHarness local = new ExecutorHarness(racing, platform, store);
         PipelineRun queued = local.queueRun();
         onStart.set(() -> local.runs.update(local.run(queued.id())));
@@ -593,9 +608,37 @@ class RunExecutorTest {
         local.executor.execute(queued.id());
 
         PipelineRun run = local.run(queued.id());
-        assertThat(run.status()).isEqualTo(RunStatus.QUEUED);
-        assertThat(run.version()).isEqualTo(1);
-        assertThat(local.observer.events).containsExactly("step:INGEST/1:RUNNING", "step:INGEST/1:RUNNING");
+        assertThat(run.status()).isEqualTo(RunStatus.RUNNING);
+        assertThat(run.version()).isEqualTo(2);
+        assertThat(local.observer.events).containsExactly("run:RUNNING", "step:INGEST/1:RUNNING",
+                "step:INGEST/1:RUNNING", "step:INGEST/1:SUCCEEDED");
+    }
+
+    @Test
+    void staleUnitStopsWithoutFurtherWrites() {
+        AtomicReference<Runnable> onStart = new AtomicReference<>(() -> { });
+        ScriptedIngestGateway racing = new ScriptedIngestGateway() {
+            @Override
+            public String startRun(IngestRunRequest request) {
+                onStart.get().run();
+                return super.startRun(request);
+            }
+        };
+        racing.start("ing1").poll(finished("ing1", "NO_CHANGES", false));
+        ExecutorHarness local = new ExecutorHarness(racing, platform, store);
+        PipelineRun queued = local.queueRun();
+        onStart.set(() -> {
+            RunUnit stored = local.units.findByRunId(queued.id()).get(0);
+            local.units.update(stored);
+        });
+
+        local.executor.execute(queued.id());
+
+        assertThat(local.run(queued.id()).status()).isEqualTo(RunStatus.RUNNING);
+        RunUnit unit = local.units.findByRunId(queued.id()).get(0);
+        assertThat(unit.status()).isEqualTo(UnitStatus.PENDING);
+        assertThat(unit.version()).isEqualTo(1);
+        assertThat(local.observer.unitEvents).isEmpty();
     }
 
     @Test
@@ -608,7 +651,8 @@ class RunExecutorTest {
             PipelineRun run = execute(queued);
 
             assertThat(Thread.currentThread().isInterrupted()).isTrue();
-            assertThat(run.status()).isEqualTo(RunStatus.RUNNING_INGEST);
+            assertThat(run.status()).isEqualTo(RunStatus.RUNNING);
+            assertThat(unit(run).status()).isEqualTo(UnitStatus.RUNNING_INGEST);
             assertThat(steps(run, StepKind.INGEST)).singleElement()
                     .satisfies(step -> assertThat(step.status()).isEqualTo(StepStatus.RUNNING));
         } finally {

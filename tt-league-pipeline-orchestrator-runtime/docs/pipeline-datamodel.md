@@ -24,26 +24,28 @@ One execution of the pipeline for a source and season.
 | `season` | `varchar(9)` NOT NULL | `^[0-9]{4}-[0-9]{4}$` |
 | `scope` | `jsonb` NOT NULL | `{"scopes":[{category, group, phase, territory, gender, matchDays}]}`, nulls omitted; `{"scopes":[]}` is the whole season |
 | `force` | `boolean` NOT NULL DEFAULT false | passed to the ingest run (bypasses its no-change skip); added by `V2` |
-| `trigger` | `varchar(16)` NOT NULL | `SCHEDULED`, `MANUAL`, `RETRY` |
+| `trigger` | `varchar(16)` NOT NULL | `SCHEDULED`, `MANUAL`, `RETRY` (replay), `UNIT_RETRY` (one unit re-run; FEAT-00117, `V10`) |
 | `requested_by` | `varchar(128)` NOT NULL | user id, or `system:scheduler` |
-| `retry_of_run_id` | `uuid` NULL | FK `pipeline_run(id)`; set exactly when `trigger = 'RETRY'` |
-| `status` | `varchar(16)` NOT NULL | see transition table |
+| `retry_of_run_id` | `uuid` NULL | FK `pipeline_run(id)`; set exactly when `trigger` is `RETRY` or `UNIT_RETRY` |
+| `retry_of_unit_id` | `uuid` NULL | FK `pipeline_unit(id)`; the unit of the original run that a `UNIT_RETRY` run re-runs; set exactly when `trigger = 'UNIT_RETRY'` (`V10`) |
+| `status` | `varchar(16)` NOT NULL | `QUEUED`, `RUNNING`, `NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED` (`ck_pipeline_run_status`); see transition table. Derived from the units once they are all finished |
 | `created_at`, `started_at`, `finished_at` | `timestamptz` | `started_at` / `finished_at` nullable |
-| `ingest_run_id` | `varchar(64)` NULL | ingest service run id |
-| `import_job_id` | `uuid` NULL | platform import job (plain column) |
+| `ingest_run_id` | `varchar(64)` NULL | **legacy, no longer written since `V10`**: the unit carries it (`pipeline_unit.ingest_run_id`). Rows written before `V10` keep their value |
+| `import_job_id` | `uuid` NULL | **legacy, no longer written since `V10`**: see `pipeline_unit.import_job_id` |
 | `error_code` | `varchar(64)` NULL | |
 | `error_message` | `text` NULL | |
 | `version` | `bigint` NOT NULL DEFAULT 0 | optimistic lock, incremented by the JPA adapter |
 
-Constraint: `CHECK ((trigger = 'RETRY') = (retry_of_run_id IS NOT NULL))`.
+Constraints (`V10`): `ck_pipeline_run_status`, `ck_pipeline_run_trigger` and `ck_pipeline_run_retry`: `((trigger IN ('RETRY', 'UNIT_RETRY')) = (retry_of_run_id IS NOT NULL))
+AND ((trigger = 'UNIT_RETRY') = (retry_of_unit_id IS NOT NULL))`.
 
 Indexes:
 
 - `ux_pipeline_run_active_source` — **unique partial index** on `(source)
-  WHERE status IN ('QUEUED', 'RUNNING_INGEST', 'PACKED', 'IMPORTING')`. This is
+  WHERE status IN ('QUEUED', 'RUNNING')`. This is
   what guarantees at most one active run per source; the adapter only turns the
   violation into `ActiveRunConflictException`. `NO_CHANGES`, `SUCCEEDED`,
-  `PARTIAL` and `FAILED` are terminal and free the source.
+  `PARTIAL` and `FAILED` are terminal and free the source. A unit retry is a run of its own, so it takes the same slot.
 - `ix_pipeline_run_source_created` on `(source, created_at DESC)`.
 - `ix_pipeline_run_status` on `(status)`.
 
@@ -51,14 +53,72 @@ Indexes:
 
 | From | Allowed next |
 | --- | --- |
-| `QUEUED` | `RUNNING_INGEST`, `PACKED` (`RETRY` runs only, see [Replay](#replay-and-retention)), `FAILED` |
+| `QUEUED` | `RUNNING`, `FAILED` |
+| `RUNNING` | `NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED` |
+| `NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED` | none (terminal) |
+
+Enforced by `RunStatus` and `PipelineRun` in the core, not by the database. The intermediate statuses (`RUNNING_INGEST`,
+`PACKED`, `IMPORTING`) moved to the unit (see [`pipeline_unit`](#pipeline_unit)); `V10` rewrote the active legacy rows to
+`RUNNING`. The terminal status is derived from the units by `RunOutcomeRules`: all `NO_CHANGES` gives `NO_CHANGES`; every unit
+`SUCCEEDED` or `NO_CHANGES` gives `SUCCEEDED`; any `PARTIAL` unit, or failed or skipped units next to successful ones, gives
+`PARTIAL`; every unit `FAILED` or `SKIPPED` gives `FAILED` (the run error is the single unit error, or the first failed
+unit's code plus the list of codes).
+
+## `pipeline_unit`
+
+FEAT-00117, `V10`. One row per unit of a run: one ingest group of the scope (one `ScopeFilter` identity, with its match days
+merged), or the whole season for a full-season run. Units run one after another in `ordinal` order, each with its own
+INGEST, FETCH_PACKAGE and IMPORT chain, deadlines, attempts, artifacts and import report.
+
+| Column | Type | Notes |
+| --- | --- | --- |
+| `id` | `uuid` PK | |
+| `run_id` | `uuid` NOT NULL | FK `pipeline_run(id)` |
+| `ordinal` | `integer` NOT NULL | `>= 0`; execution order; `UNIQUE (run_id, ordinal)` (`uq_pipeline_unit_run_ordinal`) |
+| `unit_key` | `varchar(64)` NOT NULL | the reserved `season` (full-season unit) or `legacy` (backfilled scoped run), or the 64-character lower-case SHA-256 identity of the group, byte-identical to `poll_schedule.scope_key` (match days excluded) |
+| `label` | `varchar(256)` NOT NULL | human text of the unit |
+| `scope` | `jsonb` NOT NULL | `{"scopes":[...]}` of the unit, same layout as `pipeline_run.scope` |
+| `status` | `varchar(16)` NOT NULL | `PENDING`, `RUNNING_INGEST`, `PACKED`, `IMPORTING`, `NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED`, `SKIPPED` |
+| `started_at`, `finished_at` | `timestamptz` NULL | |
+| `ingest_run_id` | `varchar(64)` NULL | the ingest run currently followed for the unit |
+| `import_job_id` | `uuid` NULL | platform import job (plain column) |
+| `error_code` / `error_message` | `varchar(64)` / `text` NULL | |
+| `progress_step` | `varchar(16)` NULL | `INGEST`, `FETCH_PACKAGE`, `IMPORT`: the step the progress belongs to |
+| `progress_stage` | `varchar(64)` NULL | stage name reported by the ingest service |
+| `progress_items`, `progress_total` | `bigint` NULL | processed and total items, each `>= 0`; the total is NULL while unknown |
+| `progress_current` | `varchar(256)` NULL | the item being processed |
+| `progress_updated_at` | `timestamptz` NULL | |
+| `version` | `bigint` NOT NULL DEFAULT 0 | optimistic lock |
+
+Constraints that mirror the `RunUnit` aggregate: `ck_pipeline_unit_finished` (finished exactly for terminal statuses),
+`ck_pipeline_unit_started` (a `PENDING` or `SKIPPED` unit never started; a unit past `PENDING` has a start unless it
+`FAILED`), `ck_pipeline_unit_order`, `ck_pipeline_unit_error` (`FAILED` and `SKIPPED` carry an error code and message, nothing
+else does), `ck_pipeline_unit_import_job` (required from `IMPORTING`, `SUCCEEDED` and `PARTIAL`; absent before the import and for
+`NO_CHANGES` and `SKIPPED`), `ck_pipeline_unit_progress` (the progress step, items and update time are all set or all NULL;
+stage, total and current need a step; progress exists only while `RUNNING_INGEST`, `PACKED` or `IMPORTING`; items never exceed
+the total).
+
+Indexes: `ix_pipeline_unit_key_finished (unit_key, finished_at DESC)` (latest outcome per unit key, unit statistics, unit
+failure alerts) and `ix_pipeline_unit_finished (finished_at)`.
+
+**Unit status transitions** (enforced by `UnitStatus` and `RunUnit` in the core):
+
+| From | Allowed next |
+| --- | --- |
+| `PENDING` | `RUNNING_INGEST`, `PACKED` (replay), `SKIPPED`, `FAILED` |
 | `RUNNING_INGEST` | `NO_CHANGES`, `PACKED`, `FAILED` |
 | `PACKED` | `IMPORTING`, `FAILED` |
 | `IMPORTING` | `SUCCEEDED`, `PARTIAL`, `FAILED` |
-| `NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED` | none (terminal) |
+| `NO_CHANGES`, `SUCCEEDED`, `PARTIAL`, `FAILED`, `SKIPPED` | none (terminal) |
 
-Enforced by `RunStatus` and `PipelineRun` in the core, not by the database: `QUEUED -> PACKED` is reachable only through
-`PipelineRun.startReplay`, which requires `trigger = RETRY`; `PipelineRun.packed` still requires `RUNNING_INGEST`.
+A unit that fails with `INGEST_UNAVAILABLE`, `INGEST_BUSY`, `PLATFORM_UNAVAILABLE`, `ARTIFACT_STORE_FAILED` or
+`INTERNAL_ERROR` (see `UnitExecutionRules`) aborts the run: its pending units become `SKIPPED` with the error code
+`UNIT_SKIPPED`. Any other failure leaves the next units to run.
+
+**Unit retry.** `RetryUnit` is the only creator of `UNIT_RETRY` runs. A run that finished with a `FAILED` or `SKIPPED` unit can
+re-run that unit as a new run (`retry_of_run_id`, `retry_of_unit_id`) with one unit of the same scope and key; the original run
+and unit are never reopened, so history stays immutable. `UnitRetryRules` decides eligibility (`RUN_ACTIVE` while the run or
+another run of the source is active, `UNIT_NOT_RETRYABLE` for a unit that is not `FAILED` or `SKIPPED`).
 
 ## `pipeline_step`
 
@@ -69,8 +129,9 @@ run status.
 | --- | --- | --- |
 | `id` | `uuid` PK | |
 | `run_id` | `uuid` NOT NULL | FK `pipeline_run(id)` |
+| `unit_id` | `uuid` NOT NULL | FK `pipeline_unit(id)`; the unit the attempt belongs to (`V10`; backfilled to the ordinal 0 unit of the run) |
 | `kind` | `varchar(16)` NOT NULL | `INGEST`, `FETCH_PACKAGE`, `IMPORT` |
-| `attempt` | `int` NOT NULL | `>= 1` |
+| `attempt` | `int` NOT NULL | `>= 1`; numbered per unit and kind |
 | `status` | `varchar(16)` NOT NULL | `RUNNING`, `SUCCEEDED`, `FAILED` |
 | `started_at` | `timestamptz` NOT NULL | |
 | `finished_at` | `timestamptz` NULL | |
@@ -82,7 +143,7 @@ run status.
 | `http_errors`, `timeouts`, `parse_errors` | `bigint` NULL | source health an `INGEST` attempt reported (FEAT-00113, `V8`): the `http_errors` and `timeouts` of every ingest stage, and the `parse_errors + invalid` of the parse and teams stages; each `>= 0`. All three are NULL (unknown: an older ingest service, or an attempt that never finished the ingest run) or all set (`ck_pipeline_step_health_all_or_none`), and only an `INGEST` step may carry them (`ck_pipeline_step_health_ingest_only`) |
 | `import_job_reused` | `boolean` NULL | whether the platform answered the import submit with an existing job for the same content (`200`, `created=false`) instead of a new one (`202`); FEAT-00114, `V9`. Only an `IMPORT` step may carry it (`ck_pipeline_step_reused_import_only`). NULL means "not recorded" (rows written before `V9`) |
 
-`UNIQUE (run_id, kind, attempt)`.
+`UNIQUE (unit_id, kind, attempt)` (`uq_pipeline_step_unit_kind_attempt`, `V10`; it replaces `UNIQUE (run_id, kind, attempt)`).
 
 ## `run_artifact`
 
@@ -92,6 +153,7 @@ Files produced or fetched by a run.
 | --- | --- | --- |
 | `id` | `uuid` PK | |
 | `run_id` | `uuid` NOT NULL | FK `pipeline_run(id)` |
+| `unit_id` | `uuid` NOT NULL | FK `pipeline_unit(id)`; the unit that produced the file, or for a replay shares it (`V10`; backfilled to the ordinal 0 unit of the run) |
 | `kind` | `varchar(16)` NOT NULL | `ZIP`, `MANIFEST`, `RAW`, `JSON` |
 | `storage_key` | `varchar(512)` NOT NULL | relative path; the core rejects absolute paths and `..` |
 | `sha256` | `char(64)` NOT NULL | `^[0-9a-f]{64}$` |
@@ -100,18 +162,19 @@ Files produced or fetched by a run.
 | `purged_at` | `timestamptz` NULL | set when the retention cleanup deleted the file (FEAT-00114, `V9`); `purged_at >= created_at` (`ck_run_artifact_purged_after_created`). The row is kept as history. NULL for every row written before `V9` |
 
 `UNIQUE (run_id, kind, storage_key)`. Indexes added by `V9`: `ix_run_artifact_storage_key (storage_key)` and the partial
-`ix_run_artifact_unpurged (created_at) WHERE purged_at IS NULL`.
+`ix_run_artifact_unpurged (created_at) WHERE purged_at IS NULL`; `V10` adds `ix_run_artifact_unit (unit_id)`.
 
 Several rows may share one `storage_key`: a replay run carries its own `ZIP` row that points at the file of the original run
 (see [Replay and retention](#replay-and-retention)).
 
 ## `import_report`
 
-Result of the platform import job of a run; at most one per run.
+Result of the platform import job of a unit; at most one per unit, so a run has one report per unit that reached the import.
 
 | Column | Type | Notes |
 | --- | --- | --- |
-| `run_id` | `uuid` PK | FK `pipeline_run(id)` |
+| `unit_id` | `uuid` PK | FK `pipeline_unit(id)` (`V10`; the primary key moved here from `run_id`, backfilled to the ordinal 0 unit of the run) |
+| `run_id` | `uuid` NOT NULL | FK `pipeline_run(id)`; indexed by `ix_import_report_run` |
 | `import_job_id` | `uuid` NOT NULL | platform job (plain column) |
 | `import_status` | `varchar(16)` NOT NULL | `SUCCEEDED`, `PARTIAL`, `FAILED` |
 | `files_seen`, `items_persisted`, `skipped`, `processor_failures`, `scheduled_created`, `upgraded_to_played`, `rescheduled`, `partial_actas`, `invalid_actas`, `unresolved_pending_fixtures` | `bigint` NOT NULL | counters summed over the job's seasons, each `>= 0` |
@@ -122,10 +185,10 @@ Result of the platform import job of a run; at most one per run.
 
 ## Written by the run executor
 
-No migration: the columns above already fit every value written by FEAT-00104.
+Since `V10` the executor writes per unit: each unit has its own steps, artifacts, import report, ingest run id and import job.
 
 - **Steps.** One row per attempt; the attempt number is the highest stored
-  attempt of that kind plus 1. Kinds: `INGEST`, `FETCH_PACKAGE`, `IMPORT`.
+  attempt of that kind in the unit plus 1. Kinds: `INGEST`, `FETCH_PACKAGE`, `IMPORT`.
 - **`pipeline_step.external_ref`.** The ingest run id for `INGEST` (set once the
   ingest `POST` answered, so it is null while the call is in flight) and
   `FETCH_PACKAGE`; the platform import job UUID for `IMPORT`.
@@ -139,15 +202,18 @@ No migration: the columns above already fit every value written by FEAT-00104.
   `PACKAGE_CHECKSUM_MISMATCH`, `ARTIFACT_STORE_FAILED`, `ARTIFACT_PURGED`, `PLATFORM_UNAVAILABLE`,
   `IMPORT_REJECTED`, `IMPORT_SHRINK`, `IMPORT_JOB_LOST`, `IMPORT_FAILED`,
   `STEP_TIMEOUT`, `PROTOCOL_ERROR`, `INTERRUPTED`, `DISPATCH_FAILED`,
-  `INTERNAL_ERROR`. Messages never contain keys.
+  `INTERNAL_ERROR`, `UNIT_SKIPPED` (a pending unit skipped after an aborting failure). Messages never contain keys.
 - **`pipeline_step.import_job_reused`** (`V9`). Written together with the import job id (`external_ref`) when the
   `IMPORT` step receives the platform's answer: `true` for an existing job (`created=false`), `false` for a new one. Every
   run records it, not only replays.
-- **`pipeline_run.ingest_run_id`.** The ingest run currently followed: a retried
-  `INGEST` step replaces it without a status change.
-- **`run_artifact.storage_key`.** `<source lower-case>/<season>/<runId>/ingest-<ingestRunId>.zip`
-  for the package ZIP, relative to the configured artifact directory.
-- **`import_report`.** Derived from the finished platform job: counters summed
+- **`pipeline_unit.ingest_run_id`.** The ingest run currently followed for the unit: a retried
+  `INGEST` step replaces it without a status change. `pipeline_run.ingest_run_id` and `import_job_id` are no longer written.
+- **`pipeline_unit.progress_*`.** Written only while the unit is `RUNNING_INGEST`, `PACKED` or `IMPORTING`, and only when the
+  reported progress changed (the ingest service reports it for the download and parse stages; fetch and import report
+  step-level progress only). Cleared when the unit leaves those statuses.
+- **`run_artifact.storage_key`.** `<source lower-case>/<season>/<runId>/<ordinal>-<first 12 characters of the unit key>/ingest-<ingestRunId>.zip`
+  for the package ZIP of a unit, relative to the configured artifact directory.
+- **`import_report`.** One per unit, derived from the finished platform job: counters summed
   over the seasons that have a result; `issues` are the job `errorDetail`, then
   each season `errorDetail` as `<season>: <detail>`, then each season
   `executionIssues` as `<season>: <issue>`; `import_status` is the job status
@@ -335,8 +401,8 @@ source name, so there are deliberately **no foreign keys** and an alert outlives
 | Column | Type | Notes |
 | --- | --- | --- |
 | `id` | `uuid` PK | generated by the evaluator |
-| `kind` | `varchar(32)` NOT NULL | CHECK: `MATCH_DAY_CLOSED`, `RUN_FAILURES`, `MATCH_UNREPORTED`, `NO_RECENT_SUCCESS` |
-| `condition_key` | `varchar(255)` NOT NULL | match day id (`MATCH_DAY_CLOSED`), match id (`MATCH_UNREPORTED`) or source name (`RUN_FAILURES`, `NO_RECENT_SUCCESS`) |
+| `kind` | `varchar(32)` NOT NULL | CHECK (`ck_alert_kind`): `MATCH_DAY_CLOSED`, `RUN_FAILURES`, `MATCH_UNREPORTED`, `NO_RECENT_SUCCESS`, `UNIT_FAILURES` (FEAT-00117, `V10`) |
+| `condition_key` | `varchar(255)` NOT NULL | match day id (`MATCH_DAY_CLOSED`), match id (`MATCH_UNREPORTED`) or source name (`RUN_FAILURES`, `NO_RECENT_SUCCESS`) or `<source>:<unit key>` (`UNIT_FAILURES`: consecutive failures of one unit across runs) |
 | `source` | `varchar(16)` | nullable; CHECK: `RFETM`, `BCNESA`, `FCTT` |
 | `season` | `varchar(16)` | nullable |
 | `title` | `varchar(255)` NOT NULL | plain text, also the e-mail subject of a single alert |
@@ -395,10 +461,13 @@ Indexes added by `V8` for the statistics range reads: `ix_pipeline_run_finished 
 ## Replay and retention
 
 FEAT-00114, `V9`. No change to `pipeline_run`: `RETRY` and `retry_of_run_id` exist since `V1` and the active-run unique
-index covers replays.
+index covers replays. Since FEAT-00117 (`V10`) a replay run plans the same units as the original (same scope); each unit replays the stored package of
+the original's unit with the same ordinal, and a unit whose package is purged or missing fails with `ARTIFACT_PURGED` while the
+others still replay. `ReplayRules` refuses the replay with `NO_PACKAGE` when the original has no `ZIP` row and with
+`ARTIFACT_PURGED` when every `ZIP` row is purged.
 
 - **Replay.** `ReplayRun` is the only creator of `RETRY` runs. A replay run has no `INGEST` or `FETCH_PACKAGE` step and no
-  `ingest_run_id`; its status goes `QUEUED -> PACKED -> IMPORTING -> ...` and its start time is the replay start. The
+  `ingest_run_id`; its units go `PENDING -> PACKED -> IMPORTING -> ...` and the run goes `QUEUED -> RUNNING -> ...`. The
   executor adds a `ZIP` row for the replay run with a new id, the replay `run_id`, the same `storage_key`, `sha256` and
   `size_bytes` as the original and `created_at = now`. The file is shared, never copied.
 - **Failure `ARTIFACT_PURGED`.** The replay run fails with it (final, never retried) when the original's `ZIP` row is purged
@@ -426,3 +495,4 @@ index covers replays.
 | `V7` | `V7__alerts.sql` | `alert`, partial unique index `ux_alert_active`, `ix_alert_raised` |
 | `V8` | `V8__statistics.sql` | `pipeline_step.http_errors`, `timeouts`, `parse_errors` (+ CHECKs), `import_report.amended_played`, `daily_stats`, `ix_pipeline_run_finished`, `ix_pipeline_step_finished`, `ix_match_tracking_reported`, `ix_import_report_received` |
 | `V9` | `V9__replay_and_retention.sql` | `run_artifact.purged_at` (+ CHECK), `ix_run_artifact_storage_key`, `ix_run_artifact_unpurged`, `pipeline_step.import_job_reused` (+ CHECK) |
+| `V10` | `V10__run_units.sql` | `pipeline_unit` (+ CHECKs, `uq_pipeline_unit_run_ordinal`, `ix_pipeline_unit_key_finished`, `ix_pipeline_unit_finished`), every existing run backfilled as one unit (ordinal 0; key `season` for a full-season scope, `legacy` otherwise); `pipeline_run.status`, `trigger` and retry CHECKs rewritten (`RUNNING` replaces `RUNNING_INGEST`/`PACKED`/`IMPORTING`, `UNIT_RETRY`, `retry_of_unit_id`), active-run index narrowed to `QUEUED`/`RUNNING`, `ingest_run_id`/`import_job_id` left as legacy columns; `unit_id` on `pipeline_step` (unique `(unit_id, kind, attempt)`), `run_artifact` (+ `ix_run_artifact_unit`) and `import_report` (primary key moved to `unit_id`, `ix_import_report_run`); `alert.kind` accepts `UNIT_FAILURES` (`ck_alert_kind`) |

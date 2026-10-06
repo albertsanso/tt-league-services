@@ -20,14 +20,16 @@ class ImportReportMapperTest {
         ImportCounters a = new ImportCounters(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11);
         ImportCounters b = new ImportCounters(10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110);
         UUID runId = UUID.randomUUID();
+        UUID unitId = UUID.randomUUID();
         UUID jobId = UUID.randomUUID();
         ImportJobState job = new ImportJobState(jobId, "SUCCEEDED", null, List.of(
                 new ImportSeasonState("2024-2025", "SUCCEEDED", null, a, List.of()),
                 new ImportSeasonState("2025-2026", "SUCCEEDED", null, b, List.of())), "{\"raw\":true}");
 
-        ImportReport report = ImportReportMapper.toReport(runId, job, NOW);
+        ImportReport report = ImportReportMapper.toReport(runId, unitId, job, NOW);
 
         assertThat(report.runId()).isEqualTo(runId);
+        assertThat(report.unitId()).isEqualTo(unitId);
         assertThat(report.importJobId()).isEqualTo(jobId);
         assertThat(report.importStatus()).isEqualTo("SUCCEEDED");
         assertThat(report.filesSeen()).isEqualTo(11);
@@ -52,7 +54,7 @@ class ImportReportMapperTest {
                 new ImportSeasonState("2025-2026", "SUCCEEDED", null,
                         new ImportCounters(1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0), List.of("odd acta"))), "{}");
 
-        ImportReport report = ImportReportMapper.toReport(UUID.randomUUID(), job, NOW);
+        ImportReport report = ImportReportMapper.toReport(UUID.randomUUID(), UUID.randomUUID(), job, NOW);
 
         assertThat(report.issues()).containsExactly(
                 "job broke", "2024-2025: season broke", "2024-2025: late file", "2025-2026: odd acta");
@@ -63,7 +65,7 @@ class ImportReportMapperTest {
         ImportJobState job = new ImportJobState(UUID.randomUUID(), "FAILED", null, List.of(
                 new ImportSeasonState("2025-2026", "FAILED", null, null, List.of())), "{}");
 
-        ImportReport report = ImportReportMapper.toReport(UUID.randomUUID(), job, NOW);
+        ImportReport report = ImportReportMapper.toReport(UUID.randomUUID(), UUID.randomUUID(), job, NOW);
 
         assertThat(report.filesSeen()).isZero();
         assertThat(report.issues()).isEmpty();

@@ -35,6 +35,9 @@ class ConsoleListener:
     def stage_started(self, stage: IngestStage) -> None:
         print(f"[{stage.value}] started", file=sys.stderr)
 
+    def stage_total(self, stage: IngestStage, total: int) -> None:
+        pass
+
     def item_processed(self, stage: IngestStage, item: str) -> None:
         pass
 

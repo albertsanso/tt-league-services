@@ -46,6 +46,9 @@ class PipelineRunEntity {
     @Column(name = "retry_of_run_id")
     UUID retryOfRunId;
 
+    @Column(name = "retry_of_unit_id")
+    UUID retryOfUnitId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     RunStatus status;
@@ -59,11 +62,7 @@ class PipelineRunEntity {
     @Column(name = "finished_at")
     Instant finishedAt;
 
-    @Column(name = "ingest_run_id", length = 64)
-    String ingestRunId;
-
-    @Column(name = "import_job_id")
-    UUID importJobId;
+    // pipeline_run.ingest_run_id and import_job_id are legacy columns (V10): the units carry them, nothing maps them.
 
     @Column(name = "error_code", length = 64)
     String errorCode;

@@ -16,6 +16,8 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.RunQuery;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
+import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitKey;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineStepRepository;
@@ -66,6 +68,30 @@ class JpaRunQueryTest extends AbstractPersistenceTest {
     }
 
     @Test
+    void theUnitKeyKeepsOnlyTheRunsWithAUnitOfThatKey() {
+        PipelineRun withG1 = create(PipelineSource.RFETM, false, 0, true);
+        PipelineRun withG1AndG2 = create(PipelineSource.BCNESA, false, 10, true);
+        PipelineRun full = create(PipelineSource.FCTT, false, 20, true);
+        ScopeFilter g1 = new ScopeFilter("SENIOR", "G1", null, null, null, List.of(3));
+        ScopeFilter g2 = new ScopeFilter("SENIOR", "G2", null, null, null, List.of(3));
+        units(withG1, g1);
+        units(withG1AndG2, g2, g1);
+        unit(full);
+
+        assertThat(ids(runs.find(new RunQuery(Set.of(), Set.of(), null, null, UnitKey.of(g1), 0, 20))))
+                .containsExactly(withG1AndG2.id(), withG1.id());
+        assertThat(ids(runs.find(new RunQuery(Set.of(), Set.of(), null, null, UnitKey.of(g2), 0, 20))))
+                .containsExactly(withG1AndG2.id());
+        assertThat(ids(runs.find(new RunQuery(Set.of(), Set.of(), null, null, UnitKey.SEASON, 0, 20))))
+                .containsExactly(full.id());
+        assertThat(ids(runs.find(new RunQuery(Set.of(PipelineSource.RFETM), Set.of(), null, null, UnitKey.of(g1), 0,
+                20)))).containsExactly(withG1.id());
+        assertThat(runs.find(new RunQuery(Set.of(), Set.of(), null, null, "unknown", 0, 20)).items()).isEmpty();
+        assertThat(runs.find(new RunQuery(Set.of(), Set.of(), null, null, UnitKey.of(g1), 0, 1)).totalItems())
+                .isEqualTo(2);
+    }
+
+    @Test
     void pagesNewestFirstWithTotals() {
         PipelineRun a = create(PipelineSource.RFETM, false, 0, true);
         PipelineRun b = create(PipelineSource.RFETM, false, 10, true);
@@ -85,10 +111,12 @@ class JpaRunQueryTest extends AbstractPersistenceTest {
         PipelineRun one = create(PipelineSource.RFETM, false, 0, true);
         PipelineRun two = create(PipelineSource.FCTT, false, 0, true);
         PipelineRun none = create(PipelineSource.BCNESA, false, 0, true);
-        PipelineStep late = PipelineStep.start(UUID.randomUUID(), one.id(), StepKind.FETCH_PACKAGE, 1,
+        UUID oneUnit = unit(one).id();
+        UUID twoUnit = unit(two).id();
+        PipelineStep late = PipelineStep.start(UUID.randomUUID(), one.id(), oneUnit, StepKind.FETCH_PACKAGE, 1,
                 T0.plusSeconds(10), null);
-        PipelineStep early = PipelineStep.start(UUID.randomUUID(), one.id(), StepKind.INGEST, 1, T0, null);
-        PipelineStep other = PipelineStep.start(UUID.randomUUID(), two.id(), StepKind.INGEST, 1, T0, null);
+        PipelineStep early = PipelineStep.start(UUID.randomUUID(), one.id(), oneUnit, StepKind.INGEST, 1, T0, null);
+        PipelineStep other = PipelineStep.start(UUID.randomUUID(), two.id(), twoUnit, StepKind.INGEST, 1, T0, null);
         steps.save(late);
         steps.save(early);
         steps.save(other);

@@ -28,10 +28,10 @@ describe('RunActivityLog', () => {
     const bus = setup()
     await bus.emit({ type: 'run', payload: makeRun('r1', { status: 'QUEUED' }) })
     await bus.emit({ type: 'run', payload: makeRun('r1', { status: 'QUEUED' }) })
-    await bus.emit({ type: 'run', payload: makeRun('r1', { status: 'RUNNING_INGEST' }) })
+    await bus.emit({ type: 'run', payload: makeRun('r1', { status: 'RUNNING' }) })
 
     expect(lines()).toHaveLength(2)
-    expect(lines()[0]).toContain('RFETM Run running ingest')
+    expect(lines()[0]).toContain('RFETM Run running')
     expect(lines()[1]).toContain('RFETM Run queued')
   })
 
@@ -47,7 +47,7 @@ describe('RunActivityLog', () => {
 
   it('logs step transitions once per kind, attempt and status', async () => {
     const bus = setup()
-    await bus.emit({ type: 'run', payload: makeRun('r1', { status: 'RUNNING_INGEST' }) })
+    await bus.emit({ type: 'run', payload: makeRun('r1', { status: 'RUNNING' }) })
     const running = makeStep('r1', { kind: 'INGEST', status: 'RUNNING', attempt: 2 })
     await bus.emit({ type: 'step', payload: running })
     await bus.emit({ type: 'step', payload: running })

@@ -162,7 +162,7 @@ export function makeMatchDayDetail(id = 'day-1', overrides: Partial<MatchDayDeta
       makeEvent('e9', 'REOPENED', { actor: 'ana', occurredAt: '2026-10-05T07:50:00Z' }),
     ],
     runs: [
-      makeRun('run-2', { createdAt: '2026-10-05T07:30:00Z', requestedBy: 'ana', status: 'RUNNING_INGEST', finishedAt: null }),
+      makeRun('run-2', { createdAt: '2026-10-05T07:30:00Z', requestedBy: 'ana', status: 'RUNNING', finishedAt: null }),
       makeRun('run-1', { createdAt: '2026-10-04T18:30:00Z', source: 'FCTT', requestedBy: null, trigger: 'SCHEDULED' }),
     ],
     ...overrides,

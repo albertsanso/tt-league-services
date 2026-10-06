@@ -11,8 +11,8 @@ tracker rules, polling policy, scope builder and the ports (`IngestGateway`,
 `run` package holds the run state machine (`RunStatus`, `PipelineRun`), the step,
 artifact and import-report values, and the repository ports with their
 exceptions. The `execution` package holds the execution ports, `RunExecutor`,
-`RunLauncher` and `RunRecovery`. The `trigger` package holds `TriggerRun`, the
-single path that creates manual and scheduled runs, with the pending-trigger
+`UnitExecutor`, `RunLauncher` and `RunRecovery`. The `trigger` package holds `TriggerRun`, the
+single path that creates manual and scheduled runs (`RetryUnit` creates `UNIT_RETRY` runs, `ReplayRun` `RETRY` runs), with the pending-trigger
 and open-match-day scope ports. The `tracker` package holds the match-day tracker
 (see below). The `polling` package holds the adaptive polling (see below); later features add the remaining ports.
 
@@ -24,6 +24,26 @@ and open-match-day scope ports. The `tracker` package holds the match-day tracke
 - Root package: `org.cttelsamicsterrassa.data.pipeline.core`.
 - Match state is read through platform REST gateways, never through platform
   domain or persistence types.
+
+## Units
+
+- A run is a list of `RunUnit`s (`run` package): `UnitPlanner.plan` is the only place that turns a scope into units (one
+  per ingest group, merged by identity without match days, or the single `season` unit) and `UnitKey` the only place that
+  computes the identity (SHA-256, byte-identical to `PollUnit` and `poll_schedule.scope_key`; `season` and `legacy` are
+  reserved). `RunOutcomeRules.derive` is the only place that derives the terminal run status and error from finished units;
+  `PipelineRun.finish` only validates it. Never set a terminal run status from anywhere else.
+- `RunExecutor` drives the run (`QUEUED -> RUNNING`, units in ordinal order, then the derived outcome) and `UnitExecutor` one
+  unit through INGEST, FETCH_PACKAGE and IMPORT; every unit change goes through `units.update` and notifies
+  `RunObserver.unitChanged`. `UnitExecutionRules.abortsRemaining` is the only place that decides that a failure skips the
+  remaining units (`UNIT_SKIPPED`). Step attempts, deadlines and artifacts are per unit; the import report is per unit.
+- Progress (`UnitProgress`, from `IngestProgress` of the ingest run state) is written to the unit only when it changed, and only
+  while the unit is running; the executor never blocks on it and an ingest service without progress leaves it empty.
+- `UnitRetryRules.check` is the only place that decides whether a unit can be retried (`RUN_ACTIVE`, `UNIT_NOT_RETRYABLE`);
+  `RetryUnit` is the only creator of `UNIT_RETRY` runs and never reopens a terminal run or unit: history is immutable.
+- `StatisticsRules.unitOutcomes` and `AlertRules` (`UNIT_FAILURES`, limited by `AlertSettings.unitKeys`) compute the unit figures
+  and alerts; the runtime and the UI only show them.
+- New fixtures in the `test-jar`: `InMemoryRunUnitRepository`; `RecordingObserver` also records `unitEvents`, `ScriptedIngestGateway`
+  can script `progress`.
 
 ## Execution package
 
@@ -61,9 +81,9 @@ and open-match-day scope ports. The `tracker` package holds the match-day tracke
   `ARTIFACT_PURGED`); the runtime and the UI show its answer and never re-derive it. `ReplayRun` is the only creator of
   `RETRY` runs: it launches through `RunLauncher`, never queues behind an active run (`Rejected`) and `TriggerRun` stays the
   only creator of `MANUAL`/`SCHEDULED` runs.
-- A replay never calls ingest: `RunExecutor.replayPhase` re-hashes the original's stored ZIP, adds a `ZIP` row for the replay
-  run that shares the original's storage key (the file is never copied) and moves `QUEUED -> PACKED` through
-  `PipelineRun.startReplay`; the rest is the unchanged `packedPhase`. A missing or purged file fails with
+- A replay never calls ingest: `UnitExecutor.replayPhase` re-hashes the stored ZIP of the original's unit with the same ordinal,
+  adds a `ZIP` row for the replay unit that shares the original's storage key (the file is never copied) and moves
+  `PENDING -> PACKED` through `RunUnit.startReplay`; the rest is the unchanged `packedPhase`. A missing or purged file fails with
   `ARTIFACT_PURGED` (final). Never pass `allowPublishedShrink` for a replay.
 - `RetentionRules.expired` is the only place that decides what expires (pure, no I/O, no clock) and `ArtifactCleanup` is the
   only purge path: file first, then `markPurged`; rows are never deleted and a key referenced by an active run is never

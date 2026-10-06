@@ -5,21 +5,35 @@ import java.util.Set;
 
 /**
  * Filter and page of a run listing. Empty sets mean "any"; {@code createdFrom} is inclusive and {@code createdTo}
- * exclusive, both optional.
+ * exclusive, both optional. {@code unitKey}, when set, keeps the runs that
+ * have a unit with that key.
  */
 public record RunQuery(
         Set<PipelineSource> sources,
         Set<RunStatus> statuses,
         Instant createdFrom,
         Instant createdTo,
+        String unitKey,
         int page,
         int size) {
 
     public static final int MAX_SIZE = 100;
 
+    /** A query without a unit filter. */
+    public RunQuery(
+            Set<PipelineSource> sources,
+            Set<RunStatus> statuses,
+            Instant createdFrom,
+            Instant createdTo,
+            int page,
+            int size) {
+        this(sources, statuses, createdFrom, createdTo, null, page, size);
+    }
+
     public RunQuery {
         sources = Set.copyOf(Checks.required(sources, "sources"));
         statuses = Set.copyOf(Checks.required(statuses, "statuses"));
+        unitKey = Checks.optionalMax(unitKey, "unitKey", 64);
         if (page < 0) {
             throw new IllegalArgumentException("page must not be negative");
         }

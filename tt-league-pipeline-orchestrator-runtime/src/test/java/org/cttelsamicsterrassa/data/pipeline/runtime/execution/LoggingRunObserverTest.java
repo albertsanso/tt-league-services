@@ -12,8 +12,12 @@ import java.util.stream.Collectors;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitKey;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -65,9 +69,39 @@ class LoggingRunObserverTest {
     }
 
     @Test
+    void aUnitLineCarriesTheRunIdAndTheUnitKeyInTheMdc() {
+        PipelineRun run = run();
+        RunUnit unit = RunUnit.plan(UUID.randomUUID(), run.id(), 2, UnitKey.SEASON, "Full season",
+                RunScope.fullSeason()).startIngest("ing-1", NOW).fail(new RunError("INGEST_FAILED", "boom"), NOW);
+
+        observer.unitChanged(unit);
+
+        ILoggingEvent event = appender.list.get(0);
+        assertThat(event.getMDCPropertyMap()).containsEntry("runId", run.id().toString())
+                .containsEntry("unitKey", "season");
+        assertThat(pairs(event)).containsEntry("unit", 2).containsEntry("status", UnitStatus.FAILED)
+                .containsEntry("error", "INGEST_FAILED");
+        assertThat(event.getFormattedMessage()).contains("unit=2").contains("key=season").doesNotContain("boom");
+        assertThat(MDC.get("unitKey")).isNull();
+        assertThat(MDC.get("runId")).isNull();
+    }
+
+    @Test
+    void anOuterUnitBindingIsRestored() {
+        MDC.put("unitKey", "outer-key");
+        RunUnit unit = RunUnit.plan(UUID.randomUUID(), UUID.randomUUID(), 0, UnitKey.SEASON, "Full season",
+                RunScope.fullSeason());
+
+        observer.unitChanged(unit);
+
+        assertThat(MDC.get("unitKey")).isEqualTo("outer-key");
+    }
+
+    @Test
     void aStepLineCarriesTheStepFields() {
         PipelineRun run = run();
-        PipelineStep step = PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.INGEST, 2, NOW, null);
+        PipelineStep step =
+                PipelineStep.start(UUID.randomUUID(), run.id(), UUID.randomUUID(), StepKind.INGEST, 2, NOW, null);
 
         observer.stepChanged(step);
 

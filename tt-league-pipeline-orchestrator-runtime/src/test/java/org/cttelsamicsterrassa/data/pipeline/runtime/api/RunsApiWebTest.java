@@ -37,6 +37,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.trigger.ConflictMode;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.PendingTrigger;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ScopeType;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.ReplayRun;
+import org.cttelsamicsterrassa.data.pipeline.core.trigger.RetryUnit;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun.Outcome;
 import org.cttelsamicsterrassa.data.pipeline.core.trigger.port.PendingTriggerRepository;
@@ -105,6 +106,10 @@ class RunsApiWebTest {
     TriggerRun triggerRun;
     @MockitoBean
     ReplayRun replayRun;
+    @MockitoBean
+    RetryUnit retryUnit;
+    @MockitoBean
+    UnitPackageService packages;
     @MockitoBean
     RunQueryService queries;
     @MockitoBean
@@ -320,6 +325,140 @@ class RunsApiWebTest {
                     .andExpect(jsonPath("$.code").value(code))
                     .andExpect(jsonPath("$.detail").value("no " + code));
         }
+    }
+
+    @Test
+    void listPassesTheUnitKeyFilterThroughAndValidatesIt() throws Exception {
+        when(queries.list(any())).thenReturn(new PageDto<>(List.of(), 0, 20, 0, 0));
+        String auth = "Bearer " + valid();
+
+        mvc.perform(get("/api/pipeline/runs?unitKey=abc123").header("Authorization", auth))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<org.cttelsamicsterrassa.data.pipeline.core.run.RunQuery> captor =
+                ArgumentCaptor.forClass(org.cttelsamicsterrassa.data.pipeline.core.run.RunQuery.class);
+        org.mockito.Mockito.verify(queries).list(captor.capture());
+        assertThat(captor.getValue().unitKey()).isEqualTo("abc123");
+        mvc.perform(get("/api/pipeline/runs?unitKey=" + "x".repeat(65)).header("Authorization", auth))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.field").value("unitKey"));
+        mvc.perform(get("/api/pipeline/runs").param("unitKey", " ").header("Authorization", auth))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void retryingAUnitNeedsTheMatchesWritePermissionAndAToken() throws Exception {
+        String path = "/api/pipeline/runs/" + UUID.randomUUID() + "/units/" + UUID.randomUUID() + "/retry";
+
+        mvc.perform(post(path)).andExpect(status().isUnauthorized());
+        mvc.perform(post(path).header("Authorization", "Bearer " + valid())).andExpect(status().isForbidden());
+        verifyNoInteractions(retryUnit);
+    }
+
+    @Test
+    void retryingAUnitCreatesAUnitRetryRunForTheTokenSubject() throws Exception {
+        UUID runId = UUID.randomUUID();
+        UUID unitId = UUID.randomUUID();
+        PipelineRun created = PipelineRun.queue(UUID.randomUUID(), PipelineSource.RFETM, "2025-2026",
+                RunScope.fullSeason(), false, RunTrigger.UNIT_RETRY, "alice", runId, unitId, T0);
+        when(retryUnit.retry(runId, unitId, "alice")).thenReturn(new RetryUnit.Created(created));
+
+        mvc.perform(post("/api/pipeline/runs/" + runId + "/units/" + unitId + "/retry")
+                .header("Authorization", "Bearer " + valid("matches:write")))
+                .andExpect(status().isAccepted())
+                .andExpect(header().string("Location", "/api/pipeline/runs/" + created.id()))
+                .andExpect(jsonPath("$.runId").value(created.id().toString()));
+    }
+
+    @Test
+    void retryingAUnitMapsTheOutcomesToStatuses() throws Exception {
+        String auth = "Bearer " + valid("matches:write");
+        UUID runId = UUID.randomUUID();
+        UUID unitId = UUID.randomUUID();
+        UUID active = UUID.randomUUID();
+        String path = "/api/pipeline/runs/" + runId + "/units/" + unitId + "/retry";
+
+        when(retryUnit.retry(any(), any(), any())).thenReturn(new RetryUnit.NotFound());
+        mvc.perform(post(path).header("Authorization", auth)).andExpect(status().isNotFound());
+
+        when(retryUnit.retry(any(), any(), any())).thenReturn(new RetryUnit.NotRetryable("RUN_ACTIVE", "busy"));
+        mvc.perform(post(path).header("Authorization", auth))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("RUN_ACTIVE"))
+                .andExpect(jsonPath("$.detail").value("busy"));
+
+        when(retryUnit.retry(any(), any(), any())).thenReturn(new RetryUnit.Rejected("ACTIVE_RUN", "raced", active));
+        mvc.perform(post(path).header("Authorization", auth))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.code").value("RUN_ACTIVE"))
+                .andExpect(jsonPath("$.activeRunId").value(active.toString()));
+
+        when(retryUnit.retry(any(), any(), any()))
+                .thenReturn(new RetryUnit.NotRetryable("UNIT_NOT_RETRYABLE", "Unit X is SUCCEEDED"));
+        mvc.perform(post(path).header("Authorization", auth))
+                .andExpect(status().isUnprocessableEntity())
+                .andExpect(jsonPath("$.code").value("UNIT_NOT_RETRYABLE"));
+    }
+
+    @Test
+    void downloadingAUnitPackageNeedsAToken() throws Exception {
+        String path = "/api/pipeline/runs/" + UUID.randomUUID() + "/units/" + UUID.randomUUID() + "/package";
+
+        mvc.perform(get(path)).andExpect(status().isUnauthorized());
+        verifyNoInteractions(packages);
+    }
+
+    @Test
+    void anAvailablePackageIsStreamedWithItsChecksumAndAFileName() throws Exception {
+        byte[] zip = "PK-package".getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        UUID runId = UUID.randomUUID();
+        org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit unit =
+                org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit.plan(UUID.randomUUID(), runId, 2,
+                        org.cttelsamicsterrassa.data.pipeline.core.run.UnitKey.SEASON, "Full season",
+                        RunScope.fullSeason());
+        org.cttelsamicsterrassa.data.pipeline.core.run.RunArtifact artifact =
+                new org.cttelsamicsterrassa.data.pipeline.core.run.RunArtifact(UUID.randomUUID(), runId, unit.id(),
+                        org.cttelsamicsterrassa.data.pipeline.core.run.ArtifactKind.ZIP, "k/pack.zip", "a".repeat(64),
+                        zip.length, T0);
+        when(packages.find(runId, unit.id())).thenReturn(new UnitPackageService.Available(unit, artifact,
+                new org.cttelsamicsterrassa.data.pipeline.core.execution.port.ArtifactContent() {
+                    @Override
+                    public long size() {
+                        return zip.length;
+                    }
+
+                    @Override
+                    public java.io.InputStream open() {
+                        return new java.io.ByteArrayInputStream(zip);
+                    }
+                }));
+
+        mvc.perform(get("/api/pipeline/runs/" + runId + "/units/" + unit.id() + "/package")
+                .header("Authorization", "Bearer " + valid()))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Type", "application/zip"))
+                .andExpect(header().string("Content-Length", String.valueOf(zip.length)))
+                .andExpect(header().string("X-Content-SHA256", "a".repeat(64)))
+                .andExpect(header().string("Content-Disposition", "attachment; filename=\"" + runId + "-2.zip\""))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.content().bytes(zip));
+    }
+
+    @Test
+    void aMissingOrPurgedPackageAndAnUnknownUnitAreAnswered() throws Exception {
+        String auth = "Bearer " + valid();
+        UUID runId = UUID.randomUUID();
+        UUID unitId = UUID.randomUUID();
+        String path = "/api/pipeline/runs/" + runId + "/units/" + unitId + "/package";
+
+        when(packages.find(runId, unitId)).thenReturn(new UnitPackageService.UnitMissing());
+        mvc.perform(get(path).header("Authorization", auth)).andExpect(status().isNotFound());
+
+        when(packages.find(runId, unitId)).thenReturn(new UnitPackageService.NoPackage());
+        mvc.perform(get(path).header("Authorization", auth))
+                .andExpect(status().isNotFound()).andExpect(jsonPath("$.code").value("NO_PACKAGE"));
+
+        when(packages.find(runId, unitId)).thenReturn(new UnitPackageService.Purged());
+        mvc.perform(get(path).header("Authorization", auth))
+                .andExpect(status().isGone()).andExpect(jsonPath("$.code").value("ARTIFACT_PURGED"));
     }
 
     @Test

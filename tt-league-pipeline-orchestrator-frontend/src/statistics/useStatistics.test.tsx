@@ -1,6 +1,14 @@
 import { act, render, screen } from '@testing-library/react'
 import { ApiError } from '../api/ApiError'
-import { makeCorrections, makeDaily, makePending, makeRunOutcomes, makeSourceHealth, makeTimeToReport } from '../test/statisticsFixtures'
+import {
+  makeCorrections,
+  makeDaily,
+  makePending,
+  makeRunOutcomes,
+  makeSourceHealth,
+  makeTimeToReport,
+  makeUnitOutcomes,
+} from '../test/statisticsFixtures'
 import { TestApiProvider } from '../test/TestApiProvider'
 import { useStatistics } from './useStatistics'
 import type { StatisticsQuery } from './useStatistics'
@@ -22,6 +30,7 @@ function makeApi() {
   return {
     getDailyStats: vi.fn(async () => makeDaily()),
     getRunOutcomes: vi.fn(async () => makeRunOutcomes()),
+    getUnitOutcomes: vi.fn(async () => makeUnitOutcomes()),
     getTimeToReport: vi.fn(async () => makeTimeToReport()),
     getPendingByAge: vi.fn(async () => makePending()),
     getCorrections: vi.fn(async () => makeCorrections()),
@@ -39,7 +48,13 @@ function view(api: StatisticsApi, query: StatisticsQuery | null) {
   )
 }
 
-const QUERY: StatisticsQuery = { sources: ['FCTT'], season: '2026-2027', from: '2026-09-06', to: '2026-10-05' }
+const QUERY: StatisticsQuery = {
+  sources: ['FCTT'],
+  season: '2026-2027',
+  unitKey: null,
+  from: '2026-09-06',
+  to: '2026-10-05',
+}
 
 async function flush() {
   await act(async () => {
@@ -59,11 +74,22 @@ describe('useStatistics', () => {
     expect(screen.getByTestId('loading')).toHaveTextContent('false')
     const range = { from: '2026-09-06', to: '2026-10-05', source: ['FCTT'] }
     expect(api.getDailyStats).toHaveBeenCalledWith(range, expect.any(AbortSignal))
-    expect(api.getRunOutcomes).toHaveBeenCalledWith(range, expect.any(AbortSignal))
+    expect(api.getRunOutcomes).toHaveBeenCalledWith({ ...range, unitKey: null }, expect.any(AbortSignal))
+    expect(api.getUnitOutcomes).toHaveBeenCalledWith(range, expect.any(AbortSignal))
     expect(api.getCorrections).toHaveBeenCalledWith(range, expect.any(AbortSignal))
     expect(api.getSourceHealth).toHaveBeenCalledWith(range, expect.any(AbortSignal))
     expect(api.getTimeToReport).toHaveBeenCalledWith({ season: '2026-2027', source: ['FCTT'] }, expect.any(AbortSignal))
     expect(api.getPendingByAge).toHaveBeenCalledWith({ season: '2026-2027', source: ['FCTT'] }, expect.any(AbortSignal))
+  })
+
+  it('limits the run outcomes to the unit but still lists every unit', async () => {
+    const api = makeApi()
+    render(view(api, { ...QUERY, unitKey: 'season' }))
+    await flush()
+
+    const range = { from: '2026-09-06', to: '2026-10-05', source: ['FCTT'] }
+    expect(api.getRunOutcomes).toHaveBeenCalledWith({ ...range, unitKey: 'season' }, expect.any(AbortSignal))
+    expect(api.getUnitOutcomes).toHaveBeenCalledWith(range, expect.any(AbortSignal))
   })
 
   it('starts every request before any of them settles', async () => {

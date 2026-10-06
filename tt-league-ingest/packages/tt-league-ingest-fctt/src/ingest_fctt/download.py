@@ -58,7 +58,7 @@ from urllib.parse import parse_qs, urljoin, urlparse
 from urllib.request import HTTPCookieProcessor, Request, build_opener
 from urllib.robotparser import RobotFileParser
 
-from ingest_common import health, logs
+from ingest_common import health, logs, progress
 
 try:
     from zoneinfo import ZoneInfo
@@ -1072,8 +1072,10 @@ class IncrementalDownloader:
                     and _matches(self.options.groups, league.group)]
         if not selected:
             LOGGER.warning("No league matches the filters")
+        progress.total(len(selected))
         for league in selected:
             self.process_league(league)
+            progress.item(league.label)
         return True
 
     def _had_content(self, league: League) -> bool:

@@ -25,6 +25,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -37,6 +38,13 @@ import java.util.regex.Pattern;
  * Directory names provide the contextual identity, while {@code jornada} in the parsed payload is
  * the sole source of the round. A competition folder without a group subfolder dispatches its report
  * files directly, with a {@code null} group. Filename suffixes are opaque.</p>
+ *
+ * <p>The layout written by {@code tt-league-ingest} is also accepted:
+ * {@code [baseFolder]/[season]/[category]/[g<n>]/[phase]/jornada_[day]_local_team_[id]_away_team_[id].json}.
+ * There the competition is the category folder, the gender comes from the payload's {@code genero}
+ * ({@code masculino}/{@code femenino}), the category folder is mapped to the legacy competition name
+ * where one exists ({@code tdm} to {@code tercera-nacional}), the phase folder is informational (the payload {@code fase}
+ * wins) and a group folder that is not {@code g<n>} dispatches with a {@code null} group.</p>
  */
 @Component
 public class FcttActasDirectoryNavigator {
@@ -44,6 +52,14 @@ public class FcttActasDirectoryNavigator {
     private static final Logger LOGGER = LoggerFactory.getLogger(FcttActasDirectoryNavigator.class);
 
     private static final Pattern MATCH_REPORT_FILE_PATTERN = Pattern.compile("jornada-\\d+-partido-[\\d-]+\\.json");
+    private static final Pattern INGEST_REPORT_FILE_PATTERN =
+            Pattern.compile("jornada_\\d+_local_team_[^_]+_away_team_[^_]+\\.json");
+    private static final Pattern INGEST_GROUP_FOLDER_PATTERN = Pattern.compile("(?i)g\\d+");
+    /**
+     * Ingest category folders whose stored competition keeps the name of the legacy layout, so both
+     * layouts feed the same competition. A category without an entry keeps its own folder name.
+     */
+    private static final Map<String, String> INGEST_CATEGORY_ALIASES = Map.of("tdm", "tercera-nacional");
     private static final Pattern SEASON_FOLDER_PATTERN = Pattern.compile("\\d{4}-\\d{4}");
     private static final Set<String> GENDER_FOLDERS = Set.of("male", "female");
 
@@ -168,7 +184,8 @@ public class FcttActasDirectoryNavigator {
         for (Path genderFolder : listDirectories(seasonFolder)) {
             String gender = genderFolder.getFileName().toString();
             if (!GENDER_FOLDERS.contains(gender)) {
-                LOGGER.warn("Skipping unexpected gender folder {}", genderFolder);
+                traverseIngestCategoryFolder(genderFolder, season, processors, counters, runContext,
+                        progressListener);
                 continue;
             }
             for (Path competitionFolder : listDirectories(genderFolder)) {
@@ -195,6 +212,58 @@ public class FcttActasDirectoryNavigator {
         }
     }
 
+    private void traverseIngestCategoryFolder(Path categoryFolder, String season,
+                                              List<FcttMatchReportProcessor> processors,
+                                              Counters counters, ImportRunContext runContext,
+                                              ImportProgressListener progressListener) throws IOException {
+        String folderName = categoryFolder.getFileName().toString();
+        String category = INGEST_CATEGORY_ALIASES.getOrDefault(folderName, folderName);
+        for (Path groupFolder : listDirectories(categoryFolder)) {
+            String groupName = groupFolder.getFileName().toString();
+            String group = INGEST_GROUP_FOLDER_PATTERN.matcher(groupName).matches() ? groupName : null;
+            for (Path phaseFolder : listDirectories(groupFolder)) {
+                for (Path reportFile : list(phaseFolder, FcttActasDirectoryNavigator::isIngestReportFile)) {
+                    counters.filesSeen++;
+                    Acta acta;
+                    try {
+                        acta = actaParser.parse(reportFile);
+                    } catch (ActaParseException e) {
+                        counters.skipped++;
+                        LOGGER.error("Skipping {}: {}", reportFile, e.getMessage());
+                        reportProgress(counters, progressListener);
+                        continue;
+                    }
+                    String gender = genderOf(acta.gender());
+                    if (gender == null) {
+                        counters.processorFailures++;
+                        counters.issues.add(new ImportExecutionIssue("FcttActasDirectoryNavigator",
+                                reportFile.toString(),
+                                "payload genero \"" + acta.gender() + "\" is not masculino or femenino"));
+                        reportProgress(counters, progressListener);
+                        continue;
+                    }
+                    dispatchReport(reportFile, acta, season, gender, category, group, processors, counters,
+                            runContext, progressListener);
+                }
+            }
+        }
+    }
+
+    private static boolean isIngestReportFile(Path path) {
+        return Files.isRegularFile(path) && INGEST_REPORT_FILE_PATTERN.matcher(path.getFileName().toString()).matches();
+    }
+
+    private static String genderOf(String payloadGender) {
+        if (payloadGender == null) {
+            return null;
+        }
+        return switch (payloadGender.trim().toLowerCase(java.util.Locale.ROOT)) {
+            case "masculino" -> "male";
+            case "femenino" -> "female";
+            default -> null;
+        };
+    }
+
     private void traverseReportFolder(Path reportFolder,
                                       String season,
                                       String gender,
@@ -216,42 +285,51 @@ public class FcttActasDirectoryNavigator {
                 continue;
             }
 
-            if (acta.round() == null) {
-                counters.skipped++;
-                LOGGER.warn("Skipping {}: payload carries no match day", reportFile);
-                reportProgress(counters, progressListener);
-                continue;
-            }
-
-            FcttMatchReportContext context = new FcttMatchReportContext(
-                    season, gender, leagueCompetition, group, acta.round(), reportFile, acta, runContext);
-            if (context.hasGroupFolder() && context.groupNumber().isEmpty()) {
-                counters.skipped++;
-                LOGGER.warn("Skipping {}: group folder \"{}\" is not G<number> or <number>",
-                        reportFile, group);
-                reportProgress(counters, progressListener);
-                continue;
-            }
-            if (acta.gender() != null && !acta.gender().equals(context.sex())) {
-                counters.skipped++;
-                LOGGER.warn("Skipping {}: payload gender \"{}\" does not match the {} folder",
-                        reportFile, acta.gender(), gender);
-                reportProgress(counters, progressListener);
-                continue;
-            }
-            ActaClassification classification = classifier.classify(acta);
-            if (classification.unresolvedPendingFixture()) {
-                counters.skipped++;
-                runContext.recordUnresolvedPendingFixture("FcttActasDirectoryNavigator", reportFile,
-                        classification.reason());
-                LOGGER.warn("Skipping {}: pending fixture has no teams; it is reported as unresolved "
-                        + "and not dispatched", reportFile);
-                reportProgress(counters, progressListener);
-                continue;
-            }
-            dispatch(context, processors, counters);
-            reportProgress(counters, progressListener);
+            dispatchReport(reportFile, acta, season, gender, leagueCompetition, group, processors, counters,
+                    runContext, progressListener);
         }
+    }
+
+    private void dispatchReport(Path reportFile, Acta acta, String season, String gender,
+                                String leagueCompetition, String group,
+                                List<FcttMatchReportProcessor> processors,
+                                Counters counters, ImportRunContext runContext,
+                                ImportProgressListener progressListener) {
+        if (acta.round() == null) {
+            counters.skipped++;
+            LOGGER.warn("Skipping {}: payload carries no match day", reportFile);
+            reportProgress(counters, progressListener);
+            return;
+        }
+
+        FcttMatchReportContext context = new FcttMatchReportContext(
+                season, gender, leagueCompetition, group, acta.round(), reportFile, acta, runContext);
+        if (context.hasGroupFolder() && context.groupNumber().isEmpty()) {
+            counters.skipped++;
+            LOGGER.warn("Skipping {}: group folder \"{}\" is not G<number> or <number>",
+                    reportFile, group);
+            reportProgress(counters, progressListener);
+            return;
+        }
+        if (acta.gender() != null && !acta.gender().equals(context.sex())) {
+            counters.skipped++;
+            LOGGER.warn("Skipping {}: payload gender \"{}\" does not match the {} folder",
+                    reportFile, acta.gender(), gender);
+            reportProgress(counters, progressListener);
+            return;
+        }
+        ActaClassification classification = classifier.classify(acta);
+        if (classification.unresolvedPendingFixture()) {
+            counters.skipped++;
+            runContext.recordUnresolvedPendingFixture("FcttActasDirectoryNavigator", reportFile,
+                    classification.reason());
+            LOGGER.warn("Skipping {}: pending fixture has no teams; it is reported as unresolved "
+                    + "and not dispatched", reportFile);
+            reportProgress(counters, progressListener);
+            return;
+        }
+        dispatch(context, processors, counters);
+        reportProgress(counters, progressListener);
     }
 
     private static void reportProgress(Counters counters, ImportProgressListener progressListener) {
@@ -273,6 +351,11 @@ public class FcttActasDirectoryNavigator {
             }
             for (Path genderFolder : listDirectories(seasonFolder)) {
                 if (!GENDER_FOLDERS.contains(genderFolder.getFileName().toString())) {
+                    for (Path groupFolder : listDirectories(genderFolder)) {
+                        for (Path phaseFolder : listDirectories(groupFolder)) {
+                            total += list(phaseFolder, FcttActasDirectoryNavigator::isIngestReportFile).size();
+                        }
+                    }
                     continue;
                 }
                 for (Path competitionFolder : listDirectories(genderFolder)) {

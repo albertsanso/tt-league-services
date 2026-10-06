@@ -18,6 +18,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryImpo
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryPipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryPipelineStepRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryRunArtifactRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryRunUnitRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.ScriptedImportGateway;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
@@ -25,6 +26,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitStatus;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -92,11 +94,12 @@ class ExecutorRunDispatcherTest {
     }
 
     private final InMemoryPipelineRunRepository runs = new InMemoryPipelineRunRepository();
+    private final InMemoryRunUnitRepository units = new InMemoryRunUnitRepository(runs);
     private final InMemoryPipelineStepRepository steps = new InMemoryPipelineStepRepository();
     private ExecutorRunDispatcher dispatcher;
 
     private ExecutorRunDispatcher dispatcher(BlockingIngest ingest, int concurrency) {
-        RunExecutor executor = new RunExecutor(runs, steps, new InMemoryRunArtifactRepository(),
+        RunExecutor executor = new RunExecutor(runs, units, steps, new InMemoryRunArtifactRepository(),
                 new InMemoryImportReportRepository(), ingest, new ScriptedImportGateway(),
                 new InMemoryArtifactStore(), new SystemRunClock(), RunObserver.none(), SETTINGS);
         dispatcher = new ExecutorRunDispatcher(executor, concurrency);
@@ -198,11 +201,13 @@ class ExecutorRunDispatcherTest {
         ExecutorRunDispatcher d = dispatcher(ingest, 1);
 
         d.dispatch(run.id());
-        await(() -> runs.findById(run.id()).orElseThrow().status() == RunStatus.RUNNING_INGEST);
+        await(() -> units.findByRunId(run.id()).stream().anyMatch(unit -> unit.status() == UnitStatus.RUNNING_INGEST));
         Thread.sleep(200);
         d.shutdown();
 
-        assertThat(runs.findById(run.id()).orElseThrow().status()).isEqualTo(RunStatus.RUNNING_INGEST);
+        assertThat(runs.findById(run.id()).orElseThrow().status()).isEqualTo(RunStatus.RUNNING);
+        assertThat(units.findByRunId(run.id())).singleElement()
+                .satisfies(unit -> assertThat(unit.status()).isEqualTo(UnitStatus.RUNNING_INGEST));
         assertThat(steps.findByRunId(run.id())).singleElement()
                 .satisfies(step -> assertThat(step.status()).isEqualTo(StepStatus.RUNNING));
     }

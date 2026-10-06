@@ -2,16 +2,18 @@
 // Instants, dates and durations are ISO-8601 strings; UUIDs are strings.
 
 export type PipelineSource = 'RFETM' | 'BCNESA' | 'FCTT'
-export type RunStatus =
-  | 'QUEUED'
+export type RunStatus = 'QUEUED' | 'RUNNING' | 'NO_CHANGES' | 'SUCCEEDED' | 'PARTIAL' | 'FAILED'
+export type UnitStatus =
+  | 'PENDING'
   | 'RUNNING_INGEST'
-  | 'NO_CHANGES'
   | 'PACKED'
   | 'IMPORTING'
+  | 'NO_CHANGES'
   | 'SUCCEEDED'
   | 'PARTIAL'
   | 'FAILED'
-export type RunTrigger = 'SCHEDULED' | 'MANUAL' | 'RETRY'
+  | 'SKIPPED'
+export type RunTrigger = 'SCHEDULED' | 'MANUAL' | 'RETRY' | 'UNIT_RETRY'
 export type StepKind = 'INGEST' | 'FETCH_PACKAGE' | 'IMPORT'
 export type StepStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED'
 export type ScopeType = 'OPEN_MATCH_DAYS' | 'GROUP' | 'FULL_SEASON'
@@ -48,6 +50,39 @@ export interface StepStatusSummary {
   readonly attempt: number
 }
 
+/** How far the step a unit is running has got; `itemsTotal` and `percent` are null while the total is unknown. */
+export interface UnitProgress {
+  readonly step: StepKind
+  readonly stage: string | null
+  readonly itemsProcessed: number
+  readonly itemsTotal: number | null
+  readonly percent: number | null
+  readonly currentItem: string | null
+  readonly updatedAt: string
+}
+
+/**
+ * One unit of a run (one ingest group, or the whole season) with its own status, timings, error and progress. The
+ * `counters` are the import counters of the unit's platform job; null in lists and events.
+ */
+export interface RunUnit {
+  readonly runId: string
+  readonly id: string
+  readonly ordinal: number
+  readonly unitKey: string
+  readonly label: string
+  readonly filters: readonly ScopeFilter[]
+  readonly status: UnitStatus
+  readonly startedAt: string | null
+  readonly finishedAt: string | null
+  readonly durationMs: number | null
+  readonly error: RunError | null
+  readonly ingestRunId: string | null
+  readonly importJobId: string | null
+  readonly progress: UnitProgress | null
+  readonly counters: ImportReport | null
+}
+
 export interface RunSummary {
   readonly id: string
   readonly source: PipelineSource
@@ -66,8 +101,14 @@ export interface RunSummary {
   readonly ingestRunId: string | null
   readonly importJobId: string | null
   readonly retryOfRunId: string | null
+  /** Set on UNIT_RETRY runs: the unit of the original run that is re-run. */
+  readonly retryOfUnitId: string | null
   /** The platform returned an existing import job for the same content; null when unknown or no import yet. */
   readonly importJobReused: boolean | null
+  /** The unit that is running now, if any. */
+  readonly currentUnitId: string | null
+  /** The summary form of the units (without counters): present in lists and events, absent in the run detail. */
+  readonly units?: readonly RunUnit[]
   readonly steps?: readonly StepStatusSummary[]
 }
 
@@ -80,6 +121,7 @@ export interface StepHealth {
 
 export interface Step {
   readonly runId: string
+  readonly unitId: string
   readonly kind: StepKind
   readonly attempt: number
   readonly status: StepStatus
@@ -96,6 +138,7 @@ export interface Step {
 }
 
 export interface Artifact {
+  readonly unitId: string
   readonly kind: string
   readonly sha256: string
   readonly sizeBytes: number
@@ -127,7 +170,31 @@ export interface ReplayEligibility {
   readonly code: string | null
 }
 
-export type RunDetail = Omit<RunSummary, 'steps'> & {
+/** Whether a unit can be retried on its own, decided by the server (`UnitRetryRules`); `reason` names why not. */
+export interface UnitRetry {
+  readonly eligible: boolean
+  readonly reason: string | null
+}
+
+export interface UnitRetryRef {
+  readonly runId: string
+  readonly status: RunStatus
+}
+
+/** A unit of the run detail with its own steps and artifacts. */
+export type RunUnitDetail = RunUnit & {
+  readonly steps: readonly Step[]
+  readonly artifacts: readonly Artifact[]
+  /** The relative artifact folder of the unit; null when it has no stored package. */
+  readonly storageFolder: string | null
+  /** The download path of the unit's package; null when there is no unpurged ZIP. */
+  readonly packageUrl: string | null
+  readonly retry: UnitRetry
+  readonly retriedBy: readonly UnitRetryRef[]
+}
+
+export type RunDetail = Omit<RunSummary, 'steps' | 'units'> & {
+  readonly units: readonly RunUnitDetail[]
   readonly steps: readonly Step[]
   readonly artifacts: readonly Artifact[]
   readonly importReport: ImportReport | null
@@ -339,6 +406,7 @@ export interface Problem {
 
 export type RunEvent = Omit<RunSummary, 'steps'>
 export type StepEvent = Step
+export type UnitEvent = RunUnit
 
 export interface PendingTriggerEvent {
   readonly source: PipelineSource
@@ -404,6 +472,24 @@ export interface StepAverage {
   readonly kind: StepKind
   readonly attempts: number
   readonly avgStepSeconds: number | null
+}
+
+/** Terminal units by outcome per source and unit key; `avgSeconds` is null when no unit of the key ran. */
+export interface UnitOutcomesRow {
+  readonly source: PipelineSource
+  readonly unitKey: string
+  readonly label: string
+  readonly succeeded: number
+  readonly noChanges: number
+  readonly partial: number
+  readonly failed: number
+  readonly skipped: number
+  readonly avgSeconds: number | null
+}
+
+export interface UnitOutcomesResponse {
+  readonly zone: string
+  readonly units: readonly UnitOutcomesRow[]
 }
 
 export interface RunOutcomesResponse {

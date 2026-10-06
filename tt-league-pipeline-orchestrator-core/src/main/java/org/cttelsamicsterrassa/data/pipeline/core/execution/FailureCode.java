@@ -23,5 +23,6 @@ public enum FailureCode {
     PROTOCOL_ERROR,
     INTERRUPTED,
     DISPATCH_FAILED,
+    UNIT_SKIPPED,
     INTERNAL_ERROR
 }

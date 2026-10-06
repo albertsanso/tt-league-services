@@ -47,11 +47,9 @@ class ActiveRunConstraintTest extends AbstractPersistenceTest {
     @Test
     void newRunIsAcceptedAfterEachTerminalState() {
         List<UnaryOperator<PipelineRun>> terminals = List.of(
-                run -> run.startIngest("abc", T0.plusSeconds(1)).noChanges(T0.plusSeconds(2)),
-                run -> run.startIngest("abc", T0.plusSeconds(1)).packed(T0.plusSeconds(2))
-                        .startImport(UUID.randomUUID(), T0.plusSeconds(3)).succeed(T0.plusSeconds(4)),
-                run -> run.startIngest("abc", T0.plusSeconds(1)).packed(T0.plusSeconds(2))
-                        .startImport(UUID.randomUUID(), T0.plusSeconds(3)).partial(T0.plusSeconds(4)),
+                run -> run.start(T0.plusSeconds(1)).finish(RunStatus.NO_CHANGES, null, T0.plusSeconds(2)),
+                run -> run.start(T0.plusSeconds(1)).finish(RunStatus.SUCCEEDED, null, T0.plusSeconds(2)),
+                run -> run.start(T0.plusSeconds(1)).finish(RunStatus.PARTIAL, null, T0.plusSeconds(2)),
                 run -> run.fail(new RunError("E", "failed"), T0.plusSeconds(1)));
 
         for (UnaryOperator<PipelineRun> terminal : terminals) {
@@ -65,8 +63,15 @@ class ActiveRunConstraintTest extends AbstractPersistenceTest {
 
     @Test
     void databaseIndexRejectsTwoActiveRowsIndependentlyOfTheAdapter() {
-        insertActive("PACKED");
-        assertThatThrownBy(() -> insertActive("IMPORTING")).isInstanceOf(DataIntegrityViolationException.class);
+        insertActive("RUNNING");
+        assertThatThrownBy(() -> insertActive("QUEUED")).isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void databaseRejectsTheStatusesThatMovedToTheUnits() {
+        for (String legacy : List.of("RUNNING_INGEST", "PACKED", "IMPORTING")) {
+            assertThatThrownBy(() -> insertActive(legacy)).isInstanceOf(DataIntegrityViolationException.class);
+        }
     }
 
     @Test

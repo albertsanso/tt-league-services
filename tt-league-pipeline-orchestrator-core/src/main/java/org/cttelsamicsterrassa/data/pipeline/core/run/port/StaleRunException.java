@@ -13,6 +13,14 @@ public class StaleRunException extends RuntimeException {
         this.expectedVersion = expectedVersion;
     }
 
+    /** A concurrent change to one unit of the run. */
+    public StaleRunException(UUID runId, UUID unitId, long expectedVersion) {
+        super("Unit " + unitId + " of run " + runId + " was modified concurrently; expected version "
+                + expectedVersion);
+        this.runId = runId;
+        this.expectedVersion = expectedVersion;
+    }
+
     public UUID runId() {
         return runId;
     }

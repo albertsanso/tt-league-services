@@ -30,6 +30,9 @@ public interface PipelineRunRepository {
 
     Optional<PipelineRun> findActiveBySource(PipelineSource source);
 
+    /** The UNIT_RETRY runs created for the unit, oldest first. */
+    List<PipelineRun> findRetriesOfUnit(UUID unitId);
+
     /** Newest first ({@code createdAt} descending, then {@code id}). */
     RunPage find(RunQuery query);
 

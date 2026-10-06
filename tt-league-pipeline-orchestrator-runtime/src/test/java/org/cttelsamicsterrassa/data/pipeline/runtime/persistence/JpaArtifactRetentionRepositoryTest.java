@@ -42,10 +42,14 @@ class JpaArtifactRetentionRepositoryTest extends AbstractPersistenceTest {
         PipelineRun finished = finishedRun(PipelineSource.RFETM, "2024-2025");
         PipelineRun active = runs.create(PipelineRun.queue(UUID.randomUUID(), PipelineSource.RFETM, "2025-2026",
                 RunScope.fullSeason(), false, RunTrigger.MANUAL, "user-1", null, T0));
-        artifacts.add(new RunArtifact(UUID.randomUUID(), finished.id(), ArtifactKind.ZIP, "old.zip", SHA, 1, T0));
-        artifacts.add(new RunArtifact(UUID.randomUUID(), active.id(), ArtifactKind.ZIP, "new.zip", SHA, 1, T0));
-        artifacts.add(new RunArtifact(UUID.randomUUID(), finished.id(), ArtifactKind.MANIFEST, "gone.json", SHA, 1,
+        UUID finishedUnit = unit(finished).id();
+        UUID activeUnit = unit(active).id();
+        artifacts.add(new RunArtifact(UUID.randomUUID(), finished.id(), finishedUnit, ArtifactKind.ZIP, "old.zip", SHA,
+                1, T0));
+        artifacts.add(new RunArtifact(UUID.randomUUID(), active.id(), activeUnit, ArtifactKind.ZIP, "new.zip", SHA, 1,
                 T0));
+        artifacts.add(new RunArtifact(UUID.randomUUID(), finished.id(), finishedUnit, ArtifactKind.MANIFEST,
+                "gone.json", SHA, 1, T0));
         artifacts.markPurged("gone.json", T0.plusSeconds(10));
 
         List<RetainedArtifact> found = retention.findUnpurged();

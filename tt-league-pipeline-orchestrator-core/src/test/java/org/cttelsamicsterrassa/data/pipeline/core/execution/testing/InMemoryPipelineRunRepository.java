@@ -23,6 +23,11 @@ import java.util.UUID;
 public class InMemoryPipelineRunRepository implements PipelineRunRepository {
 
     private final Map<UUID, PipelineRun> runs = new LinkedHashMap<>();
+    private InMemoryRunUnitRepository units;
+
+    void useUnits(InMemoryRunUnitRepository units) {
+        this.units = units;
+    }
 
     @Override
     public synchronized PipelineRun create(PipelineRun run) {
@@ -46,8 +51,8 @@ public class InMemoryPipelineRunRepository implements PipelineRunRepository {
             throw new StaleRunException(run.id(), run.version());
         }
         PipelineRun next = PipelineRun.restore(run.id(), run.source(), run.season(), run.scope(), run.force(),
-                run.trigger(), run.requestedBy(), run.retryOfRunId(), run.status(), run.createdAt(), run.startedAt(),
-                run.finishedAt(), run.ingestRunId(), run.importJobId(), run.error(), run.version() + 1);
+                run.trigger(), run.requestedBy(), run.retryOfRunId(), run.retryOfUnitId(), run.status(),
+                run.createdAt(), run.startedAt(), run.finishedAt(), run.error(), run.version() + 1);
         runs.put(run.id(), next);
         return next;
     }
@@ -70,12 +75,22 @@ public class InMemoryPipelineRunRepository implements PipelineRunRepository {
     }
 
     @Override
+    public synchronized List<PipelineRun> findRetriesOfUnit(UUID unitId) {
+        return runs.values().stream()
+                .filter(run -> unitId.equals(run.retryOfUnitId()))
+                .sorted(Comparator.comparing(PipelineRun::createdAt))
+                .toList();
+    }
+
+    @Override
     public synchronized RunPage find(RunQuery query) {
         List<PipelineRun> matching = runs.values().stream()
                 .filter(run -> query.sources().isEmpty() || query.sources().contains(run.source()))
                 .filter(run -> query.statuses().isEmpty() || query.statuses().contains(run.status()))
                 .filter(run -> query.createdFrom() == null || !run.createdAt().isBefore(query.createdFrom()))
                 .filter(run -> query.createdTo() == null || run.createdAt().isBefore(query.createdTo()))
+                .filter(run -> query.unitKey() == null
+                        || (units != null && units.runHasUnitKey(run.id(), query.unitKey())))
                 .sorted(Comparator.comparing(PipelineRun::createdAt).reversed()
                         .thenComparing(PipelineRun::id, Comparator.reverseOrder()))
                 .toList();

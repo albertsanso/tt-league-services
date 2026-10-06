@@ -12,6 +12,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.StaleRunException;
@@ -40,36 +41,49 @@ class JpaPipelineRunRepositoryTest extends AbstractPersistenceTest {
         assertThat(loaded).usingRecursiveComparison().isEqualTo(stored);
         assertThat(loaded.scope()).isEqualTo(scope);
         assertThat(loaded.retryOfRunId()).isEqualTo(original.id());
+        assertThat(loaded.retryOfUnitId()).isNull();
         assertThat(loaded.trigger()).isEqualTo(RunTrigger.RETRY);
         assertThat(loaded.requestedBy()).isEqualTo("user-2");
         assertThat(loaded.createdAt()).isEqualTo(T0);
     }
 
     @Test
+    void roundTripsAUnitRetryRunWithItsOriginalUnit() {
+        PipelineRun original = runs.create(queued(PipelineSource.BCNESA));
+        RunUnit unit = unit(original);
+        runs.update(original.fail(new RunError("E", "boom"), T0.plusSeconds(1)));
+        PipelineRun retry = PipelineRun.queue(UUID.randomUUID(), PipelineSource.BCNESA, "2025-2026",
+                RunScope.fullSeason(), false, RunTrigger.UNIT_RETRY, "user-2", original.id(), unit.id(),
+                T0.plusSeconds(10));
+
+        PipelineRun stored = runs.create(retry);
+
+        PipelineRun loaded = runs.findById(retry.id()).orElseThrow();
+        assertThat(loaded).usingRecursiveComparison().isEqualTo(stored);
+        assertThat(loaded.trigger()).isEqualTo(RunTrigger.UNIT_RETRY);
+        assertThat(loaded.retryOfRunId()).isEqualTo(original.id());
+        assertThat(loaded.retryOfUnitId()).isEqualTo(unit.id());
+        assertThat(runs.findRetriesOfUnit(unit.id())).extracting(PipelineRun::id).containsExactly(retry.id());
+        assertThat(runs.findRetriesOfUnit(UUID.randomUUID())).isEmpty();
+    }
+
+    @Test
     void persistsLifecycleStepByStepIncrementingVersion() {
-        UUID job = UUID.randomUUID();
         PipelineRun run = runs.create(queued(PipelineSource.RFETM));
         assertThat(run.version()).isZero();
 
-        run = runs.update(run.startIngest("abc123", T0.plusSeconds(1)));
+        run = runs.update(run.start(T0.plusSeconds(1)));
         assertThat(run.version()).isEqualTo(1);
-        assertThat(run.status()).isEqualTo(RunStatus.RUNNING_INGEST);
-        assertThat(run.ingestRunId()).isEqualTo("abc123");
+        assertThat(run.status()).isEqualTo(RunStatus.RUNNING);
 
-        run = runs.update(run.packed(T0.plusSeconds(2)));
+        run = runs.update(run.finish(RunStatus.PARTIAL, null, T0.plusSeconds(4)));
         assertThat(run.version()).isEqualTo(2);
-
-        run = runs.update(run.startImport(job, T0.plusSeconds(3)));
-        assertThat(run.version()).isEqualTo(3);
-        assertThat(run.importJobId()).isEqualTo(job);
-
-        run = runs.update(run.partial(T0.plusSeconds(4)));
-        assertThat(run.version()).isEqualTo(4);
 
         PipelineRun loaded = runs.findById(run.id()).orElseThrow();
         assertThat(loaded.status()).isEqualTo(RunStatus.PARTIAL);
+        assertThat(loaded.startedAt()).isEqualTo(T0.plusSeconds(1));
         assertThat(loaded.finishedAt()).isEqualTo(T0.plusSeconds(4));
-        assertThat(loaded.version()).isEqualTo(4);
+        assertThat(loaded.version()).isEqualTo(2);
     }
 
     @Test
@@ -85,7 +99,7 @@ class JpaPipelineRunRepositoryTest extends AbstractPersistenceTest {
     @Test
     void staleVersionIsRejected() {
         PipelineRun created = runs.create(queued(PipelineSource.RFETM));
-        runs.update(created.startIngest("abc", T0.plusSeconds(1)));
+        runs.update(created.start(T0.plusSeconds(1)));
 
         assertThatThrownBy(() -> runs.update(created.fail(new RunError("E", "m"), T0.plusSeconds(2))))
                 .isInstanceOf(StaleRunException.class);

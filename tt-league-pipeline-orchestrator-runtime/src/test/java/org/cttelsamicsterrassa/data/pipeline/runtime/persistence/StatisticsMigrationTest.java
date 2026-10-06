@@ -21,13 +21,20 @@ class StatisticsMigrationTest extends AbstractPersistenceTest {
         template.update("INSERT INTO pipeline.pipeline_run (id, source, season, scope, trigger, requested_by, "
                 + "status, created_at, version) VALUES (?, 'FCTT', '2026-2027', '{\"scopes\":[]}'::jsonb, "
                 + "'MANUAL', 'ana', 'QUEUED', now(), 0)", runId);
+        template.update("INSERT INTO pipeline.pipeline_unit (id, run_id, ordinal, unit_key, label, scope, status) "
+                + "VALUES (?, ?, 0, 'season', 'Full season', '{\"scopes\":[]}'::jsonb, 'PENDING')",
+                UUID.randomUUID(), runId);
         return runId;
     }
 
+    private UUID unitOf(UUID runId) {
+        return template.queryForObject("SELECT id FROM pipeline.pipeline_unit WHERE run_id = ?", UUID.class, runId);
+    }
+
     private void insertStep(UUID runId, String kind, int attempt, Long http, Long timeouts, Long parse) {
-        template.update("INSERT INTO pipeline.pipeline_step (id, run_id, kind, attempt, status, started_at, "
-                + "finished_at, http_errors, timeouts, parse_errors) VALUES (?, ?, ?, ?, 'SUCCEEDED', now(), now(), "
-                + "?, ?, ?)", UUID.randomUUID(), runId, kind, attempt, http, timeouts, parse);
+        template.update("INSERT INTO pipeline.pipeline_step (id, run_id, unit_id, kind, attempt, status, started_at, "
+                + "finished_at, http_errors, timeouts, parse_errors) VALUES (?, ?, ?, ?, ?, 'SUCCEEDED', now(), now(), "
+                + "?, ?, ?)", UUID.randomUUID(), runId, unitOf(runId), kind, attempt, http, timeouts, parse);
     }
 
     private void insertDaily(String date, String source, int runs, int failures, Long avg) {
@@ -75,11 +82,11 @@ class StatisticsMigrationTest extends AbstractPersistenceTest {
     @Test
     void amendedPlayedDefaultsToZeroAndMustNotBeNegative() {
         UUID runId = insertRun();
-        template.update("INSERT INTO pipeline.import_report (run_id, import_job_id, import_status, files_seen, "
-                + "items_persisted, skipped, processor_failures, scheduled_created, upgraded_to_played, rescheduled, "
-                + "partial_actas, invalid_actas, unresolved_pending_fixtures, issues, raw_report, received_at) "
-                + "VALUES (?, ?, 'SUCCEEDED', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '[]'::jsonb, '{}'::jsonb, now())",
-                runId, UUID.randomUUID());
+        template.update("INSERT INTO pipeline.import_report (run_id, unit_id, import_job_id, import_status, "
+                + "files_seen, items_persisted, skipped, processor_failures, scheduled_created, upgraded_to_played, "
+                + "rescheduled, partial_actas, invalid_actas, unresolved_pending_fixtures, issues, raw_report, "
+                + "received_at) VALUES (?, ?, ?, 'SUCCEEDED', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, '[]'::jsonb, '{}'::jsonb, "
+                + "now())", runId, unitOf(runId), UUID.randomUUID());
 
         assertThat(template.queryForObject("SELECT amended_played FROM pipeline.import_report WHERE run_id = ?",
                 Long.class, runId)).isZero();

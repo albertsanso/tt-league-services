@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.FakeRunClock
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryAlertRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryMatchDayRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryPipelineRunRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.InMemoryRunUnitRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.RecordingNotifier;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.CloseReason;
@@ -26,10 +27,11 @@ class AlertEvaluatorTest {
     private final InMemoryAlertRepository alerts = new InMemoryAlertRepository();
     private final InMemoryMatchDayRepository matchDays = new InMemoryMatchDayRepository();
     private final InMemoryPipelineRunRepository runs = new InMemoryPipelineRunRepository();
+    private final InMemoryRunUnitRepository units = new InMemoryRunUnitRepository(runs);
     private final RecordingNotifier notifier = new RecordingNotifier();
     private final FakeRunClock clock = new FakeRunClock(NOW);
     private final AlertEvaluator evaluator =
-            new AlertEvaluator(alerts, matchDays, runs, notifier, clock, SETTINGS);
+            new AlertEvaluator(alerts, matchDays, runs, units, notifier, clock, SETTINGS);
 
     private MatchDay store(MatchDay day) {
         matchDays.apply(new MatchDayChangeSet(List.of(day), List.of(), Set.of(), List.of()));
@@ -128,7 +130,7 @@ class AlertEvaluatorTest {
                 throw new ActiveAlertExistsException(alert.kind(), alert.conditionKey());
             }
         };
-        AlertEvaluator racingEvaluator = new AlertEvaluator(racing, matchDays, runs, notifier, clock, SETTINGS);
+        AlertEvaluator racingEvaluator = new AlertEvaluator(racing, matchDays, runs, units, notifier, clock, SETTINGS);
 
         EvaluationOutcome outcome = racingEvaluator.evaluate();
 

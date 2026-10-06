@@ -444,3 +444,99 @@ def test_a_failing_run_logs_the_stack_trace_and_still_records_the_error(tmp_path
         time.sleep(0.05)
     failed = [r for r in captured if r.exc_info]
     assert failed and failed[0].runId == "orch-9"
+
+
+class ProgressIngestor(FakeIngestor):
+    """Reports progress through the listener and pauses mid-stage so the test can read it."""
+
+    def __init__(self):
+        super().__init__()
+        self.reached = threading.Event()
+        self.proceed = threading.Event()
+
+    def download(self, request, settings, listener):
+        listener.stage_total(IngestStage.DOWNLOAD, 4)
+        listener.item_processed(IngestStage.DOWNLOAD, "league one")
+        listener.item_processed(IngestStage.DOWNLOAD, "league two")
+        self.reached.set()
+        self.proceed.wait(5)
+        return StageReport(IngestStage.DOWNLOAD)
+
+
+def test_progress_is_null_before_the_first_stage_and_after_the_run(tmp_path):
+    ingestor = FakeIngestor()
+    ingestor.release.clear()
+    client = client_for(tmp_path, ingestor)
+    run_id = post(client).json()["runId"]
+    queued = client.get(f"/api/v1/ingest/runs/{run_id}", headers=KEY).json()
+    assert "progress" in queued
+    ingestor.release.set()
+
+    body = wait_for(client, run_id)
+
+    assert body["progress"] is None
+
+
+def test_progress_reports_stage_items_total_and_the_last_item_while_running(tmp_path):
+    ingestor = ProgressIngestor()
+    client = client_for(tmp_path, ingestor)
+    run_id = post(client).json()["runId"]
+    assert ingestor.reached.wait(5)
+
+    running = client.get(f"/api/v1/ingest/runs/{run_id}", headers=KEY).json()
+
+    assert running["status"] == "RUNNING"
+    assert running["progress"] == {"stage": "DOWNLOAD", "itemsProcessed": 2, "itemsTotal": 4,
+                                   "currentItem": "league two"}
+    ingestor.proceed.set()
+    assert wait_for(client, run_id)["progress"] is None
+
+
+def test_progress_restarts_with_every_stage_and_keeps_an_unknown_total_null():
+    record = ingest_rest.app.RunRecord("r", None)  # the request is not used by the listener
+    listener = ingest_rest.app._RecordListener(record)
+
+    listener.stage_started(IngestStage.DOWNLOAD)
+    listener.item_processed(IngestStage.DOWNLOAD, "a")
+    assert record.progress == {"stage": "DOWNLOAD", "itemsProcessed": 1, "itemsTotal": None, "currentItem": "a"}
+
+    listener.stage_started(IngestStage.PARSE)
+    assert record.progress == {"stage": "PARSE", "itemsProcessed": 0, "itemsTotal": None, "currentItem": None}
+
+
+def test_the_total_never_falls_below_the_items_already_processed():
+    record = ingest_rest.app.RunRecord("r", None)
+    listener = ingest_rest.app._RecordListener(record)
+    listener.stage_started(IngestStage.PARSE)
+    listener.stage_total(IngestStage.PARSE, 2)
+    for item in ("a", "b", "c"):
+        listener.item_processed(IngestStage.PARSE, item)
+
+    assert record.progress["itemsProcessed"] == 3
+    assert record.progress["itemsTotal"] == 3
+
+    listener.stage_total(IngestStage.PARSE, 1)
+    assert record.progress["itemsTotal"] == 3
+
+
+def test_progress_calls_of_another_stage_or_before_a_stage_are_ignored():
+    record = ingest_rest.app.RunRecord("r", None)
+    listener = ingest_rest.app._RecordListener(record)
+    listener.item_processed(IngestStage.DOWNLOAD, "early")
+    listener.stage_total(IngestStage.DOWNLOAD, 5)
+    assert record.progress is None
+
+    listener.stage_started(IngestStage.DOWNLOAD)
+    listener.item_processed(IngestStage.PARSE, "other stage")
+    listener.stage_total(IngestStage.PARSE, 9)
+    assert record.progress == {"stage": "DOWNLOAD", "itemsProcessed": 0, "itemsTotal": None, "currentItem": None}
+
+
+def test_a_failed_run_clears_the_progress(tmp_path):
+    client = client_for(tmp_path, FakeIngestor(raises=True))
+    run_id = post(client).json()["runId"]
+
+    body = wait_for(client, run_id)
+
+    assert body["status"] == "FAILED"
+    assert body["progress"] is None

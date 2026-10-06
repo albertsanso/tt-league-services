@@ -25,8 +25,11 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.RunArtifact;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunTrigger;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepStatus;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitPlanner;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitStatus;
 import org.junit.jupiter.api.Test;
 
 class RunExecutorReplayTest {
@@ -61,6 +64,23 @@ class RunExecutorReplayTest {
         return h.run(replay.id());
     }
 
+    private RunUnit unit(PipelineRun run) {
+        return h.units.findByRunId(run.id()).get(0);
+    }
+
+    /** What the executor does before it starts a replay: plan the copied units of the original. */
+    private PipelineRun plannedReplay(PipelineRun original) {
+        PipelineRun queued = queueReplay(original);
+        h.units.addAll(UnitPlanner.replan(queued.id(), h.units.findByRunId(original.id())));
+        return queued;
+    }
+
+    private RunArtifact copyZipRow(PipelineRun original, RunUnit replayUnit) {
+        RunArtifact source = h.artifactRows.findByRunId(original.id()).get(0);
+        return h.artifactRows.add(new RunArtifact(UUID.randomUUID(), replayUnit.runId(), replayUnit.id(),
+                ArtifactKind.ZIP, source.storageKey(), source.sha256(), source.sizeBytes(), h.clock.now()));
+    }
+
     private PipelineStep importStep(PipelineRun run) {
         List<PipelineStep> attempts = h.steps.findByRunId(run.id()).stream()
                 .filter(step -> step.kind() == StepKind.IMPORT)
@@ -80,15 +100,20 @@ class RunExecutorReplayTest {
 
         assertThat(result.status()).isEqualTo(RunStatus.SUCCEEDED);
         assertThat(result.trigger()).isEqualTo(RunTrigger.RETRY);
-        assertThat(result.ingestRunId()).isNull();
-        assertThat(result.importJobId()).isEqualTo(replayJob);
+        assertThat(unit(result).ingestRunId()).isNull();
+        assertThat(unit(result).importJobId()).isEqualTo(replayJob);
+        assertThat(unit(result).status()).isEqualTo(UnitStatus.SUCCEEDED);
+        assertThat(unit(result).id()).isNotEqualTo(unit(original).id());
+        assertThat(unit(result).ordinal()).isEqualTo(unit(original).ordinal());
+        assertThat(unit(result).unitKey()).isEqualTo(unit(original).unitKey());
         assertThat(ingest.startRequests).hasSize(ingestCalls);
         assertThat(h.steps.findByRunId(result.id())).extracting(PipelineStep::kind).containsExactly(StepKind.IMPORT);
         assertThat(importStep(result).importJobReused()).isFalse();
         assertThat(platform.submissions).hasSize(2);
         assertThat(platform.submissions.get(1).bytes()).isEqualTo(ZIP);
+        assertThat(platform.submissions.get(1).fileName()).isEqualTo(result.id() + "-0.zip");
         assertThat(platform.submissions.get(1).clientRunId()).isEqualTo(result.id());
-        assertThat(h.reports.findByRunId(result.id())).isPresent();
+        assertThat(h.reports.findByUnitId(unit(result).id())).isPresent();
     }
 
     @Test
@@ -101,6 +126,7 @@ class RunExecutorReplayTest {
         RunArtifact source = h.artifactRows.findByRunId(original.id()).get(0);
         assertThat(h.artifactRows.findByRunId(result.id())).singleElement().satisfies(copy -> {
             assertThat(copy.id()).isNotEqualTo(source.id());
+            assertThat(copy.unitId()).isEqualTo(unit(result).id());
             assertThat(copy.kind()).isEqualTo(ArtifactKind.ZIP);
             assertThat(copy.storageKey()).isEqualTo(source.storageKey());
             assertThat(copy.sha256()).isEqualTo(source.sha256());
@@ -118,11 +144,11 @@ class RunExecutorReplayTest {
         PipelineRun result = replay(queueReplay(original));
 
         assertThat(result.status()).isEqualTo(RunStatus.SUCCEEDED);
-        assertThat(result.importJobId()).isEqualTo(originalJob);
+        assertThat(unit(result).importJobId()).isEqualTo(originalJob);
         PipelineStep step = importStep(result);
         assertThat(step.importJobReused()).isTrue();
         assertThat(step.externalRef()).isEqualTo(originalJob.toString());
-        assertThat(h.reports.findByRunId(result.id())).isPresent();
+        assertThat(h.reports.findByUnitId(unit(result).id())).isPresent();
     }
 
     @Test
@@ -187,10 +213,8 @@ class RunExecutorReplayTest {
     @Test
     void resumesAfterACrashBetweenTheRowCopyAndTheStartOfTheReplay() {
         PipelineRun original = originalEnding("FAILED");
-        PipelineRun queued = queueReplay(original);
-        RunArtifact source = h.artifactRows.findByRunId(original.id()).get(0);
-        h.artifactRows.add(new RunArtifact(UUID.randomUUID(), queued.id(), ArtifactKind.ZIP, source.storageKey(),
-                source.sha256(), source.sizeBytes(), h.clock.now()));
+        PipelineRun queued = plannedReplay(original);
+        copyZipRow(original, unit(queued));
         platform.submit(created(replayJob)).poll(job(replayJob, "SUCCEEDED", null));
 
         PipelineRun result = replay(queued);
@@ -202,17 +226,17 @@ class RunExecutorReplayTest {
     @Test
     void resumesWhileImportingByPollingTheStoredJob() {
         PipelineRun original = originalEnding("FAILED");
-        PipelineRun queued = queueReplay(original);
-        RunArtifact source = h.artifactRows.findByRunId(original.id()).get(0);
-        h.artifactRows.add(new RunArtifact(UUID.randomUUID(), queued.id(), ArtifactKind.ZIP, source.storageKey(),
-                source.sha256(), source.sizeBytes(), h.clock.now()));
-        PipelineRun packed = h.runs.update(queued.startReplay(h.clock.now()));
-        h.steps.save(PipelineStep.start(UUID.randomUUID(), packed.id(), StepKind.IMPORT, 1, h.clock.now(), null)
-                .withImportJob(replayJob, false));
-        h.runs.update(packed.startImport(replayJob, h.clock.now()));
+        PipelineRun queued = plannedReplay(original);
+        RunUnit replayUnit = unit(queued);
+        copyZipRow(original, replayUnit);
+        PipelineRun running = h.runs.update(queued.start(h.clock.now()));
+        RunUnit packed = h.units.update(replayUnit.startReplay(h.clock.now()));
+        h.steps.save(PipelineStep.start(UUID.randomUUID(), running.id(), packed.id(), StepKind.IMPORT, 1,
+                h.clock.now(), null).withImportJob(replayJob, false));
+        h.units.update(packed.startImport(replayJob, h.clock.now()));
         platform.poll(job(replayJob, "SUCCEEDED", null));
 
-        PipelineRun result = replay(packed);
+        PipelineRun result = replay(running);
 
         assertThat(result.status()).isEqualTo(RunStatus.SUCCEEDED);
         assertThat(platform.submissions).hasSize(1);
@@ -234,6 +258,8 @@ class RunExecutorReplayTest {
         assertThat(second.status()).isEqualTo(RunStatus.SUCCEEDED);
         assertThat(h.artifactRows.findByStorageKey(h.artifactRows.findByRunId(first.id()).get(0).storageKey()))
                 .hasSize(3);
+        assertThat(h.artifactRows.findByRunId(second.id())).singleElement()
+                .satisfies(row -> assertThat(row.unitId()).isEqualTo(unit(second).id()));
         assertThat(PipelineSource.RFETM).isEqualTo(second.source());
     }
 }

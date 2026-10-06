@@ -18,6 +18,7 @@ describe('parseStatisticsFilters', () => {
 
     expect(filters.sources).toEqual([])
     expect(filters.season).toBeNull()
+    expect(filters.unitKey).toBeNull()
     expect(filters.toDate).toBe('2026-10-05')
     expect(filters.fromDate).toBe('2026-09-06')
     expect(rangeDays(filters.fromDate, filters.toDate)).toBe(DEFAULT_RANGE_DAYS)
@@ -33,6 +34,7 @@ describe('parseStatisticsFilters', () => {
     expect(filters).toEqual({
       sources: ['FCTT', 'RFETM'],
       season: '2026-2027',
+      unitKey: null,
       fromDate: '2026-09-01',
       toDate: '2026-09-30',
       errors: [],
@@ -66,9 +68,34 @@ describe('parseStatisticsFilters', () => {
   })
 
   it('writes the range and omits an unset season', () => {
-    const params = serializeStatisticsFilters({ sources: [], season: null, fromDate: '2026-09-06', toDate: '2026-10-05' })
+    const params = serializeStatisticsFilters({
+      sources: [],
+      season: null,
+      unitKey: null,
+      fromDate: '2026-09-06',
+      toDate: '2026-10-05',
+    })
 
     expect(params.toString()).toBe('from=2026-09-06&to=2026-10-05')
+  })
+})
+
+describe('the unit filter', () => {
+  it('reads and writes the unit key', () => {
+    const filters = parseStatisticsFilters(new URLSearchParams('unit=season&from=2026-09-01&to=2026-09-30'), TODAY)
+
+    expect(filters.unitKey).toBe('season')
+    expect(serializeStatisticsFilters(filters).get('unit')).toBe('season')
+    expect(serializeStatisticsFilters({ ...filters, unitKey: null }).has('unit')).toBe(false)
+  })
+
+  it('ignores an empty unit and reports one that is too long', () => {
+    expect(parseStatisticsFilters(new URLSearchParams('unit='), TODAY)).toMatchObject({ unitKey: null, errors: [] })
+
+    const tooLong = parseStatisticsFilters(new URLSearchParams(`unit=${'x'.repeat(65)}`), TODAY)
+
+    expect(tooLong.unitKey).toBeNull()
+    expect(tooLong.errors).toHaveLength(1)
   })
 })
 

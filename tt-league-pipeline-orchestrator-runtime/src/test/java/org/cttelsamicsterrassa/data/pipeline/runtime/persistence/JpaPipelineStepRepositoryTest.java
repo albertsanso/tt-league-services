@@ -10,6 +10,8 @@ import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunError;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
+import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
@@ -29,7 +31,9 @@ class JpaPipelineStepRepositoryTest extends AbstractPersistenceTest {
     @Test
     void roundTripsAndUpdatesToFinished() {
         PipelineRun run = runs.create(queued(PipelineSource.RFETM));
-        PipelineStep started = PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.INGEST, 1, T0, "abc123");
+        RunUnit unit = unit(run);
+        PipelineStep started =
+                PipelineStep.start(UUID.randomUUID(), run.id(), unit.id(), StepKind.INGEST, 1, T0, "abc123");
         steps.save(started);
 
         PipelineStep failed = started.fail(T0.plusSeconds(5), "FAILED", new RunError("E", "boom"), true);
@@ -37,6 +41,7 @@ class JpaPipelineStepRepositoryTest extends AbstractPersistenceTest {
 
         PipelineStep loaded = steps.findByRunId(run.id()).get(0);
         assertThat(loaded.status()).isEqualTo(StepStatus.FAILED);
+        assertThat(loaded.unitId()).isEqualTo(unit.id());
         assertThat(loaded.retryable()).isTrue();
         assertThat(loaded.outcome()).isEqualTo("FAILED");
         assertThat(loaded.externalRef()).isEqualTo("abc123");
@@ -48,13 +53,15 @@ class JpaPipelineStepRepositoryTest extends AbstractPersistenceTest {
     @Test
     void roundTripsTheIngestHealthAndLeavesItNullWhenUnknown() {
         PipelineRun run = runs.create(queued(PipelineSource.RFETM));
-        PipelineStep ingest = PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.INGEST, 1, T0, "abc123");
+        RunUnit unit = unit(run);
+        PipelineStep ingest =
+                PipelineStep.start(UUID.randomUUID(), run.id(), unit.id(), StepKind.INGEST, 1, T0, "abc123");
         steps.save(ingest);
         assertThat(steps.findByRunId(run.id()).get(0).ingestHealth()).isNull();
 
         steps.save(ingest.succeed(T0.plusSeconds(5), "SUCCEEDED", new IngestHealth(3, 2, 1)));
-        PipelineStep unknown = PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.INGEST, 2, T0.plusSeconds(6),
-                null);
+        PipelineStep unknown = PipelineStep.start(UUID.randomUUID(), run.id(), unit.id(), StepKind.INGEST, 2,
+                T0.plusSeconds(6), null);
         steps.save(unknown);
         steps.save(unknown.succeed(T0.plusSeconds(7), "NO_CHANGES"));
 
@@ -64,21 +71,46 @@ class JpaPipelineStepRepositoryTest extends AbstractPersistenceTest {
     }
 
     @Test
-    void duplicateRunKindAttemptIsRejected() {
+    void duplicateUnitKindAttemptIsRejected() {
         PipelineRun run = runs.create(queued(PipelineSource.RFETM));
-        steps.save(PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.IMPORT, 1, T0, null));
+        RunUnit unit = unit(run);
+        steps.save(PipelineStep.start(UUID.randomUUID(), run.id(), unit.id(), StepKind.IMPORT, 1, T0, null));
+
+        assertThatThrownBy(() -> steps.save(PipelineStep.start(UUID.randomUUID(), run.id(), unit.id(),
+                StepKind.IMPORT, 1, T0.plusSeconds(1), null)))
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void theSameKindAndAttemptIsAllowedInAnotherUnitOfTheRun() {
+        PipelineRun run = runs.create(queued(PipelineSource.RFETM));
+        List<RunUnit> units = units(run,
+                new ScopeFilter("SENIOR", "G1", null, null, null, List.of(1)),
+                new ScopeFilter("SENIOR", "G2", null, null, null, List.of(1)));
+        steps.save(PipelineStep.start(UUID.randomUUID(), run.id(), units.get(0).id(), StepKind.INGEST, 1, T0, null));
+        steps.save(PipelineStep.start(UUID.randomUUID(), run.id(), units.get(1).id(), StepKind.INGEST, 1,
+                T0.plusSeconds(1), null));
+
+        assertThat(steps.findByRunId(run.id())).extracting(PipelineStep::unitId)
+                .containsExactly(units.get(0).id(), units.get(1).id());
+    }
+
+    @Test
+    void aStepNeedsAnExistingUnit() {
+        PipelineRun run = runs.create(queued(PipelineSource.RFETM));
 
         assertThatThrownBy(() -> steps.save(
-                PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.IMPORT, 1, T0.plusSeconds(1), null)))
+                PipelineStep.start(UUID.randomUUID(), run.id(), UUID.randomUUID(), StepKind.INGEST, 1, T0, null)))
                 .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test
     void ordersByStartThenAttempt() {
         PipelineRun run = runs.create(queued(PipelineSource.RFETM));
-        PipelineStep second = PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.INGEST, 2, T0, null);
-        PipelineStep first = PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.INGEST, 1, T0, null);
-        PipelineStep later = PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.FETCH_PACKAGE, 1,
+        RunUnit unit = unit(run);
+        PipelineStep second = PipelineStep.start(UUID.randomUUID(), run.id(), unit.id(), StepKind.INGEST, 2, T0, null);
+        PipelineStep first = PipelineStep.start(UUID.randomUUID(), run.id(), unit.id(), StepKind.INGEST, 1, T0, null);
+        PipelineStep later = PipelineStep.start(UUID.randomUUID(), run.id(), unit.id(), StepKind.FETCH_PACKAGE, 1,
                 T0.plusSeconds(10), null);
         steps.save(later);
         steps.save(second);
@@ -91,7 +123,9 @@ class JpaPipelineStepRepositoryTest extends AbstractPersistenceTest {
     @Test
     void roundTripsTheImportJobReusedFlag() {
         PipelineRun run = runs.create(queued(PipelineSource.RFETM));
-        PipelineStep importing = PipelineStep.start(UUID.randomUUID(), run.id(), StepKind.IMPORT, 1, T0, null);
+        RunUnit unit = unit(run);
+        PipelineStep importing =
+                PipelineStep.start(UUID.randomUUID(), run.id(), unit.id(), StepKind.IMPORT, 1, T0, null);
         steps.save(importing);
         assertThat(steps.findByRunId(run.id()).get(0).importJobReused()).isNull();
 

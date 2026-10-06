@@ -22,6 +22,7 @@ class JpaRunArtifactRepository implements RunArtifactRepository {
     public RunArtifact add(RunArtifact artifact) {
         RunArtifactEntity entity = new RunArtifactEntity(artifact.id());
         entity.runId = artifact.runId();
+        entity.unitId = artifact.unitId();
         entity.kind = artifact.kind();
         entity.storageKey = artifact.storageKey();
         entity.sha256 = artifact.sha256();
@@ -39,6 +40,12 @@ class JpaRunArtifactRepository implements RunArtifactRepository {
 
     @Override
     @Transactional(readOnly = true)
+    public List<RunArtifact> findByUnitId(UUID unitId) {
+        return artifacts.findByUnitIdOrderByCreatedAtAsc(unitId).stream().map(this::toDomain).toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<RunArtifact> findByStorageKey(String storageKey) {
         return artifacts.findByStorageKeyOrderByCreatedAtAsc(storageKey).stream().map(this::toDomain).toList();
     }
@@ -50,7 +57,7 @@ class JpaRunArtifactRepository implements RunArtifactRepository {
 
     private RunArtifact toDomain(RunArtifactEntity entity) {
         return new RunArtifact(
-                entity.id, entity.runId, entity.kind, entity.storageKey, entity.sha256, entity.sizeBytes,
+                entity.id, entity.runId, entity.unitId, entity.kind, entity.storageKey, entity.sha256, entity.sizeBytes,
                 entity.createdAt, entity.purgedAt);
     }
 }

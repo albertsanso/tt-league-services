@@ -5,6 +5,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.alert.AlertRunObserver;
 import org.cttelsamicsterrassa.data.pipeline.core.alert.port.AlertRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.RunClock;
 import org.cttelsamicsterrassa.data.pipeline.core.run.port.PipelineRunRepository;
+import org.cttelsamicsterrassa.data.pipeline.core.run.port.RunUnitRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.tracker.port.MatchDayRepository;
 import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
 import org.springframework.context.annotation.Bean;
@@ -24,13 +25,14 @@ public class NotificationConfiguration {
             AlertRepository alerts,
             MatchDayRepository matchDays,
             PipelineRunRepository runs,
+            RunUnitRepository units,
             RunClock clock) {
         if (!notifications.enabled()) {
             return AlertDispatcher.disabled();
         }
         MailNotifier notifier = new MailNotifier(notifications.mail());
         AlertEvaluator evaluator =
-                new AlertEvaluator(alerts, matchDays, runs, notifier, clock, notifications.alertSettings());
+                new AlertEvaluator(alerts, matchDays, runs, units, notifier, clock, notifications.alertSettings());
         return new AlertDispatcher(evaluator, notifier);
     }
 

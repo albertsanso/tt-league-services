@@ -9,7 +9,12 @@ import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.ExecutorHarn
 import org.cttelsamicsterrassa.data.pipeline.core.execution.testing.FakeRunClock;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ImportReport;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
+import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineStep;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunScope;
+import org.cttelsamicsterrassa.data.pipeline.core.run.RunUnit;
+import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
+import org.cttelsamicsterrassa.data.pipeline.core.run.UnitStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.RunStatus;
 import org.cttelsamicsterrassa.data.pipeline.core.run.StepKind;
 import org.cttelsamicsterrassa.data.pipeline.runtime.artifact.FileSystemArtifactStore;
@@ -123,15 +128,16 @@ class RunExecutorHttpTest {
         assertThat(run.status()).isEqualTo(RunStatus.SUCCEEDED);
         assertThat(ingest.requests.stream().filter(r -> r.method().equals("POST")).findFirst().orElseThrow()
                 .bodyText()).contains("\"correlationId\":\"" + run.id() + "\"");
-        assertThat(run.ingestRunId()).isEqualTo("ing1");
-        assertThat(run.importJobId()).isEqualTo(jobId);
-        Path zip = artifacts.resolve("rfetm/2025-2026/" + run.id() + "/ingest-ing1.zip");
+        RunUnit unit = h.units.findByRunId(run.id()).get(0);
+        assertThat(unit.ingestRunId()).isEqualTo("ing1");
+        assertThat(unit.importJobId()).isEqualTo(jobId);
+        Path zip = artifacts.resolve("rfetm/2025-2026/" + run.id() + "/0-season/ingest-ing1.zip");
         assertThat(Files.readAllBytes(zip)).isEqualTo(ZIP);
         assertThat(h.artifactRows.findByRunId(run.id())).singleElement().satisfies(artifact -> {
             assertThat(artifact.sha256()).isEqualTo(sha256(ZIP));
             assertThat(artifact.sizeBytes()).isEqualTo(ZIP.length);
         });
-        ImportReport report = h.reports.findByRunId(run.id()).orElseThrow();
+        ImportReport report = h.reports.findByUnitId(unit.id()).orElseThrow();
         assertThat(report.filesSeen()).isEqualTo(7);
         assertThat(report.itemsPersisted()).isEqualTo(7);
         assertThat(report.issues()).containsExactly("2025-2026: odd acta");
@@ -143,6 +149,51 @@ class RunExecutorHttpTest {
                 .contains(new String(ZIP, StandardCharsets.ISO_8859_1)).contains(run.id().toString());
         assertThat(ingest.requests).allSatisfy(r -> assertThat(r.header("X-API-Key")).isEqualTo(INGEST_KEY));
         assertThat(ingest.requestsTo("POST", RUNS).get(0).bodyText()).contains("\"mode\":\"snapshot\"");
+    }
+
+    @Test
+    void aScopedRunSendsOneSingleScopeRunPerUnitAndMapsTheReportedProgress() throws Exception {
+        UUID jobOne = UUID.randomUUID();
+        ingest.on("POST", RUNS, runId("ing1"), runId("ing2"));
+        ingest.on("GET", RUNS + "/ing1",
+                Response.json(200, "{\"runId\":\"ing1\",\"status\":\"RUNNING\",\"outcome\":null,"
+                        + "\"retryable\":false,\"package\":null,\"error\":null,\"progress\":{\"stage\":\"DOWNLOAD\","
+                        + "\"itemsProcessed\":2,\"itemsTotal\":5,\"currentItem\":\"league two\"}}"),
+                Response.json(200, runState("ing1", "SUCCEEDED", "SUCCEEDED", true)));
+        ingest.on("GET", RUNS + "/ing2", Response.json(200, runState("ing2", "SUCCEEDED", "NO_CHANGES", false)));
+        scriptPackage("ing1");
+        platform.on("POST", JOBS, Response.json(202, "{\"importJobId\":\"" + jobOne
+                + "\",\"status\":\"QUEUED\",\"created\":true}"));
+        platform.on("GET", JOBS + "/" + jobOne, Response.json(200, jobJson("SUCCEEDED", null).replace(
+                jobId.toString(), jobOne.toString())));
+        ExecutorHarness h = harness();
+        ScopeFilter g1 = new ScopeFilter("SENIOR", "G1", null, null, null, List.of(3));
+        ScopeFilter g2 = new ScopeFilter("SENIOR", "G2", null, null, null, List.of(3, 4));
+        PipelineRun queued = h.queueRun(PipelineSource.BCNESA, new RunScope(List.of(g1, g2)));
+
+        h.executor.execute(queued.id());
+
+        PipelineRun run = h.run(queued.id());
+        assertThat(run.status()).isEqualTo(RunStatus.SUCCEEDED);
+        List<StubHttpServer.Recorded> starts = ingest.requestsTo("POST", RUNS);
+        assertThat(starts).hasSize(2);
+        assertThat(starts.get(0).bodyText()).contains("\"mode\":\"delta\"").contains("\"group\":\"G1\"")
+                .doesNotContain("G2").contains("\"correlationId\":\"" + run.id() + "\"");
+        assertThat(starts.get(1).bodyText()).contains("\"group\":\"G2\"").doesNotContain("G1");
+        assertThat(h.units.findByRunId(run.id())).extracting(RunUnit::status)
+                .containsExactly(UnitStatus.SUCCEEDED, UnitStatus.NO_CHANGES);
+        assertThat(h.observer.units.stream().map(RunUnit::progress).filter(java.util.Objects::nonNull)
+                .filter(p -> p.step() == StepKind.INGEST)).singleElement().satisfies(progress -> {
+                    assertThat(progress.stage()).isEqualTo("DOWNLOAD");
+                    assertThat(progress.itemsProcessed()).isEqualTo(2);
+                    assertThat(progress.itemsTotal()).isEqualTo(5L);
+                    assertThat(progress.currentItem()).isEqualTo("league two");
+                });
+        String key = "bcnesa/2025-2026/" + run.id() + "/0-" + h.units.findByRunId(run.id()).get(0).unitKey()
+                .substring(0, 12) + "/ingest-ing1.zip";
+        assertThat(Files.readAllBytes(artifacts.resolve(key))).isEqualTo(ZIP);
+        assertThat(new String(platform.requestsTo("POST", JOBS).get(0).body(), StandardCharsets.ISO_8859_1))
+                .contains(run.id() + "-0.zip");
     }
 
     @Test
@@ -187,7 +238,7 @@ class RunExecutorHttpTest {
 
         PipelineRun run = h.run(queued.id());
         assertThat(run.status()).isEqualTo(RunStatus.NO_CHANGES);
-        assertThat(run.ingestRunId()).isEqualTo("ing2");
+        assertThat(h.units.findByRunId(run.id()).get(0).ingestRunId()).isEqualTo("ing2");
         assertThat(steps(h, run, StepKind.INGEST).get(0).error().code()).isEqualTo("SOURCE_UNAVAILABLE");
     }
 
@@ -241,7 +292,8 @@ class RunExecutorHttpTest {
         assertThat(run.status()).isEqualTo(RunStatus.FAILED);
         assertThat(run.error().code()).isEqualTo("IMPORT_FAILED");
         assertThat(run.error().message()).isEqualTo("database unavailable");
-        assertThat(h.reports.findByRunId(run.id()).orElseThrow().importStatus()).isEqualTo("FAILED");
+        assertThat(h.reports.findByRunId(run.id())).singleElement()
+                .satisfies(report -> assertThat(report.importStatus()).isEqualTo("FAILED"));
     }
 
     @Test
@@ -275,7 +327,7 @@ class RunExecutorHttpTest {
 
         PipelineRun run = h.run(queued.id());
         assertThat(run.status()).isEqualTo(RunStatus.NO_CHANGES);
-        assertThat(run.ingestRunId()).isEqualTo("ing2");
+        assertThat(h.units.findByRunId(run.id()).get(0).ingestRunId()).isEqualTo("ing2");
         PipelineStep lost = steps(h, run, StepKind.INGEST).get(0);
         assertThat(lost.error().code()).isEqualTo("INGEST_RUN_LOST");
         assertThat(lost.retryable()).isTrue();

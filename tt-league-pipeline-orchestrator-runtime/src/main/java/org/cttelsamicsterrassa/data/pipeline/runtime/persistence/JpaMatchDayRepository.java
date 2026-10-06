@@ -37,7 +37,6 @@ import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Repository;
@@ -158,16 +157,23 @@ class JpaMatchDayRepository implements MatchDayRepository {
             if (query.to() != null) {
                 predicates.add(cb.lessThanOrEqualTo(root.<java.time.LocalDate>get("firstDate"), query.to()));
             }
+            // Spring Data cannot apply null precedence to a Specification sort, so the order is set here; the
+            // count query (Long result) must not be ordered.
+            if (!Long.class.equals(cq.getResultType())) {
+                cq.orderBy(
+                        cb.asc(nullRank(cb, root.get("firstDate"), 1)),
+                        cb.asc(root.get("firstDate")),
+                        cb.asc(root.get("competition")),
+                        cb.asc(nullRank(cb, root.get("groupNumber"), 0)),
+                        cb.asc(root.get("groupNumber")),
+                        cb.asc(nullRank(cb, root.get("phase"), 0)),
+                        cb.asc(root.get("phase")),
+                        cb.asc(root.get("round")),
+                        cb.asc(root.get("id")));
+            }
             return cb.and(predicates.toArray(new Predicate[0]));
         };
-        Sort order = Sort.by(
-                Sort.Order.asc("firstDate").nullsLast(),
-                Sort.Order.asc("competition"),
-                Sort.Order.asc("groupNumber").nullsFirst(),
-                Sort.Order.asc("phase").nullsFirst(),
-                Sort.Order.asc("round"),
-                Sort.Order.asc("id"));
-        Page<MatchDayEntity> page = days.findAll(spec, PageRequest.of(query.page(), query.size(), order));
+        Page<MatchDayEntity> page = days.findAll(spec, PageRequest.of(query.page(), query.size()));
         List<MatchDayEntity> content = page.getContent();
         Map<UUID, Map<TrackedMatchStatus, Integer>> counts = new HashMap<>();
         Map<UUID, Map<TrackedMatchStatus, Integer>> ignored = new HashMap<>();
@@ -187,6 +193,16 @@ class JpaMatchDayRepository implements MatchDayRepository {
                         ignored.getOrDefault(entity.id, Map.of())))
                 .toList();
         return new MatchDayPage(items, page.getTotalElements(), query.page(), query.size());
+    }
+
+    /** Sort key that places nulls first (nullRank 0) or last (nullRank 1) when ordered ascending. */
+    private static jakarta.persistence.criteria.Expression<Integer> nullRank(
+            jakarta.persistence.criteria.CriteriaBuilder cb,
+            jakarta.persistence.criteria.Expression<?> column,
+            int nullRank) {
+        return cb.<Integer>selectCase()
+                .when(cb.isNull(column), nullRank)
+                .otherwise(1 - nullRank);
     }
 
     @Override

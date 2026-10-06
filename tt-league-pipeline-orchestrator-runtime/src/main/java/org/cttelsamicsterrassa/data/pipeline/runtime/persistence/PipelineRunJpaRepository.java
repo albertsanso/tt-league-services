@@ -14,4 +14,6 @@ interface PipelineRunJpaRepository extends JpaRepository<PipelineRunEntity, UUID
     Optional<PipelineRunEntity> findFirstBySourceAndStatusIn(PipelineSource source, Collection<RunStatus> statuses);
 
     List<PipelineRunEntity> findByStatusInOrderByCreatedAtAsc(Collection<RunStatus> statuses);
+
+    List<PipelineRunEntity> findByRetryOfUnitIdOrderByCreatedAtAsc(UUID retryOfUnitId);
 }

@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.pipeline.core.execution.testing;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.FetchedPackage;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.GatewayException;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestGateway;
+import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestProgress;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunRequest;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.IngestRunState;
 import org.cttelsamicsterrassa.data.pipeline.core.execution.port.PackageSink;
@@ -32,6 +33,8 @@ public class ScriptedIngestGateway implements IngestGateway {
     private final Deque<Object> polls = new ArrayDeque<>();
     private final Deque<Object> packages = new ArrayDeque<>();
     private Object repeatingPoll;
+    private final java.util.Map<String, Deque<Object>> pollsById = new java.util.HashMap<>();
+    private final java.util.Map<String, Object> repeatingById = new java.util.HashMap<>();
 
     public final List<IngestRunRequest> startRequests = new ArrayList<>();
     public final List<String> polledIds = new ArrayList<>();
@@ -54,6 +57,21 @@ public class ScriptedIngestGateway implements IngestGateway {
 
     public ScriptedIngestGateway pollFails(GatewayException.Kind kind, int status) {
         polls.add(new GatewayException(kind, status, "poll failed " + status));
+        return this;
+    }
+
+    /** A poll answer for one ingest run id only, so each unit of a multi-unit run can be scripted on its own. */
+    public ScriptedIngestGateway pollFor(String ingestRunId, IngestRunState... states) {
+        Deque<Object> queue = pollsById.computeIfAbsent(ingestRunId, id -> new ArrayDeque<>());
+        for (IngestRunState state : states) {
+            queue.add(state);
+        }
+        return this;
+    }
+
+    /** The answer for one ingest run id once its own queue is empty. */
+    public ScriptedIngestGateway pollForeverFor(String ingestRunId, IngestRunState state) {
+        repeatingById.put(ingestRunId, state);
         return this;
     }
 
@@ -85,9 +103,13 @@ public class ScriptedIngestGateway implements IngestGateway {
         return new IngestRunState(id, "SUCCEEDED", outcome, false, withPackage, null);
     }
 
+    public static IngestRunState runningWithProgress(String id, IngestProgress progress) {
+        return new IngestRunState(id, "RUNNING", null, false, false, null, null, progress);
+    }
+
     public static IngestRunState withHealth(IngestRunState state, IngestHealth health) {
         return new IngestRunState(state.ingestRunId(), state.status(), state.outcome(), state.retryable(),
-                state.packageAvailable(), state.error(), health);
+                state.packageAvailable(), state.error(), health, state.progress());
     }
 
     public static IngestRunState failed(String id, String outcome, String error) {
@@ -103,7 +125,15 @@ public class ScriptedIngestGateway implements IngestGateway {
     @Override
     public IngestRunState getRun(String ingestRunId) {
         polledIds.add(ingestRunId);
-        Object response = polls.isEmpty() ? repeatingPoll : polls.poll();
+        Deque<Object> own = pollsById.get(ingestRunId);
+        Object response;
+        if (own != null && !own.isEmpty()) {
+            response = own.poll();
+        } else if (repeatingById.containsKey(ingestRunId)) {
+            response = repeatingById.get(ingestRunId);
+        } else {
+            response = polls.isEmpty() ? repeatingPoll : polls.poll();
+        }
         if (response == null) {
             throw new AssertionError("No scripted getRun response left");
         }

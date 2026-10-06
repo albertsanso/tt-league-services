@@ -14,7 +14,10 @@ import org.hibernate.type.SqlTypes;
 class ImportReportEntity {
 
     @Id
-    @Column(name = "run_id")
+    @Column(name = "unit_id")
+    UUID unitId;
+
+    @Column(name = "run_id", nullable = false)
     UUID runId;
 
     @Column(name = "import_job_id", nullable = false)
@@ -71,7 +74,7 @@ class ImportReportEntity {
     protected ImportReportEntity() {
     }
 
-    ImportReportEntity(UUID runId) {
-        this.runId = runId;
+    ImportReportEntity(UUID unitId) {
+        this.unitId = unitId;
     }
 }

@@ -50,7 +50,7 @@ class PendingTriggerDrainerTest {
         queuePending();
 
         drainer.runChanged(run);
-        drainer.runChanged(runs.update(run.startIngest("ing", clock.now())));
+        drainer.runChanged(runs.update(run.start(clock.now())));
 
         assertThat(pending.findAll()).hasSize(1);
     }

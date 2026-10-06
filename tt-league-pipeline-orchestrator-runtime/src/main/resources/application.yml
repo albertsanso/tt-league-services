@@ -138,6 +138,10 @@ tt:
       unreported-after: ${PIPELINE_ALERTS_UNREPORTED_AFTER:PT48H}
       no-success-window: ${PIPELINE_ALERTS_NO_SUCCESS_WINDOW:PT24H}
       closed-lookback: ${PIPELINE_ALERTS_CLOSED_LOOKBACK:P1D}
+      unit-failures:
+        # Comma-separated unit keys (the unitKey of the runs API) the unit-failure alert is limited to; empty alerts for
+        # every unit.
+        unit-keys: ${PIPELINE_ALERTS_UNIT_KEYS:}
 
     # Artifact retention (opt-in): without this block no artifact is ever deleted. With it, cron (Spring six-field),
     # zone (IANA id) and a rule for EVERY artifact kind are required, with no defaults. A rule has exactly one of

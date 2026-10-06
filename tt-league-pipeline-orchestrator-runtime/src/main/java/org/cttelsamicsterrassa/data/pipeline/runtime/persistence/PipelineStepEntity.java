@@ -21,6 +21,9 @@ class PipelineStepEntity {
     @Column(name = "run_id", nullable = false)
     UUID runId;
 
+    @Column(name = "unit_id", nullable = false)
+    UUID unitId;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
     StepKind kind;
