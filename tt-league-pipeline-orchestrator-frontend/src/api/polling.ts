@@ -1,7 +1,11 @@
 import type { HttpClient } from './client'
-import type { PipelineSource, PollingPolicy, PollingPolicyRequest, PollSchedule } from './types'
+import type { PipelineSource, PollingPolicy, PollingPolicyRequest, PollingStatus, PollSchedule } from './types'
 
 const BASE = '/api/pipeline/polling'
+
+export function getPollingStatus(client: HttpClient, signal?: AbortSignal): Promise<PollingStatus> {
+  return client.request<PollingStatus>('GET', `${BASE}/status`, { signal })
+}
 
 export function listPollingPolicies(client: HttpClient, signal?: AbortSignal): Promise<PollingPolicy[]> {
   return client.request<PollingPolicy[]>('GET', `${BASE}/policies`, { signal })

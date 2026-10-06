@@ -21,6 +21,7 @@ public record PollingPolicyDto(
         int overdueStopAfterDays,
         Duration fullRefresh,
         int noChangeThreshold,
+        int recentMatchDays,
         boolean overridden,
         long version,
         String updatedBy,
@@ -31,6 +32,6 @@ public record PollingPolicyDto(
         return new PollingPolicyDto(effective.source(), settings.matchDay(), settings.matchDayStartOffset(),
                 settings.dayAfter(), settings.daysTwoToSeven(), settings.open(), settings.overdue(),
                 settings.overdueStopAfterDays(), settings.fullRefresh(), settings.noChangeThreshold(),
-                effective.overridden(), effective.version(), effective.updatedBy(), effective.updatedAt());
+                settings.recentMatchDays(), effective.overridden(), effective.version(), effective.updatedBy(), effective.updatedAt());
     }
 }

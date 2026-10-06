@@ -193,9 +193,22 @@ class MatchDayRefreshTest {
     }
 
     @Test
-    void anUnmatchedMatchDayIsUnavailableAndRecordsNothing() {
+    void aRoundWithoutAStatusRowRefreshesItsGroupLimitedToThatRound() {
         MatchDay day = store(PipelineSource.FCTT, "tercera-masculino", 1, "1a Fase", 4);
         fcttStatus(9);
+
+        List<Outcome> outcomes = refresh.refresh(day.id(), false, "ana", ConflictMode.REJECT);
+
+        assertThat(outcomes).singleElement().isInstanceOfSatisfying(Outcome.Created.class,
+                created -> assertThat(created.run().scope().filters()).containsExactly(
+                        new ScopeFilter("tercera", "G1", "1a Fase", "Barcelona", "male", List.of(4))));
+        assertThat(refreshEvents(day)).hasSize(1);
+    }
+
+    @Test
+    void aGroupWithoutAnyStatusRowIsUnavailableAndRecordsNothing() {
+        MatchDay day = store(PipelineSource.FCTT, "tercera-masculino", 2, "1a Fase", 4);
+        fcttStatus(4);
 
         List<Outcome> outcomes = refresh.refresh(day.id(), false, "ana", ConflictMode.REJECT);
 

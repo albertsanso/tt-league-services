@@ -338,6 +338,7 @@ class PipelineOrchestratorPropertiesTest {
             assertThat(polling.lockAtMostFor()).isEqualTo(Duration.ofMinutes(10));
             assertThat(polling.lockAtLeastFor()).isEqualTo(Duration.ofSeconds(30));
             assertThat(polling.defaultSettings()).isEqualTo(PollingSettings.defaults());
+            assertThat(polling.defaultSettings().recentMatchDays()).isEqualTo(3);
             assertThat(polling.bcnesaCompetitionNames()).hasSize(16).containsEntry("rtb-segona-a", "Segona _A_");
         });
     }
@@ -348,6 +349,7 @@ class PipelineOrchestratorPropertiesTest {
         properties.add("tt.pipeline.polling.tick-interval=PT1M");
         properties.add("tt.pipeline.polling.defaults.match-day=PT1H");
         properties.add("tt.pipeline.polling.defaults.overdue-stop-after-days=14");
+        properties.add("tt.pipeline.polling.defaults.recent-match-days=5");
         properties.add("tt.pipeline.polling.bcnesa-competition-names.rtb-nova=Nova");
         runner.withPropertyValues(properties.toArray(String[]::new)).run(context -> {
             assertThat(context).hasNotFailed();
@@ -358,6 +360,7 @@ class PipelineOrchestratorPropertiesTest {
             PollingSettings settings = polling.defaultSettings();
             assertThat(settings.matchDay()).isEqualTo(Duration.ofHours(1));
             assertThat(settings.overdueStopAfterDays()).isEqualTo(14);
+            assertThat(settings.recentMatchDays()).isEqualTo(5);
             assertThat(settings.dayAfter()).isEqualTo(Duration.ofHours(3));
             assertThat(polling.bcnesaCompetitionNames()).containsOnlyKeys("rtb-nova");
         });
@@ -400,6 +403,7 @@ class PipelineOrchestratorPropertiesTest {
     void failsOnInvalidPollingDefaults() {
         assertFails(withPolling("defaults.match-day=PT5H", "defaults.day-after=PT3H"), "polling.defaults is invalid");
         assertFails(withPolling("defaults.no-change-threshold=0"), "noChangeThreshold");
+        assertFails(withPolling("defaults.recent-match-days=0"), "recentMatchDays must be at least 1");
         assertFails(withPolling("defaults.full-refresh=PT1H"), "polling.defaults is invalid");
     }
 

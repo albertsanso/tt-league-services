@@ -6,6 +6,8 @@ import java.util.Objects;
 /**
  * Intervals and thresholds of the adaptive polling policy. {@code matchDayStartOffset} is how long after the first
  * start of the day the {@code MATCH_DAY} level begins. Intervals must not get shorter for slower levels.
+ * {@code recentMatchDays} is how many of the latest pollable match days of each group adaptive polling builds units
+ * from (see {@code RecentMatchDays}); older ones are left to the full refresh.
  */
 public record PollingSettings(
         Duration matchDay,
@@ -16,7 +18,8 @@ public record PollingSettings(
         Duration overdue,
         int overdueStopAfterDays,
         Duration fullRefresh,
-        int noChangeThreshold) {
+        int noChangeThreshold,
+        int recentMatchDays) {
 
     public PollingSettings {
         positive(matchDay, "matchDay");
@@ -40,11 +43,14 @@ public record PollingSettings(
         if (noChangeThreshold < 1) {
             throw new IllegalArgumentException("noChangeThreshold must be at least 1");
         }
+        if (recentMatchDays < 1) {
+            throw new IllegalArgumentException("recentMatchDays must be at least 1");
+        }
     }
 
     public static PollingSettings defaults() {
         return new PollingSettings(Duration.ofHours(2), Duration.ofHours(2), Duration.ofHours(3),
-                Duration.ofHours(12), Duration.ofHours(24), Duration.ofHours(24), 21, Duration.ofDays(7), 3);
+                Duration.ofHours(12), Duration.ofHours(24), Duration.ofHours(24), 21, Duration.ofDays(7), 3, 3);
     }
 
     /** Base interval of a level; {@code STOPPED} has none. */

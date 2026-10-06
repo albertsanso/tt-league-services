@@ -66,6 +66,15 @@ class SourceVocabularyTest {
     }
 
     @Test
+    void fcttMirrorsTheImportCategoryAliasesAndLowercaseGroupFolders() {
+        IngestStatusRow row = row("tdm", "g1", "regular", "male", null, 2);
+
+        assertThat(fctt.platformKey(row)).contains(new PlatformGroupKey("tercera-nacional-masculino", 1, null));
+        assertThat(fctt.matches(row, key(PipelineSource.FCTT, "tercera-nacional-masculino", 1, "1a Fase", 2))).isTrue();
+        assertThat(fctt.unit(row)).isEqualTo(new PollUnit("tdm", "g1", "regular", null, "male"));
+    }
+
+    @Test
     void fcttRowsWithAnUnknownGenderOrGroupCannotBeMapped() {
         assertThat(fctt.platformKey(row("tercera", "G1", null, "mixed", null, 2))).isEmpty();
         assertThat(fctt.platformKey(row("tercera", "G1", null, null, null, 2))).isEmpty();
@@ -90,9 +99,25 @@ class SourceVocabularyTest {
     }
 
     @Test
-    void bcnesaStoresOtherFoldersUnchanged() {
-        assertThat(bcnesa.platformKey(row("Preferent", "G1", "Fase 1", null, null, 1)))
-                .contains(new PlatformGroupKey("Preferent", 1, "Fase 1"));
+    void bcnesaMapsDownloadedCategoryFoldersThroughTheirExportFolder() {
+        IngestStatusRow row = row("RTB VETERANS 2aA", "G1", "1a Fase", null, "Barcelona", 2);
+
+        assertThat(bcnesa.platformKey(row)).contains(new PlatformGroupKey("Vet 2a _A_", 1, "1a Fase"));
+        assertThat(bcnesa.platformKey(row("RTB VETERANS 3a A", "G2", "1a Fase", null, null, 1)))
+                .contains(new PlatformGroupKey("Vet 3a _A_", 2, "1a Fase"));
+        assertThat(bcnesa.platformKey(row("RTB 2a COMARCAL", "G2", "1a Fase", null, null, 1)))
+                .contains(new PlatformGroupKey("2a Comarcal", 2, "1a Fase"));
+        assertThat(bcnesa.unit(row)).isEqualTo(new PollUnit("RTB VETERANS 2aA", "G1", "1a Fase", "Barcelona", null));
+    }
+
+    @Test
+    void bcnesaStoresOtherFoldersAsTheirExportFolder() {
+        IngestStatusRow row = row("RTT PREFERENT", "G1", "1a Fase", null, "Tarragona", 1);
+
+        assertThat(bcnesa.platformKey(row)).contains(new PlatformGroupKey("rtt-preferent", 1, "1a Fase"));
+        assertThat(bcnesa.matches(row, key(PipelineSource.BCNESA, "rtt-preferent", 1, "1a Fase", 1))).isTrue();
+        assertThat(bcnesa.platformKey(row("RTG Pre-ferènt ª", "G1", "1a Fase", null, null, 1)))
+                .contains(new PlatformGroupKey("rtg-pre-ferent-a", 1, "1a Fase"));
     }
 
     @Test

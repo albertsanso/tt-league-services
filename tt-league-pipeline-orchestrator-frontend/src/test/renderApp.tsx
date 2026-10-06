@@ -9,6 +9,8 @@ import type { FakeFetch } from './fakeFetch'
 import { makeToken } from './jwt'
 import type { TestClaims } from './jwt'
 import { makeFacets, makeMatchDayDetail, makeResults, makeSummaryPage, summariesForEveryCompletion } from './matchDayFixtures'
+import { pollingResponse } from './pollingFixtures'
+import type { PollingOverrides } from './pollingFixtures'
 import { makeDetail, makePage, makeRun } from './runFixtures'
 import { statisticsResponse } from './statisticsFixtures'
 import type { StatisticsOverrides } from './statisticsFixtures'
@@ -21,6 +23,7 @@ export interface AppFakeOptions {
   loginStatus?: number
   runs?: unknown
   statistics?: StatisticsOverrides
+  polling?: PollingOverrides
   /** Statistics answers wait for this promise, to observe the loading state. */
   gateStatistics?: Promise<unknown>
 }
@@ -57,6 +60,10 @@ export function stubBackends(options: AppFakeOptions = {}): FakeFetch {
     }
     if (request.url.startsWith('/api/pipeline/match-days')) {
       return json(makeSummaryPage(request.url.includes('undated=true') ? [] : summariesForEveryCompletion()))
+    }
+    const polling = pollingResponse(request, options.polling)
+    if (polling !== null) {
+      return polling
     }
     const statistics = statisticsResponse(request.url, options.statistics)
     if (statistics !== null) {

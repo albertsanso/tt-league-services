@@ -20,7 +20,7 @@ import org.springframework.stereotype.Component;
 class PollingSettingsJson {
 
     private static final Set<String> KEYS = Set.of("matchDay", "matchDayStartOffset", "dayAfter", "daysTwoToSeven",
-            "open", "overdue", "overdueStopAfterDays", "fullRefresh", "noChangeThreshold");
+            "open", "overdue", "overdueStopAfterDays", "fullRefresh", "noChangeThreshold", "recentMatchDays");
 
     private final ObjectMapper mapper;
 
@@ -39,6 +39,7 @@ class PollingSettingsJson {
         node.put("overdueStopAfterDays", settings.overdueStopAfterDays());
         node.put("fullRefresh", settings.fullRefresh().toString());
         node.put("noChangeThreshold", settings.noChangeThreshold());
+        node.put("recentMatchDays", settings.recentMatchDays());
         return node.toString();
     }
 
@@ -61,7 +62,7 @@ class PollingSettingsJson {
         return new PollingSettings(duration(root, "matchDay"), duration(root, "matchDayStartOffset"),
                 duration(root, "dayAfter"), duration(root, "daysTwoToSeven"), duration(root, "open"),
                 duration(root, "overdue"), integer(root, "overdueStopAfterDays"), duration(root, "fullRefresh"),
-                integer(root, "noChangeThreshold"));
+                integer(root, "noChangeThreshold"), integer(root, "recentMatchDays"));
     }
 
     private static Duration duration(JsonNode root, String key) {

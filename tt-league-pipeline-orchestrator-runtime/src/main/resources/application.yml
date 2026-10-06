@@ -116,6 +116,9 @@ tt:
         overdue-stop-after-days: ${PIPELINE_POLLING_OVERDUE_STOP_AFTER_DAYS:21}
         full-refresh: ${PIPELINE_POLLING_FULL_REFRESH:P7D}
         no-change-threshold: ${PIPELINE_POLLING_NO_CHANGE_THRESHOLD:3}
+        # How many of the latest pollable match days of each group adaptive polling builds units from; older ones are
+        # left to the full refresh.
+        recent-match-days: ${PIPELINE_POLLING_RECENT_MATCH_DAYS:3}
       # Export folder -> stored competition name for BCNESA rtb-* folders; unset keeps the 16 entries of the import.
       # bcnesa-competition-names:
       #   rtb-example: Example

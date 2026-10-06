@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00118: Adaptive polling page in the pipeline control centre](### [FEAT-00118] Adaptive polling page in the pipeline control centre)
+
 - [FEAT-00117: More granularity in Orchestration pipeline runs](### [FEAT-00117] More granularity in Orchestration pipeline runs)
 
 - [FEAT-00116: Container packaging for orchestrator and ingest services](### [FEAT-00116] Container packaging for orchestrator and ingest services)
@@ -58,6 +60,47 @@ No features currently in review.
 
 No features currently in the backlog.
 ## Done
+
+### [FEAT-00118] Adaptive polling page in the pipeline control centre
+- **Status:** done
+- **Priority:** medium
+- **Effort:** large
+- **Depends on:** FEAT-00108, FEAT-00110
+
+#### Goal
+Operators can see and manage adaptive polling (which sources are polled, the effective policy per source and the per-group schedules) from the control centre instead of calling the REST API by hand.
+
+#### Description
+The adaptive polling page provides a centralized interface for operators to monitor and control the polling behavior of various sources. 
+It displays the current polling status, effective policies, and schedules, allowing for easy management and adjustments without direct API interaction.
+
+Allow creation, modification and deletion of Polling policies with different granularity:
+- Per source: whether it is adaptively polled, on a fixed cron or not scheduled, and the configured season and zone.
+- Per source: the effective policy of each source (all nine settings, `overridden`, `updatedBy`, `updatedAt`), with ISO-8601 durations shown in a readable form.
+- Per source and season: the poll schedules of the selected source and season (kind, unit filter, level, interval, no-change counter, next run, last run, pending run link, stop state) with stopped units highlighted.
+- Per source and season and competition: a user with `matches:write` can resume a stopped schedule; `404 POLL_SCHEDULE_NOT_FOUND`, `409 NOT_STOPPED` and `409 STALE_SCHEDULE` are shown and the list is refetched.
+- Per source and season and competition: schedules refetch on `run` events of the selected source and through a manual refresh button; the page opens no event connection of its own.
+
+Policies stay per source (decision 2026-10-06); season and competition only filter the schedules shown.
+
+Add a default Polling policy for each source and current season, for last past 3 match days. The goal for this policy is to ensure that the system can adaptively poll sources based on their recent activity, while also providing a fallback mechanism for sources that may not have been active recently.
+
+#### Acceptance Criteria
+- [x] A "Polling" entry in the control-centre navigation opens `/polling`, lazy-loaded like the other pages.
+- [x] The page shows, per source, whether it is adaptively polled, on a fixed cron or not scheduled, and the configured season and zone, read from a new read-only `GET /api/pipeline/polling/status` endpoint.
+- [x] The page lists the effective policy of each source (all ten settings including `recentMatchDays`, `overridden`, `updatedBy`, `updatedAt`), with ISO-8601 durations shown in a readable form.
+- [x] An ADMIN can edit a source's policy in a dialog that sends the full settings with `version`, mirrors the server ordering rules client-side, and shows the server's `400` and `409 STALE_POLICY` answers without losing the input.
+- [x] An ADMIN can reset an overridden policy to the configured defaults after a confirmation; the controls are disabled with the requirement text for other users.
+- [x] The page lists the poll schedules of the selected source and season (kind, unit filter, level, interval, no-change counter, next run, last run, pending run link, stop state) with stopped units highlighted.
+- [x] A user with `matches:write` can resume a stopped schedule; `404 POLL_SCHEDULE_NOT_FOUND`, `409 NOT_STOPPED` and `409 STALE_SCHEDULE` are shown and the list is refetched.
+- [x] Schedules refetch on `run` events of the selected source and through a manual refresh button; the page opens no event connection of its own.
+- [x] Vitest + React Testing Library tests cover the hooks, the policy form validation, the permission gating and the error answers; the runtime endpoint has a controller test; the frontend and runtime READMEs are updated.
+- [x] Default Polling policy for each source and current season, for last past 3 match days, is created and enforced: the policy has a `recentMatchDays` setting (default 3, `PIPELINE_POLLING_RECENT_MATCH_DAYS`, overridable per source, stored overrides migrated), and adaptive polling of the configured season only builds units from the last `recentMatchDays` pollable match days of each group; the manual `OPEN_MATCH_DAYS` trigger and the match-day refresh are not limited.
+
+#### Feature Details
+→ See [FEAT-00118-DETAILS.md](./FEAT-00118-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 
 ### [FEAT-00117] More granularity in Orchestration pipeline runs
 - **Status:** done

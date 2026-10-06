@@ -19,7 +19,7 @@ class JpaPollPolicyRepositoryTest extends AbstractPersistenceTest {
 
     private static PollingSettings custom() {
         return new PollingSettings(Duration.ofHours(1), Duration.ofMinutes(90), Duration.ofHours(3),
-                Duration.ofHours(12), Duration.ofHours(24), Duration.ofHours(30), 14, Duration.ofDays(5), 4);
+                Duration.ofHours(12), Duration.ofHours(24), Duration.ofHours(30), 14, Duration.ofDays(5), 4, 2);
     }
 
     @Test

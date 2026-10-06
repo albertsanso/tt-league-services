@@ -18,11 +18,12 @@ public record PollingPolicyRequest(
         @NotNull Integer overdueStopAfterDays,
         @NotNull Duration fullRefresh,
         @NotNull Integer noChangeThreshold,
+        @NotNull Integer recentMatchDays,
         @NotNull Long version) {
 
     /** Throws {@link IllegalArgumentException} when the settings are invalid. */
     PollingSettings toSettings() {
         return new PollingSettings(matchDay, matchDayStartOffset, dayAfter, daysTwoToSeven, open, overdue,
-                overdueStopAfterDays, fullRefresh, noChangeThreshold);
+                overdueStopAfterDays, fullRefresh, noChangeThreshold, recentMatchDays);
     }
 }

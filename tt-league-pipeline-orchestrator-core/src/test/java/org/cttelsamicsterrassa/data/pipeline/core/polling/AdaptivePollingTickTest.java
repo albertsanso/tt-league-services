@@ -373,6 +373,66 @@ class AdaptivePollingTickTest {
         assertThat(full()).isNotNull();
     }
 
+    private void openRounds(int from, int to) {
+        for (int round = from; round <= to; round++) {
+            openDay("tercera-masculino", round, TrackedMatchStatus.AWAITING_RESULT, "2026-10-0" + round + "T10:00");
+        }
+    }
+
+    private static IngestStatusRow territoryRow(String territory, int round) {
+        return new IngestStatusRow(SEASON, "tercera", "G1", "1a Fase", "male", territory, round, "scheduled", null,
+                null);
+    }
+
+    @Test
+    void onlyTheLatestRoundsOfAGroupAreBuiltIntoUnits() {
+        completeSeasonStart();
+        openRounds(1, 5);
+        scriptStatus(row("tercera", "male", 1), row("tercera", "male", 2), row("tercera", "male", 3),
+                row("tercera", "male", 4), row("tercera", "male", 5));
+
+        TickResult result = tick.tick(SOURCE);
+
+        assertThat(result.action()).isEqualTo(Action.GROUP_LAUNCHED);
+        assertThat(run(result.runId()).scope().filters()).containsExactly(
+                new ScopeFilter("tercera", "G1", "1a Fase", null, "male", List.of(3, 4, 5)));
+        assertThat(groups()).hasSize(1);
+    }
+
+    @Test
+    void aPolicyWithAShorterLookbackNarrowsTheUnitFurther() {
+        completeSeasonStart();
+        openRounds(1, 5);
+        scriptStatus(row("tercera", "male", 1), row("tercera", "male", 2), row("tercera", "male", 3),
+                row("tercera", "male", 4), row("tercera", "male", 5));
+        PollingSettings d = PollingSettings.defaults();
+        policies.save(SOURCE, new PollingSettings(d.matchDay(), d.matchDayStartOffset(), d.dayAfter(),
+                d.daysTwoToSeven(), d.open(), d.overdue(), d.overdueStopAfterDays(), d.fullRefresh(),
+                d.noChangeThreshold(), 1), "ops", clock.now(), 0L);
+
+        TickResult result = tick.tick(SOURCE);
+
+        assertThat(run(result.runId()).scope().filters()).containsExactly(
+                new ScopeFilter("tercera", "G1", "1a Fase", null, "male", List.of(5)));
+    }
+
+    @Test
+    void aUnitWhoseOnlyDaysFallOutsideTheLookbackIsDeleted() {
+        completeSeasonStart();
+        openRounds(1, 1);
+        scriptStatus(territoryRow("Girona", 1));
+        TickResult first = tick.tick(SOURCE);
+        finish(first.runId(), RunStatus.SUCCEEDED);
+        assertThat(groups()).hasSize(1);
+        openRounds(2, 4);
+        scriptStatus(territoryRow("Girona", 1), territoryRow("Barcelona", 2), territoryRow("Barcelona", 3),
+                territoryRow("Barcelona", 4));
+
+        tick.tick(SOURCE);
+
+        assertThat(groups()).extracting(unit -> unit.filter().territory()).containsExactly("Barcelona");
+    }
+
     @Test
     void aMissingPendingRunIsClearedWithoutAnOutcome() {
         completeSeasonStart();

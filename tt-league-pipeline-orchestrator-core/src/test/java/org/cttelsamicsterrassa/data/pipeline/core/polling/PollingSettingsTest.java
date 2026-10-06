@@ -10,7 +10,7 @@ class PollingSettingsTest {
 
     private static PollingSettings settings(
             Duration matchDay, Duration dayAfter, Duration days, Duration open, Duration overdue, Duration full) {
-        return new PollingSettings(matchDay, Duration.ofHours(2), dayAfter, days, open, overdue, 21, full, 3);
+        return new PollingSettings(matchDay, Duration.ofHours(2), dayAfter, days, open, overdue, 21, full, 3, 3);
     }
 
     @Test
@@ -26,6 +26,7 @@ class PollingSettingsTest {
         assertThat(defaults.interval(PolicyLevel.FULL_REFRESH)).isEqualTo(Duration.ofDays(7));
         assertThat(defaults.overdueStopAfterDays()).isEqualTo(21);
         assertThat(defaults.noChangeThreshold()).isEqualTo(3);
+        assertThat(defaults.recentMatchDays()).isEqualTo(3);
     }
 
     @Test
@@ -63,10 +64,18 @@ class PollingSettingsTest {
     @Test
     void stopAfterDaysAndThresholdMustBePositive() {
         Duration h = Duration.ofHours(2);
-        assertThatThrownBy(() -> new PollingSettings(h, h, h, h, h, h, 0, h, 3))
+        assertThatThrownBy(() -> new PollingSettings(h, h, h, h, h, h, 0, h, 3, 3))
                 .hasMessageContaining("overdueStopAfterDays");
-        assertThatThrownBy(() -> new PollingSettings(h, h, h, h, h, h, 21, h, 0))
+        assertThatThrownBy(() -> new PollingSettings(h, h, h, h, h, h, 21, h, 0, 3))
                 .hasMessageContaining("noChangeThreshold");
+    }
+
+    @Test
+    void recentMatchDaysMustBeAtLeastOne() {
+        Duration h = Duration.ofHours(2);
+        assertThatThrownBy(() -> new PollingSettings(h, h, h, h, h, h, 21, h, 3, 0))
+                .hasMessage("recentMatchDays must be at least 1");
+        assertThat(new PollingSettings(h, h, h, h, h, h, 21, h, 3, 1).recentMatchDays()).isEqualTo(1);
     }
 
     @Test

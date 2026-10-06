@@ -58,6 +58,37 @@ public final class ScopeBuilder {
         return new ScopeBuild(scopes);
     }
 
+    /**
+     * Scope of one match day whose own round has no status row (its page is not downloaded yet or lists no matches):
+     * the units of the day's group, taken from the status rows of any round, filtered to the day's round only. A day
+     * whose group has no status row at all still fails with {@code SCOPE_UNMATCHED}. Only for an operator's refresh
+     * of one match day; the polling scopes never use it.
+     */
+    public ScopeBuild buildGroupRound(
+            PipelineSource source, String season, OpenMatchDay day, IngestMatchDayStatus status) {
+        Objects.requireNonNull(source, "source is required");
+        Objects.requireNonNull(season, "season is required");
+        Objects.requireNonNull(day, "day is required");
+        Objects.requireNonNull(status, "status is required");
+        SourceVocabulary vocabulary = SourceVocabulary.of(source, names);
+        Map<PollUnit, UnitAccumulator> units = new LinkedHashMap<>();
+        status.rows().stream()
+                .filter(row -> row.season().equals(season) && vocabulary.matchesGroup(row, day.key()))
+                .forEach(row -> {
+                    UnitAccumulator unit = units.computeIfAbsent(vocabulary.unit(row), key -> new UnitAccumulator());
+                    unit.matchDays.add(day.key().round());
+                    day.candidates().forEach(match -> unit.candidates.putIfAbsent(match.matchId(), match));
+                });
+        if (units.isEmpty()) {
+            throw new ScopeBuildException(ScopeBuildException.SCOPE_UNMATCHED,
+                    unmatchedMessage(source, List.of(day.key())));
+        }
+        List<PollUnitScope> scopes = new ArrayList<>();
+        units.forEach((unit, accumulator) -> scopes.add(new PollUnitScope(unit, unit.scopeKey(),
+                unit.filter(List.copyOf(accumulator.matchDays)), List.copyOf(accumulator.candidates.values()))));
+        return new ScopeBuild(scopes);
+    }
+
     private static String unmatchedMessage(PipelineSource source, List<MatchDayKey> unmatched) {
         String listed = unmatched.stream().limit(MAX_LISTED_KEYS)
                 .map(key -> key.competition() + " group " + key.groupNumber()

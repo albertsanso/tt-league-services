@@ -33,6 +33,10 @@ signing in and calendar components may be duplicated rather than shared.
   statistics themselves and there is no event subscription (the page has a refresh button). Figures are never derived
   in the browser: panels show the server values (`format.ts` only formats seconds as hours) and every chart has a
   summary table that is its text equivalent.
+- Polling state goes through the `src/polling/` hooks (`usePollingOverview`, `usePollSchedules`) and the URL filters in
+  `pollingFilters.ts`; schedules follow the `run` events of the shared stream (no own connection). Levels, intervals,
+  next runs, stop state and the lookback (`recentMatchDays`) come from the server and are never derived in the
+  browser; `policyForm.ts` only mirrors `PollingSettings` and never replaces the server's `400`.
 - Whether a run can be replayed comes from the server (`replay` in the run detail, decided by `ReplayRules`);
   `src/runs/replay.ts` only maps its `code` to labels and the UI never derives eligibility from the status or the
   artifacts. A purged artifact and a reused import job are shown from `purgedAt` and `importJobReused`.

@@ -58,7 +58,8 @@ and the Flyway/JPA persistence of the run model (later features add security).
   polling (startup fails otherwise), and the season and zone are the schedule ones. The `OPEN_MATCH_DAYS` resolver is
   always the tracker-backed `TrackerOpenMatchDayScopeResolver` from `PollingConfiguration`. The ingest status is read
   only through `HttpIngestStatusGateway`; the policy and schedule endpoints are in `PollingController` (policy
-  changes `ADMIN`, resume `matches:write`).
+  changes `ADMIN`, resume `matches:write`). `GET /api/pipeline/polling/status` only reports the configured mode of
+  each source, season, zone and tick interval (`PollingStatusDto`); it never exposes keys, URLs or lock settings.
 - Notifications leave only through `AlertDispatcher` (`notification/`): one private single-thread executor, never an
   `Executor` bean, and the only place that evaluates alerts or sends e-mail. The `AlertRunObserver`, the
   `CompositeMatchDayChangeListener`, the periodic `AlertEvaluationSchedule` (private scheduler, not a bean, no

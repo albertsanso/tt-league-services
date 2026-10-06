@@ -217,6 +217,30 @@ statistics know) limits the runs by outcome to the runs that had that unit, and 
 unit's outcomes, skipped count and average duration. Corrections stay at zero unless the platform runs with amended-acta
 detection.
 
+## Polling
+
+`/polling` shows and manages adaptive polling (FEAT-00118) with three sections: how each source is refreshed
+(`GET /api/pipeline/polling/status`: `Adaptive`, `Cron <expression>` or `Not scheduled`, with the schedule season, zone and
+tick interval, and a hint to set `PIPELINE_POLLING_SOURCES` when no source is adaptive), the effective policy of every
+source (all ten settings including the lookback `recentMatchDays`, an `Overridden` chip with author and time, ISO-8601
+durations shown as `2 h` or `7 d`) and the poll schedules of one source and season. The schedule filters live in the URL
+(`?source=FCTT&season=2026-2027`); the default is the schedule season and the first adaptive source. A source that is not
+polled adaptively keeps its policy column, marked "Not used", and the schedule table is empty for it: **no schedules
+exist while polling is off**, they appear after the first adaptive tick.
+
+| Action | Request | Needs |
+|---|---|---|
+| Edit policy | `PUT /polling/policies/{source}` with all ten settings and the loaded `version` | role `ADMIN` |
+| Reset to defaults | `DELETE /polling/policies/{source}`; enabled only when the source has an override | role `ADMIN` |
+| Resume a stopped unit | `POST /polling/schedules/{id}/resume`; shown only on stopped rows | permission `matches:write` |
+
+Durations are typed as ISO-8601 (`PT2H`, `P7D`); the form checks the same ordering rules as the server (`matchDay <=
+dayAfter <= daysTwoToSeven <= open <= fullRefresh`, `overdue <= fullRefresh`, counts of at least 1) and the server's `400`
+is shown as it is. A `409` `STALE_POLICY` keeps the input and offers "Reload current values". Resume answers `404`,
+`NOT_STOPPED` and `STALE_SCHEDULE` are shown and the schedules are refetched. Schedules refetch on a `run` event of the
+selected source and after a reconnect; policies and status load on open and after a change. Levels, intervals, next runs,
+stop state and the lookback all come from the server.
+
 ## Layout
 
 ```text
@@ -226,5 +250,6 @@ src/events/   SSE parser and RunEventsProvider
 src/layout/   app shell, navigation list, route error boundary
 src/runs/     run list/detail hooks, table, units list and accordions, filters, activity log, Run now and Retry unit dialogs
 src/statistics/ statistics filters, hooks and the dashboard panels
-src/pages/    lazy-loaded screens (Calendar, Runs, Run detail, Statistics), login
+src/polling/  polling status, policy and schedule hooks, filters, form rules, tables and dialogs
+src/pages/    lazy-loaded screens (Calendar, Runs, Run detail, Polling, Statistics), login
 ```

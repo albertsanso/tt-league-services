@@ -353,6 +353,8 @@ export interface PollingPolicy {
   readonly overdueStopAfterDays: number
   readonly fullRefresh: string
   readonly noChangeThreshold: number
+  /** How many of the latest pollable match days of each group adaptive polling builds units from. */
+  readonly recentMatchDays: number
   readonly overridden: boolean
   readonly version: number
   readonly updatedBy: string | null
@@ -369,7 +371,26 @@ export interface PollingPolicyRequest {
   readonly overdueStopAfterDays: number
   readonly fullRefresh: string
   readonly noChangeThreshold: number
+  readonly recentMatchDays: number
   readonly version: number
+}
+
+export type PollingMode = 'ADAPTIVE' | 'CRON' | 'NONE'
+
+export interface SourceMode {
+  readonly source: PipelineSource
+  readonly mode: PollingMode
+  /** The cron expression; set only for `CRON`. */
+  readonly cron: string | null
+}
+
+/** How each source is refreshed. `season` and `zone` are null when no source is scheduled. */
+export interface PollingStatus {
+  readonly season: string | null
+  readonly zone: string | null
+  /** ISO-8601 fixed delay of the adaptive tick. */
+  readonly tickInterval: string
+  readonly sources: readonly SourceMode[]
 }
 
 export interface PollSchedule {

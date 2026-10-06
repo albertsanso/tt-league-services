@@ -13,7 +13,7 @@ const CLOSE_REASON_LABELS: Readonly<Record<string, string>> = {
   REMOVED: 'no longer reported by the platform',
 }
 
-function window(summary: MatchDaySummary): string {
+function windowText(summary: MatchDaySummary): string {
   if (summary.firstDate === null || summary.lastDate === null) {
     return 'Undated'
   }
@@ -35,7 +35,7 @@ export function MatchDayHeader({ summary }: { summary: MatchDaySummary }) {
         <Chip size="small" variant="outlined" label={`${progressText(summary)} reported`} />
       </Box>
       <Typography sx={{ mt: 1 }}>
-        {summary.source} · {summary.season} · {window(summary)}
+        {summary.source} · {summary.season} · {windowText(summary)}
       </Typography>
       {closed && (
         <Typography variant="body2" color="text.secondary">

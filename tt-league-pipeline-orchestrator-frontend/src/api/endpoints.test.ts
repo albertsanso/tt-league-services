@@ -18,6 +18,7 @@ import { listPendingTriggers } from './pendingTriggers'
 import {
   deletePollingPolicy,
   getPollingPolicy,
+  getPollingStatus,
   listPollingPolicies,
   listPollSchedules,
   replacePollingPolicy,
@@ -62,6 +63,7 @@ const policyRequest: PollingPolicyRequest = {
   overdueStopAfterDays: 14,
   fullRefresh: 'PT24H',
   noChangeThreshold: 3,
+  recentMatchDays: 3,
   version: 0,
 }
 
@@ -105,6 +107,7 @@ const cases: ReadonlyArray<readonly [string, (c: HttpClient) => Promise<unknown>
   ['ignoreMatch', (c) => ignoreMatch(c, 'id1', 'm1', 'x'), { method: 'PUT', path: '/api/pipeline/match-days/id1/matches/m1/ignore', body: { note: 'x' } }],
   ['unignoreMatch', (c) => unignoreMatch(c, 'id1', 'm1'), { method: 'DELETE', path: '/api/pipeline/match-days/id1/matches/m1/ignore', body: { note: undefined } }],
   ['addMatchDayNote', (c) => addMatchDayNote(c, 'id1', 'hello', 'm1'), { method: 'POST', path: '/api/pipeline/match-days/id1/notes', body: { text: 'hello', matchId: 'm1' } }],
+  ['getPollingStatus', (c) => getPollingStatus(c), { method: 'GET', path: '/api/pipeline/polling/status' }],
   ['listPollingPolicies', (c) => listPollingPolicies(c), { method: 'GET', path: '/api/pipeline/polling/policies' }],
   ['getPollingPolicy', (c) => getPollingPolicy(c, 'RFETM'), { method: 'GET', path: '/api/pipeline/polling/policies/RFETM' }],
   ['replacePollingPolicy', (c) => replacePollingPolicy(c, 'BCNESA', policyRequest), { method: 'PUT', path: '/api/pipeline/polling/policies/BCNESA', body: policyRequest }],

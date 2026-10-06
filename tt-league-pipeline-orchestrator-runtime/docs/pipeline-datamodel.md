@@ -385,7 +385,7 @@ Per-source override of the polling settings; a source without a row uses the con
 | Column | Type | Notes |
 | --- | --- | --- |
 | `source` | `varchar(16)` PK | `RFETM`, `BCNESA`, `FCTT` |
-| `settings` | `jsonb` NOT NULL | `matchDay`, `matchDayStartOffset`, `dayAfter`, `daysTwoToSeven`, `open`, `overdue`, `fullRefresh` (ISO-8601 durations), `overdueStopAfterDays`, `noChangeThreshold` (integers); read strictly, so unknown or missing keys fail |
+| `settings` | `jsonb` NOT NULL | `matchDay`, `matchDayStartOffset`, `dayAfter`, `daysTwoToSeven`, `open`, `overdue`, `fullRefresh` (ISO-8601 durations), `overdueStopAfterDays`, `noChangeThreshold`, `recentMatchDays` (integers; `recentMatchDays` is the lookback of adaptive polling, added by `V11`); read strictly, so unknown or missing keys fail |
 | `version` | `bigint` NOT NULL | optimistic version, starts at 1 for the first save |
 | `updated_by` | `varchar(128)` NOT NULL | JWT subject of the admin |
 | `updated_at` | `timestamptz` NOT NULL | |
@@ -496,3 +496,4 @@ others still replay. `ReplayRules` refuses the replay with `NO_PACKAGE` when the
 | `V8` | `V8__statistics.sql` | `pipeline_step.http_errors`, `timeouts`, `parse_errors` (+ CHECKs), `import_report.amended_played`, `daily_stats`, `ix_pipeline_run_finished`, `ix_pipeline_step_finished`, `ix_match_tracking_reported`, `ix_import_report_received` |
 | `V9` | `V9__replay_and_retention.sql` | `run_artifact.purged_at` (+ CHECK), `ix_run_artifact_storage_key`, `ix_run_artifact_unpurged`, `pipeline_step.import_job_reused` (+ CHECK) |
 | `V10` | `V10__run_units.sql` | `pipeline_unit` (+ CHECKs, `uq_pipeline_unit_run_ordinal`, `ix_pipeline_unit_key_finished`, `ix_pipeline_unit_finished`), every existing run backfilled as one unit (ordinal 0; key `season` for a full-season scope, `legacy` otherwise); `pipeline_run.status`, `trigger` and retry CHECKs rewritten (`RUNNING` replaces `RUNNING_INGEST`/`PACKED`/`IMPORTING`, `UNIT_RETRY`, `retry_of_unit_id`), active-run index narrowed to `QUEUED`/`RUNNING`, `ingest_run_id`/`import_job_id` left as legacy columns; `unit_id` on `pipeline_step` (unique `(unit_id, kind, attempt)`), `run_artifact` (+ `ix_run_artifact_unit`) and `import_report` (primary key moved to `unit_id`, `ix_import_report_run`); `alert.kind` accepts `UNIT_FAILURES` (`ck_alert_kind`) |
+| `V11` | `V11__polling_recent_match_days.sql` | `poll_policy.settings` of every stored override gets `recentMatchDays` 3 when it has none (`version`, `updated_by` and `updated_at` unchanged); no DDL |

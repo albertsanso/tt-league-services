@@ -18,6 +18,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollPolicyReposit
 import org.cttelsamicsterrassa.data.pipeline.core.polling.port.PollScheduleRepository;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineRun;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
+import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
 import org.cttelsamicsterrassa.data.pipeline.runtime.security.CurrentUser;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -44,16 +45,30 @@ class PollingController {
     private final PollPolicyRepository policies;
     private final PollScheduleRepository schedules;
     private final RunClock clock;
+    private final PipelineOrchestratorProperties.Schedule scheduleSettings;
+    private final PipelineOrchestratorProperties.Polling pollingSettings;
 
     PollingController(
             PollingSettingsProvider settings,
             PollPolicyRepository policies,
             PollScheduleRepository schedules,
-            RunClock clock) {
+            RunClock clock,
+            PipelineOrchestratorProperties.Schedule scheduleSettings,
+            PipelineOrchestratorProperties.Polling pollingSettings) {
         this.settings = settings;
         this.policies = policies;
         this.schedules = schedules;
         this.clock = clock;
+        this.scheduleSettings = scheduleSettings;
+        this.pollingSettings = pollingSettings;
+    }
+
+    @GetMapping("/status")
+    @Operation(summary = "How each source is scheduled: adaptive polling, fixed cron or not scheduled",
+            description = "Read-only view of the configuration: the mode of every source, the schedule season and zone "
+                    + "(null when no source is scheduled) and the adaptive tick interval.")
+    PollingStatusDto status() {
+        return PollingStatusDto.from(scheduleSettings, pollingSettings);
     }
 
     @GetMapping("/policies")

@@ -284,7 +284,7 @@ It is off unless `PIPELINE_POLLING_SOURCES` lists the sources.
 - **Levels** (evaluated in the schedule zone; the most urgent level of a unit's unresolved matches wins). Candidate
   matches are the non-ignored `SCHEDULED`, `AWAITING_RESULT`, `OVERDUE` and `POSTPONED` ones of `OPEN` match days, and
   of days closed as `ALL_RESOLVED` that still hold a postponed match; manually closed, removed and upcoming days are
-  never polled.
+  never polled. Only the latest match days of each group are polled, see **Lookback** below.
 
   | Level | Rule | Default interval |
   | --- | --- | --- |
@@ -299,9 +299,21 @@ It is off unless `PIPELINE_POLLING_SOURCES` lists the sources.
   Defaults (`tt.pipeline.polling.defaults.*`, each with a `PIPELINE_POLLING_<NAME>` variable): `match-day`
   (`PIPELINE_POLLING_MATCH_DAY`), `match-day-start-offset`, `day-after`, `days-two-to-seven`
   (`PIPELINE_POLLING_DAYS_2_TO_7`), `open`, `overdue`, `overdue-stop-after-days`, `full-refresh`,
-  `no-change-threshold`. All durations are positive ISO-8601 and must satisfy `match-day <= day-after <=
+  `no-change-threshold`, `recent-match-days` (`PIPELINE_POLLING_RECENT_MATCH_DAYS`, default 3). All durations are
+  positive ISO-8601 and must satisfy `match-day <= day-after <=
   days-two-to-seven <= open <= full-refresh` and `overdue <= full-refresh`; an invalid value fails startup.
+  `recent-match-days` and the two day/run counts are integers of at least 1.
   An admin can override every value per source through the API (below).
+- **Lookback.** The policy setting `recentMatchDays` (default 3) limits adaptive polling to the latest past match days:
+  a *group* is a tracker match day without its round (competition, group number, phase) of the source and the schedule
+  season; within each group the pollable match days are ordered by round, highest first, and only the first
+  `recentMatchDays` build units. Pollable days are past or current by construction (open days have started or await
+  results; a day closed as `ALL_RESOLVED` still holds a postponed match), so these are the last N past match days.
+  Older pollable days are left to the full refresh. It is enforced only by `RecentMatchDays` in the adaptive tick: the
+  manual `OPEN_MATCH_DAYS` trigger and the match-day refresh still use every open day, and the tracker is unchanged.
+  With one round per week, three rounds cover about three weeks, so an `OVERDUE` unit usually leaves the lookback before
+  `overdue-stop-after-days` (21) stops it: it is then covered by the full refresh and the `MATCH_UNREPORTED` alert, and
+  `STOPPED` alerts become rarer. Flyway `V11` gives the stored overrides `recentMatchDays` 3.
 - **Back-off.** After `no-change-threshold` (3) consecutive `NO_CHANGES` runs the interval doubles, and doubles again
   every further threshold, capped at the interval of the next slower level (`MATCH_DAY` to `DAY_AFTER` to
   `DAYS_2_TO_7` to `OPEN`/`OVERDUE` to `FULL_REFRESH`). A level change resets the counter; `SUCCEEDED` and `PARTIAL`
@@ -315,13 +327,15 @@ It is off unless `PIPELINE_POLLING_SOURCES` lists the sources.
   schedule row abandons the tick (logged); the next tick starts again.
 - **Stop and resume.** A stopped unit is skipped and raises one alert (a WARN log until the notification feature).
   `POST /api/pipeline/polling/schedules/{id}/resume` makes it due now and polls it once before it can stop again.
-- **Endpoints** (`/api/pipeline/polling`). Reads need any valid token: `GET /policies`, `GET /policies/{source}`
+- **Endpoints** (`/api/pipeline/polling`). Reads need any valid token: `GET /status` (read-only: the mode of each
+  source, `ADAPTIVE`, `CRON` with its expression or `NONE`, the schedule season and zone, null when nothing is
+  scheduled, and the tick interval), `GET /policies`, `GET /policies/{source}`
   (effective settings with `overridden`, `version`, `updatedBy`, `updatedAt`; durations are ISO-8601, for example
   `PT168H`) and `GET /schedules?source=&season=` (level, interval, counters, next run, pending run, stop state).
   `PUT /policies/{source}` (full settings plus `version`, 0 when no override exists) and
   `DELETE /policies/{source}` (back to the configured defaults) need the `ADMIN` role; the author is the token
   subject. `POST /schedules/{id}/resume` needs `matches:write`. Errors are problem details with a `code`: `400`
-  invalid settings, `404` `POLL_SCHEDULE_NOT_FOUND`, `409` `STALE_POLICY`, `STALE_SCHEDULE` or `NOT_STOPPED`.
+  invalid settings (every field of the policy is required, `recentMatchDays` included), `404` `POLL_SCHEDULE_NOT_FOUND`, `409` `STALE_POLICY`, `STALE_SCHEDULE` or `NOT_STOPPED`.
 - **`OPEN_MATCH_DAYS` triggers** (`POST /api/pipeline/runs`, with or without adaptive polling) resolve through the same
   scope builder and use the filters of every unit. They answer `422` with `NO_OPEN_MATCH_DAYS` (nothing is open),
   `NO_INGEST_STATUS` (the ingest has no status file or season yet; run a full-season ingest first) or
@@ -384,7 +398,7 @@ derives postponed, overdue or awaiting-result from dates, and stores no results.
 - **Refresh.** `POST /{id}/refresh` with an optional `{"force": false}` body (needs `matches:write`) re-ingests the
   round of the match day in its group: `MatchDayRefresh` builds the ingest filters with the same `ScopeBuilder` and
   source vocabulary as the `OPEN_MATCH_DAYS` scope and creates a `GROUP` run through `TriggerRun`, with the configured
-  conflict mode. RFETM scopes only carry the category, so an RFETM refresh covers the whole category. The answer is the
+  conflict mode. RFETM scopes only carry the category, so an RFETM refresh covers the whole category. When the match day's round has no ingest status row yet (its page is not downloaded), the refresh uses the group's units limited to that round so the page can be fetched; a group with no status row at all is `SCOPE_UNMATCHED`. The answer is the
   same as `POST /api/pipeline/runs`: `201` with the run `Location`, `202` when queued, `409` when the source has an
   active run, `422` when the scope is unavailable (`NO_INGEST_STATUS`, `SCOPE_UNMATCHED`). A created or queued refresh
   appends a `REFRESH_REQUESTED` event (with the run id when one was created) to the match day; it works for any state.

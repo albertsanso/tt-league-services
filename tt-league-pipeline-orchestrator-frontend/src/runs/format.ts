@@ -44,7 +44,8 @@ export function formatBytes(bytes: number): string {
   return `${value.toFixed(value >= 10 ? 0 : 1)} ${units[unit]}`
 }
 
-function filterText(filter: ScopeFilter): string {
+/** One text for a filter: its identity parts, then its match days. */
+export function filterText(filter: ScopeFilter): string {
   const parts = [filter.category, filter.group, filter.phase, filter.territory, filter.gender].filter(
     (value): value is string => value !== null && value !== undefined && value !== '',
   )

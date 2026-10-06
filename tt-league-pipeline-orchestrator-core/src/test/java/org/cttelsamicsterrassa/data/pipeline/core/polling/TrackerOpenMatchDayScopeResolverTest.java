@@ -63,6 +63,22 @@ class TrackerOpenMatchDayScopeResolverTest {
     }
 
     @Test
+    void theManualResolverNeverLimitsTheOpenMatchDaysToTheRecentOnes() {
+        List<IngestStatusRow> rows = new java.util.ArrayList<>();
+        for (int round = 1; round <= 5; round++) {
+            openDay(round);
+            rows.add(new IngestStatusRow(SEASON, "tercera", "G1", "1a Fase", "male", "Barcelona", round, "scheduled",
+                    null, null));
+        }
+        status.returning(new IngestMatchDayStatus(PipelineSource.FCTT, SEASON, rows));
+
+        RunScope scope = resolver.resolve(PipelineSource.FCTT, SEASON);
+
+        assertThat(scope.filters()).containsExactly(
+                new ScopeFilter("tercera", "G1", "1a Fase", "Barcelona", "male", List.of(1, 2, 3, 4, 5)));
+    }
+
+    @Test
     void nothingOpenIsNoOpenMatchDaysWithoutCallingTheIngest() {
         assertThatThrownBy(() -> resolver.resolve(PipelineSource.FCTT, SEASON))
                 .isInstanceOfSatisfying(ScopeUnavailableException.class,

@@ -417,10 +417,11 @@ public record PipelineOrchestratorProperties(
                 Duration overdue,
                 Integer overdueStopAfterDays,
                 Duration fullRefresh,
-                Integer noChangeThreshold) {
+                Integer noChangeThreshold,
+                Integer recentMatchDays) {
 
             static Defaults none() {
-                return new Defaults(null, null, null, null, null, null, null, null, null);
+                return new Defaults(null, null, null, null, null, null, null, null, null, null);
             }
 
             /** Validates through {@link PollingSettings}; the failure names the offending setting. */
@@ -436,7 +437,8 @@ public record PipelineOrchestratorProperties(
                             overdue == null ? base.overdue() : overdue,
                             overdueStopAfterDays == null ? base.overdueStopAfterDays() : overdueStopAfterDays,
                             fullRefresh == null ? base.fullRefresh() : fullRefresh,
-                            noChangeThreshold == null ? base.noChangeThreshold() : noChangeThreshold);
+                            noChangeThreshold == null ? base.noChangeThreshold() : noChangeThreshold,
+                            recentMatchDays == null ? base.recentMatchDays() : recentMatchDays);
                 } catch (IllegalArgumentException e) {
                     throw new IllegalArgumentException("polling.defaults is invalid: " + e.getMessage(), e);
                 }

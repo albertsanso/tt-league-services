@@ -26,6 +26,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.Map;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.PolicyLevel;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.PollDecision;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.PollSchedule;
@@ -38,6 +39,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.polling.port.StalePollPolicyEx
 import org.cttelsamicsterrassa.data.pipeline.core.polling.port.StalePollScheduleException;
 import org.cttelsamicsterrassa.data.pipeline.core.run.PipelineSource;
 import org.cttelsamicsterrassa.data.pipeline.core.run.ScopeFilter;
+import org.cttelsamicsterrassa.data.pipeline.runtime.config.PipelineOrchestratorProperties;
 import org.cttelsamicsterrassa.data.pipeline.runtime.security.SecurityConfiguration;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -68,6 +70,20 @@ class PollingApiWebTest {
         PollingSettingsProvider pollingSettingsProvider(PollPolicyRepository policies) {
             return new PollingSettingsProvider(policies, PollingSettings.defaults());
         }
+
+        /** FCTT is polled adaptively, RFETM has a cron and BCNESA is not scheduled. */
+        @Bean
+        PipelineOrchestratorProperties.Schedule scheduleSettings() {
+            return new PipelineOrchestratorProperties.Schedule("2026-2027", "Europe/Madrid", Duration.ofMinutes(10),
+                    Duration.ofSeconds(30), Map.of(PipelineSource.RFETM,
+                            new PipelineOrchestratorProperties.Schedule.SourceSchedule("0 0 3 * * *")));
+        }
+
+        @Bean
+        PipelineOrchestratorProperties.Polling pollingSettings() {
+            return new PipelineOrchestratorProperties.Polling(java.util.Set.of(PipelineSource.FCTT),
+                    Duration.ofMinutes(5), null, null, null, null);
+        }
     }
 
     @Autowired
@@ -97,7 +113,7 @@ class PollingApiWebTest {
     private static final String VALID_BODY = """
             {"matchDay":"PT1H","matchDayStartOffset":"PT2H","dayAfter":"PT3H","daysTwoToSeven":"PT12H",
              "open":"PT24H","overdue":"PT24H","overdueStopAfterDays":14,"fullRefresh":"P7D",
-             "noChangeThreshold":4,"version":%d}
+             "noChangeThreshold":4,"recentMatchDays":2,"version":%d}
             """;
 
     private PollSchedule stoppedSchedule() {
@@ -110,6 +126,7 @@ class PollingApiWebTest {
 
     @Test
     void everyEndpointRequiresAuthentication() throws Exception {
+        mvc.perform(get(BASE + "/status")).andExpect(status().isUnauthorized());
         mvc.perform(get(BASE + "/policies")).andExpect(status().isUnauthorized());
         mvc.perform(get(BASE + "/policies/fctt")).andExpect(status().isUnauthorized());
         mvc.perform(put(BASE + "/policies/fctt")).andExpect(status().isUnauthorized());
@@ -141,7 +158,28 @@ class PollingApiWebTest {
                 .andExpect(jsonPath("$.source").value("FCTT"))
                 .andExpect(jsonPath("$.fullRefresh").value("PT168H"))
                 .andExpect(jsonPath("$.overdueStopAfterDays").value(21))
-                .andExpect(jsonPath("$.noChangeThreshold").value(3));
+                .andExpect(jsonPath("$.noChangeThreshold").value(3))
+                .andExpect(jsonPath("$.recentMatchDays").value(3));
+    }
+
+    @Test
+    void theStatusListsEverySourceWithItsModeAndTheScheduleSeasonAndZone() throws Exception {
+        mvc.perform(get(BASE + "/status").header("Authorization", user()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.season").value("2026-2027"))
+                .andExpect(jsonPath("$.zone").value("Europe/Madrid"))
+                .andExpect(jsonPath("$.tickInterval").value("PT5M"))
+                .andExpect(jsonPath("$.sources.length()").value(3))
+                .andExpect(jsonPath("$.sources[0].source").value("RFETM"))
+                .andExpect(jsonPath("$.sources[0].mode").value("CRON"))
+                .andExpect(jsonPath("$.sources[0].cron").value("0 0 3 * * *"))
+                .andExpect(jsonPath("$.sources[1].source").value("BCNESA"))
+                .andExpect(jsonPath("$.sources[1].mode").value("NONE"))
+                .andExpect(jsonPath("$.sources[1].cron").doesNotExist())
+                .andExpect(jsonPath("$.sources[2].source").value("FCTT"))
+                .andExpect(jsonPath("$.sources[2].mode").value("ADAPTIVE"))
+                .andExpect(jsonPath("$.sources[2].cron").doesNotExist());
+        verifyNoInteractions(policies, schedules);
     }
 
     @Test
@@ -168,7 +206,7 @@ class PollingApiWebTest {
     @Test
     void anAdminReplacesAPolicyAndGetsTheEffectiveSettingsBack() throws Exception {
         PollingSettings saved = new PollingSettings(Duration.ofHours(1), Duration.ofHours(2), Duration.ofHours(3),
-                Duration.ofHours(12), Duration.ofHours(24), Duration.ofHours(24), 14, Duration.ofDays(7), 4);
+                Duration.ofHours(12), Duration.ofHours(24), Duration.ofHours(24), 14, Duration.ofDays(7), 4, 2);
         when(policies.save(eq(PipelineSource.FCTT), eq(saved), eq("alice"), any(), eq(0L)))
                 .thenReturn(new PollingPolicySettings(PipelineSource.FCTT, saved, 1, "alice", T0));
         when(policies.find(PipelineSource.FCTT))
@@ -181,6 +219,7 @@ class PollingApiWebTest {
                 .andExpect(jsonPath("$.version").value(1))
                 .andExpect(jsonPath("$.matchDay").value("PT1H"))
                 .andExpect(jsonPath("$.overdueStopAfterDays").value(14))
+                .andExpect(jsonPath("$.recentMatchDays").value(2))
                 .andExpect(jsonPath("$.updatedBy").value("alice"));
         ArgumentCaptor<Instant> at = ArgumentCaptor.forClass(Instant.class);
         verify(policies).save(eq(PipelineSource.FCTT), eq(saved), eq("alice"), at.capture(), eq(0L));
@@ -193,8 +232,10 @@ class PollingApiWebTest {
         String missing = VALID_BODY.formatted(0).replace("\"open\":\"PT24H\",", "");
         String badDuration = VALID_BODY.formatted(0).replace("\"PT1H\"", "\"soon\"");
         String negativeVersion = VALID_BODY.formatted(-1);
+        String noLookback = VALID_BODY.formatted(0).replace("\"recentMatchDays\":2,", "");
+        String zeroLookback = VALID_BODY.formatted(0).replace("\"recentMatchDays\":2", "\"recentMatchDays\":0");
 
-        for (String body : List.of(unordered, missing, badDuration, negativeVersion)) {
+        for (String body : List.of(unordered, missing, badDuration, negativeVersion, noLookback, zeroLookback)) {
             mvc.perform(put(BASE + "/policies/fctt").header("Authorization", admin())
                     .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isBadRequest());
         }

@@ -101,6 +101,10 @@ class RunsApiWebTest {
     @MockitoBean
     PollPolicyRepository pollPolicies;
     @MockitoBean
+    PipelineOrchestratorProperties.Schedule scheduleSettings;
+    @MockitoBean
+    PipelineOrchestratorProperties.Polling pollingConfiguration;
+    @MockitoBean
     PollScheduleRepository pollSchedules;
     @MockitoBean
     TriggerRun triggerRun;

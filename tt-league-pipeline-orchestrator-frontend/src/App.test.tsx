@@ -6,6 +6,7 @@ import { renderApp, storeSession, stubBackends } from './test/renderApp'
 // The statistics route is a lazy chunk that pulls in the charts; loading it once up front keeps the routing tests fast.
 beforeAll(async () => {
   await import('./pages/StatisticsPage')
+  await import('./pages/PollingPage')
 }, 60_000)
 
 afterEach(() => {
@@ -40,7 +41,7 @@ describe('App routing', () => {
     expect(await screen.findByRole('heading', { name: 'Runs' })).toBeInTheDocument()
   })
 
-  it('renders the three navigation entries and marks the active one', async () => {
+  it('renders the navigation entries and marks the active one', async () => {
     stubBackends()
     storeSession()
     renderApp('/statistics')
@@ -48,7 +49,7 @@ describe('App routing', () => {
     await screen.findByRole('heading', { name: 'Statistics' })
     const nav = screen.getAllByRole('navigation', { name: 'Sections' })[0]
     const links = within(nav).getAllByRole('link')
-    expect(links.map((link) => link.textContent)).toEqual(['Calendar', 'Runs', 'Statistics'])
+    expect(links.map((link) => link.textContent)).toEqual(['Calendar', 'Runs', 'Polling', 'Statistics'])
     expect(within(nav).getByRole('link', { name: 'Statistics' })).toHaveAttribute('aria-current', 'page')
     expect(within(nav).getByRole('link', { name: 'Runs' })).not.toHaveAttribute('aria-current')
   })
@@ -58,6 +59,7 @@ describe('App routing', () => {
     ['/calendar/match-days/day-1', 'TERCERA-masculino · G2 · 1a Fase · J3'],
     ['/runs', 'Runs'],
     ['/runs/run-1', 'Run details'],
+    ['/polling', 'Polling'],
     ['/statistics', 'Statistics'],
   ])('renders the lazy route %s', async (path, heading) => {
     stubBackends()

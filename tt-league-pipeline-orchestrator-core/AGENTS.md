@@ -142,8 +142,13 @@ mvn -pl tt-league-pipeline-orchestrator-core -am test
 - `SourceVocabulary` and `BcnesaCompetitionNames` mirror the import path-to-identity rules without depending on
   `tt-data-league-import`; each rule is pinned by `SourceVocabularyTest`. Update them in the same change as the import
   rules. An open match day without an ingest status row fails with `SCOPE_UNMATCHED`: never widen the scope silently.
+  BCNESA status rows carry the downloaded category folder (`RTT PREFERENT`); `Bcnesa` kebab-cases it like the parser's
+  export folder (`rtt-preferent`) before the `BcnesaCompetitionNames` lookup.
+- `RecentMatchDays.limit` is the only place that applies the polling lookback (`PollingSettings.recentMatchDays`: the
+  latest rounds of each competition/group/phase), used only by `AdaptivePollingTick`; the manual `OPEN_MATCH_DAYS`
+  resolver and `MatchDayRefresh` never limit.
 - `MatchDayRefresh` is the operator refresh of one match day: it builds the filters with the same `ScopeBuilder` as
-  `OPEN_MATCH_DAYS` and creates the run only through `TriggerRun` (`GROUP`, `MANUAL`); a created or queued run is
+  `OPEN_MATCH_DAYS` (a round without a status row falls back to `buildGroupRound`: the group's units limited to that round; never used by polling) and creates the run only through `TriggerRun` (`GROUP`, `MANUAL`); a created or queued run is
   recorded with `MatchDayActions.recordRefresh` (a `REFRESH_REQUESTED` event), a rejected or unavailable one records
   nothing.
 - `TrackerOpenMatchDayScopeResolver` answers `NO_OPEN_MATCH_DAYS`, `NO_INGEST_STATUS` and `SCOPE_UNMATCHED`.

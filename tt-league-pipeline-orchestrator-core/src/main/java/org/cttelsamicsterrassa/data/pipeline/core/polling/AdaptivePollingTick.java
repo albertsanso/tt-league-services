@@ -21,6 +21,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.IngestMatchDaySt
 import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.OpenMatchDay;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.OpenMatchDays;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.PollUnitScope;
+import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.RecentMatchDays;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.ScopeBuild;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.ScopeBuildException;
 import org.cttelsamicsterrassa.data.pipeline.core.polling.scope.ScopeBuilder;
@@ -132,7 +133,8 @@ public final class AdaptivePollingTick {
             return launchFullRefresh(source, full, now);
         }
 
-        List<OpenMatchDay> open = OpenMatchDays.load(matchDays, source, season);
+        List<OpenMatchDay> open = RecentMatchDays.limit(OpenMatchDays.load(matchDays, source, season),
+                settings.recentMatchDays());
         ScopeBuild build;
         if (open.isEmpty()) {
             build = new ScopeBuild(List.of());

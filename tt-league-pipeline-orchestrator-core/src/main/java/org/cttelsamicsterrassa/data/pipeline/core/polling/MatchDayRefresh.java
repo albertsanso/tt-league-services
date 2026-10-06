@@ -26,7 +26,7 @@ import org.cttelsamicsterrassa.data.pipeline.core.trigger.TriggerRun.Outcome;
  * Re-ingests one match day on an operator's request: builds the ingest filters of that match day's round of its
  * group with the {@link ScopeBuilder} (the same vocabulary as {@code OPEN_MATCH_DAYS}; RFETM scopes carry only the
  * category, so the whole category is refreshed) and creates the run through {@link TriggerRun}. It works for any
- * match-day state. A created or queued run is recorded as a {@code REFRESH_REQUESTED} event on the match day.
+ * match-day state. When the round has no status row yet, the group's units limited to that round are used. A created or queued run is recorded as a {@code REFRESH_REQUESTED} event on the match day.
  */
 public final class MatchDayRefresh {
 
@@ -61,10 +61,10 @@ public final class MatchDayRefresh {
                     "The ingest has no match-day status for " + day.key().source() + " season "
                             + day.key().season() + "; run a full-season ingest first"));
         }
+        OpenMatchDay open = new OpenMatchDay(day.key(), matches);
         ScopeBuild build;
         try {
-            build = builder.build(day.key().source(), day.key().season(),
-                    List.of(new OpenMatchDay(day.key(), matches)), report.get());
+            build = buildScope(day, open, report.get());
         } catch (ScopeBuildException e) {
             return List.of(new Outcome.Unavailable(day.key().source(), e.code(), e.getMessage()));
         }
@@ -78,5 +78,20 @@ public final class MatchDayRefresh {
             }
         }
         return outcomes;
+    }
+
+    /**
+     * The scope of the match day's own status row; when its round has none (page not downloaded yet), the group's
+     * units limited to that round, so the refresh can fetch the missing page.
+     */
+    private ScopeBuild buildScope(MatchDay day, OpenMatchDay open, IngestMatchDayStatus report) {
+        try {
+            return builder.build(day.key().source(), day.key().season(), List.of(open), report);
+        } catch (ScopeBuildException e) {
+            if (!ScopeBuildException.SCOPE_UNMATCHED.equals(e.code())) {
+                throw e;
+            }
+            return builder.buildGroupRound(day.key().source(), day.key().season(), open, report);
+        }
     }
 }
