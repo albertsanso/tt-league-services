@@ -665,8 +665,13 @@ def discover_leagues(soup: BeautifulSoup, page_url: str) -> list[League]:
     territory: str | None = None
     for element in soup.find_all(["h2", "div"]):
         if element.name == "h2":
-            match = territory_re.search(fold(element.get_text(" ", strip=True)))
-            territory = match.group(1).capitalize() if match else None
+            heading = fold(element.get_text(" ", strip=True))
+            match = territory_re.search(heading)
+            if match:
+                territory = match.group(1).capitalize()
+            elif heading.startswith("lligues"):
+                territory = None  # another section (e.g. "Lligues estatals"), not a territorial one
+            # Any other h2 is a category sub-heading (Barcelona lists "Preferent", "Primera", ...) inside the section.
             continue
         if territory is None or "jet-engine-listing-overlay-wrap" not in (element.get("class") or []):
             continue
