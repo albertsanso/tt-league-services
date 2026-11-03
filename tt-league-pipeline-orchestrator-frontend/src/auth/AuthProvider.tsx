@@ -81,7 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         clearToken()
         if (error instanceof ApiError && error.status === 401) {
-          setSession({ status: 'signed-out', signOutReason: 'expired' })
+          setSession({ status: 'signed-out', signOutReason: 'rejected' })
         } else {
           const message = error instanceof Error ? error.message : 'Unknown error'
           setSession({ status: 'signed-out', notice: `Could not restore your session: ${message}` })
@@ -94,8 +94,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [restoringToken])
 
-  const signOut = useCallback((reason: SignOutReason = 'user') => {
+  const signOut = useCallback((requested: SignOutReason = 'user') => {
     const token = tokenRef.current
+    const reason = requested === 'rejected' && (token === null || toUser(token) === null) ? 'expired' : requested
     tokenRef.current = null
     clearToken()
     setSession({ status: 'signed-out', signOutReason: reason })

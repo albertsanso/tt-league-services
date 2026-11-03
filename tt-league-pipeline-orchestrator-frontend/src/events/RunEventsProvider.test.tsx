@@ -233,7 +233,7 @@ describe('RunEventsProvider', () => {
     await flush()
 
     expect(screen.getByText(/^stopped/)).toBeInTheDocument()
-    expect(signOut).toHaveBeenCalledWith('expired')
+    expect(signOut).toHaveBeenCalledWith('rejected')
     await act(async () => { await vi.advanceTimersByTimeAsync(120_000) })
     expect(fetchMock).toHaveBeenCalledTimes(1)
   })

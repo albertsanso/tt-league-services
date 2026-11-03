@@ -1,6 +1,10 @@
 import { createContext } from 'react'
 
-export type SignOutReason = 'expired' | 'user'
+/**
+ * Why the session ended. `rejected` is a server 401 for a token that is still valid locally (revoked, or signed
+ * with a secret the server does not trust); a 401 for a token past its expiry resolves to `expired`.
+ */
+export type SignOutReason = 'expired' | 'rejected' | 'user'
 
 export interface AuthUser {
   readonly username: string

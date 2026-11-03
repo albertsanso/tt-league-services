@@ -39,7 +39,15 @@
       "Bash(mvn *)",
       "Bash(grep -hE '^\\\\s*[A-Z_]+[,;\\(]?\\\\s*$|^\\\\s*[A-Z_]+,' tt-data-league-core-repository-jpa/src/main/java/org/cttelsamicsterrassa/data/core/repository/jpa/common/Source.java tt-data-league-core-domain/src/main/java/org/cttelsamicsterrassa/data/core/domain/auth/user/model/UserRole.java)",
       "Bash(git add *)",
-      "Bash(git commit -q -m ' *)"
+      "Bash(git commit -q -m ' *)",
+      "Bash(cd /home/asanso/git/tt-league-services/tt-league-pipeline-orchestrator-runtime && grep -rn -i \"jwt\" --include=*.java --include=*.yml --include=*.yaml --include=*.properties --include=*.md . ../deploy 2>/dev/null | grep -v \"/target/\" | head -50)",
+      "Bash(git check-ignore *)",
+      "Bash(env)",
+      "Bash(openssl rand *)",
+      "Bash(sed -E \"s|^JWT_SIGNING_SECRET=.*|JWT_SIGNING_SECRET=$\\(openssl rand -base64 32\\)|\" .env.local.example)",
+      "Bash(chmod 600 .env.local)",
+      "Bash(awk -F= '/^JWT_SIGNING_SECRET=/{print \"secret length:\", length\\($2\\)}' .env.local)",
+      "Bash(git -C .. status --short .)"
     ],
     "defaultMode": "acceptEdits"
   }

@@ -44,6 +44,13 @@ export default function LoginPage() {
               Pipeline control centre
             </Typography>
             {signOutReason === 'expired' && <Alert severity="info">Your session has expired. Sign in again.</Alert>}
+            {signOutReason === 'rejected' && (
+              <Alert severity="warning">
+                The server rejected your session although it had not expired: it was revoked, or the platform and
+                the orchestrator do not share the same JWT signing secret. Sign in again; if this keeps happening,
+                check JWT_SIGNING_SECRET on both services.
+              </Alert>
+            )}
             {notice !== undefined && <Alert severity="warning">{notice}</Alert>}
             {error !== null && <Alert severity="error">{error}</Alert>}
             <TextField

@@ -1,5 +1,8 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="Platform API" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
+    <option name="envFilePaths">
+      <option value="$PROJECT_DIR$/.env.local" />
+    </option>
     <module name="tt-data-league-api-runtime" />
     <option name="SPRING_BOOT_MAIN_CLASS" value="org.cttelsamicsterrassa.data.api.runtime.APIApplication" />
     <option name="ALTERNATIVE_JRE_PATH" />

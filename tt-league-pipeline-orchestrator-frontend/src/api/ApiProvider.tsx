@@ -15,7 +15,7 @@ export function ApiProvider({ children }: { children: ReactNode }) {
         createHttpClient({
           baseUrl: apiConfig.orchestratorBaseUrl,
           getToken,
-          onUnauthorized: () => signOut('expired'),
+          onUnauthorized: () => signOut('rejected'),
         }),
       ),
     [getToken, signOut],

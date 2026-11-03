@@ -293,3 +293,9 @@ uv run pytest packages/tt-league-ingest-fctt    # one package
 ```
 
 Tests never use the network.
+
+## Quick Run - Start services
+
+```text
+set -a; source ../.env.local; set +a; uv sync --all-packages && uv run tt-league-ingest-rest
+```

@@ -97,7 +97,7 @@ describe('AuthProvider restore', () => {
     stubFetch(() => json({ message: 'Unauthorized' }, 401))
     renderProvider()
 
-    expect(await screen.findByText('signed-out:expired')).toBeInTheDocument()
+    expect(await screen.findByText('signed-out:rejected')).toBeInTheDocument()
     expect(readToken()).toBeNull()
   })
 
@@ -167,8 +167,21 @@ describe('AuthProvider expiry and sign-out', () => {
       screen.getByRole('button', { name: 'load' }).click()
     })
 
-    await waitFor(() => expect(screen.getByText('signed-out:expired')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('signed-out:rejected')).toBeInTheDocument())
     expect(readToken()).toBeNull()
+  })
+
+  it('reports a server rejection of a token past its expiry as expired', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    const token = makeToken({ exp: Math.floor(Date.now() / 1000) + 60 })
+    stubFetch(() => json({ token, type: 'Bearer', username: 'operator' }))
+    renderProvider()
+    await act(() => auth.signIn('operator', 'pw'))
+    vi.setSystemTime(Date.now() + 120_000)
+
+    act(() => auth.signOut('rejected'))
+
+    expect(screen.getByText('signed-out:expired')).toBeInTheDocument()
   })
 
   it('calls /logout with the token and clears storage on user sign-out', async () => {

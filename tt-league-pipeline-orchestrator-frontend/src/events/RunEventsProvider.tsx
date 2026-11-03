@@ -86,7 +86,7 @@ export function RunEventsProvider({ children }: { children: ReactNode }) {
         })
         if (response.status === 401) {
           setConnection((previous) => ({ ...previous, state: 'stopped' }))
-          signOut('expired')
+          signOut('rejected')
           return
         }
         if (!response.ok || response.body === null) {

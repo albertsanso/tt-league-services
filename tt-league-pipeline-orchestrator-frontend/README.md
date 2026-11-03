@@ -57,7 +57,11 @@ be accepted by the orchestrator.
   `GET /api/v1/auth/me`, so a token revoked by a platform logout is not reused. If
   the platform cannot be reached the user is signed out with a visible message.
 - A timer signs the user out when the token expires, and any orchestrator `401`
-  does the same; the login page then shows "Your session has expired".
+  does the same. The login page tells the two apart: "Your session has expired"
+  when the token is past its expiry, and a "server rejected your session" warning
+  when a still-valid token is refused (revoked, or the platform and orchestrator
+  do not share the same `JWT_SIGNING_SECRET`). A `401` from `/auth/me` on restore
+  is reported as rejected too.
 - Sign out clears the token first and then asks the platform to revoke it.
 - There is no refresh token; tokens last as long as the platform configures
   (`security.jwt.expiration-millis`).
