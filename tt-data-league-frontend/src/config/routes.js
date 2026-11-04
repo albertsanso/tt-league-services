@@ -48,6 +48,7 @@ export const routePaths = {
     returnSearch,
     MATCH_SEARCH_QUERY_KEYS,
   ),
+  seasonCalendar: '/calendari',
   administration: '/administration',
   administrationUsers: '/administration/users',
   administrationSettings: '/administration/settings',
@@ -144,6 +145,7 @@ export const routesMeta = [
     permission: 'matches:read',
     breadcrumb: matchSummaryBreadcrumb,
   },
+  { path: routePaths.seasonCalendar, label: translate('routes.seasonCalendar'), labelKey: 'routes.seasonCalendar', section: translate('routes.general'), auth: true, permission: 'matches:read' },
   { path: '/cerca', label: translate('routes.searchResults'), labelKey: 'routes.searchResults', section: translate('routes.general'), auth: true },
   { path: '/settings', label: translate('routes.settings'), labelKey: 'routes.settings', section: translate('routes.general'), auth: true },
   {

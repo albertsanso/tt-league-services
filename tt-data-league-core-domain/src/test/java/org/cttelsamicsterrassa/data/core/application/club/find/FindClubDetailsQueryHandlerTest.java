@@ -14,6 +14,7 @@ import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.DoublesPairRepository;
 import org.cttelsamicsterrassa.data.core.domain.game.repository.GameRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
@@ -312,5 +313,55 @@ class FindClubDetailsQueryHandlerTest {
         assertEquals(0, superdivisio.wins());
         assertEquals(1, superdivisio.draws());
         assertEquals(0, superdivisio.losses());
+    }
+
+    @Test
+    void excludesScheduledMatchesFromCompetitionSummaries() {
+        // FEAT-00079: the repository deliberately returns mixed statuses (consolidation scope);
+        // the handler must aggregate over PLAYED only.
+        UUID clubId = UUID.randomUUID();
+        Club club = Club.createExisting(clubId, "Club Terrassa");
+        Season season = Season.of(2025);
+        FederatedClub federatedClub = FederatedClub.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Terrassa", club);
+        Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Terrassa 1", season, federatedClub);
+        Team rivalA = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Rival A", season, null);
+
+        Match played = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+                .season(season).homeTeam(homeTeam).awayTeam(rivalA).homeGamesWon(5).awayGamesWon(2)
+                .winnerTeam(homeTeam).createExisting();
+        Match scheduled = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM).competition("Preferent")
+                .season(season).homeTeam(homeTeam).awayTeam(rivalA)
+                .status(MatchStatus.SCHEDULED).createExisting();
+
+        ClubRepository clubRepository = mock(ClubRepository.class);
+        FederatedClubRepository federatedClubRepository = mock(FederatedClubRepository.class);
+        TeamRepository teamRepository = mock(TeamRepository.class);
+        MatchRepository matchRepository = mock(MatchRepository.class);
+        PlayerSeasonRepository playerSeasonRepository = mock(PlayerSeasonRepository.class);
+        GameRepository gameRepository = mock(GameRepository.class);
+        DoublesPairRepository doublesPairRepository = mock(DoublesPairRepository.class);
+
+        when(clubRepository.findClubById(clubId)).thenReturn(Optional.of(club));
+        when(federatedClubRepository.findAllFederatedClubsByClubId(clubId)).thenReturn(List.of(federatedClub));
+        when(teamRepository.findAllTeamsByFederatedClubId(federatedClub.getId())).thenReturn(List.of(homeTeam));
+        when(playerSeasonRepository.findAllPlayerSeasonsByTeamIdsAndSource(any(), eq(ImportSource.RFETM)))
+                .thenReturn(List.of());
+        when(matchRepository.findAllMatchesByTeamIdsAndSource(any(), eq(ImportSource.RFETM)))
+                .thenReturn(List.of(played, scheduled));
+        when(playerSeasonRepository.findAllPlayerSeasonCompetitionsByTeamIdsAndSource(any(), eq(ImportSource.RFETM)))
+                .thenReturn(Map.of());
+        when(gameRepository.findGamesByMatchIds(anyList())).thenReturn(List.of());
+        when(doublesPairRepository.findDoublesPairsByGameIds(anyList())).thenReturn(List.of());
+
+        ClubDetailsReadModel details = new FindClubDetailsQueryHandler(
+                clubRepository, federatedClubRepository, teamRepository, matchRepository,
+                playerSeasonRepository, gameRepository, doublesPairRepository)
+                .handle(new FindClubDetailsQuery(clubId)).getResponse();
+
+        assertEquals(1, details.competitions().size());
+        assertEquals(1, details.competitions().getFirst().matchCount());
+        assertEquals(1, details.competitions().getFirst().wins());
+        assertEquals(0, details.competitions().getFirst().draws());
+        assertEquals(0, details.competitions().getFirst().losses());
     }
 }

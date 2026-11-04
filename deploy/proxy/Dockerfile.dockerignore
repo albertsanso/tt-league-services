@@ -1,0 +1,15 @@
+# Dockerfile-specific ignore file: the build context is the repository root, so everything is excluded
+# except the two frontends' sources and the proxy configuration. This keeps .claude/worktrees, target/,
+# .env files and every other module out of the context.
+*
+!tt-data-league-frontend/
+!tt-league-pipeline-orchestrator-frontend/
+!deploy/proxy/
+tt-data-league-frontend/node_modules
+tt-data-league-frontend/dist
+tt-data-league-frontend/target
+tt-league-pipeline-orchestrator-frontend/node_modules
+tt-league-pipeline-orchestrator-frontend/dist
+tt-league-pipeline-orchestrator-frontend/target
+**/.env
+**/.env.*

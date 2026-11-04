@@ -1,8 +1,13 @@
 package org.cttelsamicsterrassa.data.load.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaTraversalSummary;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue;
+import org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportContext;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
@@ -14,7 +19,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -84,7 +91,7 @@ class BcnesaActasDirectoryNavigatorTest {
     }
 
     @Test
-    void readsReportsUnderAnyOpaqueNameAndIgnoresOtherJsonFiles() throws IOException {
+    void readsReportsUnderAnyActaNameAndReportsOtherJsonFilesAsUnrecognised() throws IOException {
         Path folder = reportFolder("2020-2021", "Preferent", "G1", "1a Fase");
         Files.writeString(folder.resolve("acta.json"),
                 singleFixtureActa("HOME 1", "AWAY 1", "10", "20", "30", "40"));
@@ -94,12 +101,15 @@ class BcnesaActasDirectoryNavigatorTest {
                 singleFixtureActa("HOME 3", "AWAY 3", "12", "22", "32", "42"));
         // Not a match report: neither the walk nor the club index pre-pass may read it.
         Files.writeString(folder.resolve("clasificacion.json"), "{ not json");
+        Files.writeString(folder.resolve("readme.txt"), "ignored");
 
         BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
 
-        assertEquals(3, summary.filesSeen());
-        assertEquals(0, summary.filesSkipped());
+        assertEquals(4, summary.filesSeen());
+        assertEquals(1, summary.filesSkipped());
         assertEquals(3, summary.fixturesDispatched());
+        assertEquals(1, summary.issues().size());
+        assertTrue(summary.issues().getFirst().message().contains("unrecognised match report file name"));
     }
 
     @Test
@@ -243,13 +253,94 @@ class BcnesaActasDirectoryNavigatorTest {
         writeReport("2020-2021", "Veterans", "Other", "ASCENS", "acta_5_page_1.json",
                 singleFixtureActa("HOME CLUB", "AWAY CLUB", "10", "20", "30", "40")
                         .replace("\"jornada\": 1,", "\"jornada\": null,"));
+        ImportRunContext runContext = new ImportRunContext(ImportSource.BCNESA, "2020-2021");
 
-        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+        BcnesaTraversalSummary summary =
+                navigatorWith(injected).traverse(baseFolder, List.of(injected), runContext);
 
         assertEquals(0, summary.filesSkipped());
         BcnesaMatchReportContext context = injected.single();
         assertEquals(5, context.round());
         assertEquals(null, context.groupNumber());
+        assertEquals(1, runContext.reportedMatchIssues().size());
+        ImportExecutionIssue issue = runContext.reportedMatchIssues().getFirst();
+        assertEquals("BcnesaActasDirectoryNavigator", issue.processor());
+        assertTrue(issue.message().contains("round 5 taken from the file name"));
+    }
+
+    @Test
+    void veteransOtherGroupFixtureWithTheNewFileNameTakesTheRoundFromTheFileName() throws IOException {
+        writeReport("2026-2027", "Veterans", "Other", "Final", "acta_151-247_7.json",
+                singleFixtureActa("HOME CLUB", "AWAY CLUB", "10", "20", "30", "40")
+                        .replace("\"jornada\": 1,", "\"jornada\": null,"));
+        ImportRunContext runContext = new ImportRunContext(ImportSource.BCNESA, "2026-2027");
+
+        BcnesaTraversalSummary summary =
+                navigatorWith(injected).traverse(baseFolder, List.of(injected), runContext);
+
+        assertEquals(0, summary.filesSkipped());
+        assertEquals(7, injected.single().round());
+        assertEquals(1, runContext.reportedMatchIssues().size());
+        assertEquals("BcnesaActasDirectoryNavigator", runContext.reportedMatchIssues().getFirst().processor());
+    }
+
+    @Test
+    void veteransOtherGroupFixtureWithoutAJornadaAndAnUnrecognisedNameIsSkipped() throws IOException {
+        writeReport("2020-2021", "Veterans", "Other", "ASCENS", "acta_x.json",
+                singleFixtureActa("HOME CLUB", "AWAY CLUB", "10", "20", "30", "40")
+                        .replace("\"jornada\": 1,", "\"jornada\": null,"));
+        ImportRunContext runContext = new ImportRunContext(ImportSource.BCNESA, "2020-2021");
+
+        BcnesaTraversalSummary summary =
+                navigatorWith(injected).traverse(baseFolder, List.of(injected), runContext);
+
+        assertEquals(1, summary.filesSkipped());
+        assertTrue(injected.contexts.isEmpty());
+        assertTrue(runContext.reportedMatchIssues().isEmpty(), "no round was derived, so nothing is reported");
+    }
+
+    @Test
+    void numberedGroupWithTheNewFileNameAndNoJornadaIsStillSkipped() throws IOException {
+        writeReport("2026-2027", "Preferent", "G1", "1a Fase", "acta_151-247_7.json",
+                singleFixtureActa("HOME CLUB", "AWAY CLUB", "10", "20", "30", "40")
+                        .replace("\"jornada\": 1,", "\"jornada\": null,"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(1, summary.filesSkipped());
+        assertTrue(injected.contexts.isEmpty());
+    }
+
+    @Test
+    void thePayloadRoundWinsOverTheNewFileNamesSegment() throws IOException {
+        writeReport("2026-2027", "Veterans", "Other", "Final", "acta_151-247_7.json",
+                singleFixtureActa(3, "HOME CLUB", "AWAY CLUB", "10", "20", "30", "40"));
+        ImportRunContext runContext = new ImportRunContext(ImportSource.BCNESA, "2026-2027");
+
+        navigatorWith(injected).traverse(baseFolder, List.of(injected), runContext);
+
+        assertEquals(3, injected.single().round());
+        assertTrue(runContext.reportedMatchIssues().isEmpty());
+    }
+
+    @Test
+    void aSingleFixtureGroupParsesEachFileOnceAndNeverBuildsTheClubIndex() throws IOException {
+        writeReport("2020-2021", "Preferent", "G1", "1a Fase", "acta_1.json",
+                singleFixtureActa("HOME 1", "AWAY 1", "10", "20", "30", "40"));
+        writeReport("2020-2021", "Preferent", "G1", "1a Fase", "acta_2.json",
+                singleFixtureActa("HOME 2", "AWAY 2", "11", "21", "31", "41"));
+        Files.writeString(reportFolder("2020-2021", "Preferent", "G1", "1a Fase").resolve("acta_broken.json"),
+                "{ not json");
+        CountingActaParser parser = new CountingActaParser();
+
+        BcnesaTraversalSummary summary =
+                new BcnesaActasDirectoryNavigator(List.of(injected), parser).traverse(baseFolder);
+
+        assertEquals(2, summary.fixturesDispatched());
+        assertEquals(1, summary.filesSkipped());
+        assertEquals(1, parser.parseCount("acta_1.json"), "each file is parsed once, not twice");
+        assertEquals(1, parser.parseCount("acta_2.json"), "each file is parsed once, not twice");
+        assertEquals(1, parser.parseCount("acta_broken.json"));
     }
 
     @Test
@@ -309,6 +400,146 @@ class BcnesaActasDirectoryNavigatorTest {
         Path missing = baseFolder.resolve("nope");
 
         assertThrows(IOException.class, () -> navigatorWith(injected).traverse(missing));
+    }
+
+    @Test
+    void dispatchesOneFixtureForAnUnpublishedActaWithoutGames() throws IOException {
+        // FEAT-00081: a pending fixture has no games; the splitter must still yield the equipos
+        // fixture so the match processor can store it as SCHEDULED.
+        writeReport("2020-2021", "Preferent", "G1", "1a Fase", "acta.json",
+                pendingActaWithoutGames("HOME CLUB", "AWAY CLUB"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(1, summary.fixturesSeen());
+        assertEquals(1, summary.fixturesDispatched());
+        assertEquals(0, summary.fixturesUnresolved());
+        assertEquals(ImportLifecycleCounters.ZERO, summary.lifecycle(),
+                "a dispatched fixture records nothing as unresolved");
+        BcnesaMatchReportContext context = injected.single();
+        assertEquals("HOME CLUB", context.homeTeamName());
+        assertTrue(context.games().isEmpty());
+    }
+
+    @Test
+    void recordsAPendingFixtureWithoutTeamsAsUnresolvedInLifecycle() throws IOException {
+        // FEAT-00082: an unattributable fixture whose classification is an unresolved pending
+        // placeholder additionally counts as unresolvedPendingFixtures.
+        writeReport("2020-2021", "Preferent", "G1", "1a Fase", "acta_ph.json",
+                pendingActaWithoutGames("HOME CLUB", "AWAY CLUB")
+                        .replace("\"nombre\": \"HOME CLUB\"", "\"nombre\": null")
+                        .replace("\"nombre\": \"AWAY CLUB\"", "\"nombre\": null"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(1, summary.fixturesUnresolved());
+        assertEquals(1, summary.lifecycle().unresolvedPendingFixtures());
+        assertTrue(injected.contexts.isEmpty());
+    }
+
+    private static String pendingActaWithoutGames(String home, String away) {
+        return """
+                {
+                  "federacion": "Federació Catalana de Tennis Taula",
+                  "temporada": "2020/2021",
+                  "competicion": "Preferent",
+                  "grupo": 1,
+                  "jornada": 2,
+                  "acta_publicada": false,
+                  "fecha": "2020-10-08",
+                  "hora": null,
+                  "lugar": null,
+                  "equipos": {
+                    "local": { "id": null, "nombre": "%s", "delegado": null, "entrenador": null },
+                    "visitante": { "id": null, "nombre": "%s", "delegado": null, "entrenador": null }
+                  },
+                  "abc_es_local": null,
+                  "arbitros": null,
+                  "alineaciones": { "local": {}, "visitante": {} },
+                  "dobles": null,
+                  "partidos": [],
+                  "resultado_final": null,
+                  "acta_protestada": false
+                }
+                """.formatted(home, away);
+    }
+
+    @Test
+    void importsTheCurrentJornadaFileNameUnderTheMappedCompetitionName() throws IOException {
+        writeReport("2026-2027", "rtb-preferent", "G1", "1a Fase", "jornada_01_local_team_439_away_team_438.json",
+                singleFixtureActa(1, "HOME CLUB", "AWAY CLUB", "10", "20", "30", "40"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(1, summary.filesSeen());
+        assertEquals(0, summary.filesSkipped());
+        assertTrue(summary.issues().isEmpty());
+        BcnesaMatchReportContext context = injected.single();
+        assertEquals(1, context.round());
+        assertEquals("Preferent", context.competition());
+        assertEquals(1, context.groupNumber());
+    }
+
+    @Test
+    void veteransOtherGroupUnderAnRtbFolderWithTheCurrentNameTakesTheRoundFromTheFileName() throws IOException {
+        writeReport("2026-2027", "rtb-veterans-2aa", "Other", "Final", "jornada_03_local_team_1_away_team_2.json",
+                singleFixtureActa("HOME CLUB", "AWAY CLUB", "10", "20", "30", "40")
+                        .replace("\"jornada\": 1,", "\"jornada\": null,"));
+        ImportRunContext runContext = new ImportRunContext(ImportSource.BCNESA, "2026-2027");
+
+        BcnesaTraversalSummary summary =
+                navigatorWith(injected).traverse(baseFolder, List.of(injected), runContext);
+
+        assertEquals(0, summary.filesSkipped());
+        BcnesaMatchReportContext context = injected.single();
+        assertEquals(3, context.round());
+        assertEquals("Vet 2a _A_", context.competition());
+        assertEquals(null, context.groupNumber());
+        assertEquals(1, runContext.reportedMatchIssues().size());
+    }
+
+    @Test
+    void thePayloadRoundWinsOverTheCurrentFileNamesSegment() throws IOException {
+        writeReport("2026-2027", "rtb-veterans-2aa", "Other", "Final", "jornada_07_local_team_1_away_team_2.json",
+                singleFixtureActa(3, "HOME CLUB", "AWAY CLUB", "10", "20", "30", "40"));
+        ImportRunContext runContext = new ImportRunContext(ImportSource.BCNESA, "2026-2027");
+
+        navigatorWith(injected).traverse(baseFolder, List.of(injected), runContext);
+
+        assertEquals(3, injected.single().round());
+        assertTrue(runContext.reportedMatchIssues().isEmpty());
+    }
+
+    @Test
+    void anUnmappedRtbCompetitionFolderIsSkippedAndReportedWithoutBeingImported() throws IOException {
+        writeReport("2026-2027", "rtb-unknown", "G1", "1a Fase", "jornada_01_local_team_1_away_team_2.json",
+                singleFixtureActa(1, "HOME 1", "AWAY 1", "10", "20", "30", "40"));
+        writeReport("2026-2027", "rtb-unknown", "G1", "1a Fase", "jornada_02_local_team_3_away_team_4.json",
+                singleFixtureActa(2, "HOME 2", "AWAY 2", "11", "21", "31", "41"));
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertTrue(injected.contexts.isEmpty());
+        assertEquals(2, summary.filesSeen());
+        assertEquals(2, summary.filesSkipped());
+        assertEquals(1, summary.issues().size());
+        assertTrue(summary.issues().getFirst().message().contains("rtb-unknown"));
+    }
+
+    @Test
+    void progressTotalEqualsFilesSeenWithUnrecognisedFilesAndUnmappedFolders() throws IOException {
+        writeReport("2026-2027", "rtb-primera", "G1", "1a Fase", "jornada_01_local_team_1_away_team_2.json",
+                singleFixtureActa(1, "HOME 1", "AWAY 1", "10", "20", "30", "40"));
+        writeReport("2026-2027", "rtb-primera", "G1", "1a Fase", "notes.json", "{}");
+        writeReport("2026-2027", "rtb-unknown", "G1", "1a Fase", "jornada_01_local_team_3_away_team_4.json", "{}");
+        List<org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress> updates = new ArrayList<>();
+
+        BcnesaTraversalSummary summary = navigatorWith(injected).traverse(baseFolder, List.of(injected),
+                new ImportRunContext(ImportSource.BCNESA, null), updates::add);
+
+        assertEquals(3, summary.filesSeen());
+        updates.forEach(update -> assertEquals(3L, update.total().orElseThrow()));
+        assertEquals(2, summary.filesSkipped());
     }
 
     private BcnesaActasDirectoryNavigator navigatorWith(BcnesaMatchReportProcessor... processors) {
@@ -410,6 +641,22 @@ class BcnesaActasDirectoryNavigatorTest {
         private BcnesaMatchReportContext single() {
             assertEquals(1, contexts.size(), "expected exactly one dispatched fixture");
             return contexts.getFirst();
+        }
+    }
+
+    /** Counts how often each file is parsed, to prove no per-group club-index pre-pass runs. */
+    private static final class CountingActaParser extends ActaParser {
+
+        private final Map<String, Integer> parseCounts = new HashMap<>();
+
+        @Override
+        public Acta parse(Path file) {
+            parseCounts.merge(file.getFileName().toString(), 1, Integer::sum);
+            return super.parse(file);
+        }
+
+        private int parseCount(String fileName) {
+            return parseCounts.getOrDefault(fileName, 0);
         }
     }
 }

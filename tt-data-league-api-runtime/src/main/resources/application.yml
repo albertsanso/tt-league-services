@@ -54,16 +54,29 @@ spring:
 tt:
   league:
     import:
+      # Optional absolute path used only when the IMPORT/repository-folder setting is created for the first
+      # time (it never overwrites an existing setting). Blank keeps the built-in default.
+      repository-folder-initial: ${IMPORT_REPOSITORY_FOLDER_INITIAL:}
       execution:
         batch-size: ${IMPORT_EXECUTION_BATCH_SIZE:50}
         club-consolidation: ${IMPORT_EXECUTION_CLUB_CONSOLIDATION:write}
         player-consolidation: ${IMPORT_EXECUTION_PLAYER_CONSOLIDATION:write}
+        amended-acta-detection: ${IMPORT_EXECUTION_AMENDED_ACTA_DETECTION:disabled}
+      jobs:
+        # ISO-8601 durations: how often a waiting import job re-checks, and how long it may wait
+        # while another import is active before it fails.
+        busy-retry-interval: ${IMPORT_JOBS_BUSY_RETRY_INTERVAL:PT10S}
+        busy-timeout: ${IMPORT_JOBS_BUSY_TIMEOUT:PT2H}
+    calendar:
+      overdue-grace-days: ${CALENDAR_OVERDUE_GRACE_DAYS:7}
 
 security:
   jwt:
     # Required in every environment; use a random value of at least 32 bytes.
     secret: ${JWT_SIGNING_SECRET:some-random-dev-value-at-least-32-bytes}
     expiration-millis: ${JWT_EXPIRATION_MILLIS:108000000}
+  # security.service-credentials (FEAT-00101) is intentionally not set: no service credential is enabled by default.
+  # See the "Service credentials" section of the module README.
   password-recovery:
     from: ${PASSWORD_RECOVERY_FROM:no-reply@localhost}
     reset-url: ${PASSWORD_RECOVERY_RESET_URL:http://localhost:5173/reset-password}
@@ -79,12 +92,19 @@ management:
   endpoints:
     web:
       exposure:
-        include: "*"
+        include: health,info
 
   metrics:
     tags:
       application: tt-data-league-api-runtime
 
+  health:
+    # An unreachable SMTP server (password-recovery e-mail only) must not turn /actuator/health DOWN.
+    mail:
+      enabled: false
+
   endpoint:
     health:
-      show-details: always
+      show-details: when-authorized
+      probes:
+        enabled: true

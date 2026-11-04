@@ -19,6 +19,7 @@ const PlayersSearchPage = lazy(() => import('./pages/PlayersSearchPage.jsx'))
 const PlayerDetailPage = lazy(() => import('./pages/PlayerDetailPage.jsx'))
 const MatchesSearchPage = lazy(() => import('./pages/MatchesSearchPage.jsx'))
 const MatchSummaryPage = lazy(() => import('./pages/MatchSummaryPage.jsx'))
+const SeasonCalendarPage = lazy(() => import('./pages/SeasonCalendarPage.jsx'))
 const SearchResultsPage = lazy(() => import('./pages/SearchResultsPage.jsx'))
 const SettingsPage = lazy(() => import('./pages/SettingsPage.jsx'))
 const AdministrationPage = lazy(() => import('./pages/AdministrationPage.jsx'))
@@ -77,6 +78,7 @@ function App() {
           <Route path="jugadors/:playerId" element={<ProtectedPage><PlayerDetailPage /></ProtectedPage>} />
           <Route path="partits" element={<ProtectedPage><MatchesSearchPage /></ProtectedPage>} />
           <Route path="partits/:matchId" element={<ProtectedPage><MatchSummaryPage /></ProtectedPage>} />
+          <Route path="calendari" element={<ProtectedPage><SeasonCalendarPage /></ProtectedPage>} />
           <Route path="cerca" element={<ProtectedPage><SearchResultsPage /></ProtectedPage>} />
           <Route path="settings" element={<ProtectedPage><SettingsPage /></ProtectedPage>} />
           <Route path="administration" element={<ProtectedPage><AdministrationPage /></ProtectedPage>} />

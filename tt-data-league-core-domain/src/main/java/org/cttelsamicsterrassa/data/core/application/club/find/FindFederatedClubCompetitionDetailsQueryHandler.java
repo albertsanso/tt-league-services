@@ -160,10 +160,13 @@ public class FindFederatedClubCompetitionDetailsQueryHandler
 
     /**
      * Whether {@code match} may appear in a match-record list at all (FEAT-00066): a tie outside
-     * {@link TieEligibleCompetitions} is excluded entirely rather than shown without a "draw" label.
+     * {@link TieEligibleCompetitions} is excluded entirely rather than shown without a "draw"
+     * label. SCHEDULED fixtures are excluded as well (FEAT-00079); showing them belongs to the
+     * season calendar feature.
      */
     private static boolean isVisibleMatch(Match match) {
-        return match.getWinnerTeam() != null || TieEligibleCompetitions.isTieEligible(match.getCompetition());
+        return match.isPlayed()
+                && (match.getWinnerTeam() != null || TieEligibleCompetitions.isTieEligible(match.getCompetition()));
     }
 
     private FederatedClubMatchReadModel toReadModel(Match match, List<UUID> clubTeamIds) {

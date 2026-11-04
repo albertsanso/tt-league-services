@@ -1,5 +1,7 @@
 package org.cttelsamicsterrassa.data.load.fctt.process;
 
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.preview.ActaPreviewValidationSupport;
 import org.cttelsamicsterrassa.data.load.shared.preview.ImportPreviewCollector;
@@ -9,6 +11,7 @@ import java.util.Map;
 public class FcttPreviewValidationProcessor implements FcttMatchReportProcessor {
 
     private final ImportPreviewCollector collector;
+    private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
 
     public FcttPreviewValidationProcessor(ImportPreviewCollector collector) {
         this.collector = collector;
@@ -18,7 +21,11 @@ public class FcttPreviewValidationProcessor implements FcttMatchReportProcessor 
     public void process(FcttMatchReportContext context) {
         Acta acta = context.acta();
         String location = ActaPreviewValidationSupport.location(context.matchReportFile());
-        if (acta.teams() == null || acta.teams().home() == null || acta.teams().away() == null) {
+        ActaClassification classification = classifier.classify(acta);
+        if (classification.unresolvedPendingFixture()) {
+            collector.info("FCTT pending fixture has no teams; it will be reported as unresolved "
+                    + "and not stored.", location);
+        } else if (acta.teams() == null || acta.teams().home() == null || acta.teams().away() == null) {
             collector.error("FCTT report has incomplete teams.", location);
         } else {
             validateTeam(acta.teams().home().name(), "home", location);
@@ -33,7 +40,7 @@ public class FcttPreviewValidationProcessor implements FcttMatchReportProcessor 
         }
 
         if (!acta.isPublished()) {
-            collector.info("FCTT acta not published; fixture will not be stored as a match.", location);
+            collector.info("FCTT acta not published; fixture will be stored as a scheduled match.", location);
             return;
         }
 

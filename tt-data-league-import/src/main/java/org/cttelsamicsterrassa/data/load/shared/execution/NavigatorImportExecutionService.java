@@ -1,9 +1,13 @@
 package org.cttelsamicsterrassa.data.load.shared.execution;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
+import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaTraversalSummary;
@@ -42,6 +46,7 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
     private final RfetmClubConsolidationProcessor rfetmClubs;
     private final FederatedClubToCanonicalClubConsolidationProcessor canonicalClubs;
     private final PlayerSeasonConsolidationProcessor players;
+    private final MatchRepository matchRepository;
 
     @Autowired
     public NavigatorImportExecutionService(RfetmActasDirectoryNavigator rfetmNavigator,
@@ -53,7 +58,8 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
                                            TeamToClubConsolidationProcessor teamToClub,
                                            RfetmClubConsolidationProcessor rfetmClubs,
                                            FederatedClubToCanonicalClubConsolidationProcessor canonicalClubs,
-                                           PlayerSeasonConsolidationProcessor players) {
+                                           PlayerSeasonConsolidationProcessor players,
+                                           MatchRepository matchRepository) {
         this.rfetmNavigator = rfetmNavigator;
         this.bcnesaNavigator = bcnesaNavigator;
         this.fcttNavigator = fcttNavigator;
@@ -64,6 +70,7 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
         this.rfetmClubs = rfetmClubs;
         this.canonicalClubs = canonicalClubs;
         this.players = players;
+        this.matchRepository = matchRepository;
     }
 
     public NavigatorImportExecutionService(RfetmActasDirectoryNavigator rfetmNavigator,
@@ -71,9 +78,27 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
                                            FcttActasDirectoryNavigator fcttNavigator,
                                            List<MatchContextProcessor> rfetmProcessors,
                                            List<BcnesaMatchReportProcessor> bcnesaProcessors,
+                                           List<FcttMatchReportProcessor> fcttProcessors,
+                                           TeamToClubConsolidationProcessor teamToClub,
+                                           RfetmClubConsolidationProcessor rfetmClubs,
+                                           FederatedClubToCanonicalClubConsolidationProcessor canonicalClubs,
+                                           PlayerSeasonConsolidationProcessor players) {
+        this(rfetmNavigator, bcnesaNavigator, fcttNavigator, rfetmProcessors, bcnesaProcessors, fcttProcessors,
+                teamToClub, rfetmClubs, canonicalClubs, players, null);
+    }
+
+    /**
+     * Navigator-only wiring: {@code matchRepository} is {@code null}, which means "jornada progress is
+     * not computed" rather than "the season has no matches".
+     */
+    public NavigatorImportExecutionService(RfetmActasDirectoryNavigator rfetmNavigator,
+                                           BcnesaActasDirectoryNavigator bcnesaNavigator,
+                                           FcttActasDirectoryNavigator fcttNavigator,
+                                           List<MatchContextProcessor> rfetmProcessors,
+                                           List<BcnesaMatchReportProcessor> bcnesaProcessors,
                                            List<FcttMatchReportProcessor> fcttProcessors) {
         this(rfetmNavigator, bcnesaNavigator, fcttNavigator, rfetmProcessors, bcnesaProcessors,
-                fcttProcessors, null, null, null, null);
+                fcttProcessors, null, null, null, null, null);
     }
 
     @Override
@@ -89,19 +114,37 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
         String season = request.season().map(Object::toString).orElse(null);
         List<ImportExecutionIssue> issues = new ArrayList<>();
         Counts counts;
-        ImportRunContext runContext = new ImportRunContext(request.source(), season);
+        ImportRunContext runContext = new ImportRunContext(request.source(), season, effective.amendedActaMode());
         try {
             counts = traverse(request.source(), request.actasFolder(), season, runContext, progressListener);
         } catch (IOException | RuntimeException exception) {
             issues.add(new ImportExecutionIssue("traversal", request.actasFolder().toString(),
                     safeMessage(exception)));
-            return result(request, ImportProcessStatus.FAILURE, countsZero(started), issues, List.of());
+            return new ImportExecutionResult(request.source(), request.season().map(Object::toString),
+                    ImportProcessStatus.FAILURE, countsZero(started), issues, List.of(),
+                    runContext.reportedMatchIssues());
         }
 
         issues.addAll(counts.issues);
-        ImportProcessStatus status = counts.processorFailures > 0 || !counts.issues.isEmpty()
-                ? ImportProcessStatus.FAILURE
-                : counts.dispatched == 0 ? ImportProcessStatus.EMPTY_RESULT : ImportProcessStatus.SUCCESS;
+        ImportProcessStatus status = ImportRunStatusPolicy.statusOf(counts.processorFailures,
+                !counts.issues.isEmpty(), counts.dispatched, counts.lifecycle);
+        Season requestedSeason = request.season().orElse(null);
+
+        // FEAT-00086: snapshot reconciliation is report-only. It runs only on a SUCCESS traversal with
+        // a season (a failed or partial traversal would report present fixtures as absent) and only
+        // when the match repository is wired. Its findings are warnings that never change a SUCCESS
+        // status; only a reconciliation failure does, exactly like round progress below.
+        List<ImportExecutionIssue> reconciliationWarnings = List.of();
+        if (status == ImportProcessStatus.SUCCESS && requestedSeason != null && matchRepository != null) {
+            try {
+                reconciliationWarnings = new SnapshotReconciler(matchRepository)
+                        .reconcile(request.source(), requestedSeason, runContext.snapshotFixtures());
+            } catch (RuntimeException exception) {
+                issues.add(new ImportExecutionIssue("snapshot-reconciliation", "", safeMessage(exception)));
+                status = ImportProcessStatus.FAILURE;
+            }
+        }
+
         List<PostProcessingOutcome> outcomes = new ArrayList<>();
         if (status == ImportProcessStatus.SUCCESS) {
             if (effective.clubConsolidationMode() != null) {
@@ -119,13 +162,29 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
                         .forEach(issues::add);
             }
         }
+        // FEAT-00084: jornada progress reflects what is stored, so it is read for SUCCESS and FAILURE
+        // runs alike. It is purely informational: it never feeds the run status policy above, the
+        // traversal, or file selection. Without a season no implicit season is chosen, so it is not
+        // computed at all.
+        List<RoundProgress> roundProgress = List.of();
+        if (requestedSeason != null && matchRepository != null) {
+            try {
+                roundProgress = matchRepository.findRoundProgress(request.source(), requestedSeason);
+            } catch (RuntimeException exception) {
+                issues.add(new ImportExecutionIssue("round-progress", "", safeMessage(exception)));
+                status = ImportProcessStatus.FAILURE;
+            }
+        }
         ImportExecutionMetrics metrics = new ImportExecutionMetrics(counts.files, counts.dispatched, counts.skipped,
-                counts.processorFailures, 0, Duration.between(started, Instant.now()).toMillis());
+                counts.processorFailures, 0, Duration.between(started, Instant.now()).toMillis(),
+                counts.lifecycle);
         progressListener.onProgress(counts.files > 0
                 ? ImportRunProgress.determinate(counts.dispatched, counts.files, counts.skipped, counts.processorFailures)
                 : ImportRunProgress.indeterminate(counts.dispatched, counts.skipped, counts.processorFailures));
+        List<ImportExecutionIssue> warnings = new ArrayList<>(runContext.reportedMatchIssues());
+        warnings.addAll(reconciliationWarnings);
         return new ImportExecutionResult(request.source(), request.season().map(Object::toString),
-                status, metrics, issues, outcomes);
+                status, metrics, issues, outcomes, warnings, roundProgress);
     }
 
     private Counts traverse(ImportSource source, Path folder, String season, ImportRunContext runContext,
@@ -136,7 +195,7 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
                         ? rfetmNavigator.traverse(folder, rfetmProcessors, runContext, progressListener)
                         : rfetmNavigator.traverseSeason(folder, season, rfetmProcessors, runContext, progressListener);
                 yield new Counts(summary.filesSeen(), summary.dispatched(), summary.skipped(),
-                        summary.processorFailures(), summary.issues());
+                        summary.processorFailures(), summary.issues(), summary.lifecycle());
             }
             case BCNESA -> {
                 BcnesaTraversalSummary summary = season == null
@@ -144,14 +203,14 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
                         : bcnesaNavigator.traverseSeason(folder, season, bcnesaProcessors, runContext, progressListener);
                 yield new Counts(summary.filesSeen(), summary.fixturesDispatched(),
                         summary.filesSkipped() + summary.fixturesUnresolved(), summary.processorFailures(),
-                        summary.issues());
+                        summary.issues(), summary.lifecycle());
             }
             case FCTT -> {
                 TraversalSummary summary = season == null
                         ? fcttNavigator.traverse(folder, fcttProcessors, runContext, progressListener)
                         : fcttNavigator.traverseSeason(folder, season, fcttProcessors, runContext, progressListener);
                 yield new Counts(summary.filesSeen(), summary.dispatched(), summary.skipped(),
-                        summary.processorFailures(), summary.issues());
+                        summary.processorFailures(), summary.issues(), summary.lifecycle());
             }
         };
     }
@@ -223,13 +282,6 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
                 List.of(error));
     }
 
-    private static ImportExecutionResult result(ImportExecutionRequest request, ImportProcessStatus status,
-                                                ImportExecutionMetrics metrics, List<ImportExecutionIssue> issues,
-                                                List<PostProcessingOutcome> outcomes) {
-        return new ImportExecutionResult(request.source(), request.season().map(Object::toString), status,
-                metrics, issues, outcomes);
-    }
-
     private static ImportExecutionMetrics countsZero(Instant started) {
         return new ImportExecutionMetrics(0, 0, 0, 0, 0, Duration.between(started, Instant.now()).toMillis());
     }
@@ -239,6 +291,6 @@ public class NavigatorImportExecutionService implements ImportExecutionService {
     }
 
     private record Counts(long files, long dispatched, long skipped, long processorFailures,
-                          List<ImportExecutionIssue> issues) {
+                          List<ImportExecutionIssue> issues, ImportLifecycleCounters lifecycle) {
     }
 }

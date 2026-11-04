@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Building2,
+  CalendarDays,
   LayoutDashboard,
   Merge,
   Shield,
@@ -39,6 +40,12 @@ export const navigationSections = [
         labelKey: 'navigation.matches',
         path: routePaths.matches(),
         icon: Swords,
+      },
+      {
+        id: 'calendari',
+        labelKey: 'navigation.calendar',
+        path: routePaths.seasonCalendar,
+        icon: CalendarDays,
       },
     ],
   },

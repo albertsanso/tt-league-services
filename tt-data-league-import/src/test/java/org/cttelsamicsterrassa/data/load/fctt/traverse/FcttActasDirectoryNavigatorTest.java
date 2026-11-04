@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.fctt.traverse;
 
+import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportContext;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportProcessor;
@@ -180,6 +181,20 @@ class FcttActasDirectoryNavigatorTest {
     }
 
     @Test
+    void skipsAPendingFixtureWithoutTeamsBeforeDispatch() throws IOException {
+        writeGrouplessReport("2026-2027", "female", "copa-catalana-femenina-1a",
+                "jornada-1-partido-1.json", reportWithoutTeams(1));
+
+        TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(new TraversalSummary(1, 0, 1, 0, List.of(),
+                new ImportLifecycleCounters(0, 0, 0, 0, 0, 1, 0)), summary);
+        assertEquals(1, summary.lifecycle().unresolvedPendingFixtures(),
+                "the no-team placeholder is recorded as unresolved");
+        assertTrue(injected.contexts.isEmpty(), "no processor may create teams for a placeholder");
+    }
+
+    @Test
     void explicitProcessorsOverrideInjectedOnesAndSeasonFilteringWorks() throws IOException {
         writeReport("2023-2024", "male", "tercera-nacional", "G1", "jornada-1-partido-1.json", report(1, "HOME", "AWAY"));
         writeReport("2024-2025", "male", "tercera-nacional", "G1", "jornada-2-partido-2.json", report(2, "HOME", "AWAY"));
@@ -209,6 +224,48 @@ class FcttActasDirectoryNavigatorTest {
         updates.forEach(update -> assertEquals(2L, update.total().orElseThrow(),
                 "the real total is known upfront and stays constant"));
         assertEquals(100.0, updates.get(2).percentage().orElseThrow());
+    }
+
+    @Test
+    void importsTheIngestLayoutUsingPayloadGenderAndLowercaseGroupFolder() throws IOException {
+        Path folder = Files.createDirectories(baseFolder.resolve("2026-2027/tdm/g1/regular"));
+        Path reportFile = folder.resolve("jornada_10_local_team_130_away_team_151.json");
+        Files.writeString(reportFile, reportWithGender(10, "HOME", "AWAY", "masculino"));
+
+        TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(new TraversalSummary(1, 1, 0, 0), summary);
+        FcttMatchReportContext context = injected.single();
+        assertEquals("tercera-nacional-masculino", context.competition());
+        assertEquals(1, context.groupNumber().orElseThrow());
+        assertEquals(10, context.round());
+        assertEquals(reportFile, context.matchReportFile());
+    }
+
+    @Test
+    void ingestLayoutWithoutNumberedGroupDispatchesWithANullGroup() throws IOException {
+        Path folder = Files.createDirectories(baseFolder.resolve("2026-2027/copa-catalana-femenina/other/regular"));
+        Files.writeString(folder.resolve("jornada_1_local_team_1_away_team_2.json"),
+                reportWithGender(1, "HOME", "AWAY", "femenino"));
+
+        navigatorWith(injected).traverse(baseFolder);
+
+        FcttMatchReportContext context = injected.single();
+        assertEquals("copa-catalana-femenina-femenino", context.competition());
+        assertNull(context.group());
+    }
+
+    @Test
+    void ingestLayoutWithAnUnknownPayloadGenderFailsTheRunInsteadOfSkipping() throws IOException {
+        Path folder = Files.createDirectories(baseFolder.resolve("2026-2027/tdm/g1/regular"));
+        Files.writeString(folder.resolve("jornada_1_local_team_1_away_team_2.json"),
+                report(1, "HOME", "AWAY"));
+
+        TraversalSummary summary = navigatorWith(injected).traverse(baseFolder);
+
+        assertEquals(1, summary.processorFailures());
+        assertEquals(1, summary.issues().size());
+        assertTrue(injected.contexts.isEmpty());
     }
 
     @Test
@@ -276,6 +333,21 @@ class FcttActasDirectoryNavigatorTest {
                   "jornada": null
                 }
                 """;
+    }
+
+    private static String reportWithoutTeams(int round) {
+        return """
+                {
+                  "federacion": "Federació Catalana de Tennis Taula",
+                  "jornada": %d,
+                  "acta_publicada": false,
+                  "genero": "femenino",
+                  "equipos": {
+                    "local": { "id": null, "nombre": null },
+                    "visitante": { "id": null, "nombre": null }
+                  }
+                }
+                """.formatted(round);
     }
 
     private static final class RecordingProcessor implements FcttMatchReportProcessor {

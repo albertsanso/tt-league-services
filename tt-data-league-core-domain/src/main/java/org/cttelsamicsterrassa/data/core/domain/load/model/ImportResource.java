@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.time.ZonedDateTime;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -16,7 +17,7 @@ public class ImportResource extends Entity {
     private final Optional<Boolean> valid;
     private final ResourceType type;
     private final ZonedDateTime created;
-    private final Optional<ZonedDateTime> lastProcessedDate;
+    private Optional<ZonedDateTime> lastProcessedDate;
     private final Season season;
     private final ImportSource source;
     private ImportResourceStatus status;
@@ -62,11 +63,13 @@ public class ImportResource extends Entity {
         this.status = ImportResourceStatus.PROCESSING;
     }
 
-    public void finishProcessing(boolean isValid) {
+    public void finishProcessing(boolean isValid, ZonedDateTime finishedAt) {
         if (status != ImportResourceStatus.PROCESSING) {
             throw new IllegalStateException("Cannot finish processing an import resource that is not in PROCESSING status.");
         }
+        Objects.requireNonNull(finishedAt, "finishedAt");
         this.status = isValid ? ImportResourceStatus.PROCESSED : ImportResourceStatus.ERROR;
+        this.lastProcessedDate = Optional.of(finishedAt);
     }
 
     public UUID getId() {

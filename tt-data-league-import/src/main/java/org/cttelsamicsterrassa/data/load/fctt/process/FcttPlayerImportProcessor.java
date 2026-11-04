@@ -41,8 +41,9 @@ public class FcttPlayerImportProcessor implements FcttMatchReportProcessor {
     }
 
     private void importPlayerSeason(ActaLineupPlayer lineupPlayer, Season season, FcttMatchReportContext context) {
-        if (isBlank(lineupPlayer.name()) || isBlank(lineupPlayer.licenseId())) {
-            LOGGER.warn("Skipping FCTT player without name or licence in {}", context.matchReportFile());
+        if (isBlank(lineupPlayer.name()) || !FcttLicenses.isUsable(lineupPlayer.licenseId())) {
+            LOGGER.warn("Skipping FCTT player \"{}\" without name or usable licence ({}) in {}",
+                    lineupPlayer.name(), lineupPlayer.licenseId(), context.matchReportFile());
             return;
         }
 

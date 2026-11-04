@@ -2,17 +2,37 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.match.impl;
 
 import jakarta.transaction.Transactional;
 import lombok.AllArgsConstructor;
+import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
+import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
+import org.cttelsamicsterrassa.data.core.domain.game.model.SetScore;
+import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSchedule;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
 import org.cttelsamicsterrassa.data.core.domain.match.model.PlayerLocation;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgressCalculator;
+import org.cttelsamicsterrassa.data.core.domain.match.model.RoundStatusCount;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
+import org.cttelsamicsterrassa.data.core.repository.jpa.doublespair.impl.DoublesPairRepositoryHelper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.doublespair.mapper.DoublesPairToDoublesPairJPAMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.game.impl.GameRepositoryHelper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.game.mapper.GameToGameJPAMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.lineup.impl.LineupRepositoryHelper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.lineup.mapper.LineupToLineupJPAMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus;
+import org.cttelsamicsterrassa.data.core.repository.jpa.match.model.MatchJPA;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.mapper.MatchJPAToMatchMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.mapper.MatchToMatchJPAMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.setscore.impl.SetScoreRepositoryHelper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.setscore.mapper.SetScoreToSetScoreJPAMapper;
 import org.springframework.stereotype.Component;
 
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Collection;
 import java.util.List;
@@ -27,6 +47,14 @@ public class MatchRepositoryJpa implements MatchRepository {
     private final MatchRepositoryHelper matchRepositoryHelper;
     private final MatchJPAToMatchMapper matchJPAToMatchMapper;
     private final MatchToMatchJPAMapper matchToMatchJPAMapper;
+    private final LineupRepositoryHelper lineupRepositoryHelper;
+    private final GameRepositoryHelper gameRepositoryHelper;
+    private final SetScoreRepositoryHelper setScoreRepositoryHelper;
+    private final DoublesPairRepositoryHelper doublesPairRepositoryHelper;
+    private final LineupToLineupJPAMapper lineupToLineupJPAMapper;
+    private final GameToGameJPAMapper gameToGameJPAMapper;
+    private final SetScoreToSetScoreJPAMapper setScoreToSetScoreJPAMapper;
+    private final DoublesPairToDoublesPairJPAMapper doublesPairToDoublesPairJPAMapper;
 
     @Override
     public Optional<Match> findMatchById(UUID id) {
@@ -49,6 +77,14 @@ public class MatchRepositoryJpa implements MatchRepository {
         return matchRepositoryHelper
                 .findByCompetitionAndSeasonAndGroupNumberAndRoundAndPhaseAndHomeTeam_IdAndAwayTeam_Id(
                         competition, season.toString(), groupNumber, round, phase, homeTeamId, awayTeamId)
+                .map(matchJPAToMatchMapper);
+    }
+
+    @Override
+    public Optional<Match> findBySourceFixtureId(ImportSource source, String sourceFixtureId) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(sourceFixtureId, "sourceFixtureId");
+        return matchRepositoryHelper.findBySourceAndSourceFixtureId(Source.valueOf(source.name()), sourceFixtureId)
                 .map(matchJPAToMatchMapper);
     }
 
@@ -115,7 +151,7 @@ public class MatchRepositoryJpa implements MatchRepository {
                         playerNameFragments[0], playerNameFragments[1], playerNameFragments[2],
                         playerNameFragments[3], playerNameFragments[4],
                         clubNameFragments[0], clubNameFragments[1], clubNameFragments[2],
-                        clubNameFragments[3], clubNameFragments[4],
+                        clubNameFragments[3], clubNameFragments[4], toJpaStatus(criteria.status()),
                         PageRequest.of(criteria.page(), criteria.pageSize()))
                 .stream().map(matchJPAToMatchMapper).toList();
     }
@@ -131,7 +167,14 @@ public class MatchRepositoryJpa implements MatchRepository {
                 playerNameFragments[0], playerNameFragments[1], playerNameFragments[2],
                 playerNameFragments[3], playerNameFragments[4],
                 clubNameFragments[0], clubNameFragments[1], clubNameFragments[2],
-                clubNameFragments[3], clubNameFragments[4]);
+                clubNameFragments[3], clubNameFragments[4], toJpaStatus(criteria.status()));
+    }
+
+    private static MatchStatus toJpaStatus(
+            org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus status) {
+        return status == null
+                ? MatchStatus.PLAYED
+                : MatchStatus.valueOf(status.name());
     }
 
     @Override
@@ -199,7 +242,7 @@ public class MatchRepositoryJpa implements MatchRepository {
 
     @Override
     public long countAllMatches() {
-        return matchRepositoryHelper.count();
+        return matchRepositoryHelper.countAllPlayed();
     }
 
     @Override
@@ -213,5 +256,199 @@ public class MatchRepositoryJpa implements MatchRepository {
             return 0;
         }
         return matchRepositoryHelper.countBySeason(season.toString());
+    }
+
+    /**
+     * FEAT-00080. One transaction (class-level {@code @Transactional}): validates existence and
+     * natural key before any delete, removes the old children in FK order, overwrites the header
+     * keeping the id, inserts the new children, and flushes so constraint failures roll the whole
+     * replacement back rather than leaving a half-written match.
+     */
+    @Override
+    public void replaceMatchContent(MatchContent content) {
+        Match replacement = content.match();
+        MatchJPA existing = matchRepositoryHelper.findById(replacement.getId())
+                .orElseThrow(() -> new IllegalStateException(
+                        "Cannot replace content of unknown match " + replacement.getId()));
+        if (!matchJPAToMatchMapper.apply(existing).hasSameNaturalKeyAs(replacement)) {
+            throw new IllegalStateException(
+                    "Replacement must not change the natural key of match " + replacement.getId());
+        }
+
+        // Flush first: the bulk deletes only auto-flush pending writes touching their own tables,
+        // and clearAutomatically would purge not-yet-written parent rows (match, teams).
+        matchRepositoryHelper.flush();
+        List<UUID> matchIds = List.of(replacement.getId());
+        doublesPairRepositoryHelper.deleteAllByMatchIds(matchIds);
+        setScoreRepositoryHelper.deleteAllByMatchIds(matchIds);
+        gameRepositoryHelper.deleteAllByMatchIds(matchIds);
+        lineupRepositoryHelper.deleteAllByMatchIds(matchIds);
+
+        matchRepositoryHelper.save(matchToMatchJPAMapper.apply(replacement));
+        lineupRepositoryHelper.saveAll(
+                content.lineups().stream().map(lineupToLineupJPAMapper).toList());
+        gameRepositoryHelper.saveAll(
+                content.games().stream().map(gameToGameJPAMapper).toList());
+        setScoreRepositoryHelper.saveAll(
+                content.setScores().stream().map(setScoreToSetScoreJPAMapper).toList());
+        doublesPairRepositoryHelper.saveAll(
+                content.doublesPairs().stream().map(doublesPairToDoublesPairJPAMapper).toList());
+        matchRepositoryHelper.flush();
+    }
+
+    @Override
+    public void updateSchedule(UUID matchId, MatchSchedule schedule) {
+        java.time.LocalDate matchDate = schedule.dateTime() == null ? null : schedule.dateTime().toLocalDate();
+        java.time.LocalTime matchTime = schedule.dateTime() == null ? null : schedule.dateTime().toLocalTime();
+        int updated = matchRepositoryHelper.updateScheduleOfScheduledMatch(
+                matchId, matchDate, matchTime, schedule.city(), schedule.venue(),
+                schedule.refereeName(), schedule.refereeLicense());
+        if (updated == 0) {
+            if (!matchRepositoryHelper.existsById(matchId)) {
+                throw new IllegalStateException("Cannot reschedule unknown match " + matchId);
+            }
+            throw new IllegalStateException(
+                    "Only SCHEDULED matches can be rescheduled, match " + matchId + " is PLAYED");
+        }
+    }
+
+    /**
+     * FEAT-00089. Records only the checksum of a stored PLAYED match. Mirrors {@link #updateSchedule}'s
+     * failure style: the JPQL guard keeps a SCHEDULED match from receiving a checksum, and the
+     * existence check separates "unknown" from "not played".
+     */
+    @Override
+    public void recordSourceChecksum(UUID matchId, String sourceChecksum) {
+        Objects.requireNonNull(matchId, "matchId");
+        Objects.requireNonNull(sourceChecksum, "sourceChecksum");
+        int updated = matchRepositoryHelper.recordSourceChecksum(matchId, sourceChecksum);
+        if (updated == 0) {
+            if (!matchRepositoryHelper.existsById(matchId)) {
+                throw new IllegalStateException("Cannot record the checksum of unknown match " + matchId);
+            }
+            throw new IllegalStateException(
+                    "Only PLAYED matches can record a source checksum, match " + matchId + " is SCHEDULED");
+        }
+    }
+
+    /**
+     * FEAT-00084. Reads the grouped per-round/per-status counts of one source and season and hands
+     * them to the domain calculator: the current-round and last-complete-round rule is never
+     * duplicated in JPQL. Read-only, and informational for callers - it is not an import-skip signal.
+     */
+    @Override
+    public List<RoundProgress> findRoundProgress(ImportSource source, Season season) {
+        return RoundProgressCalculator.compute(source, season, findRoundStatusCounts(source, season));
+    }
+
+    /**
+     * FEAT-00088. Reads the grouped per-round/per-status counts of one source and season and maps
+     * them to domain {@link RoundStatusCount} rows. Read-only; the progress definition lives in
+     * {@link RoundProgressCalculator}, never in JPQL. Exposed so the import preview can project
+     * progress over modified counts without re-implementing the grouping.
+     */
+    @Override
+    public List<RoundStatusCount> findRoundStatusCounts(ImportSource source, Season season) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(season, "season");
+        return matchRepositoryHelper
+                .countByRoundAndStatus(Source.valueOf(source.name()), season.toString())
+                .stream()
+                .map(MatchRepositoryJpa::toStatusCount)
+                .toList();
+    }
+
+    /**
+     * FEAT-00086. Source-scoped read of every match with one status, for snapshot reconciliation.
+     * Read-only; no entity, index or column change.
+     */
+    @Override
+    public List<Match> findMatchesBySourceSeasonAndStatus(
+            ImportSource source, Season season,
+            org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus status) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(season, "season");
+        Objects.requireNonNull(status, "status");
+        return matchRepositoryHelper
+                .findAllBySourceAndSeasonAndStatus(Source.valueOf(source.name()), season.toString(),
+                        MatchStatus.valueOf(status.name()))
+                .stream()
+                .map(matchJPAToMatchMapper)
+                .toList();
+    }
+
+    /**
+     * FEAT-00092. Source-scoped calendar read of every match of one competition, regardless of
+     * status. Read-only, and reserved for the season-calendar handler: it must never feed
+     * statistics, search, community counts or any PLAYED-only view (FEAT-00079).
+     */
+    @Override
+    public List<Match> findMatchesBySourceSeasonAndCompetition(
+            ImportSource source, Season season, String competition) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(season, "season");
+        Objects.requireNonNull(competition, "competition");
+        if (competition.isBlank()) {
+            throw new IllegalArgumentException("competition must not be blank");
+        }
+        return matchRepositoryHelper
+                .findAllBySourceAndSeasonAndCompetition(Source.valueOf(source.name()), season.toString(),
+                        competition)
+                .stream()
+                .map(matchJPAToMatchMapper)
+                .toList();
+    }
+
+    /**
+     * FEAT-00093. Source-scoped calendar read of every match of one season dated in
+     * {@code [fromInclusive, toExclusive)}, regardless of status. Read-only, and reserved for the
+     * calendar range handler: it must never feed statistics, search, community counts or any
+     * PLAYED-only view (FEAT-00079).
+     */
+    @Override
+    public List<Match> findMatchesBySourceSeasonAndDateRange(
+            ImportSource source, Season season, java.time.LocalDate fromInclusive,
+            java.time.LocalDate toExclusive) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(season, "season");
+        Objects.requireNonNull(fromInclusive, "fromInclusive");
+        Objects.requireNonNull(toExclusive, "toExclusive");
+        if (!fromInclusive.isBefore(toExclusive)) {
+            throw new IllegalArgumentException("fromInclusive must be before toExclusive");
+        }
+        return matchRepositoryHelper
+                .findAllBySourceAndSeasonAndMatchDateRange(Source.valueOf(source.name()), season.toString(),
+                        fromInclusive, toExclusive)
+                .stream()
+                .map(matchJPAToMatchMapper)
+                .toList();
+    }
+
+    /**
+     * FEAT-00102. Slim, source-scoped, read-only calendar projection of every match of a season,
+     * regardless of status. {@code matchDate} is a plain date, so no zone conversion is needed.
+     */
+    @Override
+    public List<org.cttelsamicsterrassa.data.core.domain.match.model.MatchCalendarEntry> findCalendarEntries(
+            ImportSource source, Season season) {
+        Objects.requireNonNull(source, "source");
+        Objects.requireNonNull(season, "season");
+        return matchRepositoryHelper
+                .findCalendarEntries(Source.valueOf(source.name()), season.toString())
+                .stream()
+                .map(projection -> new org.cttelsamicsterrassa.data.core.domain.match.model.MatchCalendarEntry(
+                        projection.matchId(), projection.competition(), projection.groupNumber(),
+                        projection.phase(), projection.round(),
+                        org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus
+                                .valueOf(projection.status().name()),
+                        projection.matchDate()))
+                .toList();
+    }
+
+    private static RoundStatusCount toStatusCount(RoundStatusCountProjection projection) {
+        return new RoundStatusCount(projection.competition(), projection.groupNumber(), projection.phase(),
+                projection.round(),
+                org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus.valueOf(projection.status().name()),
+                projection.matches());
     }
 }

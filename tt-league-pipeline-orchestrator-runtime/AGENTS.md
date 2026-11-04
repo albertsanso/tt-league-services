@@ -1,0 +1,108 @@
+# Pipeline orchestrator runtime instructions
+
+These instructions supplement the repository-level `AGENTS.md`.
+
+## Scope
+
+Executable Spring Boot 3.5 (Java 21) orchestrator service. It adapts the ports
+of `tt-league-pipeline-orchestrator-core`: HTTP clients, controllers, scheduler
+and the Flyway/JPA persistence of the run model (later features add security).
+
+## Boundaries
+
+- Depends only on `tt-league-pipeline-orchestrator-core` among project modules.
+  Never depend on `tt-data-league-*` modules.
+- The platform (`tt-data-league-api-runtime`) and `tt-league-ingest-rest` are
+  reached over HTTP only. Never read or write platform tables.
+- Configuration lives in `PipelineOrchestratorProperties`
+  (`tt.pipeline.*`, validated). Required values have no defaults in
+  `application.yml` (database, platform and ingest URLs and keys, artifact
+  directory), so a missing variable fails startup. Do not add defaults. Only
+  the tuning values documented in the README (poll intervals, retry, timeouts,
+  concurrency, recovery) have defaults.
+- HTTP calls to the platform and ingest go only through the gateways in
+  `gateway` (`IngestServiceJobRunner`, `HttpImportGateway`); never log or echo
+  an `X-API-Key` value or put one in a `RunError` message.
+- The run dispatcher (`ExecutorRunDispatcher`) owns a private pool and must
+  never be an `Executor`/`TaskExecutor` bean: Boot `applicationTaskExecutor`
+  backs off when one exists.
+- Artifacts are written only through `FileSystemArtifactStore`; the artifact
+  directory must exist and be writable at startup.
+- Flyway, JPA and Testcontainers are in place. Security is stateless bearer
+  JWT (platform tokens, algorithm by secret length); never log, echo or store
+  a token, key or the signing secret, and accept tokens only in the
+  `Authorization` header.
+- Controllers (`api/`) only translate HTTP to the core `TriggerRun` and
+  `RunQueryService`; new runs are created only through `TriggerRun`.
+- Scheduled runs come only from `ScheduledRunTrigger` (`schedule/`), which calls
+  the core `ScheduledRunTick` under a ShedLock lock taken through
+  `LockingTaskExecutor`. Its scheduler is private and never a bean; do not add
+  `@EnableScheduling` or `@EnableSchedulerLock` (Boot would register a
+  `taskScheduler` `Executor` bean). Schedules are opt-in per source: no
+  default cron, season or zone.
+- The match-day tracker (`tracker/`) recomputes only through `TrackerRecomputeDispatcher` (one private
+  single-thread executor, never an `Executor` bean); the `TrackerRunObserver` and the periodic
+  `TrackerRecomputeSchedule` (ShedLock lock `pipeline-tracker-recompute`, private scheduler, not a bean) only
+  enqueue. Platform match state is read only through `HttpPlatformMatchGateway`, which needs the service
+  credential to hold `matches:read`; the controllers in `api/` only call `MatchDayActions`,
+  `MatchDayQueryService`, `MatchDayResultsService` and the core `MatchDayRefresh` (which still creates runs only
+  through `TriggerRun`; `POST /api/pipeline/runs` and the refresh share the answer mapping in `TriggerResponses`).
+  The completion category lives only in `TrackerRules.completion`; the API and the UI never derive it. Results are
+  read through from the platform for `GET /{id}/results` and are never stored, cached or logged. Never add retries,
+  partial writes or fallbacks to a failed recompute, and never store match results. The `MatchDayChangeListener`
+  (implemented by the `RunEventBroadcaster`) is told after a recompute that changed something and after operator
+  actions; its failures are logged and never reach the dispatcher or the request.
+- Adaptive polling runs only from `AdaptivePollingTrigger` (`polling/`), which calls the core `AdaptivePollingTick`
+  per source under the ShedLock lock `pipeline-polling-<SOURCE>` through `LockingTaskExecutor`; a failing source is
+  logged and never stops the others. Its scheduler is private and never a bean. A source has either a cron or adaptive
+  polling (startup fails otherwise), and the season and zone are the schedule ones. The `OPEN_MATCH_DAYS` resolver is
+  always the tracker-backed `TrackerOpenMatchDayScopeResolver` from `PollingConfiguration`. The ingest status is read
+  only through `HttpIngestStatusGateway`; the policy and schedule endpoints are in `PollingController` (policy
+  changes `ADMIN`, resume `matches:write`). `GET /api/pipeline/polling/status` only reports the configured mode of
+  each source, season, zone and tick interval (`PollingStatusDto`); it never exposes keys, URLs or lock settings.
+- Notifications leave only through `AlertDispatcher` (`notification/`): one private single-thread executor, never an
+  `Executor` bean, and the only place that evaluates alerts or sends e-mail. The `AlertRunObserver`, the
+  `CompositeMatchDayChangeListener`, the periodic `AlertEvaluationSchedule` (private scheduler, not a bean, no
+  ShedLock) and `NotifyingPollingAlerts` only enqueue. Configure the SMTP channel only through
+  `tt.pipeline.notifications.*`: never `spring.mail.*` and never a `JavaMailSender` bean (Boot would add a mail
+  health indicator). Never log SMTP credentials or put them, `RunError.message` or any message text in an e-mail,
+  alert row, log line or exception: `MailNotifier` keeps the exception simple name and the SMTP reply code only.
+- The daily statistics job is `DailyStatsSchedule` (`statistics/`): a private scheduler, never a bean, under the
+  ShedLock lock `pipeline-daily-stats` through `LockingTaskExecutor`; a failure is logged as a warning and the next tick
+  catches up again. `DailyStatsAggregator` is the only writer of `daily_stats`. `StatisticsController` only validates the
+  parameters and calls `StatisticsQueries`; it never derives a figure. `JpaStatisticsReadRepository` filters rows with
+  JPQL and never aggregates in SQL (percentiles and buckets stay in the core). `tt.pipeline.statistics.zone` is
+  required with no default.
+- Artifact retention is opt-in (`tt.pipeline.retention`, no defaults; startup fails naming the setting). The cleanup job is
+  `ArtifactCleanupSchedule` (`artifact/`): a private scheduler, never a bean, under the ShedLock lock
+  `pipeline-artifact-cleanup` through `LockingTaskExecutor`, with no startup catch-up. Artifact files are deleted only
+  through the core `ArtifactCleanup`; never call `ArtifactStore.delete` for a stored ZIP from anywhere else, and never delete
+  `run_artifact` rows (the purge only sets `purged_at`).
+- `POST /api/pipeline/runs/{id}/replay` only translates to the core `ReplayRun` (the only creator of `RETRY` runs) and needs
+  `matches:write` through its own matcher in `SecurityConfiguration`; `RunQueryService` exposes the decision of
+  `ReplayRules.check` and the controller never derives it.
+- `POST /api/pipeline/runs/{id}/units/{unitId}/retry` only translates to the core `RetryUnit` (the only creator of `UNIT_RETRY`
+  runs, also behind `matches:write`); `RunDtoMapper` exposes `UnitRetryRules` as `retry` on each detail unit and never
+  derives it. `GET .../units/{unitId}/package` goes through `UnitPackageService`, which reads the stored ZIP only through the
+  `ArtifactStore`. Unit progress comes from the optional `progress` of the ingest run state (`IngestServiceJobRunner`); a
+  missing object is "none reported" and a malformed one is a protocol error. Never log or tag a unit key as a metric tag.
+- Run observers never throw into the executor (`CompositeRunObserver` isolates
+  them). The `RunEventBroadcaster` sends on its own private pool, which is not
+  an `Executor` bean, and never on a run thread.
+- Meters are created only by `RunMetricsObserver` and `OperationalGaugeBinder`, and tagged only with enum or
+  `FailureCode` names, never a run id, season, scope or message. The `runId` MDC key is written only by
+  `RunLogContext`. `/actuator/prometheus` is public and exposes aggregates only; a failed gauge refresh reports
+  `NaN` and counts the failure.
+- Schema `pipeline` changes only through new `db/migration/V<n>__*.sql`
+  migrations; never edit an applied one. `ddl-auto` stays `validate`. Update
+  `docs/pipeline-datamodel.md` with every migration, and never reference
+  platform tables.
+- Persistence tests use Testcontainers PostgreSQL and are skipped without
+  Docker; run them with Docker before reporting persistence work as verified.
+  They run in a servlet (`MOCK`) web environment because `SecurityConfiguration` needs `HttpSecurity`.
+
+## Validation
+
+```text
+mvn -pl tt-league-pipeline-orchestrator-runtime -am test
+```

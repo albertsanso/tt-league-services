@@ -43,8 +43,27 @@ class FcttPreviewValidationProcessorTest {
         assertTrue(result.validationFindings().stream()
                 .anyMatch(finding -> finding.message().contains("not published")));
         assertTrue(result.validationFindings().stream()
+                .anyMatch(finding -> finding.message().contains("stored as a scheduled match")));
+        assertTrue(result.validationFindings().stream()
                 .noneMatch(finding -> finding.message().contains("ready to simulate")));
         assertTrue(result.processingErrors().isEmpty());
+    }
+
+    @Test
+    void noTeamPlaceholderIsReportedAsUnresolvedNotAsAnError() {
+        ImportPreviewCollector collector = new ImportPreviewCollector();
+        FcttMatchReportContext context = context("acta_fctt_2026_no_team_placeholder.json", "female",
+                "copa-catalana-femenina-1a", null);
+
+        new FcttPreviewValidationProcessor(collector).process(context);
+        ImportPreviewResult result = collector.toResult(1, 1, 0, 0);
+
+        assertEquals("success", result.status().value());
+        assertTrue(result.validationFindings().stream()
+                .anyMatch(finding -> finding.message().contains("no teams")
+                        && finding.message().contains("not stored")));
+        assertTrue(result.processingErrors().isEmpty(),
+                "a placeholder must not fail the preview as incomplete teams used to");
     }
 
     @Test
@@ -86,6 +105,21 @@ class FcttPreviewValidationProcessorTest {
         assertEquals("failure", result.status().value());
         assertTrue(result.processingErrors().stream()
                 .anyMatch(error -> error.message().contains("does not match")));
+    }
+
+    @Test
+    void aDoublesPairListingTheSamePlayerTwiceIsReportedAsAWarning() {
+        ImportPreviewCollector collector = new ImportPreviewCollector();
+        FcttMatchReportContext context = context("acta_fctt_duplicate_doubles_player.json", "female",
+                "copa-catalana-femenina-2a", "G2");
+
+        new FcttPreviewValidationProcessor(collector).process(context);
+        ImportPreviewResult result = collector.toResult(1, 1, 0, 0);
+
+        assertTrue(result.validationFindings().stream()
+                .anyMatch(finding -> finding.message().contains("lists player CILLERO VIVERO, DELIA (licence 19214) twice")));
+        assertTrue(result.validationFindings().stream()
+                .noneMatch(finding -> finding.message().contains("licence 17807) twice")));
     }
 
     private static FcttMatchReportContext context(String fixture, String gender, String leagueCompetition, String group) {

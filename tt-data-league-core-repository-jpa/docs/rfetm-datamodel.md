@@ -11,10 +11,11 @@ tables.
   No entity configures `@GeneratedValue`.
 - Enum fields use `@Enumerated(EnumType.STRING)`.
 - Every `@ManyToOne` association is lazy and owns its explicit join column.
-- The only `@OneToMany` collection is `ConsolidationActionJPA.clubs` (see
-  [Consolidation audit tables](#consolidation-audit-tables)). League entities
-  declare none: `MATCH` and `GAME` children are loaded through their
-  repositories.
+- The only `@OneToMany` collections are `ConsolidationActionJPA.clubs` (see
+  [Consolidation audit tables](#consolidation-audit-tables)) and
+  `ImportJobJPA.seasonResults` (see [Import job tables](#import-job-tables)).
+  League entities declare none: `MATCH` and `GAME` children are loaded through
+  their repositories.
 - Unless a column is explicitly marked otherwise below, its nullability and
   length are those declared by the entity.
 - `source` is stored as a string enum with the values `RFETM`, `BCNESA`, and
@@ -26,6 +27,7 @@ tables.
 | Enum | Stored values |
 | --- | --- |
 | `Source` | `RFETM`, `BCNESA`, `FCTT` |
+| `MatchStatus` | `SCHEDULED`, `PLAYED` |
 | `GameType` | `INDIVIDUAL`, `DOUBLES` |
 | `MatchResult` | `HOME`, `AWAY` |
 | `Side` | `HOME`, `AWAY` |
@@ -35,6 +37,9 @@ tables.
 | `SettingCategory` | `GENERAL`, `IMPORT`, `NOTIFICATIONS` |
 | `ConsolidationActionType` | `MERGE`, `SPLIT`, `RENAME` |
 | `ConsolidationActionClubRole` | `SOURCE`, `TARGET` |
+| `ImportJobStatus` | `QUEUED`, `STORING`, `IMPORTING`, `SUCCEEDED`, `PARTIAL`, `FAILED` |
+| `ImportRunStatus` | `QUEUED`, `RUNNING`, `SUCCESS`, `EMPTY_RESULT`, `FAILURE` |
+| `UploadMode` | `SNAPSHOT`, `DELTA` |
 
 ## League tables
 
@@ -176,14 +181,16 @@ Top-level team match event.
 | Column | Type | Null | Key/index |
 | --- | --- | --- | --- |
 | `id` | `UUID` | No | Primary key |
-| `source` | `VARCHAR(20)` | No | — |
+| `source` | `VARCHAR(20)` | No | `idx_match_source_season_competition_status`, `idx_match_source_season_date` |
 | `external_id` | `VARCHAR(20)` | Yes | Unique; `idx_match_external_id` |
-| `competition` | `VARCHAR(255)` | Yes | `idx_match_competition_season_group_round` |
-| `season` | `VARCHAR(9)` | Yes | `idx_match_competition_season_group_round` |
+| `source_fixture_id` | `VARCHAR(100)` | Yes | `uk_match_source_fixture_id` |
+| `source_checksum` | `VARCHAR(80)` | Yes | — |
+| `competition` | `VARCHAR(255)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status` |
+| `season` | `VARCHAR(9)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status`, `idx_match_source_season_date` |
 | `group_num` | `INTEGER` | Yes | `idx_match_competition_season_group_round` |
 | `round` | `INTEGER` | No | `idx_match_competition_season_group_round` |
 | `phase` | `VARCHAR(255)` | Yes | — |
-| `match_date` | `DATE` | Yes | — |
+| `match_date` | `DATE` | Yes | `idx_match_source_season_date` |
 | `match_time` | `TIME` | Yes | — |
 | `city` | `VARCHAR(255)` | Yes | — |
 | `venue` | `VARCHAR(255)` | Yes | — |
@@ -197,6 +204,55 @@ Top-level team match event.
 | `away_sets_won` | `INTEGER` | Yes | — |
 | `winner_team_id` | `UUID` | Yes | FK to `team`; `idx_match_winner_team_id` |
 | `protested` | `BOOLEAN` | No | Database default `false` |
+| `status` | `VARCHAR(20)` | No | Database default `'PLAYED'`; `idx_match_source_season_competition_status` |
+
+`status` is `SCHEDULED` while the fixture is known but not yet played, and `PLAYED` once results are
+stored. The database default is what lets `ddl-auto: update` add this column to an already-populated
+table: PostgreSQL backfills every existing row with `'PLAYED'`, matching what those rows already mean.
+The invariant `status = SCHEDULED` implies no `lineup`, `game`, `set_score`, or `doubles_pair` rows for
+the match, and a null `winner_team_id`, `home_games_won`, `away_games_won`, `home_sets_won`, and
+`away_sets_won`. The domain enforces the header half of this (winner and games/sets won) in
+`Match.of(...)`; the child half (no lineups, games, set scores, doubles pairs) is enforced by the match
+writers, not by a database `CHECK` constraint.
+
+**FEAT-00078 backfill.** A `PLAYED` row is a backfill candidate when, within one `(source, season)`
+scope, it has a null `winner_team_id`, `home_games_won`/`away_games_won` and `home_sets_won`/
+`away_sets_won` that are each null or `0`, and no `game` row of its own with a result — a game has a
+result when its `winner` is set, `home_sets_won`/`away_sets_won` is non-zero, or it has a `set_score`
+row; a `not_played` game that still names a `winner` (a walkover) counts as a result. This covers legacy
+empty RFETM actas and the "decided 0-0" administrative placeholders, and never a match with a real
+winner or a game result of its own. Marking a candidate `SCHEDULED` (the `tt-data-league-import-runtime`
+`--backfill-scheduled-matches` command, in one transaction per run) deletes its `doubles_pair`,
+`set_score`, `game`, and `lineup` rows and nulls the four header score columns before setting
+`status = SCHEDULED`, keeping the invariant above. The source actas are unaffected; a later import can
+recreate the deleted child rows once the acta is actually published.
+
+**FEAT-00079 read-side filtering.** Statistics, counts and search must never see unplayed fixtures, so
+the read queries split into two groups. Query-level: the paginated `search`/`countSearch` carry a
+mandatory `MatchSearchCriteria.status` (defaulting to `PLAYED`), and fragment search, all-matches-by-
+source, distinct seasons, per-season count and the total match count all add `status = 'PLAYED'`.
+The `(source, season, competition, status)` index supports these predicates. Handler-level: the team-id
+traversals (`findAllByTeamIds`, `findAllByTeamIdsAndSource`,
+`findAllByTeamIdsAndSourceAndSeasonAndCompetition`) stay deliberately **unfiltered** so consolidation
+and future calendar reads can see `SCHEDULED` rows (risk K9); every statistics handler filters the
+returned matches through `Match.isPlayed()` before aggregating (risk K1), and `MatchOutcome` returns
+empty for any `SCHEDULED` match as the central safety net. The REST and MCP match DTOs expose the new
+additive `status` field. `findAllSeasonsBySource`/`findAllCompetitionsBySourceAndSeason` (the API
+option lists) are not status-filtered, so a season whose actas are all pending still appears in the
+dropdown while its search results exclude scheduled rows.
+
+**FEAT-00080 upgrade and reschedule.** `MatchRepository.replaceMatchContent(MatchContent)` upgrades a
+`SCHEDULED` fixture to `PLAYED` or corrects an already-played match in one transaction: it requires an
+existing match with the same id and the unchanged natural key
+(`(competition, season, group_num, round, phase, home_team_id, away_team_id)`), flushes pending writes,
+deletes the old children in FK order (doubles pairs → set scores → games → lineups, reusing the
+`deleteAllByMatchIds` helpers), overwrites the header keeping the id, inserts the new children, and
+flushes so a constraint failure rolls back the whole replacement (no half-written match). The domain
+`MatchContent` record validates before any write that the header is `PLAYED` and every child belongs
+to that match or one of its games. `MatchRepository.updateSchedule(UUID, MatchSchedule)` rewrites
+only `match_date`, `match_time`, `city`, `venue`, `referee_name`, and `referee_license` and is guarded
+by `status = 'SCHEDULED'` in the update itself: a `PLAYED` match or an unknown id fails with
+`IllegalStateException` and status, teams, results, and children are never touched by either path.
 
 The unique constraints are:
 
@@ -206,6 +262,32 @@ The unique constraints are:
   finals) carries no group, and per SQL's null-handling this constraint does not dedupe two such
   fixtures by group alone (round, phase, and both teams still must differ).
 - `uk_match_external_id` on `(external_id)`.
+- `uk_match_source_fixture_id` on `(source, source_fixture_id)`.
+
+**FEAT-00083 source fixture id.** `source_fixture_id` stores the source-supplied `id_partido`
+captured at import time. It is an **opaque** per-source key — its layout differs by federation —
+so it is stored verbatim: never parsed, trimmed, padded, truncated, or derived from file names.
+It is not `external_id` and does not widen or repopulate it. Legacy rows and files without an
+`id_partido` keep it `NULL`; the nullable column and the unique constraint are safe to add to a
+populated PostgreSQL table under `ddl-auto: update` because multiple `NULL`s never collide. BCNESA
+assigns the file's `id_partido` only to fixture index 0 (the fixture named by `equipos`); an
+inferred later fixture of a multi-fixture file never borrows it. The constraint's index also serves
+`MatchRepository.findBySourceFixtureId(source, id_partido)`, which is always source-scoped.
+
+**FEAT-00089 source checksum.** `source_checksum` stores the versioned (`v1:`) SHA-256 of the acta
+*content* last applied to a `PLAYED` match — the canonical rendering of the header, lineups, games,
+set scores, and doubles pairs an import would write, independent of generated UUIDs and child list
+order. It is a content checksum, not a raw-file checksum: BCNESA splits one matchday file into several
+fixtures, so file formatting or renames must never look like a change, while any change a re-apply
+would write must change the value. It is `NULL` for `SCHEDULED` matches (the domain builder rejects a
+`SCHEDULED` match with a checksum) and for legacy rows imported before the feature. A PLAYED match
+created or upgraded by an import stores it; a later import that detects a different checksum for the
+same stored PLAYED match re-applies the content through `replaceMatchContent` (FEAT-00089 amended-acta
+detection), and a stored PLAYED match whose checksum is `NULL` or carries another prefix adopts the
+incoming value as its baseline instead of being rewritten. The FEAT-00078 backfill also nulls it when
+marking a match `SCHEDULED`, keeping the `SCHEDULED` ⇒ `NULL` invariant. The column is nullable, has
+no index and no constraint, and is safe to add to a populated PostgreSQL table under
+`ddl-auto: update`.
 
 `homeTeam`, `awayTeam`, and `winnerTeam` are lazy `@ManyToOne` associations
 to `team`. The winner association is nullable.
@@ -295,6 +377,27 @@ The unique constraint `uk_doubles_pair_game_side_player_source` covers
 `(game_id, side, player_id, source)`. `game` and `player` are lazy
 `@ManyToOne` associations.
 
+### `match_overdue_mark`
+
+The manual overdue mark of a `SCHEDULED` match (FEAT-00092). It records an
+operator's decision, not a computed state: postponed/overdue/awaiting/undated
+states are derived on every read by the domain `CalendarStateResolver` and are
+never stored. This table is the **only** persisted calendar data.
+
+| Column | Type | Null | Key/index |
+| --- | --- | --- | --- |
+| `match_id` | `UUID` | No | Primary key; FK to `match_record` (`fk_match_overdue_mark_match`) |
+| `marked_at` | `TIMESTAMP WITH TIME ZONE` | No | — |
+| `marked_by` | `VARCHAR(255)` | No | — |
+
+`match_id` is both the primary key and a foreign key to `match_record(id)`, so
+one match has at most one mark. There is deliberately **no cascade from
+`match_record`** and no inverse mapping on `MatchJPA`; matches are never
+deleted, so the FK is safe. The mark is operator data kept separate from import
+input: no import processor, reconciler, backfill, or consolidation code reads
+or writes it, and `replaceMatchContent` / `updateSchedule` leave it untouched.
+Once a match is `PLAYED`, the mark is ignored rather than deleted.
+
 ## Authentication tables
 
 ### `AppUser`
@@ -360,11 +463,13 @@ addition to ordinary CRUD operations:
 | `FederatedPlayerRepositoryHelper` | Source-scoped exact name, source-scoped licence, and rows by canonical player id. Counts distinct trimmed, case-insensitive names. The adapter also supports fragment-based searches through specifications. |
 | `TeamRepositoryHelper` | Exact `(name, season, source)`, first team by federated club and season, all teams by federated club (fetching the club), all teams by source, and case-insensitive name searches with optional season/source. Counts distinct federated clubs per season. |
 | `PlayerSeasonRepositoryHelper` | Exact `(source, license, season)`, all rows by source, rows by federated player ids (fetching federated and canonical players), source-scoped players and their competitions for team ids through lineups. Counts distinct federated players per season. |
-| `MatchRepositoryHelper` | Exact external id; natural-key lookup by competition, season, group, round, phase, home team, and away team (null group/phase match null); team-id searches optionally filtered by source, season, and competition; paginated source/season search with competition, date range, club-name and player-name fragments, player id, and home/away location, plus its count; paginated fragment search over team and player names; all matches by source; distinct seasons (overall or by source) and competitions by source and season; match count per season. |
-| `LineupRepositoryHelper` | Rows for a match id (optionally ordered by team and position); rows for match ids or player-season ids (optionally paginated), fetching match, teams, clubs, and players. |
-| `GameRepositoryHelper` | All games for a match id, or for a collection of match ids, ordered by match and `game_number` ascending. |
-| `SetScoreRepositoryHelper` | Set scores for a collection of game ids, ordered by game and `set_number`. |
-| `DoublesPairRepositoryHelper` | All doubles-pair rows for a collection of game ids, ordered by game, side, and id. |
+| `MatchRepositoryHelper` | Exact external id; natural-key lookup by competition, season, group, round, phase, home team, and away team (null group/phase match null); team-id searches optionally filtered by source, season, and competition — deliberately **not** filtered by status (FEAT-00079 consolidation exception; statistics handlers filter in memory); paginated source/season search with mandatory match-status predicate (default `PLAYED`), competition, date range, club-name and player-name fragments, player id, and home/away location, plus its count; paginated fragment search over team and player names restricted to `PLAYED`; all matches by source restricted to `PLAYED`; distinct seasons (`PLAYED` only overall, all statuses by source for option lists) and competitions by source and season (unfiltered); `PLAYED`-only match count per season and overall (`countAllPlayed`); FEAT-00078 backfill candidates by source and season (with per-match game/lineup counts), the same rule restricted to a match-id collection, and the bulk `SCHEDULED`-marking update; the FEAT-00080 schedule-only update guarded by `status = SCHEDULED`; and the FEAT-00092 all-status calendar read by source, season, and competition, ordered by group, phase, round, date, and time, reserved for the season-calendar handler and never for statistics; and the FEAT-00093 all-status date-range calendar read by source, season, and `match_date` in `[from, to)` (undated matches never included), ordered by date, time, competition, group, and round, reserved for the calendar range handler and never for statistics; and the FEAT-00102 all-status slim calendar projection (id, competition, group, phase, round, status, `match_date`) by source and season, with no joins, served by the leading columns of `idx_match_source_season_competition_status`, reserved for the round-progress handler and never for statistics (read-only, no column or constraint change). |
+| `LineupRepositoryHelper` | Rows for a match id (optionally ordered by team and position); rows for match ids or player-season ids (optionally paginated), fetching match, teams, clubs, and players; bulk delete by match ids (FEAT-00078 backfill). |
+| `GameRepositoryHelper` | All games for a match id, or for a collection of match ids, ordered by match and `game_number` ascending; bulk delete by match ids (FEAT-00078 backfill). |
+| `SetScoreRepositoryHelper` | Set scores for a collection of game ids, ordered by game and `set_number`; bulk delete by match ids (FEAT-00078 backfill). |
+| `DoublesPairRepositoryHelper` | All doubles-pair rows for a collection of game ids, ordered by game, side, and id; bulk delete by match ids (FEAT-00078 backfill). |
+| `ScheduledMatchBackfillRepositoryJpa` | Implements the domain `ScheduledMatchBackfillRepository` port by composing the helpers above: read-only candidate listing, and an all-or-nothing `markScheduled` that re-checks every id, deletes child rows in FK order, and updates the match header, chunking ids by 500 per transaction. |
+| `MatchOverdueMarkRepositoryHelper` | Primary-key access to `match_overdue_mark` rows by match id: `findById`, `findAllById`, existence check, save and delete. The port adapter inserts a row or leaves an existing one untouched, and reports whether a delete removed a row. |
 | `UserRepositoryHelper` | Exact username/email lookup and existence checks; paginated case-insensitive username/email search, optionally filtered by active flag; count of active users per role. |
 | `PasswordRecoveryTokenRepositoryHelper` | Active token lookup by hash; atomic conditional consumption by token id or user id. |
 | `SettingRepositoryHelper` | Exact `(category, name)`; all settings in a category. |
@@ -398,9 +503,15 @@ erDiagram
     GAME ||--o{ SET_SCORE : scores
     GAME ||--o{ DOUBLES_PAIR : contains
     PLAYER_SEASON ||--o{ DOUBLES_PAIR : paired
+    MATCH_RECORD ||--o{ MATCH_OVERDUE_MARK : marked
     CONSOLIDATION_ACTION ||--|{ CONSOLIDATION_ACTION_CLUB : involves
     CONSOLIDATION_ACTION_CLUB {
         uuid club_id "snapshot, no FK to CLUB"
+    }
+    IMPORT_JOB ||--o{ IMPORT_JOB_SEASON : imports
+    IMPORT_JOB_SEASON {
+        uuid import_resource_id "snapshot, no FK to IMPORT_RESOURCE"
+        uuid import_run_id "in-memory run id, no FK"
     }
     APP_USER ||--o{ APP_USER_ROLE : has
     PASSWORD_RECOVERY_TOKEN {
@@ -409,7 +520,9 @@ erDiagram
 ```
 
 `SET_SCORE` and `DOUBLES_PAIR` point to `GAME` from their own entities.
-Likewise, `MATCH_RECORD` and `GAME` do not expose inverse collection mappings.
+Likewise, `MATCH_RECORD` and `GAME` do not expose inverse collection mappings,
+and `MATCH_RECORD` exposes no inverse mapping to `MATCH_OVERDUE_MARK` (the mark
+is kept separate from import data).
 Team and player season rows preserve season-specific identity; canonical club
 and player links do not retarget historical match, lineup, game, or doubles
 pair foreign keys.
@@ -423,6 +536,8 @@ foreign keys:
   usually deletes; see [Consolidation audit tables](#consolidation-audit-tables).
 - `PasswordRecoveryToken.user_id` is a scalar UUID with no JPA association to
   `UserJPA`; see [`PasswordRecoveryToken`](#passwordrecoverytoken).
+- `import_job_season.import_resource_id` and `import_job_season.import_run_id`
+  record what an import job ran; see [Import job tables](#import-job-tables).
 
 ## Settings
 
@@ -488,3 +603,71 @@ asymmetry is intended and is what makes the record useful.
 cascade = ALL, orphanRemoval = true)` collection, initialized to an empty list;
 `ConsolidationActionClubJPA.action` is the owning lazy `@ManyToOne`. Saving an
 action therefore persists its club rows, and deleting it removes them.
+
+## Import job tables
+
+The machine-friendly import API (`/api/v1/administration/import/jobs`,
+FEAT-00100) persists one `import_job` row per submitted upload ZIP and one
+`import_job_season` row per ACTAS season the job imported, so a client can
+follow a job by its id across restarts. The manual upload, preview and start
+endpoints do not write to these tables.
+
+### `import_job`
+
+| Column | Type | Nullability | Notes |
+|---|---|---|---|
+| `id` | uuid | not null | Primary key; the `importJobId` returned to the client |
+| `source` | varchar | not null | `Source` enum string, from the manifest |
+| `seasons` | text | not null | The manifest seasons, comma-separated in manifest order |
+| `upload_mode` | varchar | not null | `UploadMode` enum string, from the manifest |
+| `content_sha256` | varchar(64) | nullable | The manifest `contentSha256` (verified against the ZIP); the deduplication key |
+| `client_run_id` | varchar(64) | nullable | The caller's `runId` request parameter |
+| `manifest_run_id` | varchar(64) | nullable | The manifest `runId` (the producing ingest run) |
+| `allow_published_shrink` | boolean | not null | The override given at submission, re-applied when the job stores the ZIP |
+| `staged_zip_path` | varchar(1024) | not null | `<import folder>/import-jobs/<id>.zip`; the file is deleted once the job is terminal |
+| `requested_by` | varchar(255) | not null | The authenticated principal name |
+| `status` | varchar | not null | `ImportJobStatus` enum string; `idx_import_job_status` |
+| `error_detail` | text | nullable | Why the job failed (busy timeout, storage error, restart interruption) |
+| `created_at` | timestamptz | not null | `idx_import_job_created`; history is listed newest first |
+| `started_at` | timestamptz | nullable | When the job started storing |
+| `finished_at` | timestamptz | nullable | When the job reached a terminal status |
+
+`idx_import_job_source_sha` covers `(source, content_sha256)` for the
+deduplication lookup: a submission whose manifest `contentSha256` matches a
+job of the same source that is `QUEUED`, `STORING`, `IMPORTING`, `SUCCEEDED`
+or `PARTIAL` returns that job. There is no unique constraint, because a
+`FAILED` job may be resubmitted with the same content; submissions are
+serialized in the API runtime instead.
+
+### `import_job_season`
+
+| Column | Type | Nullability | Notes |
+|---|---|---|---|
+| `id` | uuid | not null | Primary key |
+| `import_job_id` | uuid | not null | FK to `import_job`; `idx_import_job_season_job_id` |
+| `season_index` | int | not null | Position of the season within the job |
+| `season` | varchar | not null | `YYYY-YYYY` |
+| `import_resource_id` | uuid | not null | The import resource the season ran; no FK, see below |
+| `import_run_id` | uuid | nullable | The import run id; null when the season failed before a run was registered |
+| `status` | varchar | not null | `ImportRunStatus` enum string |
+| `error_detail` | text | nullable | The run's or the season's failure reason |
+| `result_json` | text | nullable | The run's `ImportProcessResult` (counters, findings, lifecycle counters, round progress) as JSON; null without a run result |
+
+`import_resource_id` is deliberately not a foreign key: a season row is a
+snapshot of what the job ran and must not block or follow changes to
+`import_resource`. `import_run_id` refers to the in-memory import run registry,
+which has no table. The restart recovery reads `import_resource_id` of an
+interrupted job's unfinished seasons to return that import resource from
+`PROCESSING` to `ERROR`.
+
+`result_json` uses a storage shape owned by `ImportProcessResultJsonCodec`
+(status, findings, processing errors, counters, execution issues,
+post-processing outcomes, lifecycle counters and round progress with the
+season as `YYYY-YYYY`). An unreadable value fails the read with an error that
+names the job and season.
+
+`ImportJobJPA.seasonResults` is a lazy `@OneToMany(mappedBy = "job",
+cascade = ALL, orphanRemoval = true)` collection ordered by `season_index` and
+initialized to an empty list; `ImportJobSeasonJPA.job` is the owning lazy
+`@ManyToOne`. Saving a job therefore persists and updates its season rows, and
+deleting it removes them. No retention or pruning of old jobs is implemented.

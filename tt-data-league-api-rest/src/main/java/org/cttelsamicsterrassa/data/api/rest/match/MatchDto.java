@@ -11,7 +11,7 @@ public record MatchDto(UUID id, String source, String competition, String season
                        ZonedDateTime dateTime, String homeTeam, String awayTeam, String winnerTeam,
                        Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon,
                        Integer awaySetsWon, boolean protested,
-                       List<PlayerDto> homePlayers, List<PlayerDto> awayPlayers) {
+                       List<PlayerDto> homePlayers, List<PlayerDto> awayPlayers, String status) {
     public static MatchDto from(MatchSearchReadModel value) {
         return new MatchDto(value.id(), name(value.source()), value.competition(),
                 value.season() == null ? null : value.season().toString(), value.round(), value.phase(),
@@ -19,7 +19,7 @@ public record MatchDto(UUID id, String source, String competition, String season
                 value.homeTeam(), value.awayTeam(), value.winnerTeam(), value.homeGamesWon(),
                 value.awayGamesWon(), value.homeSetsWon(), value.awaySetsWon(), value.protested(),
                 value.homePlayers().stream().map(PlayerDto::from).toList(),
-                value.awayPlayers().stream().map(PlayerDto::from).toList());
+                value.awayPlayers().stream().map(PlayerDto::from).toList(), name(value.status()));
     }
 
     private static String name(Enum<?> value) {

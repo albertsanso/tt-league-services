@@ -10,7 +10,8 @@ import java.util.regex.Pattern;
  * description of FEAT-00040). Every fixture under it must have its parsed {@code Match.groupNumber}
  * be {@code null}, regardless of which phase subfolder it sits under.
  *
- * <p>Veterans competitions are recognised by their {@code <Competition>} folder name starting with
+ * <p>Veterans competitions are recognised by their stored competition name (the folder name, or the
+ * {@link BcnesaCompetitionNames} mapping of an {@code rtb-veterans-*} folder) starting with
  * {@code "Vet "} (e.g. {@code "Vet 1a"}, {@code "Vet 2a"} - confirmed against a real BCNESA export),
  * or, for robustness, containing the substring "veteran" (covers "Veterans"/"Veteranos" spellings
  * used in tests and possibly in other exports). If neither matches, the competition keeps today's

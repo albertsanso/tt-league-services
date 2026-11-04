@@ -26,6 +26,16 @@ public class ImportPreviewCollector {
     }
 
     public ImportPreviewResult toResult(long filesSeen, long itemsDispatched, long skipped, long processorFailures) {
+        return toResult(filesSeen, itemsDispatched, skipped, processorFailures, null);
+    }
+
+    /**
+     * FEAT-00088: the classification overload carries the incremental-upload classification block.
+     * It never changes the status, which stays decided by the errors, processor failures and the
+     * dispatched-item count.
+     */
+    public ImportPreviewResult toResult(long filesSeen, long itemsDispatched, long skipped, long processorFailures,
+                                        org.cttelsamicsterrassa.data.core.domain.load.model.ImportPreviewClassification classification) {
         ImportPreviewStatus status;
         if (!errors.isEmpty() || processorFailures > 0) {
             status = ImportPreviewStatus.FAILURE;
@@ -46,6 +56,7 @@ public class ImportPreviewCollector {
                     "Traversal skipped %d file or fixture item(s).".formatted(skipped),
                     null));
         }
-        return new ImportPreviewResult(status, summary, errors, filesSeen, itemsDispatched, skipped, processorFailures);
+        return new ImportPreviewResult(status, summary, errors, filesSeen, itemsDispatched, skipped,
+                processorFailures, classification);
     }
 }

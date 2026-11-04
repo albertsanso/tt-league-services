@@ -4,8 +4,10 @@ import org.cttelsamicsterrassa.data.core.domain.auth.user.model.Permission;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.model.User;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.model.UserRole;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.EnumSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -19,8 +21,10 @@ public final class RbacCatalog {
     public static final String CLUBS_WRITE = "clubs:write";
     public static final String PLAYERS_READ = "players:read";
     public static final String MATCHES_READ = "matches:read";
+    public static final String MATCHES_WRITE = "matches:write";
     public static final String USERS_READ = "users:read";
     public static final String USERS_WRITE = "users:write";
+    public static final String IMPORTS_WRITE = "imports:write";
 
     private RbacCatalog() {
     }
@@ -43,5 +47,11 @@ public final class RbacCatalog {
 
     public static UserRole role(String roleName) {
         return UserRole.valueOf(roleName);
+    }
+
+    public static Optional<Permission> permission(String value) {
+        return Arrays.stream(Permission.values())
+                .filter(permission -> permission.value().equals(value))
+                .findFirst();
     }
 }

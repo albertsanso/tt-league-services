@@ -3,9 +3,11 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.auth;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.model.User;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.model.UserFilter;
 import org.cttelsamicsterrassa.data.core.domain.auth.user.repository.UserRepository;
+import org.cttelsamicsterrassa.data.core.repository.jpa.JpaTestSupportConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZoneId;
@@ -17,6 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
+@Import(JpaTestSupportConfiguration.class)
 @Transactional
 class UserRepositoryJpaTest {
 

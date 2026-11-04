@@ -1,0 +1,185 @@
+spring:
+  application:
+    name: tt-league-pipeline-orchestrator-runtime
+  datasource:
+    url: ${PIPELINE_DB_URL:jdbc:postgresql://localhost:5432/ttleaguedata}
+    username: ${PIPELINE_DB_USERNAME:postgres}
+    password: ${PIPELINE_DB_PASSWORD:admin}
+  flyway:
+    schemas: pipeline
+    default-schema: pipeline
+    create-schemas: true
+    locations: classpath:db/migration
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        default_schema: pipeline
+
+server:
+  port: ${PIPELINE_SERVER_PORT:8095}
+
+tt:
+  pipeline:
+    platform:
+      base-url: ${PIPELINE_PLATFORM_URL:http://localhost:8090}
+      # Service credential from the platform (FEAT-00101) with the imports:write and matches:read scopes.
+      api-key: ${PIPELINE_PLATFORM_API_KEY}
+      connect-timeout: PT10S
+      # The platform validates the uploaded ZIP synchronously before answering.
+      read-timeout: PT5M
+      poll-interval: ${PIPELINE_IMPORT_POLL_INTERVAL:PT10S}
+    ingest:
+      base-url: ${PIPELINE_INGEST_URL:http://localhost:8091}
+      api-key: ${PIPELINE_INGEST_API_KEY}
+      connect-timeout: PT10S
+      read-timeout: PT1M
+      poll-interval: ${PIPELINE_INGEST_POLL_INTERVAL:PT15S}
+    artifacts:
+      # Existing, writable directory; packages are stored as <dir>/<source>/<season>/<runId>/ingest-<id>.zip.
+      dir: ${PIPELINE_ARTIFACTS_DIR:D:/tmp/pipeline-artifacts}
+    execution:
+      max-retries: ${PIPELINE_MAX_RETRIES:3}
+      initial-backoff: ${PIPELINE_INITIAL_BACKOFF:PT30S}
+      backoff-multiplier: ${PIPELINE_BACKOFF_MULTIPLIER:2}
+      max-backoff: ${PIPELINE_MAX_BACKOFF:PT5M}
+      timeouts:
+        # Counted from the first attempt of the step, retries and back-off included. Ingest runs one
+        # ingestion at a time, so an ingest run can queue behind another source's run.
+        ingest: ${PIPELINE_INGEST_TIMEOUT:PT3H}
+        fetch-package: ${PIPELINE_FETCH_PACKAGE_TIMEOUT:PT10M}
+        # Longer than the platform's default PT2H busy wait.
+        import-job: ${PIPELINE_IMPORT_TIMEOUT:PT3H}
+      max-concurrent-runs: ${PIPELINE_MAX_CONCURRENT_RUNS:3}
+      recover-on-startup: ${PIPELINE_RECOVER_ON_STARTUP:true}
+    security:
+      # Same value as the platform's security.jwt.secret (at least 32 UTF-8 bytes).
+      jwt-secret: ${JWT_SIGNING_SECRET}
+      # Comma-separated browser origins allowed to call the API; empty means no CORS headers.
+      cors-allowed-origins: ${PIPELINE_CORS_ALLOWED_ORIGINS:}
+    triggers:
+      # REJECT answers 409 for a source with an active run; QUEUE stores one pending trigger per source.
+      conflict-mode: ${PIPELINE_TRIGGER_CONFLICT_MODE:REJECT}
+    events:
+      heartbeat-interval: ${PIPELINE_EVENTS_HEARTBEAT:PT15S}
+      emitter-timeout: ${PIPELINE_EVENTS_TIMEOUT:PT30M}
+      max-subscribers: ${PIPELINE_EVENTS_MAX_SUBSCRIBERS:50}
+    statistics:
+      # History and statistics: figures are grouped by local day in this zone (IANA id, e.g. Europe/Madrid). Required,
+      # no default: a wrong zone would silently shift every day boundary.
+      zone: ${PIPELINE_STATISTICS_ZONE:Europe/Madrid}
+      # Time of day, in that zone, of the daily aggregation of the previous days (it also catches up on missed days).
+      daily-at: ${PIPELINE_STATISTICS_DAILY_AT:00:30}
+      # How many past days the first catch-up aggregates (0-366); later catch-ups continue after the latest day.
+      backfill-days: ${PIPELINE_STATISTICS_BACKFILL_DAYS:31}
+    schedule:
+      # Fixed-schedule full-season runs. A source is scheduled only when its cron is set (Spring six-field format,
+      # e.g. "0 0 7,22 * * *"); an empty cron means never. Season and zone are required once any cron is set.
+      season: ${PIPELINE_SCHEDULE_SEASON:}
+      zone: ${PIPELINE_SCHEDULE_ZONE:Europe/Madrid}
+      # ShedLock bounds: the lock is held at most this long if an instance dies, and at least this long so
+      # instances with slightly skewed clocks do not fire the same tick twice.
+      lock-at-most-for: ${PIPELINE_SCHEDULE_LOCK_AT_MOST_FOR:PT10M}
+      lock-at-least-for: ${PIPELINE_SCHEDULE_LOCK_AT_LEAST_FOR:PT30S}
+      sources:
+        RFETM:
+          cron: ${PIPELINE_SCHEDULE_RFETM_CRON:}
+        BCNESA:
+          cron: ${PIPELINE_SCHEDULE_BCNESA_CRON:}
+        FCTT:
+          cron: ${PIPELINE_SCHEDULE_FCTT_CRON:}
+    tracker:
+      # Periodic match-day recompute (fixed delay) for every source/season with unclosed match days and for the
+      # fixed-schedule season; runs that reach a final state also trigger one. ShedLock bounds as for the schedule.
+      recompute-interval: ${PIPELINE_TRACKER_RECOMPUTE_INTERVAL:PT1H}
+      lock-at-most-for: ${PIPELINE_TRACKER_LOCK_AT_MOST_FOR:PT10M}
+      lock-at-least-for: ${PIPELINE_TRACKER_LOCK_AT_LEAST_FOR:PT30S}
+
+    polling:
+      # Adaptive polling: comma-separated sources polled with the policy levels (empty = off). A source cannot also
+      # have a cron above; season and zone come from the schedule settings. One tick per source launches at most one
+      # run, under the ShedLock lock pipeline-polling-<SOURCE>.
+      sources: ${PIPELINE_POLLING_SOURCES:}
+      tick-interval: ${PIPELINE_POLLING_TICK_INTERVAL:PT5M}
+      lock-at-most-for: ${PIPELINE_POLLING_LOCK_AT_MOST_FOR:PT10M}
+      lock-at-least-for: ${PIPELINE_POLLING_LOCK_AT_LEAST_FOR:PT30S}
+      # Policy values every source uses unless an admin stored an override through the API.
+      defaults:
+        match-day: ${PIPELINE_POLLING_MATCH_DAY:PT2H}
+        match-day-start-offset: ${PIPELINE_POLLING_MATCH_DAY_START_OFFSET:PT2H}
+        day-after: ${PIPELINE_POLLING_DAY_AFTER:PT3H}
+        days-two-to-seven: ${PIPELINE_POLLING_DAYS_2_TO_7:PT12H}
+        open: ${PIPELINE_POLLING_OPEN:PT24H}
+        overdue: ${PIPELINE_POLLING_OVERDUE:PT24H}
+        overdue-stop-after-days: ${PIPELINE_POLLING_OVERDUE_STOP_AFTER_DAYS:21}
+        full-refresh: ${PIPELINE_POLLING_FULL_REFRESH:P7D}
+        no-change-threshold: ${PIPELINE_POLLING_NO_CHANGE_THRESHOLD:3}
+        # How many of the latest pollable match days of each group adaptive polling builds units from; older ones are
+        # left to the full refresh.
+        recent-match-days: ${PIPELINE_POLLING_RECENT_MATCH_DAYS:3}
+      # Export folder -> stored competition name for BCNESA rtb-* folders; unset keeps the 16 entries of the import.
+      # bcnesa-competition-names:
+      #   rtb-example: Example
+
+    notifications:
+      # SMTP e-mail alerts (match day closed, two failed runs, unreported match, no recent success) and the adaptive
+      # polling alerts. Enabled only when the mail host is set; leave it empty to switch notifications off. These are
+      # tt.pipeline.* values on purpose: spring.mail.* would add a JavaMailSender bean and a mail health indicator.
+      mail:
+        host: ${PIPELINE_MAIL_HOST:}
+        port: ${PIPELINE_MAIL_PORT:587}
+        username: ${PIPELINE_MAIL_USERNAME:}
+        password: ${PIPELINE_MAIL_PASSWORD:}
+        starttls: ${PIPELINE_MAIL_STARTTLS:true}
+        from: ${PIPELINE_MAIL_FROM:}
+        # Comma-separated recipient list.
+        to: ${PIPELINE_MAIL_TO:}
+        subject-prefix: ${PIPELINE_MAIL_SUBJECT_PREFIX:[tt-pipeline]}
+      evaluate-interval: ${PIPELINE_ALERTS_EVALUATE_INTERVAL:PT15M}
+      unreported-after: ${PIPELINE_ALERTS_UNREPORTED_AFTER:PT48H}
+      no-success-window: ${PIPELINE_ALERTS_NO_SUCCESS_WINDOW:PT24H}
+      closed-lookback: ${PIPELINE_ALERTS_CLOSED_LOOKBACK:P1D}
+      unit-failures:
+        # Comma-separated unit keys (the unitKey of the runs API) the unit-failure alert is limited to; empty alerts for
+        # every unit.
+        unit-keys: ${PIPELINE_ALERTS_UNIT_KEYS:}
+
+    # Artifact retention (opt-in): without this block no artifact is ever deleted. With it, cron (Spring six-field),
+    # zone (IANA id) and a rule for EVERY artifact kind are required, with no defaults. A rule has exactly one of
+    # max-age (ISO-8601 duration) or seasons (1-10: keep the newest N seasons for which the source has runs). The job
+    # deletes files only; run and artifact rows are kept with purged_at. Runs in progress are never touched.
+    # retention:
+    #   cron: "0 30 4 * * *"
+    #   zone: Europe/Madrid
+    #   rules:
+    #     zip:
+    #       seasons: 1
+    #     manifest:
+    #       seasons: 1
+    #     raw:
+    #       max-age: P90D
+    #     json:
+    #       max-age: P90D
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      # Enables /actuator/health/liveness and /readiness, which the container health check calls (FEAT-00116).
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+
+logging:
+  structured:
+    format:
+      # logstash (default), ecs or gelf write one JSON object per line, with the run id in runId. An empty value keeps
+      # Boot's plain-text pattern for local development; any other value fails startup.
+      console: ${PIPELINE_LOG_FORMAT:logstash}

@@ -3,8 +3,6 @@ package org.cttelsamicsterrassa.data.core.application.importresource.process;
 import org.albertsanso.commons.command.DomainCommandHandler;
 import org.albertsanso.commons.command.DomainCommandResponse;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.dto.ImportRunStatusDto;
-import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessResult;
-import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResource;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResourceStatus;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
@@ -12,14 +10,16 @@ import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunSnapshot;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunStatus;
 import org.cttelsamicsterrassa.data.core.domain.load.repository.ImportResourceRepository;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportResourceProcessService;
+import org.cttelsamicsterrassa.data.core.domain.load.service.ImportResourceRunService;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportRunRegistry;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import java.time.Clock;
+import java.time.ZonedDateTime;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Executor;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Accepts an import start request and runs it asynchronously on {@code executor}, returning
@@ -28,26 +28,35 @@ import java.util.logging.Logger;
  *
  * <p>Only one import may run at a time, system-wide: a request is rejected when the target
  * resource is already {@link ImportResourceStatus#PROCESSING}, and also when {@code runRegistry}
- * reports another resource's run is currently active (see {@link ImportRunRegistry#registerQueued}).</p>
+ * reports another resource's run is currently active (see {@link ImportRunRegistry#registerQueued}).
+ * The run itself is executed by {@link ImportResourceRunService}.</p>
  */
 @Named
 public class StartImportProcessCommandHandler extends DomainCommandHandler<StartImportProcessCommand> {
-    private static final Logger LOGGER = Logger.getLogger(StartImportProcessCommandHandler.class.getName());
-
     private final ImportResourceRepository repository;
-    private final ImportResourceProcessService service;
+    private final ImportResourceRunService runService;
     private final ImportRunRegistry runRegistry;
     private final Executor executor;
+    private final Clock clock;
 
     @Inject
     public StartImportProcessCommandHandler(ImportResourceRepository repository,
                                             ImportResourceProcessService service,
                                             ImportRunRegistry runRegistry,
                                             Executor executor) {
+        this(repository, service, runRegistry, executor, Clock.systemDefaultZone());
+    }
+
+    public StartImportProcessCommandHandler(ImportResourceRepository repository,
+                                            ImportResourceProcessService service,
+                                            ImportRunRegistry runRegistry,
+                                            Executor executor,
+                                            Clock clock) {
         this.repository = repository;
-        this.service = service;
         this.runRegistry = runRegistry;
         this.executor = executor;
+        this.clock = Objects.requireNonNull(clock, "clock");
+        this.runService = new ImportResourceRunService(repository, service, runRegistry, clock);
     }
     @Override
     public DomainCommandResponse handle(StartImportProcessCommand command) {
@@ -65,11 +74,9 @@ public class StartImportProcessCommandHandler extends DomainCommandHandler<Start
     }
 
     private DomainCommandResponse accept(ImportResource resource, ImportRunSnapshot snapshot) {
-        resource.setPending();
-        resource.startProcessing();
-        repository.save(resource);
+        runService.markProcessing(resource);
         try {
-            executor.execute(() -> runAsync(snapshot.runId(), resource));
+            executor.execute(() -> runService.run(snapshot.runId(), resource));
         } catch (RuntimeException submissionFailure) {
             ImportRunStatusDto rejected = rejectSubmission(resource, snapshot, submissionFailure);
             return DomainCommandResponse.failResponse(rejected);
@@ -79,7 +86,7 @@ public class StartImportProcessCommandHandler extends DomainCommandHandler<Start
 
     private ImportRunStatusDto rejectSubmission(ImportResource resource, ImportRunSnapshot snapshot,
                                                 RuntimeException submissionFailure) {
-        resource.finishProcessing(false);
+        resource.finishProcessing(false, ZonedDateTime.now(clock));
         repository.save(resource);
         ImportRunSnapshot failed = runRegistry.complete(snapshot.runId(), ImportRunStatus.FAILURE,
                         ImportRunProgress.indeterminate(0, 0, 1), null, safeMessage(submissionFailure))
@@ -87,34 +94,7 @@ public class StartImportProcessCommandHandler extends DomainCommandHandler<Start
         return ImportRunStatusDtoMapper.toDto(failed);
     }
 
-    private void runAsync(UUID runId, ImportResource resource) {
-        runRegistry.markRunning(runId, ImportRunProgress.zero());
-        try {
-            ImportProcessResult result = service.process(resource,
-                    progress -> runRegistry.updateProgress(runId, progress));
-            resource.finishProcessing(result.status() == ImportProcessStatus.SUCCESS);
-            repository.save(resource);
-            runRegistry.complete(runId, ImportRunStatus.fromProcessStatus(result.status()),
-                    progressFrom(result), result, null);
-        } catch (RuntimeException exception) {
-            LOGGER.log(Level.SEVERE, "Unexpected failure while processing import resource " + resource.getId(),
-                    exception);
-            resource.finishProcessing(false);
-            repository.save(resource);
-            runRegistry.complete(runId, ImportRunStatus.FAILURE,
-                    ImportRunProgress.indeterminate(0, 0, 1), null, safeMessage(exception));
-        }
-    }
-
-    private static ImportRunProgress progressFrom(ImportProcessResult result) {
-        long processed = result.itemsPersisted() + result.skipped();
-        long total = result.filesSeen();
-        return total > 0
-                ? ImportRunProgress.determinate(processed, total, result.skipped(), result.processorFailures())
-                : ImportRunProgress.indeterminate(processed, result.skipped(), result.processorFailures());
-    }
-
     private static String safeMessage(RuntimeException exception) {
-        return exception.getMessage() == null ? exception.getClass().getSimpleName() : exception.getMessage();
+        return ImportResourceRunService.safeMessage(exception);
     }
 }

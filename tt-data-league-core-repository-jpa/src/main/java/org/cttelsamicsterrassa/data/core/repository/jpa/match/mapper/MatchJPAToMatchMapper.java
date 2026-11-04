@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.match.mapper;
 
 import lombok.AllArgsConstructor;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.TeamJPAToTeamMapper;
@@ -27,6 +28,8 @@ public class MatchJPAToMatchMapper implements Function<MatchJPA, Match> {
                 .id(matchJpa.getId())
                 .source(matchJpa.getSource() != null ? ImportSource.valueOf(matchJpa.getSource().name()) : null)
                 .externalId(matchJpa.getExternalId())
+                .sourceFixtureId(matchJpa.getSourceFixtureId())
+                .sourceChecksum(matchJpa.getSourceChecksum())
                 .competition(matchJpa.getCompetition())
                 .season(matchJpa.getSeason() != null ? Season.fromFormatted(matchJpa.getSeason()) : null)
                 .groupNumber(matchJpa.getGroupNumber())
@@ -38,6 +41,7 @@ public class MatchJPAToMatchMapper implements Function<MatchJPA, Match> {
                 .refereeName(matchJpa.getRefereeName())
                 .refereeLicense(matchJpa.getRefereeLicense())
                 .protested(matchJpa.isProtested())
+                .status(MatchStatus.valueOf(matchJpa.getStatus().name()))
                 .homeTeam(teamJPAToTeamMapper.apply(matchJpa.getHomeTeam()))
                 .awayTeam(teamJPAToTeamMapper.apply(matchJpa.getAwayTeam()))
                 .winnerTeam(teamJPAToTeamMapper.apply(matchJpa.getWinnerTeam()))

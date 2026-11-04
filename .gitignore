@@ -10,3 +10,17 @@ target/
 tt-data-league-frontend/node_modules/
 tt-data-league-frontend/dist/
 tt-data-league-frontend/target/
+tt-league-pipeline-orchestrator-frontend/node_modules/
+tt-league-pipeline-orchestrator-frontend/dist/
+tt-league-pipeline-orchestrator-frontend/target/
+# Python ingestion workspace
+tt-league-ingest/.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+
+# Deployment environment (FEAT-00116): holds real secrets, never commit
+deploy/.env
+
+# Local IDE run configuration secrets (.env.local.example), never commit
+.env.local

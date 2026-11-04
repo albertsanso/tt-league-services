@@ -144,6 +144,34 @@ describe('MatchSummaryPage', () => {
     expect(screen.getByText('Poc habitual')).toBeInTheDocument()
   })
 
+  it('renders a scheduled match without result, lineups or acta action', () => {
+    useMatchSummary.mockReturnValue({
+      data: {
+        id: 'match-2',
+        status: 'SCHEDULED',
+        competition: 'Primera Catalana',
+        round: 3,
+        dateTime: '2026-09-19T18:30:00+02:00',
+        venue: 'Pavelló Municipal',
+        homeTeam: { id: 'home-team', name: 'CT Sant Cugat A' },
+        awayTeam: { id: 'away-team', name: 'CT Rubí B' },
+        homeGamesWon: null,
+        awayGamesWon: null,
+        lineups: [],
+        games: [],
+      },
+      loading: false,
+      error: null,
+      retry: vi.fn(),
+    })
+
+    renderPage('match-2')
+
+    expect(screen.getByRole('heading', { name: /CT Sant Cugat A.*—.*—.*CT Rubí B/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Veure acta' })).toBeNull()
+    expect(screen.getByText(/Pavelló Municipal/)).toBeInTheDocument()
+  })
+
   it('shows a not-found message for a missing match', () => {
     useMatchSummary.mockReturnValue({ data: null, loading: false, error: { status: 404 }, retry: vi.fn() })
     renderPage()

@@ -43,7 +43,9 @@ class TeamToClubConsolidationProcessorTest {
         assertEquals(1, summary.clubsCreated());
         assertEquals(2, summary.registrationsReassociated());
         assertEquals(sameClub(first.getId()), sameClub(second.getId()));
-        assertEquals(1, canonicalClubs.size());
+        // One federated club row is created here; the canonical Club is owned by
+        // FederatedClubToCanonicalClubConsolidationProcessor, not by this processor.
+        assertEquals(1, clubs.size());
     }
 
     @Test

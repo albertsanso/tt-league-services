@@ -127,10 +127,10 @@ class ActaParserTest {
     void parsesTheNewFcttPayloadFields() throws Exception {
         Acta acta = parser.parse(fixture("acta_fctt_female_groupless.json"));
 
-        assertEquals("2026-2027_CopaCatFem1a_G1_1aFase_301-402_1", acta.matchId());
+        assertEquals("2025-2026_copa-catalana-femenina-1a_1aFase_120-112_1", acta.matchId());
         assertTrue(acta.isPublished());
         assertEquals(Boolean.TRUE, acta.published());
-        assertEquals("1aFase", acta.phase());
+        assertEquals("1a Fase", acta.phase());
         assertEquals("femenino", acta.gender());
     }
 

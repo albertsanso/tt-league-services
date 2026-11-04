@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
@@ -88,5 +89,41 @@ class FindFederatedClubCompetitionDetailsQueryHandlerTest {
 
         assertEquals(1, details.matches().size());
         assertEquals("draw", details.matches().getFirst().result());
+    }
+
+    @Test
+    void excludesScheduledMatchesFromTheCompetitionMatchList() {
+        // FEAT-00079: a SCHEDULED fixture in a tie-eligible competition must not appear as a draw.
+        Season season = Season.of(2025);
+        FederatedClub club = FederatedClub.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Terrassa");
+        Team homeTeam = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Club Terrassa 1", season, club);
+        Team rival = Team.createExisting(UUID.randomUUID(), ImportSource.RFETM, "Rival", season, null);
+
+        Match played = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM)
+                .competition("super-divisio-masculino").season(season).round(1)
+                .homeTeam(homeTeam).awayTeam(rival).homeGamesWon(5).awayGamesWon(2)
+                .winnerTeam(homeTeam).createExisting();
+        Match scheduled = Match.builder().id(UUID.randomUUID()).source(ImportSource.RFETM)
+                .competition("super-divisio-masculino").season(season).round(2)
+                .homeTeam(homeTeam).awayTeam(rival)
+                .status(MatchStatus.SCHEDULED).createExisting();
+
+        FederatedClubRepository clubRepository = mock(FederatedClubRepository.class);
+        TeamRepository teamRepository = mock(TeamRepository.class);
+        MatchRepository matchRepository = mock(MatchRepository.class);
+        when(clubRepository.findFederatedClubById(club.getId())).thenReturn(Optional.of(club));
+        when(teamRepository.findAllTeamsByFederatedClubId(club.getId())).thenReturn(List.of(homeTeam));
+        when(matchRepository.findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(
+                List.of(homeTeam.getId()), ImportSource.RFETM, season, "super-divisio-masculino"))
+                .thenReturn(List.of(played, scheduled));
+
+        FederatedClubCompetitionDetailsReadModel details = new FindFederatedClubCompetitionDetailsQueryHandler(
+                clubRepository, teamRepository, matchRepository)
+                .handle(new FindFederatedClubCompetitionDetailsQuery(
+                        club.getId(), season, "super-divisio-masculino"))
+                .getResponse();
+
+        assertEquals(1, details.matches().size());
+        assertEquals(played.getId(), details.matches().getFirst().id());
     }
 }

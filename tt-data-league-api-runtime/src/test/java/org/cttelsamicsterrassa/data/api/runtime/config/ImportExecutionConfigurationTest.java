@@ -20,7 +20,8 @@ class ImportExecutionConfigurationTest {
             .withPropertyValues(
                     "tt.league.import.execution.batch-size=17",
                     "tt.league.import.execution.club-consolidation=REPORT",
-                    "tt.league.import.execution.player-consolidation=WRITE");
+                    "tt.league.import.execution.player-consolidation=WRITE",
+                    "tt.league.import.execution.amended-acta-detection=REPORT");
 
     @Test
     void bindsServerPropertiesToExecutionOptions() {
@@ -30,6 +31,8 @@ class ImportExecutionConfigurationTest {
             assertThat(options.batchSize()).isEqualTo(17);
             assertThat(options.clubConsolidationMode()).isEqualTo(ConsolidationMode.REPORT);
             assertThat(options.playerConsolidationMode()).isEqualTo(ConsolidationMode.WRITE);
+            assertThat(options.amendedActaMode())
+                    .isEqualTo(org.cttelsamicsterrassa.data.load.shared.match.lifecycle.AmendedActaMode.REPORT);
         });
     }
 

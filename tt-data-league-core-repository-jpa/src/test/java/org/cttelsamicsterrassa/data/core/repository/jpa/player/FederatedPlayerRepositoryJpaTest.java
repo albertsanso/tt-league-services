@@ -1,15 +1,12 @@
 package org.cttelsamicsterrassa.data.core.repository.jpa.player;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.cttelsamicsterrassa.data.core.domain.player.model.FederatedPlayer;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.FederatedPlayerRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.core.domain.load.service.ImportRunRegistry;
+import org.cttelsamicsterrassa.data.core.repository.jpa.JpaTestSupportConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -17,10 +14,9 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.mockito.Mockito.mock;
 
 @SpringBootTest
-@Import(FederatedPlayerRepositoryJpaTest.TestBeans.class)
+@Import(JpaTestSupportConfiguration.class)
 @Transactional
 class FederatedPlayerRepositoryJpaTest {
 
@@ -56,18 +52,5 @@ class FederatedPlayerRepositoryJpaTest {
         assertEquals(List.of(RFETM_PLAYER_ID), byNameAndLicense.stream().map(FederatedPlayer::getId).toList());
         assertEquals(List.of(RFETM_PLAYER_ID), byScopedLicense.stream().map(FederatedPlayer::getId).toList());
         assertEquals(List.of(), outsideSource);
-    }
-
-    @TestConfiguration(proxyBeanMethods = false)
-    static class TestBeans {
-        @Bean
-        ImportRunRegistry importRunRegistry() {
-            return mock(ImportRunRegistry.class);
-        }
-
-        @Bean
-        ObjectMapper objectMapper() {
-            return new ObjectMapper();
-        }
     }
 }

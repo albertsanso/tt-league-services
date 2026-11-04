@@ -15,6 +15,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
@@ -27,6 +28,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * every source, independent of club or player consolidation.
  */
 @SpringBootTest
+@Import(JpaTestSupportConfiguration.class)
 @Transactional
 class CommunityStatisticsAggregateQueriesTest {
 

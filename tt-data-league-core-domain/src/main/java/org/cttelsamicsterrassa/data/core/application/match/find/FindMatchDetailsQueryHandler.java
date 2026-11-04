@@ -125,7 +125,8 @@ public class FindMatchDetailsQueryHandler
                 lineupValues.stream().map(this::lineup).toList(),
                 gameValues.stream().map(game -> game(game, scoreByGame.getOrDefault(game.getId(), List.of()),
                         pairsByGame.getOrDefault(game.getId(), List.of()))).toList(),
-                homeForm, awayForm, playerFormValues, homeAlignment, awayAlignment);
+                homeForm, awayForm, playerFormValues, homeAlignment, awayAlignment,
+                match.getStatus());
     }
 
     /**
@@ -141,7 +142,8 @@ public class FindMatchDetailsQueryHandler
             return List.of();
         }
         return matches.findAllMatchesByTeamIdsAndSourceAndSeasonAndCompetition(List.of(team.getId()),
-                        current.getSource(), current.getSeason(), current.getCompetition()).stream()
+                         current.getSource(), current.getSeason(), current.getCompetition()).stream()
+                .filter(Match::isPlayed)
                 .filter(value -> !value.getId().equals(current.getId()))
                 .sorted(Comparator.comparing(Match::getDateTime,
                         Comparator.nullsLast(Comparator.naturalOrder())).reversed())

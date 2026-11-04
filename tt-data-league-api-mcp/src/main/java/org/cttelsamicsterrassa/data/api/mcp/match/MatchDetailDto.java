@@ -14,7 +14,7 @@ public record MatchDetailDto(UUID id, String source, String externalId, String c
                              Integer awaySetsWon, boolean protested, List<LineupDto> lineups,
                              List<GameDto> games, TeamFormDto homeTeamForm, TeamFormDto awayTeamForm,
                              List<PlayerFormDto> playerForm, AlignmentStabilityDto homeAlignmentStability,
-                             AlignmentStabilityDto awayAlignmentStability) {
+                             AlignmentStabilityDto awayAlignmentStability, String status) {
     public static MatchDetailDto from(MatchDetailReadModel value) {
         return new MatchDetailDto(value.id(), value.source() == null ? null : value.source().name(),
                 value.externalId(), value.competition(), value.season() == null ? null : value.season().toString(),
@@ -27,7 +27,8 @@ public record MatchDetailDto(UUID id, String source, String externalId, String c
                 TeamFormDto.from(value.homeTeamForm()), TeamFormDto.from(value.awayTeamForm()),
                 value.playerForm().stream().map(PlayerFormDto::from).toList(),
                 AlignmentStabilityDto.from(value.homeAlignmentStability()),
-                AlignmentStabilityDto.from(value.awayAlignmentStability()));
+                AlignmentStabilityDto.from(value.awayAlignmentStability()),
+                value.status() == null ? null : value.status().name());
     }
 
     private static TeamDto team(MatchDetailReadModel.TeamReadModel value) {

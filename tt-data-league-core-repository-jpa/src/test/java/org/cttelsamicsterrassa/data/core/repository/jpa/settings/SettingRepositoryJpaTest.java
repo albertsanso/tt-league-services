@@ -3,9 +3,11 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.settings;
 import org.cttelsamicsterrassa.data.core.domain.settings.model.Setting;
 import org.cttelsamicsterrassa.data.core.domain.settings.model.SettingCategory;
 import org.cttelsamicsterrassa.data.core.domain.settings.repository.SettingRepository;
+import org.cttelsamicsterrassa.data.core.repository.jpa.JpaTestSupportConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.UUID;
@@ -14,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
+@Import(JpaTestSupportConfiguration.class)
 @Transactional
 class SettingRepositoryJpaTest {
 

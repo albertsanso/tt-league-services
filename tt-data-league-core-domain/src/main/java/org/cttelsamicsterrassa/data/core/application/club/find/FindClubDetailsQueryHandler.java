@@ -127,7 +127,10 @@ public class FindClubDetailsQueryHandler
             ImportSource source = entry.getKey();
             List<UUID> teamIds = entry.getValue();
             playerSeasons.addAll(playerSeasonRepository.findAllPlayerSeasonsByTeamIdsAndSource(teamIds, source));
-            matches.addAll(matchRepository.findAllMatchesByTeamIdsAndSource(teamIds, source));
+            // FEAT-00079: statistics are computed over PLAYED matches only; the repository
+            // deliberately stays unfiltered (consolidation scope, risk K9).
+            matches.addAll(matchRepository.findAllMatchesByTeamIdsAndSource(teamIds, source).stream()
+                    .filter(Match::isPlayed).toList());
             playerSeasonRepository.findAllPlayerSeasonCompetitionsByTeamIdsAndSource(teamIds, source)
                     .forEach((playerSeasonId, competitions) -> playerCompetitions
                             .computeIfAbsent(playerSeasonId, ignored -> new ArrayList<>())

@@ -98,7 +98,7 @@ def section_body(registry: str, section: str) -> tuple[int, int, str]:
 def rebuild_section(registry: str, section: str, blocks: list[str]) -> str:
     start, end, body = section_body(registry, section)
     if section == "Done":
-        blocks.sort(key=lambda block: re.match(r"^### \[(FEAT-\d{5})\]", block).group(1), reverse=True)
+        blocks.sort(key=block_id, reverse=True)
     replacement = normalize_section_body_for(section, body, blocks)
     return registry[:start] + replacement + registry[end:]
 
@@ -106,24 +106,30 @@ def rebuild_section(registry: str, section: str, blocks: list[str]) -> str:
 def normalize_section_body_for(section: str, body: str, blocks: list[str]) -> str:
     body_without_features = FEATURE_RE.sub("", body)
     body_without_empty_marker = re.sub(
-        r"(?m)^\s*No features currently (?:in progress|in review|in the backlog)\.\s*$",
+        r"(?m)^\s*No features currently (?:in progress|in review|in the backlog|done)\.\s*$",
         "",
         body_without_features,
     )
     prefix = body_without_empty_marker.rstrip()
-    if prefix.endswith("---"):
+    while prefix.endswith("---"):
         prefix = prefix[:-3].rstrip()
     if prefix:
         prefix += "\n\n"
     if blocks:
-        prefix += "\n\n".join(block.rstrip() for block in blocks)
+        normalized_blocks = []
+        for block in blocks:
+            normalized = block.rstrip()
+            while normalized.endswith("---"):
+                normalized = normalized[:-3].rstrip()
+            normalized_blocks.append(normalized)
+        prefix += "\n\n---\n\n".join(normalized_blocks)
         prefix += "\n\n---"
     else:
         prefix += {
             "In Progress": "No features currently in progress.",
             "In Review": "No features currently in review.",
             "Backlog": "No features currently in the backlog.",
-            "Done": "No features currently in the backlog.",
+            "Done": "No features currently done.",
         }[section]
     return f"\n{prefix}\n"
 
@@ -136,6 +142,21 @@ def blocks_by_section(registry: str) -> dict[str, list[str]]:
             raise OperationError(f"Feature {match.group(1)} is outside a lifecycle section.")
         grouped[section].append(match.group(0).rstrip())
     return grouped
+
+
+def block_id(block: str) -> str:
+    return re.match(r"^### \[(FEAT-\d{5})\]", block).group(1)
+
+
+def insert_in_id_order(blocks: list[str], block: str, identifier: str) -> None:
+    """Insert before the first block with a higher ID, so a status change within a section keeps
+    the block in place and a move into a section lands in ascending-ID order. Other blocks are not
+    reordered; Done is re-sorted descending by rebuild_section."""
+    for index, existing in enumerate(blocks):
+        if block_id(existing) > identifier:
+            blocks.insert(index, block)
+            return
+    blocks.append(block)
 
 
 def write_registry_sections(registry: str, grouped: dict[str, list[str]]) -> str:
@@ -268,11 +289,7 @@ def command_status(args: argparse.Namespace) -> None:
         raise OperationError(f"{identifier} is already {target}.")
     replacement = STATUS_RE.sub(rf"\g<1>{target}", current_block, count=1)
     grouped = blocks_by_section(replace_block(registry, identifier, ""))
-    current_section = STATUS_SECTION[current_status]
-    grouped[current_section] = [
-        block for block in grouped[current_section] if identifier not in block
-    ]
-    grouped[STATUS_SECTION[target]].append(replacement)
+    insert_in_id_order(grouped[STATUS_SECTION[target]], replacement, identifier)
     updated = write_registry_sections(registry, grouped)
     atomic_write(registry_file, updated)
     if args.note:

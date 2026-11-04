@@ -1,0 +1,47 @@
+{
+  "id_partido": "2026-2027_divisio-honor_G3_J10_10828-1052",
+  "acta_publicada": false,
+  "federacion": "Real Federación Española de Tenis de Mesa",
+  "temporada": "2026/2027",
+  "genero": "femenino",
+  "competicion": "DIVISIÓN DE HONOR FEMENINA",
+  "grupo": 3,
+  "jornada": 10,
+  "fecha": "2026-12-12",
+  "hora": "10:00",
+  "lugar": {
+    "ciudad": "Rivas-Vaciamadrid (Madrid)",
+    "recinto": "CEIP Las Cigüeñas Gimnasio Avda. de las Naciones s/n esquina Avda. de Francia"
+  },
+  "equipos": {
+    "local": {
+      "id": "10828",
+      "nombre": "C.D.T.M. RIVAS",
+      "delegado": null,
+      "entrenador": null
+    },
+    "visitante": {
+      "id": "1052",
+      "nombre": "TECNIGEN LINARES",
+      "delegado": null,
+      "entrenador": null
+    }
+  },
+  "abc_es_local": null,
+  "arbitros": {
+    "principal": null,
+    "asistente": null
+  },
+  "alineaciones": {
+    "local": {},
+    "visitante": {}
+  },
+  "dobles": null,
+  "partidos": [],
+  "resultado_final": {
+    "ganador": null,
+    "marcador_partidos": null,
+    "marcador_juegos": null
+  },
+  "acta_protestada": false
+}

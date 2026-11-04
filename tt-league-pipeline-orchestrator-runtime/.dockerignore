@@ -1,0 +1,3 @@
+# Only the host-built Boot jar belongs in the build context.
+*
+!target/tt-league-pipeline-orchestrator-runtime-*.jar

@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.core.application.importresource.process;
 import org.cttelsamicsterrassa.data.core.application.importresource.process.dto.ImportProcessResultDto;
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.dto.ImportPreviewFindingDto;
 import org.cttelsamicsterrassa.data.core.application.importresource.preview.dto.ImportPreviewProcessingErrorDto;
+import org.cttelsamicsterrassa.data.core.application.importresource.shared.dto.RoundProgressDtoMapper;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportPreviewProcessingError;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessResult;
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus;
@@ -11,13 +12,18 @@ import org.cttelsamicsterrassa.data.core.domain.load.model.ImportResource;
 import java.util.List;
 import java.util.UUID;
 
-final class ImportProcessResultDtoMapper {
+public final class ImportProcessResultDtoMapper {
     private ImportProcessResultDtoMapper() {
     }
 
-    static ImportProcessResultDto toDto(ImportResource resource, ImportProcessResult result) {
+    public static ImportProcessResultDto toDto(ImportResource resource, ImportProcessResult result) {
         return dto(resource.getId(), resource.getSource().name(), resource.getSeason().toString(),
                 resource.getType().name(), result);
+    }
+
+    public static ImportProcessResultDto toDto(UUID importResourceId, String source, String season,
+                                               String resourceType, ImportProcessResult result) {
+        return dto(importResourceId, source, season, resourceType, result);
     }
 
     static ImportProcessResultDto missingResource(UUID id) {
@@ -41,6 +47,11 @@ final class ImportProcessResultDtoMapper {
                         e.message(), e.location())).toList(),
                 result.filesSeen(), result.itemsPersisted(), result.skipped(), result.processorFailures(),
                 result.elapsedMillis(), result.persistenceWrites(), result.executionIssues(),
-                result.postProcessingOutcomes());
+                result.postProcessingOutcomes(),
+                result.lifecycle().scheduledCreated(), result.lifecycle().upgradedToPlayed(),
+                result.lifecycle().rescheduled(), result.lifecycle().partialActas(),
+                result.lifecycle().invalidActas(), result.lifecycle().unresolvedPendingFixtures(),
+                result.lifecycle().amendedPlayed(),
+                RoundProgressDtoMapper.toDtos(result.roundProgress()));
     }
 }

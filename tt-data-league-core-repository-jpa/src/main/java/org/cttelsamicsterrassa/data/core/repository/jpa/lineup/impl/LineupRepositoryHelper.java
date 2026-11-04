@@ -2,6 +2,7 @@ package org.cttelsamicsterrassa.data.core.repository.jpa.lineup.impl;
 
 import org.cttelsamicsterrassa.data.core.repository.jpa.lineup.model.LineupJPA;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
@@ -66,4 +67,8 @@ public interface LineupRepositoryHelper extends JpaRepository<LineupJPA, UUID> {
     List<LineupJPA> findAllByPlayerSeasonIds(
             @Param("playerSeasonIds") Collection<UUID> playerSeasonIds,
             Pageable pageable);
+
+    @Modifying(clearAutomatically = true)
+    @Query("delete from LineupJPA l where l.match.id in :matchIds")
+    int deleteAllByMatchIds(@Param("matchIds") Collection<UUID> matchIds);
 }

@@ -9,6 +9,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.Objects;
 import java.util.UUID;
 
 public class Match extends Entity {
@@ -20,9 +21,16 @@ public class Match extends Entity {
      */
     public static final ZoneId COMPETITION_ZONE = ZoneId.of("Europe/Madrid");
 
+    /**
+     * Maximum stored length of a source fixture id (FEAT-00083). The value is treated as an opaque
+     * source key whose layout differs by source; it is never trimmed, padded or truncated.
+     */
+    public static final int SOURCE_FIXTURE_ID_MAX_LENGTH = 100;
+
     private final UUID id;
     private final ImportSource source;
     private final String externalId;
+    private final String sourceFixtureId;
     private final String competition;
     private final Season season;
     private final Integer groupNumber;
@@ -41,11 +49,14 @@ public class Match extends Entity {
     private final Integer homeSetsWon;
     private final Integer awaySetsWon;
     private final boolean protested;
+    private final MatchStatus status;
+    private final String sourceChecksum;
 
-    private Match(UUID id, ImportSource source, String externalId, String competition, Season season, Integer groupNumber, int round, String phase, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested) {
+    private Match(UUID id, ImportSource source, String externalId, String sourceFixtureId, String competition, Season season, Integer groupNumber, int round, String phase, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested, MatchStatus status, String sourceChecksum) {
         this.id = id;
         this.source = source;
         this.externalId = externalId;
+        this.sourceFixtureId = sourceFixtureId;
         this.competition = competition;
         this.season = season;
         this.groupNumber = groupNumber;
@@ -64,6 +75,8 @@ public class Match extends Entity {
         this.homeSetsWon = homeSetsWon;
         this.awaySetsWon = awaySetsWon;
         this.protested = protested;
+        this.status = status;
+        this.sourceChecksum = sourceChecksum;
     }
 
     public static MatchBuilder builder() {
@@ -71,10 +84,32 @@ public class Match extends Entity {
     }
 
     private static Match of(MatchBuilder builder) {
+        Objects.requireNonNull(builder.status, "status");
+        if (builder.status == MatchStatus.SCHEDULED
+                && (builder.winnerTeam != null
+                        || builder.homeGamesWon != null
+                        || builder.awayGamesWon != null
+                        || builder.homeSetsWon != null
+                        || builder.awaySetsWon != null)) {
+            throw new IllegalArgumentException("A SCHEDULED match cannot carry a winner or game/set results");
+        }
+        if (builder.status == MatchStatus.SCHEDULED && builder.sourceChecksum != null) {
+            throw new IllegalArgumentException("A SCHEDULED match cannot carry a source checksum");
+        }
+        if (builder.sourceFixtureId != null) {
+            if (builder.sourceFixtureId.isBlank()) {
+                throw new IllegalArgumentException("sourceFixtureId must not be blank");
+            }
+            if (builder.sourceFixtureId.length() > SOURCE_FIXTURE_ID_MAX_LENGTH) {
+                throw new IllegalArgumentException(
+                        "sourceFixtureId must not be longer than " + SOURCE_FIXTURE_ID_MAX_LENGTH + " characters");
+            }
+        }
         return new Match(
                 builder.id,
                 builder.source,
                 builder.externalId,
+                builder.sourceFixtureId,
                 builder.competition,
                 builder.season,
                 builder.groupNumber,
@@ -92,7 +127,9 @@ public class Match extends Entity {
                 builder.awayGamesWon,
                 builder.homeSetsWon,
                 builder.awaySetsWon,
-                builder.protested
+                builder.protested,
+                builder.status,
+                builder.sourceChecksum
         );
     }
     private static Match createNew(MatchBuilder matchBuilder) {
@@ -103,6 +140,75 @@ public class Match extends Entity {
 
     private static Match createExisting(MatchBuilder matchBuilder) {
         return of(matchBuilder);
+    }
+
+    /**
+     * A copy of this match with only {@code sourceFixtureId} changed (FEAT-00083). Used by the
+     * lifecycle writer and in-memory repositories so header copies never drop the field by
+     * rebuilding it field by field. No event is published.
+     */
+    public Match withSourceFixtureId(String sourceFixtureId) {
+        return Match.builder()
+                .id(id)
+                .source(source)
+                .externalId(externalId)
+                .sourceFixtureId(sourceFixtureId)
+                .competition(competition)
+                .season(season)
+                .groupNumber(groupNumber)
+                .round(round)
+                .phase(phase)
+                .dateTime(dateTime)
+                .city(city)
+                .venue(venue)
+                .homeTeam(homeTeam)
+                .awayTeam(awayTeam)
+                .winnerTeam(winnerTeam)
+                .refereeName(refereeName)
+                .refereeLicense(refereeLicense)
+                .homeGamesWon(homeGamesWon)
+                .awayGamesWon(awayGamesWon)
+                .homeSetsWon(homeSetsWon)
+                .awaySetsWon(awaySetsWon)
+                .protested(protested)
+                .status(status)
+                .sourceChecksum(sourceChecksum)
+                .createExisting();
+    }
+
+    /**
+     * A copy of this match with only {@code sourceChecksum} changed (FEAT-00089). Used by the
+     * lifecycle writer and in-memory repositories so a checksum can be adopted or recorded without
+     * rebuilding the header field by field. No event is published. The match id and natural key are
+     * unchanged.
+     */
+    public Match withSourceChecksum(String sourceChecksum) {
+        return Match.builder()
+                .id(id)
+                .source(source)
+                .externalId(externalId)
+                .sourceFixtureId(sourceFixtureId)
+                .competition(competition)
+                .season(season)
+                .groupNumber(groupNumber)
+                .round(round)
+                .phase(phase)
+                .dateTime(dateTime)
+                .city(city)
+                .venue(venue)
+                .homeTeam(homeTeam)
+                .awayTeam(awayTeam)
+                .winnerTeam(winnerTeam)
+                .refereeName(refereeName)
+                .refereeLicense(refereeLicense)
+                .homeGamesWon(homeGamesWon)
+                .awayGamesWon(awayGamesWon)
+                .homeSetsWon(homeSetsWon)
+                .awaySetsWon(awaySetsWon)
+                .protested(protested)
+                .status(status)
+                .sourceChecksum(sourceChecksum)
+                .createExisting();
     }
 
     public void delete() {
@@ -121,6 +227,7 @@ public class Match extends Entity {
         private UUID id;
         private ImportSource source = ImportSource.RFETM;
         private String externalId;
+        private String sourceFixtureId;
         private String competition;
         private Season season;
         private Integer groupNumber;
@@ -139,6 +246,8 @@ public class Match extends Entity {
         private Integer homeSetsWon;
         private Integer awaySetsWon;
         private boolean protested;
+        private MatchStatus status = MatchStatus.PLAYED;
+        private String sourceChecksum;
 
         public MatchBuilder id(UUID id) {
             this.id = id;
@@ -152,6 +261,11 @@ public class Match extends Entity {
 
         public MatchBuilder externalId(String externalId) {
             this.externalId = externalId;
+            return this;
+        }
+
+        public MatchBuilder sourceFixtureId(String sourceFixtureId) {
+            this.sourceFixtureId = sourceFixtureId;
             return this;
         }
 
@@ -245,6 +359,16 @@ public class Match extends Entity {
             return this;
         }
 
+        public MatchBuilder status(MatchStatus status) {
+            this.status = status;
+            return this;
+        }
+
+        public MatchBuilder sourceChecksum(String sourceChecksum) {
+            this.sourceChecksum = sourceChecksum;
+            return this;
+        }
+
         public Match createNew() {
             return Match.createNew(this);
         }
@@ -264,6 +388,15 @@ public class Match extends Entity {
 
     public String getExternalId() {
         return externalId;
+    }
+
+    /**
+     * The source-supplied fixture id ({@code id_partido}) captured at import time (FEAT-00083),
+     * or {@code null} for legacy rows and un-published BCNESA split fixtures. Stored verbatim and
+     * treated as an opaque per-source key; never derived from file names.
+     */
+    public String getSourceFixtureId() {
+        return sourceFixtureId;
     }
 
     public String getCompetition() {
@@ -336,5 +469,44 @@ public class Match extends Entity {
 
     public Team getWinnerTeam() {
         return winnerTeam;
+    }
+
+    public MatchStatus getStatus() {
+        return status;
+    }
+
+    /**
+     * The checksum of the acta content last applied to this match (FEAT-00089), or {@code null} for
+     * legacy rows and matches with no stored checksum. Never set on a SCHEDULED match.
+     */
+    public String getSourceChecksum() {
+        return sourceChecksum;
+    }
+
+    public boolean isPlayed() {
+        return status == MatchStatus.PLAYED;
+    }
+
+    /**
+     * Whether {@code other} is the same fixture: identical source, competition, season, group
+     * number, round, phase and team ids (FEAT-00080). Results, schedules and children may differ;
+     * a replacement that changes this key would silently move a fixture and must be rejected.
+     */
+    public boolean hasSameNaturalKeyAs(Match other) {
+        if (other == null) {
+            return false;
+        }
+        return Objects.equals(source, other.source)
+                && Objects.equals(competition, other.competition)
+                && Objects.equals(season, other.season)
+                && Objects.equals(groupNumber, other.groupNumber)
+                && round == other.round
+                && Objects.equals(phase, other.phase)
+                && Objects.equals(teamId(homeTeam), teamId(other.homeTeam))
+                && Objects.equals(teamId(awayTeam), teamId(other.awayTeam));
+    }
+
+    private static java.util.UUID teamId(Team team) {
+        return team == null ? null : team.getId();
     }
 }

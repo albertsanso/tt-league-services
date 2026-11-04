@@ -13,6 +13,20 @@ data. The root aggregator is `tt-data-league-services` and currently contains:
 - `tt-data-league-import-runtime`: executable Spring Boot import runtime.
 - `tt-data-league-api-rest`, `tt-data-league-api-runtime`, and
   `tt-data-league-api-graphql`: API and API runtime modules.
+- `tt-league-ingest`: Python (uv) workspace outside the Maven reactor that
+  produces the `actas-json`/`equipos-json` exports and upload ZIPs consumed by
+  the import and the upload endpoint (RFETM, BCNESA and FCTT current-season
+  pipelines, CLI and REST service).
+- `tt-league-pipeline-orchestrator-core`: framework-free orchestrator core
+  (run state machine, tracker rules, polling policy, ports).
+- `tt-league-pipeline-orchestrator-runtime`: Spring Boot orchestrator service
+  that adapts the core ports (REST clients, scheduler, persistence).
+- `tt-league-pipeline-orchestrator-frontend`: React + TypeScript + Material UI
+  pipeline control centre, built through `frontend-maven-plugin`.
+- `deploy/`: single-VM Docker Compose project and reverse-proxy image (nginx
+  serving both frontends), outside the Maven reactor. Each service's
+  `Dockerfile` lives in its own module; `.podman/` stays the local-development
+  database. See `deploy/README.md`.
 
 Keep dependencies directed inward: domain code must not depend on Spring or
 JPA; import code must not depend on persistence adapters; and runtime modules
@@ -28,12 +42,22 @@ supplement this file:
 - `tt-data-league-core-repository-jpa/AGENTS.md`
 - `tt-data-league-import/AGENTS.md`
 - `tt-data-league-import-runtime/AGENTS.md`
+- `tt-league-ingest/AGENTS.md`
+- `tt-league-pipeline-orchestrator-core/AGENTS.md`
+- `tt-league-pipeline-orchestrator-runtime/AGENTS.md`
+- `tt-league-pipeline-orchestrator-frontend/AGENTS.md`
 - `docs/sdd/AGENTS.md` for feature-planning and SDD registry work.
 
 `docs/sdd/` is a documentation/planning module rather than an application
 code module. When working there, follow its feature registry, status workflow,
 ID/link, ordering, and agent-boundary rules. For application code referenced
 by an SDD plan, also follow the nearest application-module `AGENTS.md`.
+
+Orchestrator modules integrate with the platform and `tt-league-ingest` only
+through their REST APIs and never read or write platform tables. They have no
+dependency on any `tt-data-league-*` module, and
+`tt-league-pipeline-orchestrator-core` stays free of Spring, JPA and HTTP
+clients (enforced by `CoreDependencyRulesTest`).
 
 ## Identity and data integrity
 
@@ -82,6 +106,8 @@ those ids through `ClubRepository`.
   new abstractions.
 - Keep validation and failure behavior explicit; do not add broad catches,
   silent fallbacks, or success-shaped error handling.
+- Treat `tt-league-pipeline-orchestrator-runtime/docs/pipeline-datamodel.md` as
+  the orchestrator schema contract; update it with every Flyway migration.
 - Treat `tt-data-league-core-repository-jpa/docs/rfetm-datamodel.md` as the
   persistence schema contract. Update it whenever JPA columns, relationships,
   cascades, constraints, or table behavior change.
@@ -125,6 +151,18 @@ mvn -pl tt-data-league-core-domain -am test
 mvn -pl tt-data-league-core-repository-jpa -am test
 mvn -pl tt-data-league-import -am test
 mvn -pl tt-data-league-import-runtime -am test
+mvn -pl tt-league-pipeline-orchestrator-core -am test
+mvn -pl tt-league-pipeline-orchestrator-runtime -am test
+mvn -pl tt-league-pipeline-orchestrator-frontend -am test
+```
+
+`mvn test` does not cover the Python workspace. For `tt-league-ingest`, run from
+`tt-league-ingest/` (requires uv):
+
+```text
+uv lock --check
+uv sync --all-packages
+uv run pytest
 ```
 
 Do not add generated `target/` content to source changes. Before concluding,

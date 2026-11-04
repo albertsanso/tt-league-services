@@ -1,0 +1,50 @@
+{
+  "id_partido": "2026-2027_divisio-honor_G3_J1_20201878-1052",
+  "acta_publicada": false,
+  "federacion": "Real Federación Española de Tenis de Mesa",
+  "temporada": "2026/2027",
+  "genero": "femenino",
+  "competicion": "DIVISIÓN DE HONOR FEMENINA",
+  "grupo": 3,
+  "jornada": 1,
+  "fecha": "2026-09-27",
+  "hora": "11:00",
+  "lugar": {
+    "ciudad": "Linares (Jaén)",
+    "recinto": "SALA DE TENIS FELIPE VI"
+  },
+  "equipos": {
+    "local": {
+      "id": "20201878",
+      "nombre": "VR ARENA LINARES",
+      "delegado": null,
+      "entrenador": null
+    },
+    "visitante": {
+      "id": "1052",
+      "nombre": "TECNIGEN LINARES",
+      "delegado": null,
+      "entrenador": null
+    }
+  },
+  "abc_es_local": null,
+  "arbitros": {
+    "principal": {
+      "nombre": "REFEREE ONE",
+      "licencia": null
+    },
+    "asistente": null
+  },
+  "alineaciones": {
+    "local": {},
+    "visitante": {}
+  },
+  "dobles": null,
+  "partidos": [],
+  "resultado_final": {
+    "ganador": null,
+    "marcador_partidos": null,
+    "marcador_juegos": null
+  },
+  "acta_protestada": false
+}

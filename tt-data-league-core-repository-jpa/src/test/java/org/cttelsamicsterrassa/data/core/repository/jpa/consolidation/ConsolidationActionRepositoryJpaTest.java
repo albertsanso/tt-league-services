@@ -1,18 +1,15 @@
 package org.cttelsamicsterrassa.data.core.repository.jpa.consolidation;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.cttelsamicsterrassa.data.core.domain.club.model.Club;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.consolidation.model.ConsolidationAction;
 import org.cttelsamicsterrassa.data.core.domain.consolidation.model.ConsolidationActionClub;
 import org.cttelsamicsterrassa.data.core.domain.consolidation.model.ConsolidationActionType;
 import org.cttelsamicsterrassa.data.core.domain.consolidation.repository.ConsolidationActionRepository;
-import org.cttelsamicsterrassa.data.core.domain.load.service.ImportRunRegistry;
+import org.cttelsamicsterrassa.data.core.repository.jpa.JpaTestSupportConfiguration;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -23,10 +20,9 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
 
 @SpringBootTest
-@Import(ConsolidationActionRepositoryJpaTest.TestBeans.class)
+@Import(JpaTestSupportConfiguration.class)
 @Transactional
 class ConsolidationActionRepositoryJpaTest {
 
@@ -171,23 +167,5 @@ class ConsolidationActionRepositoryJpaTest {
                 List.of(ConsolidationActionClub.of(UUID.randomUUID(), "CTT Terrassa Consolidat")));
         consolidationActionRepository.save(action);
         return action;
-    }
-
-    /**
-     * The module-wide {@code JpaTestApplication} component-scans the domain module's
-     * {@code @Named} application services, some of which need beans only the API runtime supplies.
-     * Same workaround as {@code FederatedPlayerRepositoryJpaTest}.
-     */
-    @TestConfiguration(proxyBeanMethods = false)
-    static class TestBeans {
-        @Bean
-        ImportRunRegistry importRunRegistry() {
-            return mock(ImportRunRegistry.class);
-        }
-
-        @Bean
-        ObjectMapper objectMapper() {
-            return new ObjectMapper();
-        }
     }
 }

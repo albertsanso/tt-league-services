@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -68,6 +69,77 @@ class BcnesaMatchdaySplitterTest {
         assertNull(second.homeTeamName());
         assertNull(second.awayTeamName());
         assertFalse(second.isResolved());
+    }
+
+    @Test
+    void anActaWithoutGamesYieldsOneFixtureNamedByEquipos() {
+        // FEAT-00081: a pending fixture has no published games yet but must still reach the
+        // processors so it can be stored as a SCHEDULED match.
+        Acta acta = acta();
+
+        List<BcnesaMatchdaySplitter.Fixture> fixtures = splitter.split(acta, BcnesaClubIndex.of(Map.of()));
+
+        assertEquals(1, fixtures.size());
+        BcnesaMatchdaySplitter.Fixture fixture = fixtures.getFirst();
+        assertEquals("HOME CLUB", fixture.homeTeamName());
+        assertEquals("AWAY CLUB", fixture.awayTeamName());
+        assertTrue(fixture.isResolved());
+        assertTrue(fixture.games().isEmpty());
+    }
+
+    @Test
+    void anActaWithoutGamesOrEquiposStaysUnresolved() {
+        Acta acta = actaWithoutTeams();
+
+        BcnesaMatchdaySplitter.Fixture fixture = splitter.split(acta, BcnesaClubIndex.of(Map.of())).getFirst();
+
+        assertFalse(fixture.isResolved());
+    }
+
+    @Test
+    void neverConsultsTheClubIndexForASingleFixtureActa() {
+        Acta acta = acta(game("10", "20"));
+        AtomicInteger builds = new AtomicInteger();
+
+        splitter.split(acta, () -> {
+            builds.incrementAndGet();
+            return BcnesaClubIndex.of(Map.of());
+        });
+
+        assertEquals(0, builds.get());
+    }
+
+    @Test
+    void neverConsultsTheClubIndexForAnActaWithoutGames() {
+        Acta acta = acta();
+        AtomicInteger builds = new AtomicInteger();
+
+        splitter.split(acta, () -> {
+            builds.incrementAndGet();
+            return BcnesaClubIndex.of(Map.of());
+        });
+
+        assertEquals(0, builds.get());
+    }
+
+    @Test
+    void consultsTheClubIndexOnceForATwoFixtureActa() {
+        Acta acta = acta(game("10", "20"), game("30", "40"));
+        AtomicInteger builds = new AtomicInteger();
+
+        List<BcnesaMatchdaySplitter.Fixture> fixtures = splitter.split(acta, () -> {
+            builds.incrementAndGet();
+            return BcnesaClubIndex.of(Map.of("30", "SECOND HOME", "40", "SECOND AWAY"));
+        });
+
+        assertEquals(1, builds.get());
+        assertEquals("SECOND HOME", fixtures.get(1).homeTeamName());
+        assertEquals("SECOND AWAY", fixtures.get(1).awayTeamName());
+    }
+
+    private static Acta actaWithoutTeams() {
+        return new Acta(null, false, "Federació Catalana de Tennis Taula", "2026/2027", "1a Comarcal", 1, 1,
+                null, null, null, null, null, null, null, null, null, null, List.of(), null, false);
     }
 
     private static Acta acta(ActaGame... games) {

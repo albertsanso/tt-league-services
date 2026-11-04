@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.UUID;
 import java.util.Collection;
 import java.util.List;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -20,4 +21,8 @@ public interface DoublesPairRepositoryHelper extends JpaRepository<DoublesPairJP
             order by gameRecord.id asc, pair.side asc, pair.id asc
             """)
     List<DoublesPairJPA> findAllByGameIds(@Param("gameIds") Collection<UUID> gameIds);
+
+    @Modifying(clearAutomatically = true)
+    @Query("delete from DoublesPairJPA pair where pair.game.match.id in :matchIds")
+    int deleteAllByMatchIds(@Param("matchIds") Collection<UUID> matchIds);
 }

@@ -39,4 +39,11 @@ public interface ImportRunRegistry {
     Optional<ImportRunSnapshot> findByRunId(UUID runId);
 
     Optional<ImportRunSnapshot> findActiveByImportResourceId(UUID importResourceId);
+
+    /**
+     * Reports whether any run is active (queued or running), for any import resource. This is a point-in-time
+     * check for callers that want to wait before touching stored import content; it reserves nothing, so
+     * {@link #registerQueued(UUID, ImportSource, String)} remains the only atomic gate.
+     */
+    boolean hasActiveRun();
 }

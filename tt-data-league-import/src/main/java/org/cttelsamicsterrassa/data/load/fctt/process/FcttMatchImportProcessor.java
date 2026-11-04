@@ -11,11 +11,25 @@ import org.cttelsamicsterrassa.data.core.domain.game.repository.SetScoreReposito
 import org.cttelsamicsterrassa.data.core.domain.lineup.model.Lineup;
 import org.cttelsamicsterrassa.data.core.domain.lineup.repository.LineupRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchContent;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
+import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard.IncomingFixture;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleAction;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleOutcome;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecyclePlan;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecyclePlanner;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleSource;
+import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleWriter;
+import org.cttelsamicsterrassa.data.load.shared.preview.FixturePreview;
+import org.cttelsamicsterrassa.data.load.shared.preview.PreviewChange;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
@@ -31,10 +45,12 @@ import org.springframework.stereotype.Component;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Component
@@ -60,6 +76,10 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
     private final GameRepository gameRepository;
     private final SetScoreRepository setScoreRepository;
     private final DoublesPairRepository doublesPairRepository;
+    private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
+    private final MatchLifecycleWriter lifecycleWriter;
+    private final MatchFixtureIdentityGuard identityGuard;
+    private final MatchLifecyclePlanner planner = new MatchLifecyclePlanner();
 
     public FcttMatchImportProcessor(TeamRepository teamRepository,
                                     PlayerSeasonRepository playerSeasonRepository,
@@ -75,80 +95,306 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         this.gameRepository = gameRepository;
         this.setScoreRepository = setScoreRepository;
         this.doublesPairRepository = doublesPairRepository;
+        this.lifecycleWriter = new MatchLifecycleWriter(matchRepository, lineupRepository, gameRepository,
+                setScoreRepository, doublesPairRepository);
+        this.identityGuard = new MatchFixtureIdentityGuard(matchRepository);
     }
 
     @Override
     public void process(FcttMatchReportContext reportContext) {
-        FcttMatchReportContext context = new FcttMatchReportContext(reportContext.season(), reportContext.gender(),
-                reportContext.leagueCompetition(), reportContext.group(), reportContext.round(),
-                reportContext.matchReportFile(), FcttActaOrientation.toHomeAway(reportContext.acta()),
-                reportContext.runContext());
-        if (!context.acta().isPublished()) {
-            LOGGER.debug("FCTT report {} is not published; match not stored", context.matchReportFile());
-            return;
-        }
-        if (context.acta().teams() == null || context.acta().teams().home() == null
-                || context.acta().teams().away() == null) {
-            LOGGER.warn("FCTT report {} has incomplete teams; match not stored", context.matchReportFile());
-            return;
-        }
-        if (context.hasGroupFolder() && context.groupNumber().isEmpty()) {
-            LOGGER.warn("FCTT report {} has invalid group folder {}; match not stored",
-                    context.matchReportFile(), context.group());
+        ResolvedFixture resolved = resolve(reportContext);
+        FcttMatchReportContext context = resolved.context();
+        if (resolved.notStored() != null) {
+            logNotStored(resolved);
             return;
         }
 
-        Season season = context.toSeason();
-        Optional<Team> homeTeam = resolveTeam(context.acta().teams().home(), season, context);
-        Optional<Team> awayTeam = resolveTeam(context.acta().teams().away(), season, context);
+        Optional<Team> homeTeam = resolved.homeTeam();
+        Optional<Team> awayTeam = resolved.awayTeam();
+        if (homeTeam.isEmpty() && isBlank(resolved.homeTeamName())) {
+            LOGGER.warn("FCTT report {} has a team without a name; match not stored", context.matchReportFile());
+        }
+        if (awayTeam.isEmpty() && isBlank(resolved.awayTeamName())) {
+            LOGGER.warn("FCTT report {} has a team without a name; match not stored", context.matchReportFile());
+        }
+        if (homeTeam.isEmpty() && !isBlank(resolved.homeTeamName())) {
+            LOGGER.warn("FCTT club {} has no entry for season {}; match not stored",
+                    resolved.homeTeamName(), resolved.season());
+        }
+        if (awayTeam.isEmpty() && !isBlank(resolved.awayTeamName())) {
+            LOGGER.warn("FCTT club {} has no entry for season {}; match not stored",
+                    resolved.awayTeamName(), resolved.season());
+        }
+        // FEAT-00086: the fixture is "seen" even when a team is unregistered or the identity guard
+        // later rejects it, so snapshot reconciliation cannot report it as absent.
+        context.runContext().recordSnapshotFixture(resolved.competition(), resolved.groupNumber(),
+                resolved.phase(), resolved.round(), resolved.sourceFixtureId(),
+                homeTeam.map(Team::getId).orElse(null), awayTeam.map(Team::getId).orElse(null));
         if (homeTeam.isEmpty() || awayTeam.isEmpty()) {
             return;
         }
-
-        Integer groupNumber = context.groupNumber().isPresent() ? context.groupNumber().getAsInt() : null;
-        if (matchRepository.findMatchByNaturalKey(context.competition(), season, groupNumber, context.round(),
-                context.phase(), homeTeam.get().getId(), awayTeam.get().getId()).isPresent()) {
-            LOGGER.debug("FCTT match already stored for {}; skipping", context.matchReportFile());
+        if (resolved.conflict().isPresent()) {
+            recordOutcome(context, MatchLifecycleOutcome.FIXTURE_IDENTITY_CONFLICT, resolved.conflict().get());
             return;
         }
-
-        Match match = buildMatch(context, season, groupNumber, homeTeam.get(), awayTeam.get());
-        matchRepository.saveMatch(match);
-
-        SideLineup home = resolveLineup(context.acta().lineups() == null
-                ? Map.of() : context.acta().lineups().home(), season, context);
-        SideLineup away = resolveLineup(context.acta().lineups() == null
-                ? Map.of() : context.acta().lineups().away(), season, context);
-        lineupRepository.saveLineups(buildLineups(match, homeTeam.get(), home, awayTeam.get(), away));
-        storeGames(context, match, home, away);
+        MatchLifecycleOutcome outcome = lifecycleWriter.apply(resolved.classification(), resolved.existing(),
+                new FcttLifecycleSource(context, resolved.season(), resolved.groupNumber(),
+                        homeTeam.get(), awayTeam.get()), context.runContext().amendedActaMode(),
+                context.matchReportFile());
+        recordOutcome(context, outcome, resolved.classification().reason());
     }
 
-    private Match buildMatch(FcttMatchReportContext context, Season season, Integer groupNumber,
-                             Team homeTeam, Team awayTeam) {
-        Acta acta = context.acta();
-        ActaScore gamesWon = acta.finalResult() == null ? null : acta.finalResult().gamesWon();
-        ActaScore setsWon = acta.finalResult() == null ? null : acta.finalResult().setsWon();
-        return Match.builder()
-                .id(UUID.randomUUID())
-                .source(ImportSource.FCTT)
-                .competition(context.competition())
-                .season(season)
-                .groupNumber(groupNumber)
-                .round(context.round())
-                .phase(context.phase())
-                .dateTime(toDateTime(acta))
-                .city(acta.venue() == null ? null : acta.venue().city())
-                .venue(acta.venue() == null ? null : acta.venue().venue())
-                .homeTeam(homeTeam)
-                .awayTeam(awayTeam)
-                .winnerTeam(resolveWinnerTeam(acta, homeTeam, awayTeam, context))
-                .refereeName(refereeName(acta))
-                .homeGamesWon(gamesWon == null ? null : gamesWon.home())
-                .awayGamesWon(gamesWon == null ? null : gamesWon.away())
-                .homeSetsWon(setsWon == null ? null : setsWon.home())
-                .awaySetsWon(setsWon == null ? null : setsWon.away())
-                .protested(acta.wasProtested())
-                .createNew();
+    /**
+     * FEAT-00088: the read-only projection of {@link #process} for the import preview. It shares the
+     * resolution step (so the natural key and fixture id cannot diverge) and the lifecycle planner,
+     * but never writes, never records a snapshot fixture and never records a match outcome.
+     */
+    public FixturePreview preview(FcttMatchReportContext reportContext) {
+        ResolvedFixture resolved = resolve(reportContext);
+        if (resolved.notStored() != null) {
+            return fixturePreview(resolved, PreviewChange.NOT_STORED, null, false,
+                    resolved.classification().unresolvedPendingFixture()
+                            ? resolved.classification().reason() : resolved.notStored().reason(resolved));
+        }
+        if (isBlank(resolved.homeTeamName()) || isBlank(resolved.awayTeamName())) {
+            return fixturePreview(resolved, PreviewChange.NOT_STORED, null, false, "team without a name");
+        }
+        if (resolved.homeTeam().isEmpty() || resolved.awayTeam().isEmpty()) {
+            MatchLifecyclePlan plan = MatchLifecyclePlanner.planCreation(resolved.classification());
+            return fixturePreview(resolved, PreviewChange.of(plan), null, true,
+                    resolved.classification().reason());
+        }
+        if (resolved.conflict().isPresent()) {
+            return fixturePreview(resolved, PreviewChange.IDENTITY_CONFLICT, null, false,
+                    resolved.conflict().get());
+        }
+        MatchLifecyclePlan plan = planner.plan(resolved.classification(), resolved.existing(),
+                new FcttLifecycleSource(resolved.context(), resolved.season(), resolved.groupNumber(),
+                        resolved.homeTeam().get(), resolved.awayTeam().get()));
+        Integer existingRound = plan.action() == MatchLifecycleAction.UPGRADE_TO_PLAYED
+                ? resolved.existing().get().getRound()
+                : null;
+        return fixturePreview(resolved, PreviewChange.of(plan), existingRound, false,
+                resolved.classification().reason());
+    }
+
+    /**
+     * The shared read-only resolution of one FCTT report: orientation, classification, scope and the
+     * early-exit, team-lookup, natural-key and identity-guard steps. {@code process} and
+     * {@code preview} both build on it so the key and fixture-id rules cannot diverge.
+     */
+    private ResolvedFixture resolve(FcttMatchReportContext reportContext) {
+        ActaClassification classification = classifier.classify(reportContext.acta());
+        Acta acta = classification.isPlayed() ? FcttActaOrientation.toHomeAway(reportContext.acta())
+                : reportContext.acta();
+        FcttMatchReportContext context = new FcttMatchReportContext(reportContext.season(), reportContext.gender(),
+                reportContext.leagueCompetition(), reportContext.group(), reportContext.round(),
+                reportContext.matchReportFile(), acta, reportContext.runContext());
+        Season season = context.toSeason();
+        String competition = context.competition();
+        Integer groupNumber = context.groupNumber().isPresent() ? context.groupNumber().getAsInt() : null;
+        int round = context.round();
+        String phase = context.phase();
+
+        if (classification.unresolvedPendingFixture()) {
+            return ResolvedFixture.notStored(context, acta, classification, season, competition, groupNumber,
+                    round, phase, NotStored.UNRESOLVED_PENDING);
+        }
+        if (acta.teams() == null || acta.teams().home() == null || acta.teams().away() == null) {
+            return ResolvedFixture.notStored(context, acta, classification, season, competition, groupNumber,
+                    round, phase, NotStored.INCOMPLETE_TEAMS);
+        }
+        if (context.hasGroupFolder() && context.groupNumber().isEmpty()) {
+            return ResolvedFixture.notStored(context, acta, classification, season, competition, groupNumber,
+                    round, phase, NotStored.INVALID_GROUP_FOLDER);
+        }
+
+        String homeTeamName = acta.teams().home().name();
+        String awayTeamName = acta.teams().away().name();
+        Optional<Team> homeTeam = lookupTeam(homeTeamName, season);
+        Optional<Team> awayTeam = lookupTeam(awayTeamName, season);
+        Optional<Match> existing = Optional.empty();
+        Optional<String> conflict = Optional.empty();
+        if (homeTeam.isPresent() && awayTeam.isPresent()) {
+            existing = matchRepository.findMatchByNaturalKey(competition, season, groupNumber, round, phase,
+                    homeTeam.get().getId(), awayTeam.get().getId());
+            conflict = identityGuard.conflict(
+                    new IncomingFixture(ImportSource.FCTT, acta.matchId(), competition, season, groupNumber,
+                            round, phase),
+                    existing);
+        }
+        return new ResolvedFixture(context, acta, classification, season, competition, groupNumber, round,
+                phase, acta.matchId(), homeTeamName, awayTeamName, homeTeam, awayTeam, existing, conflict, null);
+    }
+
+    private Optional<Team> lookupTeam(String name, Season season) {
+        if (isBlank(name)) {
+            return Optional.empty();
+        }
+        return teamRepository.findTeamByNameAndSeasonAndSource(name, season, ImportSource.FCTT);
+    }
+
+    private void logNotStored(ResolvedFixture resolved) {
+        switch (resolved.notStored()) {
+            case UNRESOLVED_PENDING -> LOGGER.warn("FCTT report {} is a pending fixture without teams; not stored",
+                    resolved.context().matchReportFile());
+            case INCOMPLETE_TEAMS -> LOGGER.warn("FCTT report {} has incomplete teams; match not stored",
+                    resolved.context().matchReportFile());
+            case INVALID_GROUP_FOLDER -> LOGGER.warn("FCTT report {} has invalid group folder {}; match not stored",
+                    resolved.context().matchReportFile(), resolved.context().group());
+        }
+    }
+
+    private FixturePreview fixturePreview(ResolvedFixture resolved, PreviewChange change, Integer existingRound,
+                                          boolean teamsPendingRegistration, String reason) {
+        return new FixturePreview(ImportSource.FCTT, resolved.competition(), resolved.groupNumber(),
+                resolved.phase(), resolved.round(), resolved.sourceFixtureId(), resolved.homeTeamName(),
+                resolved.awayTeamName(), resolved.classification(), change, existingRound,
+                teamsPendingRegistration, reason, resolved.context().matchReportFile());
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private void recordOutcome(FcttMatchReportContext context, MatchLifecycleOutcome outcome, String reason) {
+        String effectiveReason = outcome.amendmentReason() != null ? outcome.amendmentReason() : reason;
+        context.runContext().recordMatchOutcome(outcome, getClass().getSimpleName(),
+                context.matchReportFile(), effectiveReason);
+        if (outcome.isReportable()) {
+            LOGGER.warn("FCTT match lifecycle {} for {}: {}", outcome, context.matchReportFile(), effectiveReason);
+        }
+    }
+
+    /** Why a FCTT report is skipped before any team lookup or snapshot record. */
+    private enum NotStored {
+        UNRESOLVED_PENDING, INCOMPLETE_TEAMS, INVALID_GROUP_FOLDER;
+
+        private String reason(ResolvedFixture resolved) {
+            return switch (this) {
+                case UNRESOLVED_PENDING -> resolved.classification().reason();
+                case INCOMPLETE_TEAMS -> "incomplete teams";
+                case INVALID_GROUP_FOLDER -> "invalid group folder " + resolved.context().group();
+            };
+        }
+    }
+
+    /** The read-only result of resolving one FCTT report, shared by {@code process} and {@code preview}. */
+    private record ResolvedFixture(
+            FcttMatchReportContext context,
+            Acta acta,
+            ActaClassification classification,
+            Season season,
+            String competition,
+            Integer groupNumber,
+            int round,
+            String phase,
+            String sourceFixtureId,
+            String homeTeamName,
+            String awayTeamName,
+            Optional<Team> homeTeam,
+            Optional<Team> awayTeam,
+            Optional<Match> existing,
+            Optional<String> conflict,
+            NotStored notStored) {
+
+        private static ResolvedFixture notStored(FcttMatchReportContext context, Acta acta,
+                ActaClassification classification, Season season, String competition, Integer groupNumber,
+                int round, String phase, NotStored notStored) {
+            return new ResolvedFixture(context, acta, classification, season, competition, groupNumber, round,
+                    phase, acta.matchId(), null, null, Optional.empty(), Optional.empty(), Optional.empty(),
+                    Optional.empty(), notStored);
+        }
+    }
+
+    /**
+     * The FCTT callbacks of the shared match lifecycle. Orientation has already been applied when
+     * the classification is PLAYED, so the scheduled header never reads {@code resultado_final}.
+     */
+    private final class FcttLifecycleSource implements MatchLifecycleSource {
+
+        private final FcttMatchReportContext context;
+        private final Season season;
+        private final Integer groupNumber;
+        private final Team homeTeam;
+        private final Team awayTeam;
+
+        private FcttLifecycleSource(FcttMatchReportContext context, Season season, Integer groupNumber,
+                                    Team homeTeam, Team awayTeam) {
+            this.context = context;
+            this.season = season;
+            this.groupNumber = groupNumber;
+            this.homeTeam = homeTeam;
+            this.awayTeam = awayTeam;
+        }
+
+        @Override
+        public Match buildScheduledMatch(UUID id) {
+            Acta acta = context.acta();
+            return Match.builder()
+                    .id(id)
+                    .source(ImportSource.FCTT)
+                    .sourceFixtureId(acta.matchId())
+                    .competition(context.competition())
+                    .season(season)
+                    .groupNumber(groupNumber)
+                    .round(context.round())
+                    .phase(context.phase())
+                    .dateTime(toDateTime(acta))
+                    .city(acta.venue() == null ? null : acta.venue().city())
+                    .venue(acta.venue() == null ? null : acta.venue().venue())
+                    .homeTeam(homeTeam)
+                    .awayTeam(awayTeam)
+                    .refereeName(refereeName(acta))
+                    .protested(acta.wasProtested())
+                    .status(MatchStatus.SCHEDULED)
+                    .createNew();
+        }
+
+        @Override
+        public MatchContent buildPlayedContent(UUID id, boolean existing) {
+            Match match = buildPlayedMatch(id, existing);
+            SideLineup home = resolveLineup(context.acta().lineups() == null
+                    ? Map.of() : context.acta().lineups().home(), season, context);
+            SideLineup away = resolveLineup(context.acta().lineups() == null
+                    ? Map.of() : context.acta().lineups().away(), season, context);
+            List<Lineup> lineups = buildLineups(match, homeTeam, home, awayTeam, away);
+            BuiltGames built = buildGames(context, match, home, away);
+            return new MatchContent(match, lineups, built.games(), built.setScores(), built.doublesPairs());
+        }
+
+        private Match buildPlayedMatch(UUID id, boolean existing) {
+            Acta acta = context.acta();
+            ActaScore gamesWon = acta.finalResult() == null ? null : acta.finalResult().gamesWon();
+            ActaScore setsWon = acta.finalResult() == null ? null : acta.finalResult().setsWon();
+            Match.MatchBuilder builder = Match.builder()
+                    .id(id)
+                    .source(ImportSource.FCTT)
+                    .sourceFixtureId(acta.matchId())
+                    .competition(context.competition())
+                    .season(season)
+                    .groupNumber(groupNumber)
+                    .round(context.round())
+                    .phase(context.phase())
+                    .dateTime(toDateTime(acta))
+                    .city(acta.venue() == null ? null : acta.venue().city())
+                    .venue(acta.venue() == null ? null : acta.venue().venue())
+                    .homeTeam(homeTeam)
+                    .awayTeam(awayTeam)
+                    .winnerTeam(resolveWinnerTeam(acta, homeTeam, awayTeam, context))
+                    .refereeName(refereeName(acta))
+                    .homeGamesWon(gamesWon == null ? null : gamesWon.home())
+                    .awayGamesWon(gamesWon == null ? null : gamesWon.away())
+                    .homeSetsWon(setsWon == null ? null : setsWon.home())
+                    .awaySetsWon(setsWon == null ? null : setsWon.away())
+                    .protested(acta.wasProtested())
+                    .status(MatchStatus.PLAYED);
+            return existing ? builder.createExisting() : builder.createNew();
+        }
+    }
+
+    /** Games, set scores and doubles pairs built from one report, not yet saved. */
+    private record BuiltGames(List<Game> games, List<SetScore> setScores, List<DoublesPair> doublesPairs) {
     }
 
     private static ZonedDateTime toDateTime(Acta acta) {
@@ -194,8 +440,9 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         Map<String, PlayerSeason> byName = new LinkedHashMap<>();
         Map<String, Double> rankingByLetter = new LinkedHashMap<>();
         letters.forEach((letter, player) -> {
-            if (player == null || player.license() == null) {
-                LOGGER.warn("FCTT lineup letter {} has no licence in {}", letter, context.matchReportFile());
+            if (player == null || !FcttLicenses.isUsable(player.license())) {
+                LOGGER.warn("FCTT lineup letter {} has no usable licence ({}) in {}; lineup left out", letter,
+                        player == null ? null : player.license(), context.matchReportFile());
                 return;
             }
             playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.FCTT, player.license(), season)
@@ -240,7 +487,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         });
     }
 
-    private void storeGames(FcttMatchReportContext context, Match match, SideLineup home, SideLineup away) {
+    private BuiltGames buildGames(FcttMatchReportContext context, Match match, SideLineup home, SideLineup away) {
         List<Game> games = new ArrayList<>();
         List<SetScore> setScores = new ArrayList<>();
         List<DoublesPair> doublesPairs = new ArrayList<>();
@@ -256,9 +503,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
                 doublesPairs.addAll(buildDoublesPairs(actaGame, game, home, away, context));
             }
         }
-        gameRepository.saveGames(games);
-        setScoreRepository.saveSetScores(setScores);
-        doublesPairRepository.saveDoublesPairs(doublesPairs);
+        return new BuiltGames(games, setScores, doublesPairs);
     }
 
     private Game buildGame(ActaGame actaGame, Match match, SideLineup home, SideLineup away) {
@@ -331,11 +576,20 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         if (participant == null) {
             return;
         }
+        Set<UUID> pairMembers = new HashSet<>();
         for (ActaLineupPlayer player : participant.doublesPlayers()) {
             PlayerSeason playerSeason = playerOf(player, lineup, context.toSeason());
             if (playerSeason == null) {
                 LOGGER.warn("FCTT doubles player \"{}\" with licence {} is unavailable in {}; pair member left out",
                         player == null ? null : player.name(), player == null ? null : player.license(),
+                        context.matchReportFile());
+                continue;
+            }
+            // Some actas name the same player twice in one pair; a second row would break the
+            // (game, side, player, source) unique key, so the repeated member is left out.
+            if (!pairMembers.add(playerSeason.getId())) {
+                LOGGER.warn("FCTT doubles player \"{}\" with licence {} is listed twice on the {} side in {}; "
+                        + "duplicate pair member left out", player.name(), player.license(), side,
                         context.matchReportFile());
                 continue;
             }
@@ -350,7 +604,7 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
     }
 
     private PlayerSeason playerOf(ActaLineupPlayer player, SideLineup lineup, Season season) {
-        if (player == null || player.name() == null || player.license() == null) {
+        if (player == null || player.name() == null || !FcttLicenses.isUsable(player.license())) {
             return null;
         }
         PlayerSeason inLineup = lineup.byName().get(player.name());
@@ -359,20 +613,6 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
         }
         return playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.FCTT, player.license(), season)
                 .orElse(null);
-    }
-
-    private Optional<Team> resolveTeam(ActaTeam team, Season season, FcttMatchReportContext context) {
-        if (team.name() == null || team.name().isBlank()) {
-            LOGGER.warn("FCTT report {} has a team without a name; match not stored", context.matchReportFile());
-            return Optional.empty();
-        }
-
-        Optional<Team> resolvedTeam = teamRepository.findTeamByNameAndSeasonAndSource(team.name(), season, ImportSource.FCTT);
-        if (resolvedTeam.isEmpty()) {
-            LOGGER.warn("FCTT club {} has no entry for season {}; match not stored", team.name(), season);
-        }
-
-        return resolvedTeam;
     }
 
     private record SideLineup(Map<String, PlayerSeason> byLetter,

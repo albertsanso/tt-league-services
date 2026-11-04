@@ -47,6 +47,21 @@ class InMemoryImportRunRegistryTest {
     }
 
     @Test
+    void reportsAnActiveRunFromQueuedUntilTerminal() {
+        InMemoryImportRunRegistry registry = new InMemoryImportRunRegistry();
+        assertFalse(registry.hasActiveRun());
+
+        ImportRunSnapshot queued = registry.registerQueued(UUID.randomUUID(), ImportSource.FCTT, "2026-2027")
+                .orElseThrow();
+        assertTrue(registry.hasActiveRun());
+        registry.markRunning(queued.runId(), ImportRunProgress.zero());
+        assertTrue(registry.hasActiveRun());
+
+        registry.complete(queued.runId(), ImportRunStatus.FAILURE, ImportRunProgress.zero(), null, "boom");
+        assertFalse(registry.hasActiveRun());
+    }
+
+    @Test
     void rejectsASecondQueuedRunWhileOneIsAlreadyActiveForTheSameResource() {
         InMemoryImportRunRegistry registry = new InMemoryImportRunRegistry();
         UUID resourceId = UUID.randomUUID();

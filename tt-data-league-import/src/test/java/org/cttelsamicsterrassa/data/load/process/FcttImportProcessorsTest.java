@@ -1,8 +1,8 @@
 package org.cttelsamicsterrassa.data.load.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttTeamImportProcessor;
@@ -22,6 +22,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
@@ -29,11 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class FcttImportProcessorsTest {
 
-    private InMemoryRepositories.Clubs clubs;
-    private InMemoryRepositories.CanonicalClubs canonicalClubs;
     private InMemoryRepositories.Teams teams;
-    private InMemoryRepositories.Players players;
-    private InMemoryRepositories.Players.CanonicalPlayers canonicalPlayers;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
     private InMemoryRepositories.Matches matches;
     private InMemoryRepositories.Lineups lineups;
@@ -44,17 +41,13 @@ class FcttImportProcessorsTest {
 
     @BeforeEach
     void setUp() {
-        clubs = new InMemoryRepositories.Clubs();
-        canonicalClubs = new InMemoryRepositories.CanonicalClubs();
         teams = new InMemoryRepositories.Teams();
-        players = new InMemoryRepositories.Players();
-        canonicalPlayers = new InMemoryRepositories.Players.CanonicalPlayers();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
-        matches = new InMemoryRepositories.Matches();
         lineups = new InMemoryRepositories.Lineups(playerSeasons);
         games = new InMemoryRepositories.Games();
         setScores = new InMemoryRepositories.SetScores();
         doublesPairs = new InMemoryRepositories.DoublesPairs();
+        matches = new InMemoryRepositories.Matches(lineups, games, setScores, doublesPairs);
         processors = List.of(
                 new FcttTeamImportProcessor(teams),
                 new FcttPlayerImportProcessor(playerSeasons),
@@ -63,17 +56,16 @@ class FcttImportProcessorsTest {
     }
 
     @Test
-    void storesClubsAndPlayersUnderTheFcttSource() {
+    void storesTeamsAndSeasonRegistrationsUnderTheFcttSource() {
         run(context("acta_singles.json", "G3"));
 
-        assertEquals(2, clubs.byId.size());
-        FederatedClub home = clubs.findFederatedClubBySourceAndName(ImportSource.FCTT, "HORTITEC ALZIRA TT").orElseThrow();
-        assertEquals(ImportSource.FCTT, home.getSource());
-        assertEquals(2, canonicalClubs.size());
-        assertEquals("HORTITEC ALZIRA TT", home.getClub().orElseThrow().getName());
-        assertTrue(teams.findTeamByFederatedClubAndSeason(home.getId(), Season.of(2023)).isPresent());
-        assertEquals(6, players.byId.size());
-        assertEquals(6, canonicalPlayers.byId.size());
+        // The acta import registers Team and PlayerSeason rows under the FCTT source;
+        // FederatedClub/Club and FederatedPlayer/Player rows belong to the consolidation
+        // processors.
+        assertEquals(2, teams.byId.size());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("HORTITEC ALZIRA TT", Season.of(2023),
+                ImportSource.FCTT).isPresent());
+        assertEquals(6, playerSeasons.byId.size());
         assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.FCTT, "29194", Season.of(2023))
                 .isPresent());
     }
@@ -91,6 +83,7 @@ class FcttImportProcessorsTest {
         assertEquals("Tercera nacional-masculino", match.getCompetition());
         assertEquals(3, match.getGroupNumber());
         assertEquals(1, match.getRound());
+        assertEquals(MatchStatus.PLAYED, match.getStatus());
         assertEquals(6, lineups.saved.size());
         assertEquals(7, games.saved.size());
         assertEquals(30, setScores.saved.size());
@@ -138,12 +131,56 @@ class FcttImportProcessorsTest {
     }
 
     @Test
-    void unpublishedActaStoresNoMatch() {
+    void unpublishedActaStoresAScheduledMatchWithNoChildren() {
         run(context("acta_fctt_unpublished.json", "G1"));
 
-        assertEquals(0, matches.saved.size());
+        assertEquals(1, matches.saved.size());
+        Match match = matches.saved.getFirst();
+        assertEquals(MatchStatus.SCHEDULED, match.getStatus());
+        assertNull(match.getWinnerTeam());
+        assertNull(match.getHomeGamesWon());
+        assertNull(match.getAwayGamesWon());
         assertEquals(0, lineups.saved.size());
         assertEquals(0, games.saved.size());
+    }
+
+    @Test
+    void placeholderLicencesDoNotCollapseDifferentPlayersIntoOneRegistration() {
+        // Real FCTT extract where every player carries licence "0". Resolving by that value
+        // used to map all six players, and both doubles members, to one PlayerSeason.
+        run(context("acta_fctt_placeholder_licences.json", "G3"));
+
+        assertEquals(1, matches.saved.size());
+        assertEquals(MatchStatus.PLAYED, matches.saved.getFirst().getStatus());
+        assertTrue(playerSeasons.byId.isEmpty());
+        assertEquals(0, lineups.saved.size());
+        assertEquals(0, doublesPairs.saved.size());
+        assertTrue(games.saved.stream().allMatch(game -> game.getHomePlayer() == null
+                && game.getAwayPlayer() == null));
+    }
+
+    @Test
+    void aDoublesPairListingTheSamePlayerTwiceStoresThatPlayerOnce() {
+        // Real FCTT extract (copa-catalana-femenina-2a, partido 2926): the home pair names licence
+        // 19214 twice, which used to insert two identical doubles_pair rows and break
+        // uk_doubles_pair_game_side_player_source.
+        FcttMatchReportContext context = context("acta_fctt_duplicate_doubles_player.json", "female",
+                "copa-catalana-femenina-2a", "G2");
+
+        run(context);
+        run(context);
+
+        assertEquals(1, matches.saved.size());
+        assertEquals(MatchStatus.PLAYED, matches.saved.getFirst().getStatus());
+        assertEquals(List.of("19214"), doublesPairs.saved.stream()
+                .filter(pair -> "HOME".equals(pair.getSide()))
+                .map(pair -> pair.getPlayer().getLicenseId())
+                .toList());
+        assertEquals(List.of("17807", "20277"), doublesPairs.saved.stream()
+                .filter(pair -> "AWAY".equals(pair.getSide()))
+                .map(pair -> pair.getPlayer().getLicenseId())
+                .sorted()
+                .toList());
     }
 
     @Test

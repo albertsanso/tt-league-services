@@ -1,9 +1,10 @@
 package org.cttelsamicsterrassa.data.load.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.FederatedClub;
 import org.cttelsamicsterrassa.data.core.domain.game.model.DoublesPair;
 import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
+import org.cttelsamicsterrassa.data.core.domain.game.model.SetScore;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaTeamImportProcessor;
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
+import java.util.Comparator;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -30,15 +32,12 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 class BcnesaImportProcessorsTest {
 
-    private InMemoryRepositories.Clubs clubs;
-    private InMemoryRepositories.CanonicalClubs canonicalClubs;
     private InMemoryRepositories.Teams teams;
-    private InMemoryRepositories.Players players;
-    private InMemoryRepositories.Players.CanonicalPlayers canonicalPlayers;
     private InMemoryRepositories.PlayerSeasons playerSeasons;
     private InMemoryRepositories.Matches matches;
     private InMemoryRepositories.Lineups lineups;
     private InMemoryRepositories.Games games;
+    private InMemoryRepositories.SetScores setScores;
     private InMemoryRepositories.DoublesPairs doublesPairs;
 
     private List<BcnesaMatchReportProcessor> processors;
@@ -46,62 +45,61 @@ class BcnesaImportProcessorsTest {
 
     @BeforeEach
     void setUp() {
-        clubs = new InMemoryRepositories.Clubs();
-        canonicalClubs = new InMemoryRepositories.CanonicalClubs();
         teams = new InMemoryRepositories.Teams();
-        players = new InMemoryRepositories.Players();
-        canonicalPlayers = new InMemoryRepositories.Players.CanonicalPlayers();
         playerSeasons = new InMemoryRepositories.PlayerSeasons();
-        matches = new InMemoryRepositories.Matches();
         lineups = new InMemoryRepositories.Lineups(playerSeasons);
         games = new InMemoryRepositories.Games();
         doublesPairs = new InMemoryRepositories.DoublesPairs();
+        setScores = new InMemoryRepositories.SetScores();
+        matches = new InMemoryRepositories.Matches(lineups, games, setScores, doublesPairs);
 
         processors = List.of(
                 new BcnesaTeamImportProcessor(teams),
                 new BcnesaPlayerImportProcessor(playerSeasons),
                 new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games,
-                        doublesPairs));
+                        setScores, doublesPairs));
 
         acta = new ActaParser().parse(fixture("acta_matchday.json"));
     }
 
     @Test
-    void storesBothClubsOfEachFixtureUnderTheBcnesaSource() {
+    void storesBothTeamsOfEachFixtureUnderTheBcnesaSource() {
         run(firstFixture());
         run(secondFixture());
 
-        assertEquals(4, clubs.byId.size());
-        assertEquals(4, canonicalClubs.size());
-        FederatedClub home1 = clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "FALCONS DE SABADELL").orElseThrow();
-        FederatedClub home2 = clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "CTT ATENEU").orElseThrow();
-        assertEquals("FALCONS DE SABADELL", home1.getClub().orElseThrow().getName());
-        assertEquals("CTT ATENEU", home2.getClub().orElseThrow().getName());
-        assertTrue(teams.findTeamByFederatedClubAndSeason(home1.getId(), Season.of(2020)).isPresent());
-        assertTrue(teams.findTeamByFederatedClubAndSeason(home2.getId(), Season.of(2020)).isPresent());
+        // The acta import registers Team rows only; FederatedClub and canonical Club rows are
+        // created by the consolidation processors.
+        assertEquals(4, teams.byId.size());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("FALCONS DE SABADELL", Season.of(2020),
+                ImportSource.BCNESA).isPresent());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("CTT ATENEU", Season.of(2020),
+                ImportSource.BCNESA).isPresent());
+        assertEquals(4, teams.findAllTeamsBySource(ImportSource.BCNESA).size());
     }
 
     @Test
-    void normalizesQuotedTeamLetterSuffixesToOneClubRow() {
+    void normalizesQuotedTeamLetterSuffixesToOneTeamRow() {
         BcnesaMatchReportContext quoted = fixtureContext(0, "CLUB ARIEL \"A\"", "CLUB ARIEL ''B''");
         BcnesaMatchReportContext bare = fixtureContext(1, "CLUB ARIEL A", "CLUB ARIEL B");
 
         run(quoted);
         run(bare);
 
-        assertEquals(2, clubs.byId.size());
-        assertTrue(clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "CLUB ARIEL A").isPresent());
-        assertTrue(clubs.findFederatedClubBySourceAndName(ImportSource.BCNESA, "CLUB ARIEL B").isPresent());
+        assertEquals(2, teams.byId.size());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("CLUB ARIEL A", Season.of(2020),
+                ImportSource.BCNESA).isPresent());
+        assertTrue(teams.findTeamByNameAndSeasonAndSource("CLUB ARIEL B", Season.of(2020),
+                ImportSource.BCNESA).isPresent());
     }
 
     @Test
-    void storesOnePlayerPerSinglesParticipantAcrossBothFixtures() {
+    void storesOneSeasonRegistrationPerSinglesParticipantAcrossBothFixtures() {
         run(firstFixture());
         run(secondFixture());
 
         // 2 games per fixture, 2 distinct participants per game, no overlap between fixtures.
-        assertEquals(8, players.byId.size());
-        assertEquals(8, canonicalPlayers.byId.size());
+        // FederatedPlayer/Player rows are not created by the acta import; only the season
+        // registration is.
         assertEquals(8, playerSeasons.byId.size());
         assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.BCNESA, "7026", Season.of(2020)).isPresent());
         assertTrue(playerSeasons.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.BCNESA, "878", Season.of(2020)).isPresent());
@@ -213,7 +211,7 @@ class BcnesaImportProcessorsTest {
     void skipsAFixtureWhoseClubWasNeverImported() {
         BcnesaMatchReportContext context = firstFixture();
 
-        new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games, doublesPairs)
+        new BcnesaMatchImportProcessor(teams, playerSeasons, matches, lineups, games, setScores, doublesPairs)
                 .process(context);
 
         assertTrue(matches.saved.isEmpty());
@@ -231,6 +229,7 @@ class BcnesaImportProcessorsTest {
         Match match = matches.saved.getFirst();
         assertEquals("CTT DELS HORTS 2000", homeName(match));
         assertEquals("CTT RIPOLLET", match.getAwayTeam().getName());
+        assertEquals(MatchStatus.PLAYED, match.getStatus());
         assertEquals(4, match.getHomeGamesWon());
         assertEquals(2, match.getAwayGamesWon());
         assertEquals(match.getHomeTeam(), match.getWinnerTeam());
@@ -246,6 +245,39 @@ class BcnesaImportProcessorsTest {
         assertEquals("HOME", first.getWinnerSide());
         assertEquals(3, first.getHomeSetsWon());
         assertEquals(0, first.getAwaySetsWon());
+    }
+
+    @Test
+    void storesTheSetScoresOfEveryGameFromTheHtmlBasedActas() {
+        // Real 2026-2027 acta: the HTML-based export carries the points of every set, doubles included.
+        Acta published = new ActaParser().parse(fixture("acta_bcnesa_2026_published.json"));
+        run(new BcnesaMatchReportContext("2026-2027", "RTB 1a COMARCAL", "G2", "1a Fase", 1, 0,
+                published.teams().home().name(), published.teams().away().name(),
+                fixture("acta_bcnesa_2026_published.json"), published, published.games()));
+
+        assertEquals(7, games.saved.size());
+        assertEquals(28, setScores.saved.size());
+        setScores.saved.forEach(setScore -> assertEquals(ImportSource.BCNESA, setScore.getSource()));
+
+        Game first = games.saved.stream().filter(g -> g.getGameNumber() == 1).findFirst().orElseThrow();
+        List<SetScore> firstSets = setScores.saved.stream()
+                .filter(setScore -> setScore.getGame() == first)
+                .sorted(Comparator.comparingInt(SetScore::getSetNumber))
+                .toList();
+        assertEquals(4, firstSets.size());
+        assertEquals(13, firstSets.get(1).getHomePoints());
+        assertEquals(15, firstSets.get(1).getAwayPoints());
+
+        Game doubles = games.saved.stream().filter(g -> g.getGameNumber() == 7).findFirst().orElseThrow();
+        assertEquals(5, setScores.saved.stream().filter(setScore -> setScore.getGame() == doubles).count());
+    }
+
+    @Test
+    void storesNoSetScoresForThePdfBasedActasThatHaveNone() {
+        run(firstFixture());
+
+        assertFalse(games.saved.isEmpty());
+        assertTrue(setScores.saved.isEmpty());
     }
 
     private void run(BcnesaMatchReportContext context) {

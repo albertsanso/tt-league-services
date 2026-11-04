@@ -78,6 +78,11 @@ public class InMemoryImportRunRegistry implements ImportRunRegistry {
         return Optional.ofNullable(activeRunByResource.get(importResourceId)).flatMap(this::findByRunId);
     }
 
+    @Override
+    public boolean hasActiveRun() {
+        return activeRun.get() != null;
+    }
+
     private Optional<ImportRunSnapshot> update(UUID runId, UnaryOperator<ImportRunSnapshot> mutator) {
         ImportRunSnapshot updated = runsByRunId.computeIfPresent(runId, (id, current) -> mutator.apply(current));
         return Optional.ofNullable(updated);

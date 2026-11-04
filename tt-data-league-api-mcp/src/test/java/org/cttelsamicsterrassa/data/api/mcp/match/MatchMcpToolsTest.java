@@ -4,6 +4,7 @@ import org.albertsanso.commons.query.DomainQueryResponse;
 import org.albertsanso.commons.query.QueryBus;
 import org.cttelsamicsterrassa.data.core.application.match.find.dto.MatchSearchPage;
 import org.cttelsamicsterrassa.data.core.application.match.find.dto.MatchSearchReadModel;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.junit.jupiter.api.Test;
@@ -35,7 +36,8 @@ class MatchMcpToolsTest {
         UUID matchId = UUID.randomUUID();
         MatchSearchReadModel match = new MatchSearchReadModel(
                 matchId, ImportSource.RFETM, "1a Div", Season.fromFormatted("2024-2025"), 1, "REGULAR", null,
-                "Home Team", "Away Team", "Home Team", 5, 2, 27, 15, false, List.of(), List.of());
+                "Home Team", "Away Team", "Home Team", 5, 2, 27, 15, false, List.of(), List.of(),
+                MatchStatus.PLAYED);
         when(queryBus.push(any())).thenReturn(
                 DomainQueryResponse.sucessResponse(new MatchSearchPage(List.of(match), 1, 0, 10, false)));
 
