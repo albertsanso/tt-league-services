@@ -1,10 +1,12 @@
 package org.cttelsamicsterrassa.data.core.domain.settings.service;
 
+import org.cttelsamicsterrassa.data.core.domain.settings.model.ImportFolderSetting;
 import org.cttelsamicsterrassa.data.core.domain.settings.model.Setting;
 import org.cttelsamicsterrassa.data.core.domain.settings.model.SettingCategory;
 import org.cttelsamicsterrassa.data.core.domain.settings.repository.SettingRepository;
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,10 +20,13 @@ import static org.mockito.Mockito.when;
 
 class SettingModificationServiceTest {
 
+    private static final String NEW_REPOSITORY_FOLDER =
+            Path.of(System.getProperty("java.io.tmpdir")).toAbsolutePath().resolve("new-repository").toString();
+
     @Test
     void rejectsABlankImportFolderValueById() {
         UUID id = UUID.randomUUID();
-        Setting existing = Setting.createExisting(id, SettingCategory.IMPORT, "repository-folder", "c:\\tt-repository");
+        Setting existing = Setting.createExisting(id, SettingCategory.IMPORT, "repository-folder", ImportFolderSetting.DEFAULT_VALUE);
         SettingRepository settingRepository = mock(SettingRepository.class);
         when(settingRepository.findById(id)).thenReturn(Optional.of(existing));
         SettingModificationService service = new SettingModificationService(settingRepository);
@@ -44,14 +49,14 @@ class SettingModificationServiceTest {
     @Test
     void acceptsAValidImportFolderValue() {
         UUID id = UUID.randomUUID();
-        Setting existing = Setting.createExisting(id, SettingCategory.IMPORT, "repository-folder", "c:\\tt-repository");
+        Setting existing = Setting.createExisting(id, SettingCategory.IMPORT, "repository-folder", ImportFolderSetting.DEFAULT_VALUE);
         SettingRepository settingRepository = mock(SettingRepository.class);
         when(settingRepository.findById(id)).thenReturn(Optional.of(existing));
         SettingModificationService service = new SettingModificationService(settingRepository);
 
-        Setting result = service.modifyValue(id, "d:\\new-repository");
+        Setting result = service.modifyValue(id, NEW_REPOSITORY_FOLDER);
 
-        assertEquals("d:\\new-repository", result.getValue());
+        assertEquals(NEW_REPOSITORY_FOLDER, result.getValue());
         verify(settingRepository).save(existing);
     }
 
@@ -69,14 +74,14 @@ class SettingModificationServiceTest {
     @Test
     void acceptsAValidRfetmTeamsFolderValue() {
         UUID id = UUID.randomUUID();
-        Setting existing = Setting.createExisting(id, SettingCategory.IMPORT, "rfetm-teams-folder", "import-rfetm\\teams");
+        Setting existing = Setting.createExisting(id, SettingCategory.IMPORT, "rfetm-teams-folder", "import-rfetm/teams");
         SettingRepository settingRepository = mock(SettingRepository.class);
         when(settingRepository.findById(id)).thenReturn(Optional.of(existing));
         SettingModificationService service = new SettingModificationService(settingRepository);
 
-        Setting result = service.modifyValue(id, "d:\\tt-repository\\import-rfetm\\teams");
+        Setting result = service.modifyValue(id, "other-rfetm/teams");
 
-        assertEquals("d:\\tt-repository\\import-rfetm\\teams", result.getValue());
+        assertEquals("other-rfetm/teams", result.getValue());
         verify(settingRepository).save(existing);
     }
 

@@ -196,7 +196,7 @@ export default {
     maximum: 'Màxim',
     definitionRequired: 'Completa la clau, etiqueta, descripció i valors obligatoris. La clau ha d’utilitzar minúscules i punts.',
     definitionInvalid: 'El valor enter no compleix els límits indicats.',
-    importFolderHint: 'Cam\u00ed absolut de la carpeta del servidor on es desen els fitxers importats (p. ex. c:\\tt-repository).',
+    importFolderHint: 'Cam\u00ed absolut de la carpeta del servidor on es desen els fitxers importats, en el format del sistema operatiu del servidor (p. ex. /data/tt-repository a Linux o c:\\data\\tt-repository a Windows).',
     categories: { ALL: 'Totes', GENERAL: 'General', NOTIFICATIONS: 'Notificacions', IMPORT: 'Importació' },
   },
   administration: {

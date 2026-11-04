@@ -5,6 +5,9 @@ import org.cttelsamicsterrassa.data.core.domain.resource.model.ImportManifest;
 import org.cttelsamicsterrassa.data.core.domain.resource.model.ManifestProvenance;
 import org.cttelsamicsterrassa.data.core.domain.resource.model.MatchCounts;
 import org.cttelsamicsterrassa.data.core.domain.resource.model.UploadMode;
+import org.cttelsamicsterrassa.data.core.domain.settings.model.ImportFolderSetting;
+import org.cttelsamicsterrassa.data.core.domain.settings.model.Setting;
+import org.cttelsamicsterrassa.data.core.domain.settings.model.SettingCategory;
 import org.cttelsamicsterrassa.data.core.domain.settings.service.SettingFinderService;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -16,12 +19,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ResourceZipServiceTest {
 
@@ -316,5 +321,36 @@ class ResourceZipServiceTest {
                 mock(SettingFinderService.class), new ObjectMapper());
 
         assertThrows(IllegalArgumentException.class, () -> service.validateManifest(extractionFolder));
+    }
+
+    @Test
+    void returnsTheStoredImportFolderWhenItIsAbsolute() {
+        ResourceZipService service = serviceWithStoredFolder(ImportFolderSetting.DEFAULT_VALUE);
+
+        assertEquals(ImportFolderSetting.DEFAULT_VALUE, service.getFolderFromSetting());
+    }
+
+    @Test
+    void failsWhenTheStoredImportFolderIsRelative() {
+        ResourceZipService service = serviceWithStoredFolder("tt-repository");
+
+        assertThrows(IllegalArgumentException.class, service::getFolderFromSetting);
+    }
+
+    @Test
+    void failsWhenTheStoredImportFolderIsWrittenForTheOtherOperatingSystem() {
+        String foreign = Path.of("/").isAbsolute() ? ImportFolderSetting.WINDOWS_DEFAULT_VALUE
+                : ImportFolderSetting.LINUX_DEFAULT_VALUE;
+        ResourceZipService service = serviceWithStoredFolder(foreign);
+
+        assertThrows(IllegalArgumentException.class, service::getFolderFromSetting);
+    }
+
+    private static ResourceZipService serviceWithStoredFolder(String folder) {
+        SettingFinderService settingFinderService = mock(SettingFinderService.class);
+        when(settingFinderService.findByCategoryAndName(SettingCategory.IMPORT, "repository-folder"))
+                .thenReturn(Optional.of(Setting.createExisting(
+                        UUID.randomUUID(), SettingCategory.IMPORT, "repository-folder", folder)));
+        return new ResourceZipService(settingFinderService, new ObjectMapper());
     }
 }

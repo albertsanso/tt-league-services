@@ -3,10 +3,17 @@ import userEvent from '@testing-library/user-event'
 import { clearToken, readToken } from './auth/tokenStorage'
 import { renderApp, storeSession, stubBackends } from './test/renderApp'
 
-// The statistics route is a lazy chunk that pulls in the charts; loading it once up front keeps the routing tests fast.
+// Every route is a lazy chunk and the statistics one pulls in the charts; loading them once up front keeps the routing
+// tests fast and stops a cold import from eating a test's wait budget on a loaded machine.
 beforeAll(async () => {
-  await import('./pages/StatisticsPage')
-  await import('./pages/PollingPage')
+  await Promise.all([
+    import('./pages/CalendarPage'),
+    import('./pages/MatchDayDetailPage'),
+    import('./pages/PollingPage'),
+    import('./pages/RunsPage'),
+    import('./pages/RunDetailPage'),
+    import('./pages/StatisticsPage'),
+  ])
 }, 60_000)
 
 afterEach(() => {

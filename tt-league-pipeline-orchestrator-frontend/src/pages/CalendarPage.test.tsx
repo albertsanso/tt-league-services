@@ -128,7 +128,7 @@ describe('CalendarPage', () => {
     setup()
 
     const cell = await screen.findByRole('gridcell', { name: 'Sunday 4 October 2026' })
-    expect(within(cell).getByRole('link', { name: /J2/ })).toBeInTheDocument()
+    expect(await within(cell).findByRole('link', { name: /J2/ })).toBeInTheDocument()
     expect(within(cell).queryByRole('link', { name: /J1/ })).not.toBeInTheDocument()
   })
 
@@ -151,7 +151,7 @@ describe('CalendarPage', () => {
     const { user } = setup({ dated: six })
 
     const cell = await screen.findByRole('gridcell', { name: 'Tuesday 6 October 2026' })
-    expect(within(cell).getAllByRole('link')).toHaveLength(4)
+    expect(await within(cell).findAllByRole('link')).toHaveLength(4)
     await user.click(within(cell).getByRole('button', { name: '+2 more' }))
 
     const dialog = await screen.findByRole('dialog', { name: 'Tuesday 6 October 2026' })
@@ -165,7 +165,7 @@ describe('CalendarPage', () => {
     setup({ dated: six, path: '/calendar?view=week&date=2026-10-05' })
 
     const cell = await screen.findByRole('gridcell', { name: 'Tuesday 6 October 2026' })
-    expect(within(cell).getAllByRole('link')).toHaveLength(6)
+    expect(await within(cell).findAllByRole('link')).toHaveLength(6)
     expect(screen.queryByRole('button', { name: /more/ })).not.toBeInTheDocument()
   })
 

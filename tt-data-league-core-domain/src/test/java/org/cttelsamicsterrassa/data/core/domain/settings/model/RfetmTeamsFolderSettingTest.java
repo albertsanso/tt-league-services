@@ -2,6 +2,8 @@ package org.cttelsamicsterrassa.data.core.domain.settings.model;
 
 import org.junit.jupiter.api.Test;
 
+import java.nio.file.Path;
+
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -14,7 +16,7 @@ class RfetmTeamsFolderSettingTest {
     void exposesTheExactCategoryNameAndDefaultValue() {
         assertEquals(SettingCategory.IMPORT, RfetmTeamsFolderSetting.CATEGORY);
         assertEquals("rfetm-teams-folder", RfetmTeamsFolderSetting.NAME);
-        assertEquals("import-rfetm\\teams", RfetmTeamsFolderSetting.DEFAULT_VALUE);
+        assertEquals("import-rfetm/teams", RfetmTeamsFolderSetting.DEFAULT_VALUE);
     }
 
     @Test
@@ -33,7 +35,40 @@ class RfetmTeamsFolderSettingTest {
 
     @Test
     void rejectsSyntacticallyInvalidPaths() {
-        assertThrows(IllegalArgumentException.class, () -> RfetmTeamsFolderSetting.validate("c:\\invalid\u0000path"));
+        assertThrows(IllegalArgumentException.class, () -> RfetmTeamsFolderSetting.validate("import-rfetm/invalid\u0000path"));
+    }
+
+    @Test
+    void theDefaultValueIsValidOnTheRunningOperatingSystem() {
+        assertDoesNotThrow(() -> RfetmTeamsFolderSetting.validate(RfetmTeamsFolderSetting.DEFAULT_VALUE));
+    }
+
+    @Test
+    void convertsBackslashesToSlashesOnPosixOnly() {
+        assertEquals("import-rfetm/teams", RfetmTeamsFolderSetting.normalizeSeparators("import-rfetm\\teams", false));
+        assertEquals("import-rfetm\\teams", RfetmTeamsFolderSetting.normalizeSeparators("import-rfetm\\teams", true));
+        assertEquals("import-rfetm/teams", RfetmTeamsFolderSetting.normalizeSeparators("import-rfetm/teams", false));
+    }
+
+    @Test
+    void aLegacyBackslashValueMeansNestedFoldersOnPosix() {
+        assertEquals(2, Path.of(RfetmTeamsFolderSetting.normalizeSeparators("import-rfetm\\teams", false))
+                .getNameCount());
+    }
+
+    @Test
+    void toPathMeansNestedFoldersWhicheverSeparatorIsStored() {
+        assertEquals(2, RfetmTeamsFolderSetting.toPath("import-rfetm\\teams").getNameCount());
+        assertEquals(2, RfetmTeamsFolderSetting.toPath("import-rfetm/teams").getNameCount());
+    }
+
+    @Test
+    void rejectsADriveLetterOnPosixButNotOnWindows() {
+        assertThrows(IllegalArgumentException.class, () -> RfetmTeamsFolderSetting.validate("c:\\import-rfetm", false));
+        assertThrows(IllegalArgumentException.class, () -> RfetmTeamsFolderSetting.validate("D:/import-rfetm", false));
+        if (ServerFilesystem.WINDOWS) {
+            assertDoesNotThrow(() -> RfetmTeamsFolderSetting.validate("c:\\import-rfetm", true));
+        }
     }
 
     @Test

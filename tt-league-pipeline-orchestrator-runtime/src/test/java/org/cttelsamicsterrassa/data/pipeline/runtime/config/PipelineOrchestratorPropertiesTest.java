@@ -138,7 +138,7 @@ class PipelineOrchestratorPropertiesTest {
     void failsWhenTheStatisticsZoneIsMissingBlankOrInvalid() {
         assertFails(without("tt.pipeline.statistics.zone"), "statistics");
         assertFails(replace("tt.pipeline.statistics.zone", "   "), "statistics.zone is required");
-        assertFails(replace("tt.pipeline.statistics.zone", "Mars/Olympus"), "statistics.zone is not a valid time zone");
+        assertFails(replace("tt.pipeline.statistics.zone", "Mars/Olympus"), "statistics.zone is not a valid IANA time zone id");
     }
 
     @Test

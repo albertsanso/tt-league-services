@@ -15,7 +15,7 @@ invalid.
 | `PIPELINE_INGEST_URL` | `tt.pipeline.ingest.base-url` | Base URL of `tt-league-ingest-rest` |
 | `PIPELINE_INGEST_API_KEY` | `tt.pipeline.ingest.api-key` | `X-API-Key` for the ingest service (not blank) |
 | `PIPELINE_PLATFORM_API_KEY` | `tt.pipeline.platform.api-key` | Raw platform service-credential key (FEAT-00101) with the `imports:write` and `matches:read` scopes, sent as `X-API-Key` (not blank) |
-| `PIPELINE_ARTIFACTS_DIR` | `tt.pipeline.artifacts.dir` | Existing, writable directory for the package ZIPs |
+| `PIPELINE_ARTIFACTS_DIR` | `tt.pipeline.artifacts.dir` | Required, no default. Existing, writable directory for the package ZIPs, as an absolute path of the host (for example `/var/lib/tt-pipeline/artifacts`, or `C:/tmp/pipeline-artifacts` on Windows) |
 | `JWT_SIGNING_SECRET` | `tt.pipeline.security.jwt-secret` | Platform `security.jwt.secret`: same value, at least 32 UTF-8 bytes (HS256/HS384/HS512 by length) |
 | `PIPELINE_DB_URL` | `spring.datasource.url` | JDBC URL of the PostgreSQL database holding schema `pipeline` |
 | `PIPELINE_DB_USERNAME` | `spring.datasource.username` | Database user (ideally limited to schema `pipeline`) |

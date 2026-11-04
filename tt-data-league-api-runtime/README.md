@@ -28,7 +28,7 @@ The application reads its configuration from environment variables at startup; d
 | `MAIL_HOST` | `localhost` | SMTP host |
 | `MAIL_PORT` | `25` | SMTP port |
 | `MAIL_USERNAME` / `MAIL_PASSWORD` | empty | SMTP credentials |
-| `IMPORT_REPOSITORY_FOLDER_INITIAL` | empty | Absolute path stored as the `IMPORT/repository-folder` setting when it is created for the first time; an existing setting is never overwritten. Empty keeps the built-in default (`c:	t-repository`); a relative path fails startup. The container image presets `/var/lib/tt-league/repository` |
+| `IMPORT_REPOSITORY_FOLDER_INITIAL` | empty | Absolute path stored as the `IMPORT/repository-folder` setting when it is created for the first time; an existing setting is never overwritten. Empty keeps the built-in default (`/data/tt-repository` on Linux and macOS, `c:\data\tt-repository` on Windows); a relative path fails startup. The container image presets `/var/lib/tt-league/repository` |
 | `IMPORT_UPLOAD_MAX_FILE_SIZE` | `100MB` | Max ZIP import upload file size |
 | `IMPORT_UPLOAD_MAX_REQUEST_SIZE` | `100MB` | Max import upload request size; must be `>=` the file size limit |
 | `IMPORT_EXECUTION_BATCH_SIZE` | `50` | Import batch size |
@@ -91,7 +91,7 @@ java -jar tt-data-league-api-runtime\target\tt-data-league-api-runtime-0.0.1-SNA
 Notes for a deployment target:
 
 - The target database must be reachable and match the schema managed by `tt-data-league-core-repository-jpa`; `ddl-auto: update` is not a substitute for the reviewed migrations under `docs/migrations/`. Apply any pending migration before starting the service.
-- `ImportFolderSettingStartupInitializer` provisions the `IMPORT/repository-folder` administrator setting at startup if absent, defaulting to `c:\tt-repository`; a persistence failure here fails application boot. Ensure the configured import folder exists as a directory before launch, or set it afterwards through the System settings panel.
+- `ImportFolderSettingStartupInitializer` provisions the `IMPORT/repository-folder` administrator setting at startup if absent, defaulting to `/data/tt-repository` on Linux and macOS or `c:\data\tt-repository` on Windows; a persistence failure here fails application boot. The repository folder must be an absolute path of the server's operating system, so a stored value written for the other one (such as `c:\...` on Linux) fails the import with a clear error until an administrator corrects it in the System settings panel. Ensure the configured import folder exists as a directory before launch, or set it afterwards through the System settings panel.
 - `InitialUserStartupInitializer` seeds two fixed ADMIN accounts (`albert`/`albert`, `oscar`/`Oscar&1234`) at startup if an account with that username or email does not already exist; a persistence failure here fails application boot. These credentials are hardcoded in source (not env-configurable) and do not meet the normal password-strength rules enforced elsewhere. Change or remove these accounts before exposing any non-development environment.
 - The run registry backing the async import endpoints is in-memory per JVM; it does not survive a restart or a multi-instance deployment. Import jobs (`import_job`, `import_job_season`) are persisted and recovered at startup, but they rely on that registry and on a per-JVM submission lock, so run a single instance.
 - Run the process as a long-lived service (for example, a Windows service via NSSM, or a systemd unit on Linux) so it restarts on failure and on host reboot; there is no bundled service unit in this repository.
@@ -276,8 +276,8 @@ Duplicated `id_partido`s and fixture identity conflicts are also surfaced as
 reference.
 
 At startup, `ImportFolderSettingStartupInitializer` ensures the `IMPORT/repository-folder`
-administrator setting exists, creating it with the default value `c:\tt-repository`
-only when it is absent. Provisioning is idempotent: it never overwrites an
+administrator setting exists, creating it with the default value `/data/tt-repository` on Linux and macOS or
+`c:\data\tt-repository` on Windows only when it is absent. Provisioning is idempotent: it never overwrites an
 administrator's configured value, and a persistence failure during startup
 fails application boot instead of leaving the setting unconfigured. Import
 workflows resolve this persisted setting when no explicit folder is supplied;
@@ -286,7 +286,7 @@ the configured path must exist as a directory at import execution time.
 
 Similarly, `RfetmTeamsFolderSettingStartupInitializer` ensures the
 `IMPORT/rfetm-teams-folder` administrator setting exists, creating it with the
-default value `import-rfetm\teams` only when it is absent. RFETM club
+default value `import-rfetm/teams` only when it is absent. The value may use `/` or `\` as separator (a legacy `import-rfetm\teams` row keeps working on Linux) and must not start with a Windows drive letter on a non-Windows server. RFETM club
 consolidation resolves this setting on every run (via
 `RfetmTeamsFolderPathResolver`), joined onto the `IMPORT/repository-folder`
 setting to build the absolute teams folder path, so administrator changes to

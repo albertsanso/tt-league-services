@@ -39,7 +39,7 @@ tt:
       poll-interval: ${PIPELINE_INGEST_POLL_INTERVAL:PT15S}
     artifacts:
       # Existing, writable directory; packages are stored as <dir>/<source>/<season>/<runId>/ingest-<id>.zip.
-      dir: ${PIPELINE_ARTIFACTS_DIR:D:/tmp/pipeline-artifacts}
+      dir: ${PIPELINE_ARTIFACTS_DIR}
     execution:
       max-retries: ${PIPELINE_MAX_RETRIES:3}
       initial-backoff: ${PIPELINE_INITIAL_BACKOFF:PT30S}

@@ -343,6 +343,9 @@ java -jar target\tt-data-league-import-runtime.jar `
   --detect-amended-actas=report
 ```
 
+The examples use Windows paths. On Linux or macOS pass absolute POSIX paths instead, for example
+`--actas-folder=/data/actas-json`; the folder arguments are used as given, with no separator conversion.
+
 ## Administration import API
 
 The administrator API exposes the same preview/validate/start/cancel/rollback

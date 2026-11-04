@@ -284,8 +284,10 @@ public class ResourceZipService {
     }
 
     public String getFolderFromSetting() {
-        return settingFinderService.findByCategoryAndName(ImportFolderSetting.CATEGORY, ImportFolderSetting.NAME)
+        String folder = settingFinderService.findByCategoryAndName(ImportFolderSetting.CATEGORY, ImportFolderSetting.NAME)
                 .orElseThrow(() -> new IllegalArgumentException("Import folder setting is required"))
                 .getValue();
+        ImportFolderSetting.validate(folder);
+        return folder;
     }
 }

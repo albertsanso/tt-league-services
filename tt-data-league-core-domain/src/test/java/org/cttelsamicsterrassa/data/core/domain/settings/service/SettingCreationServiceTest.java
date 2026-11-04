@@ -1,5 +1,7 @@
 package org.cttelsamicsterrassa.data.core.domain.settings.service;
 
+import org.cttelsamicsterrassa.data.core.domain.settings.model.ImportFolderSetting;
+import org.cttelsamicsterrassa.data.core.domain.settings.model.RfetmTeamsFolderSetting;
 import org.cttelsamicsterrassa.data.core.domain.settings.model.Setting;
 import org.cttelsamicsterrassa.data.core.domain.settings.model.SettingCategory;
 import org.cttelsamicsterrassa.data.core.domain.settings.repository.SettingRepository;
@@ -40,9 +42,9 @@ class SettingCreationServiceTest {
         SettingRepository settingRepository = mock(SettingRepository.class);
         SettingCreationService service = new SettingCreationService(settingRepository);
 
-        Setting created = service.create(SettingCategory.IMPORT, "repository-folder", "d:\\tt-repository");
+        Setting created = service.create(SettingCategory.IMPORT, "repository-folder", ImportFolderSetting.DEFAULT_VALUE);
 
-        assertEquals("d:\\tt-repository", created.getValue());
+        assertEquals(ImportFolderSetting.DEFAULT_VALUE, created.getValue());
         verify(settingRepository).save(created);
     }
 
@@ -61,9 +63,9 @@ class SettingCreationServiceTest {
         SettingRepository settingRepository = mock(SettingRepository.class);
         SettingCreationService service = new SettingCreationService(settingRepository);
 
-        Setting created = service.create(SettingCategory.IMPORT, "rfetm-teams-folder", "d:\\tt-repository\\import-rfetm\\teams");
+        Setting created = service.create(SettingCategory.IMPORT, "rfetm-teams-folder", RfetmTeamsFolderSetting.DEFAULT_VALUE);
 
-        assertEquals("d:\\tt-repository\\import-rfetm\\teams", created.getValue());
+        assertEquals(RfetmTeamsFolderSetting.DEFAULT_VALUE, created.getValue());
         verify(settingRepository).save(created);
     }
 }

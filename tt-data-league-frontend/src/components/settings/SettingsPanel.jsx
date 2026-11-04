@@ -46,7 +46,7 @@ function SettingValue({ setting, value, onChange }) {
         onChange={(event) => onChange(event.target.value)}
         aria-label={t('systemSettings.value')}
         aria-describedby={hintId}
-        placeholder={isPathSetting ? 'c:\\tt-repository' : undefined}
+        placeholder={isPathSetting ? '/data/tt-repository | c:\\data\\tt-repository' : undefined}
       />
       {isPathSetting && <p id={hintId} className="setting-hint">{t('systemSettings.importFolderHint')}</p>}
     </>

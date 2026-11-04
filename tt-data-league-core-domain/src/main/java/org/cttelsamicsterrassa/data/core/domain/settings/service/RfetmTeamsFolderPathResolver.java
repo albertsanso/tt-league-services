@@ -28,7 +28,9 @@ public class RfetmTeamsFolderPathResolver {
     public Path resolve() {
         String repositoryFolder = requireSetting(ImportFolderSetting.CATEGORY, ImportFolderSetting.NAME);
         String rfetmTeamsFolder = requireSetting(RfetmTeamsFolderSetting.CATEGORY, RfetmTeamsFolderSetting.NAME);
-        return Path.of(repositoryFolder).resolve(rfetmTeamsFolder);
+        ImportFolderSetting.validate(repositoryFolder);
+        RfetmTeamsFolderSetting.validate(rfetmTeamsFolder);
+        return Path.of(repositoryFolder).resolve(RfetmTeamsFolderSetting.toPath(rfetmTeamsFolder));
     }
 
     private String requireSetting(SettingCategory category, String name) {
