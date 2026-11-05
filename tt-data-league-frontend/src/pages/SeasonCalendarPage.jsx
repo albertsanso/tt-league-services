@@ -2,7 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { format, parseISO } from 'date-fns'
-import { clearMatchOverdueMark, getMatchOptions, markMatchOverdue } from '../api/matches.js'
+import { clearMatchOverdueMark, markMatchOverdue } from '../api/matches.js'
+import { getCalendarOptions } from '../api/calendarSources.js'
 import { useCalendarRange, useSeasonCalendar } from '../hooks/useMatches.js'
 import { useAuth } from '../context/useAuth.js'
 import { useAppState } from '../context/useAppState.js'
@@ -53,16 +54,18 @@ function SeasonCalendarPage() {
   const jornada = view === 'jornada'
 
   const [options, setOptions] = useState(EMPTY_OPTIONS)
-  const [loadingOptions, setLoadingOptions] = useState(false)
+  const [loadingOptions, setLoadingOptions] = useState(true)
   const [optionsError, setOptionsError] = useState(null)
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState(null)
   const [focusMatchId, setFocusMatchId] = useState(null)
+  // Without a season in the URL the newest season across the requested sources is used; it stays out of the URL.
+  const effectiveSeason = filters.season || options.seasons[0] || ''
 
   const range = useMemo(() => rangeFor(view, date), [view, date])
   const rangeState = useCalendarRange({
     source: jornada ? '' : filters.source,
-    season: filters.season,
+    season: effectiveSeason,
     from: range?.from ?? '',
     to: range?.to ?? '',
     competition: filters.competition,
@@ -71,7 +74,7 @@ function SeasonCalendarPage() {
   })
   const seasonState = useSeasonCalendar({
     source: jornada ? filters.source : '',
-    season: filters.season,
+    season: effectiveSeason,
     competition: filters.competition,
     group: '',
     round: '',
@@ -79,18 +82,16 @@ function SeasonCalendarPage() {
   const { data, loading, error, retry } = jornada ? seasonState : rangeState
 
   useEffect(() => {
-    if (!filters.source) return undefined
     const controller = new AbortController()
     Promise.resolve().then(() => {
-      if (!controller.signal.aborted) setLoadingOptions(true)
-      return getMatchOptions(filters.source, filters.season, token, controller.signal, clearSession)
+      if (controller.signal.aborted) return undefined
+      setLoadingOptions(true)
+      setOptionsError(null)
+      return getCalendarOptions(filters.source, effectiveSeason, token, controller.signal, clearSession)
     })
       .then((value) => {
-        if (controller.signal.aborted) return
-        setOptions({
-          seasons: Array.isArray(value.seasons) ? value.seasons : [],
-          competitions: Array.isArray(value.competitions) ? value.competitions : [],
-        })
+        if (controller.signal.aborted || !value) return
+        setOptions(value)
       })
       .catch((requestError) => {
         if (requestError.name !== 'AbortError' && !controller.signal.aborted) setOptionsError(requestError)
@@ -99,7 +100,7 @@ function SeasonCalendarPage() {
         if (!controller.signal.aborted) setLoadingOptions(false)
       })
     return () => controller.abort()
-  }, [clearSession, filters.season, filters.source, token])
+  }, [clearSession, effectiveSeason, filters.source, token])
 
   const update = (changes) => {
     const next = new URLSearchParams(params)
@@ -223,8 +224,8 @@ function SeasonCalendarPage() {
   }
 
   const requestedReady = jornada
-    ? Boolean(filters.source && filters.season && filters.competition)
-    : Boolean(filters.source && filters.season)
+    ? Boolean(filters.source && effectiveSeason && filters.competition)
+    : Boolean(effectiveSeason)
   const language = i18n.language
   const title = titleFor(view, date, language)
   const detailHeading = selected
@@ -242,7 +243,7 @@ function SeasonCalendarPage() {
       <p className="page-description">{t('calendarPage.description')}</p>
 
       <CalendarFilters
-        filters={{ ...filters, group: jornada ? effectiveGroup : filters.group }}
+        filters={{ ...filters, season: effectiveSeason, group: jornada ? effectiveGroup : filters.group }}
         options={filterOptions}
         loadingOptions={loadingOptions}
         optionalScope={!jornada}
@@ -266,9 +267,11 @@ function SeasonCalendarPage() {
       {error ? (
         <p role="alert">{error.status === 401 ? t('calendarPage.unauthorized') : t('calendarPage.error')}</p>
       ) : null}
-      {jornada && filters.source && filters.season && !filters.competition
+      {jornada && !filters.source ? <p role="status">{t('calendarPage.selectSourceForJornada')}</p> : null}
+      {jornada && filters.source && effectiveSeason && !filters.competition
         ? <p role="status">{t('calendarPage.selectCompetition')}</p> : null}
-      {!requestedReady && !jornada ? <p role="status">{t('calendarPage.selectSeason')}</p> : null}
+      {!effectiveSeason && loadingOptions ? <p role="status">{t('calendarPage.loading')}</p> : null}
+      {!effectiveSeason && !loadingOptions && !optionsError ? <p role="status">{t('calendarPage.noSeasons')}</p> : null}
       {requestedReady && loading ? <p role="status">{t('calendarPage.loading')}</p> : null}
       {requestedReady && !loading && !error && data && !hasResults ? (
         <p role="status">{t('calendarPage.empty')}</p>

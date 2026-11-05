@@ -250,7 +250,7 @@ def command_create(args: argparse.Namespace) -> None:
     index_marker = "## Main index\n"
     if index_marker not in updated:
         raise OperationError("Missing ## Main index in FEATURES.md.")
-    index_entry = f"- [{identifier}: {args.title}](### [{identifier}] {args.title})\n"
+    index_entry = f"- [{identifier}: {args.title}](#{heading_anchor(f'[{identifier}] {args.title}')})\n"
     updated = updated.replace(index_marker, index_marker + "\n" + index_entry, 1)
     details = (
         "# Build Plan\n"
@@ -427,6 +427,12 @@ def command_validate(args: argparse.Namespace) -> None:
 
 def archive_root(root: Path) -> Path:
     return root / "docs" / "sdd" / "archive"
+
+
+def heading_anchor(heading: str) -> str:
+    """Return the GitHub-style anchor slug for a Markdown heading's text."""
+    slug = re.sub(r"[^\w\- ]", "", heading.strip().lower())
+    return slug.replace(" ", "-")
 
 
 def main_index_bounds(registry: str) -> tuple[int, int]:

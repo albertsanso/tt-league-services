@@ -58,7 +58,8 @@ const en = {
     undated: 'Undated',
     detail: 'Calendar detail',
     detailEmpty: 'No matches in this selection.',
-    selectSeason: 'Select a source and a season to see the calendar.',
+    noSeasons: 'No seasons are available.',
+    selectSourceForJornada: 'Select a source to see its rounds.',
     selectCompetition: 'Select a competition to see its rounds.',
   },
   matchSummaryPage: {

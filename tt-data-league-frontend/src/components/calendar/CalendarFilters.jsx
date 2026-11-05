@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next'
+import { CALENDAR_SOURCES } from '../../api/calendarSources.js'
 import { SORTS } from './calendarEvents.js'
-
-const SOURCES = ['RFETM', 'FCTT', 'BCNESA']
 
 function CalendarFilters({
   filters, options, loadingOptions = false, optionalScope = true, onChange,
@@ -9,6 +8,7 @@ function CalendarFilters({
   const { t } = useTranslation()
   const groups = options.groups.filter((group) => group != null)
   const namesRepeat = !filters.competition
+  const needsSource = !optionalScope && !filters.source
 
   return (
     <article className="card match-filter-card">
@@ -18,17 +18,17 @@ function CalendarFilters({
           {t('calendarPage.source')}
           <select value={filters.source} onChange={(event) => onChange('source', event.target.value)}>
             <option value="">{t('calendarPage.allSources')}</option>
-            {SOURCES.map((source) => <option key={source} value={source}>{source}</option>)}
+            {CALENDAR_SOURCES.map((source) => <option key={source} value={source}>{source}</option>)}
           </select>
         </label>
         <label className="match-filter-field">
           {t('calendarPage.season')}
           <select
             value={filters.season}
-            disabled={!filters.source || loadingOptions}
+            disabled={loadingOptions}
             onChange={(event) => onChange('season', event.target.value)}
           >
-            <option value="">{t('calendarPage.select')}</option>
+            {filters.season ? null : <option value="">{t('calendarPage.select')}</option>}
             {options.seasons.map((season) => <option key={season} value={season}>{season}</option>)}
           </select>
         </label>
@@ -36,7 +36,7 @@ function CalendarFilters({
           {t('calendarPage.competition')}
           <select
             value={filters.competition}
-            disabled={!filters.season || loadingOptions}
+            disabled={!filters.season || loadingOptions || needsSource}
             onChange={(event) => onChange('competition', event.target.value)}
           >
             <option value="">{optionalScope ? t('calendarPage.allCompetitions') : t('calendarPage.select')}</option>
@@ -60,13 +60,14 @@ function CalendarFilters({
           {t('calendarPage.team')}
           <select
             value={filters.team}
-            disabled={!filters.season}
+            disabled={!filters.season || needsSource}
             onChange={(event) => onChange('team', event.target.value)}
           >
             <option value="">{t('calendarPage.allTeams')}</option>
             {options.teams.map((team) => (
-              <option key={team.teamId} value={team.teamId}>
-                {namesRepeat && team.competition ? `${team.name} · ${team.competition}` : team.name}
+              <option key={`${team.source ?? ''}|${team.teamId}`} value={team.teamId}>
+                {[team.name, namesRepeat ? team.competition : null, team.source]
+                  .filter(Boolean).join(' · ')}
               </option>
             ))}
           </select>

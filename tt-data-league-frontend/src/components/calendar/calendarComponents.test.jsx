@@ -118,6 +118,44 @@ describe('CalendarFilters', () => {
 
     expect(within(screen.getByLabelText('Competició')).getAllByRole('option')[0]).toHaveTextContent('Selecciona')
   })
+
+  it('enables the season with no source selected and shows the placeholder only without a season', () => {
+    const { unmount } = render(<CalendarFilters
+      filters={{ ...filters, source: '', season: '' }}
+      options={options}
+      onChange={vi.fn()}
+    />)
+
+    expect(screen.getByLabelText('Temporada')).toBeEnabled()
+    expect(within(screen.getByLabelText('Temporada')).getAllByRole('option')[0]).toHaveTextContent('Selecciona')
+    unmount()
+
+    render(<CalendarFilters filters={{ ...filters, source: '' }} options={options} onChange={vi.fn()} />)
+    expect(within(screen.getByLabelText('Temporada')).queryByRole('option', { name: 'Selecciona' })).toBeNull()
+  })
+
+  it('disables competition and team for jornada until a source is chosen', () => {
+    render(<CalendarFilters
+      filters={{ ...filters, source: '' }}
+      options={options}
+      optionalScope={false}
+      onChange={vi.fn()}
+    />)
+
+    expect(screen.getByLabelText('Competició')).toBeDisabled()
+    expect(screen.getByLabelText('Equip')).toBeDisabled()
+  })
+
+  it('shows the source of a team facet when it carries one', () => {
+    render(<CalendarFilters
+      filters={{ ...filters, source: '' }}
+      options={{ ...options, teams: [{ teamId: 't1', name: 'Club A', competition: 'tercera', source: 'RFETM' }] }}
+      onChange={vi.fn()}
+    />)
+
+    expect(within(screen.getByLabelText('Equip')).getByRole('option', { name: 'Club A · tercera · RFETM' }))
+      .toBeInTheDocument()
+  })
 })
 
 describe('CalendarDetailPanel', () => {
@@ -150,6 +188,12 @@ describe('CalendarDetailPanel', () => {
     expect(links[1]).toHaveAttribute('href', '/partits/late?source=FCTT&season=2026-2027')
     expect(screen.getByText('Jugat')).toBeInTheDocument()
     expect(screen.getByText('Proper')).toBeInTheDocument()
+  })
+
+  it('shows the source of each row when the matches come from several sources', () => {
+    renderPanel([match({ id: 'a', source: 'RFETM' })])
+
+    expect(screen.getByText('tercera · Grup 1 · RFETM')).toBeInTheDocument()
   })
 
   it('sorts by the requested criterion', () => {

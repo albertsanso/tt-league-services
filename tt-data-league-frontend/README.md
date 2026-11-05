@@ -53,7 +53,8 @@ global):
 
 | Paràmetre | Significat |
 | --- | --- |
-| `source`, `season` | Font i temporada (obligatoris per carregar). |
+| `source` | Font. Buit (per defecte) vol dir totes les fonts. |
+| `season` | Temporada. Per defecte, la més recent entre les fonts seleccionades; no s’escriu a la URL. |
 | `view` | `day`, `week` (per defecte), `month` o `jornada`. |
 | `date` | Data àncora `YYYY-MM-DD` (per defecte avui; una data invàlida es tracta com a avui). |
 | `competition`, `group`, `team` | Filtres; la vista jornada requereix competició. |
@@ -61,8 +62,12 @@ global):
 | `round` | Jornada seleccionada (vista jornada; per defecte, la jornada actual del grup). |
 | `selected` | Dia seleccionat, que restringeix el detall. |
 
-Les vistes dia, setmana i mes usen `GET /api/v1/match/calendar/range` (totes les
-competicions); la vista jornada usa `GET /api/v1/match/calendar`. El frontend no
+Sense `source`, les vistes dia, setmana i mes fan una petició de
+`GET /api/v1/match/calendar/range` per a cada font (RFETM, FCTT i BCNESA) i combinen
+els resultats: si una font falla, es mostra l’error en lloc d’un calendari parcial.
+Les opcions de temporada i competició s’obtenen de la mateixa manera amb
+`GET /api/v1/match/options`. La vista jornada necessita una única font i usa
+`GET /api/v1/match/calendar`, també sense combinar fonts. El frontend no
 calcula estats, terminis ni jornada actual: mostra el `calendarState` de l'API.
 En pantalles no d'escriptori la setmana es mostra com a llista i el detall queda
 sota el calendari.

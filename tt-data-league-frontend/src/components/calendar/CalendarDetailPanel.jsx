@@ -37,7 +37,7 @@ function MatchRow({
           <span className="club-source">
             {[match.competition, match.groupNumber != null
               ? t('calendarPage.groupLabel', { group: match.groupNumber })
-              : null].filter(Boolean).join(' · ')}
+              : null, match.source].filter(Boolean).join(' · ')}
           </span>
           {match.status === 'PLAYED' ? (
             <span className="club-source">{match.homeGamesWon ?? '—'}–{match.awayGamesWon ?? '—'}</span>

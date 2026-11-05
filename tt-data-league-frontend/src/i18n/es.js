@@ -58,7 +58,8 @@ const es = {
     undated: 'Sin fecha',
     detail: 'Detalle del calendario',
     detailEmpty: 'No hay partidos en esta selección.',
-    selectSeason: 'Selecciona una fuente y una temporada para ver el calendario.',
+    noSeasons: 'No hay temporadas disponibles.',
+    selectSourceForJornada: 'Selecciona una fuente para ver las jornadas.',
     selectCompetition: 'Selecciona una competición para ver las jornadas.',
   },
   matchSummaryPage: {

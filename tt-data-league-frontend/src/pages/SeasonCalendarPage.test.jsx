@@ -144,6 +144,23 @@ function renderPage(path = '/calendari?source=FCTT&season=2026-2027&date=2026-09
 
 const search = () => new URLSearchParams(screen.getByTestId('search').textContent)
 
+// Each source imports a different newest season; every source returns one match with its own team names.
+function mockSources() {
+  const seasonsBySource = {
+    RFETM: { seasons: ['2025-2026'], competitions: ['primera'] },
+    FCTT: { seasons: ['2026-2027'], competitions: ['tercera'] },
+    BCNESA: { seasons: ['2026-2027'], competitions: ['tercera'] },
+  }
+  getMatchOptions.mockImplementation((source) => Promise.resolve(seasonsBySource[source]))
+  getCalendarRange.mockImplementation(({ source }) => Promise.resolve(rangeWith([match({
+    id: `match-${source}`,
+    homeTeamName: source === 'FCTT' ? 'Club A' : `Club ${source}`,
+    awayTeamName: 'Club B',
+    homeTeamId: `team-${source}`,
+    awayTeamId: 'team-b',
+  })])))
+}
+
 describe('SeasonCalendarPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -350,10 +367,107 @@ describe('SeasonCalendarPage', () => {
     expect(await screen.findByText('La sessió no permet consultar el calendari.')).toBeInTheDocument()
   })
 
-  it('asks for a source and season before loading anything', () => {
-    renderPage('/calendari')
+  it('defaults to all sources and the newest season across them without writing it to the URL', async () => {
+    mockSources()
+    renderPage('/calendari?date=2026-09-16&view=week')
 
-    expect(screen.getByText('Selecciona una font i una temporada per veure el calendari.')).toBeInTheDocument()
+    await waitFor(() => expect(getCalendarRange).toHaveBeenCalledTimes(3))
+    expect(getCalendarRange.mock.calls.map(([filters]) => filters.source).sort())
+      .toEqual(['BCNESA', 'FCTT', 'RFETM'])
+    getCalendarRange.mock.calls.forEach(([filters]) => expect(filters.season).toBe('2026-2027'))
+    expect(getMatchOptions).toHaveBeenCalledWith('RFETM', '', 'token', expect.anything(), expect.any(Function))
+    expect(getMatchOptions).toHaveBeenCalledWith('FCTT', '2026-2027', 'token', expect.anything(), expect.any(Function))
+    expect(await screen.findByText('Club A – Club B')).toBeInTheDocument()
+    expect(screen.getByRole('combobox', { name: 'Font' })).toHaveValue('')
+    expect(screen.getByRole('combobox', { name: 'Temporada' })).toHaveValue('2026-2027')
+    expect(search().has('season')).toBe(false)
+    expect(search().has('source')).toBe(false)
+  })
+
+  it('an explicit source requests only that source and defaults to its newest season', async () => {
+    mockSources()
+    renderPage('/calendari?source=FCTT&date=2026-09-16&view=week')
+
+    await screen.findByText('Club A – Club B')
+    expect(getCalendarRange.mock.calls.map(([filters]) => filters.source)).toEqual(['FCTT'])
+    expect(getCalendarRange.mock.calls[0][0].season).toBe('2026-2027')
+    expect(getMatchOptions.mock.calls.map(([source]) => source)).toEqual(['FCTT', 'FCTT'])
+  })
+
+  it('an explicit season is respected across all sources', async () => {
+    mockSources()
+    renderPage('/calendari?season=2025-2026&date=2026-09-16&view=week')
+
+    await waitFor(() => expect(getCalendarRange).toHaveBeenCalledTimes(3))
+    getCalendarRange.mock.calls.forEach(([filters]) => expect(filters.season).toBe('2025-2026'))
+    expect(screen.getByRole('combobox', { name: 'Temporada' })).toHaveValue('2025-2026')
+  })
+
+  it('selecting a source from the default narrows the requests to it', async () => {
+    mockSources()
+    renderPage('/calendari?date=2026-09-16&view=week')
+    await waitFor(() => expect(getCalendarRange).toHaveBeenCalledTimes(3))
+    getCalendarRange.mockClear()
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Font' }), { target: { value: 'BCNESA' } })
+
+    await waitFor(() => expect(search().get('source')).toBe('BCNESA'))
+    await waitFor(() => expect(getCalendarRange).toHaveBeenCalled())
+    expect(getCalendarRange.mock.calls.map(([filters]) => filters.source)).toEqual(['BCNESA'])
+    expect(search().has('season')).toBe(false)
+  })
+
+  it('competition filters reach every source when all sources are selected', async () => {
+    mockSources()
+    renderPage('/calendari?date=2026-09-16&view=week')
+    await waitFor(() => expect(getCalendarRange).toHaveBeenCalledTimes(3))
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Competició' }), { target: { value: 'tercera' } })
+
+    await waitFor(() => expect(getCalendarRange).toHaveBeenCalledWith(
+      expect.objectContaining({ source: 'BCNESA', competition: 'tercera' }),
+      'token', expect.anything(), expect.any(Function),
+    ))
+    const narrowed = getCalendarRange.mock.calls.filter(([filters]) => filters.competition === 'tercera')
+    expect(narrowed.map(([filters]) => filters.source).sort()).toEqual(['BCNESA', 'FCTT', 'RFETM'])
+  })
+
+  it('merges matches from every source, tags their source and shows it in the row', async () => {
+    mockSources()
+    renderPage('/calendari?date=2026-09-16&view=week')
+
+    const detail = await screen.findByRole('region', { name: 'Detall del calendari' })
+    await within(detail).findByText(/tercera · Grup 1 · FCTT/)
+    expect(within(detail).getByText(/tercera · Grup 1 · RFETM/)).toBeInTheDocument()
+    expect(within(detail).getByText(/tercera · Grup 1 · BCNESA/)).toBeInTheDocument()
+  })
+
+  it('jornada without a source asks for one and calls neither calendar API', async () => {
+    mockSources()
+    renderPage('/calendari?view=jornada&season=2026-2027')
+
+    expect(await screen.findByText('Selecciona una font per veure les jornades.')).toBeInTheDocument()
+    expect(getSeasonCalendar).not.toHaveBeenCalled()
     expect(getCalendarRange).not.toHaveBeenCalled()
+    expect(screen.getByRole('combobox', { name: 'Competició' })).toBeDisabled()
+  })
+
+  it('shows a no-seasons message when the sources have no seasons', async () => {
+    getMatchOptions.mockResolvedValue({ seasons: [], competitions: [] })
+    renderPage('/calendari?date=2026-09-16&view=week')
+
+    expect(await screen.findByText('No hi ha temporades disponibles.')).toBeInTheDocument()
+    expect(getCalendarRange).not.toHaveBeenCalled()
+  })
+
+  it('all-or-nothing: a failing source shows the error state instead of a partial calendar', async () => {
+    mockSources()
+    getCalendarRange.mockImplementation(({ source }) => (source === 'BCNESA'
+      ? Promise.reject(Object.assign(new Error('nope'), { status: 500 }))
+      : Promise.resolve(rangeWith([match()]))))
+    renderPage('/calendari?date=2026-09-16&view=week')
+
+    expect(await screen.findByText('No s’ha pogut carregar el calendari.')).toBeInTheDocument()
+    expect(screen.queryByText('Club A – Club B')).toBeNull()
   })
 })

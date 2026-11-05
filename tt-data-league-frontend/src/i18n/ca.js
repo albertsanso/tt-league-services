@@ -313,7 +313,8 @@ export default {
     undated: 'Sense data',
     detail: 'Detall del calendari',
     detailEmpty: 'No hi ha partits en aquesta selecció.',
-    selectSeason: 'Selecciona una font i una temporada per veure el calendari.',
+    noSeasons: 'No hi ha temporades disponibles.',
+    selectSourceForJornada: 'Selecciona una font per veure les jornades.',
     selectCompetition: 'Selecciona una competició per veure les jornades.',
   },
   matchSummaryPage: {
