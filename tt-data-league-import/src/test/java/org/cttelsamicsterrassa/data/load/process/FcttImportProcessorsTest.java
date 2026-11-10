@@ -4,6 +4,8 @@ import org.cttelsamicsterrassa.data.core.domain.game.model.Game;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttTeamImportProcessor;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchImportProcessor;
@@ -84,6 +86,8 @@ class FcttImportProcessorsTest {
         assertEquals(3, match.getGroupNumber());
         assertEquals(1, match.getRound());
         assertEquals(MatchStatus.PLAYED, match.getStatus());
+        assertEquals(Region.CATALUNYA, match.getRegion());
+        assertEquals(RegionType.AUTONOMICA, match.getRegionType());
         assertEquals(6, lineups.saved.size());
         assertEquals(7, games.saved.size());
         assertEquals(30, setScores.saved.size());

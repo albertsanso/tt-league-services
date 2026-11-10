@@ -1,0 +1,49 @@
+{
+  "acta_publicada": false,
+  "id_partido": "2026-2027_RTBPREFERENT_G4_1aFase_80-81_1",
+  "federacion": "Federació Catalana de Tennis Taula",
+  "region": "barcelona",
+  "tipo_region": "provincial",
+  "temporada": "2026/2027",
+  "competicion": "RTB PREFERENT",
+  "fase": "1a Fase",
+  "grupo": 4,
+  "jornada": 1,
+  "fecha": "2026-09-26",
+  "hora": "17:00",
+  "lugar": {
+    "ciudad": "CIUTAT",
+    "recinto": "Ctt Cerdanyola. C/ MAJOR 1,08000 CIUTAT"
+  },
+  "equipos": {
+    "local": {
+      "id": "80",
+      "nombre": "CTT CERDANYOLA",
+      "delegado": null,
+      "entrenador": null
+    },
+    "visitante": {
+      "id": "81",
+      "nombre": "CTT RIPOLLET",
+      "delegado": null,
+      "entrenador": null
+    }
+  },
+  "arbitros": {
+    "principal": null,
+    "asistente": null
+  },
+  "abc_es_local": null,
+  "alineaciones": {
+    "local": {},
+    "visitante": {}
+  },
+  "dobles": null,
+  "partidos": [],
+  "resultado_final": {
+    "ganador": null,
+    "marcador_partidos": null,
+    "marcador_juegos": null
+  },
+  "acta_protestada": false
+}

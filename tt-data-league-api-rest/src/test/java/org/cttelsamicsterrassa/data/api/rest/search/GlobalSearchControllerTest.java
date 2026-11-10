@@ -53,7 +53,7 @@ class GlobalSearchControllerTest {
                 .thenReturn(DomainQueryResponse.sucessResponse(List.of(
                         new MatchSearchReadModel(matchId, ImportSource.RFETM, "Primera", null, 1, "REGULAR",
                                 null, "Anna's Club", "Other Club", null, null, null, null, null,
-                                false, List.of(), List.of(), MatchStatus.PLAYED))));
+                                false, List.of(), List.of(), MatchStatus.PLAYED, null, null))));
 
         var response = controller.search(" Anna ");
 

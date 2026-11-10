@@ -21,6 +21,8 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.CalendarMatchState;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -59,9 +61,9 @@ class MatchControllerTest {
                                 "Home", "Away", null, null, null, MatchStatus.SCHEDULED,
                                 CalendarMatchState.AWAITING_RESULT, false, null, null,
                                 "tercera", 1, "1a Fase", 1, UUID.randomUUID(), UUID.randomUUID(),
-                                true)))))))));
+                                true, Region.GIRONA, RegionType.COMARCAL)))))))));
 
-        var response = controller.calendar("FCTT", "2026-2027", "tercera", null, null);
+        var response = controller.calendar("FCTT", "2026-2027", "tercera", null, null, null, null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         SeasonCalendarDto body = (SeasonCalendarDto) response.getBody();
@@ -77,6 +79,39 @@ class MatchControllerTest {
         assertEquals("tercera", match.competition());
         assertEquals(1, match.round());
         assertNotNull(match.homeTeamId());
+        assertEquals("girona", match.region());
+        assertEquals("comarcal", match.regionType());
+    }
+
+    @Test
+    void regionFiltersReachTheQueriesAndUnknownValuesAreRejected() {
+        QueryBus queryBus = mock(QueryBus.class);
+        MatchController controller = controllerWith(queryBus, mock(CommandBus.class), mock(MatchRepository.class));
+        when(queryBus.push(any())).thenReturn(DomainQueryResponse.failResponse(null));
+
+        controller.calendar("FCTT", "2026-2027", "tercera", null, null, "Catalunya", "autonomica");
+        controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21", null, null, null,
+                "catalunya", null);
+
+        org.mockito.ArgumentCaptor<org.albertsanso.commons.query.DomainQuery> captor =
+                org.mockito.ArgumentCaptor.forClass(org.albertsanso.commons.query.DomainQuery.class);
+        org.mockito.Mockito.verify(queryBus, org.mockito.Mockito.times(2)).push(captor.capture());
+        var calendar = (org.cttelsamicsterrassa.data.core.application.match.calendar.FindSeasonCalendarQuery)
+                captor.getAllValues().get(0);
+        var range = (org.cttelsamicsterrassa.data.core.application.match.calendar.range.FindCalendarRangeQuery)
+                captor.getAllValues().get(1);
+        assertEquals(Region.CATALUNYA, calendar.getRegion());
+        assertEquals(RegionType.AUTONOMICA, calendar.getRegionType());
+        assertEquals(Region.CATALUNYA, range.getRegion());
+        assertNull(range.getRegionType());
+
+        assertEquals(HttpStatus.BAD_REQUEST,
+                controller.calendar("FCTT", "2026-2027", "tercera", null, null, "mars", null).getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST,
+                controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21", null, null, null,
+                        null, "local").getStatusCode());
+        assertEquals(HttpStatus.BAD_REQUEST, controller.search("FCTT", "2026-2027", null, null, null, null, null,
+                null, null, "mars", null, 0, 10).getStatusCode());
     }
 
     @Test
@@ -87,7 +122,7 @@ class MatchControllerTest {
                 new SeasonCalendarReadModel(ImportSource.FCTT, Season.of(2026), "tercera",
                         LocalDate.of(2026, 9, 8), 7, List.of())));
 
-        var response = controller.calendar("FCTT", "2026-2027", "tercera", null, null);
+        var response = controller.calendar("FCTT", "2026-2027", "tercera", null, null, null, null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(((SeasonCalendarDto) response.getBody()).groups().isEmpty());
@@ -98,9 +133,9 @@ class MatchControllerTest {
         MatchController controller = controllerWith(mock(QueryBus.class), mock(CommandBus.class),
                 mock(MatchRepository.class));
 
-        assertEquals(HttpStatus.BAD_REQUEST, controller.calendar("FCTT", "2026-2027", "  ", null, null)
+        assertEquals(HttpStatus.BAD_REQUEST, controller.calendar("FCTT", "2026-2027", "  ", null, null, null, null)
                 .getStatusCode());
-        assertEquals(HttpStatus.BAD_REQUEST, controller.calendar("NOPE", "2026-2027", "tercera", null, null)
+        assertEquals(HttpStatus.BAD_REQUEST, controller.calendar("NOPE", "2026-2027", "tercera", null, null, null, null)
                 .getStatusCode());
     }
 
@@ -111,7 +146,7 @@ class MatchControllerTest {
         when(queryBus.push(any())).thenReturn(DomainQueryResponse.failResponse(null));
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR,
-                controller.calendar("FCTT", "2026-2027", "tercera", null, null).getStatusCode());
+                controller.calendar("FCTT", "2026-2027", "tercera", null, null, null, null).getStatusCode());
     }
 
     @Test
@@ -126,12 +161,12 @@ class MatchControllerTest {
                         List.of(new CalendarMatchReadModel(UUID.randomUUID(), ZonedDateTime.now(), "city",
                                 "venue", "Home", "Away", null, null, null, MatchStatus.SCHEDULED,
                                 CalendarMatchState.UPCOMING, false, null, null, "tercera", 1, "1a Fase", 2,
-                                home, away, false)),
+                                home, away, false, null, null)),
                         new CalendarRangeFacets(List.of("tercera"), List.of(1),
                                 List.of(new CalendarTeamFacet(home, "Home", "tercera"))))));
 
         var response = controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21",
-                "tercera", "1", home.toString());
+                "tercera", "1", home.toString(), null, null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         CalendarRangeDto body = (CalendarRangeDto) response.getBody();
@@ -154,7 +189,7 @@ class MatchControllerTest {
                         new CalendarRangeFacets(List.of(), List.of(), List.of()))));
 
         var response = controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21",
-                null, null, null);
+                null, null, null, null, null);
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertTrue(((CalendarRangeDto) response.getBody()).matches().isEmpty());
@@ -165,14 +200,14 @@ class MatchControllerTest {
         MatchController controller = controllerWith(mock(QueryBus.class), mock(CommandBus.class),
                 mock(MatchRepository.class));
 
-        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "nope", "2026-09-21", null, null, null));
-        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-21", "2026-09-14", null, null, null));
-        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-21", "2026-09-21", null, null, null));
-        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-01", "2026-12-01", null, null, null));
+        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "nope", "2026-09-21", null, null, null, null, null));
+        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-21", "2026-09-14", null, null, null, null, null));
+        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-21", "2026-09-21", null, null, null, null, null));
+        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-01", "2026-12-01", null, null, null, null, null));
         assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21", null, null,
-                "not-a-uuid"));
-        assertBadRange(controller.calendarRange("NOPE", "2026-2027", "2026-09-14", "2026-09-21", null, null, null));
-        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21", null, "1", null));
+                "not-a-uuid", null, null));
+        assertBadRange(controller.calendarRange("NOPE", "2026-2027", "2026-09-14", "2026-09-21", null, null, null, null, null));
+        assertBadRange(controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21", null, "1", null, null, null));
     }
 
     @Test
@@ -181,7 +216,7 @@ class MatchControllerTest {
         MatchController controller = controllerWith(queryBus, mock(CommandBus.class), mock(MatchRepository.class));
         when(queryBus.push(any())).thenReturn(DomainQueryResponse.failResponse(null));
 
-        var response = controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21", null, null, null);
+        var response = controller.calendarRange("FCTT", "2026-2027", "2026-09-14", "2026-09-21", null, null, null, null, null);
 
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, response.getStatusCode());
         assertEquals("Calendar range failed", ((MatchController.ErrorMessage) response.getBody()).message());

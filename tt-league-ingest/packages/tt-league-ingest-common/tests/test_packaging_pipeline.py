@@ -545,8 +545,8 @@ def test_scoped_delta_run_packages_only_the_union_of_the_scopes(tmp_path):
                                                     "actas-json/2026-2027/g2/regular/jornada_3.json"]
     assert ingestor.requests[0].scopes == scopes
     assert report.to_dict()["scopes"] == [
-        {"category": None, "group": "g1", "phase": None, "territory": None, "gender": None, "matchDays": [3]},
-        {"category": None, "group": "g2", "phase": None, "territory": None, "gender": None, "matchDays": None}]
+        {"category": None, "group": "g1", "phase": None, "territory": None, "region": None, "regionType": None, "gender": None, "matchDays": [3]},
+        {"category": None, "group": "g2", "phase": None, "territory": None, "region": None, "regionType": None, "gender": None, "matchDays": None}]
 
 
 def test_unsupported_field_in_any_scope_fails_before_any_stage(tmp_path):

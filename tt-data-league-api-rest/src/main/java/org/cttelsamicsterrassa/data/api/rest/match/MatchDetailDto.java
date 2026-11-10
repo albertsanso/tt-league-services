@@ -14,7 +14,8 @@ public record MatchDetailDto(UUID id, String source, String externalId, String c
                              Integer awaySetsWon, boolean protested, List<LineupDto> lineups,
                              List<GameDto> games, TeamFormDto homeTeamForm, TeamFormDto awayTeamForm,
                              List<PlayerFormDto> playerForm, AlignmentStabilityDto homeAlignmentStability,
-                             AlignmentStabilityDto awayAlignmentStability, String status) {
+                             AlignmentStabilityDto awayAlignmentStability, String status,
+                             String region, String regionType) {
     static MatchDetailDto from(MatchDetailReadModel value) {
         return new MatchDetailDto(value.id(), value.source() == null ? null : value.source().name(),
                 value.externalId(), value.competition(), value.season() == null ? null : value.season().toString(),
@@ -28,7 +29,10 @@ public record MatchDetailDto(UUID id, String source, String externalId, String c
                 value.playerForm().stream().map(PlayerFormDto::from).toList(),
                 AlignmentStabilityDto.from(value.homeAlignmentStability()),
                 AlignmentStabilityDto.from(value.awayAlignmentStability()),
-                value.status() == null ? null : value.status().name());
+                value.status() == null ? null : value.status().name(),
+                value.region() == null ? null : value.region().name().toLowerCase(java.util.Locale.ROOT),
+                value.regionType() == null ? null
+                        : value.regionType().name().toLowerCase(java.util.Locale.ROOT));
     }
 
     private static TeamDto team(MatchDetailReadModel.TeamReadModel value) {

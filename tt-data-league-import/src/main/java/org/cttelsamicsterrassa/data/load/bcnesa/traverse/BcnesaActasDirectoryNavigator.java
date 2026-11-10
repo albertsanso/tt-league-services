@@ -1,18 +1,17 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.traverse;
 
 import org.cttelsamicsterrassa.data.core.domain.load.model.ImportLifecycleCounters;
-import org.cttelsamicsterrassa.data.core.domain.load.model.ImportRunProgress;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportProgressListener;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.load.bcnesa.BcnesaCompetitionNames;
-import org.cttelsamicsterrassa.data.load.bcnesa.BcnesaVeteransPhases;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportContext;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
-import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
-import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionIssue;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext;
-import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
-import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParseException;
+import org.cttelsamicsterrassa.data.load.shared.fcttweb.traverse.FcttWebActasDirectoryNavigator;
+import org.cttelsamicsterrassa.data.load.shared.fcttweb.traverse.FcttWebContextFactory;
+import org.cttelsamicsterrassa.data.load.shared.fcttweb.traverse.FcttWebTraversalCounters;
+import org.cttelsamicsterrassa.data.load.shared.fcttweb.traverse.FixtureSplitter;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParser;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,6 +50,12 @@ import java.util.regex.Pattern;
  * {@link #traverse(Path, List)}, so a caller can run a reporting pass and a persisting pass over the
  * same tree without changing anything here.</p>
  *
+ * <h2>Ingest layout</h2>
+ * <p>Files named {@code jornada_<NN>_local_team_<localId>_away_team_<awayId>.json} are the current
+ * {@code tt-league-ingest} layout and are read by the shared {@link FcttWebActasDirectoryNavigator}
+ * after the legacy pass of each season; this navigator keeps only the legacy layout, the multi-fixture
+ * split and the unmapped-folder reporting. Both passes share one set of counters.</p>
+ *
  * <h2>Report file names and competition folders</h2>
  * <p>Report names are recognised by {@link BcnesaReportFileNames}: the legacy {@code acta*.json}
  * names (16,310 {@code acta_<jornada>_page_<n>.json} and 77 {@code acta_<n>.json} files in 2020-2021
@@ -82,17 +87,17 @@ public class BcnesaActasDirectoryNavigator {
     private static final Logger LOGGER = LoggerFactory.getLogger(BcnesaActasDirectoryNavigator.class);
 
     private static final Pattern SEASON_FOLDER_PATTERN = Pattern.compile("\\d{4}-\\d{4}");
-    private static final Pattern GROUP_FOLDER_PATTERN = Pattern.compile("G\\d+");
 
     private final List<BcnesaMatchReportProcessor> processors;
     private final ActaParser actaParser;
     private final BcnesaMatchdaySplitter splitter;
-    private final ActaCompletenessClassifier classifier = new ActaCompletenessClassifier();
+    private final FcttWebActasDirectoryNavigator ingestNavigator;
 
     public BcnesaActasDirectoryNavigator(List<BcnesaMatchReportProcessor> processors, ActaParser actaParser) {
         this.processors = processors == null ? List.of() : List.copyOf(processors);
         this.actaParser = actaParser;
         this.splitter = new BcnesaMatchdaySplitter();
+        this.ingestNavigator = new FcttWebActasDirectoryNavigator(ImportSource.BCNESA, actaParser);
     }
 
     /**
@@ -102,7 +107,7 @@ public class BcnesaActasDirectoryNavigator {
     public BcnesaTraversalSummary traverse(Path baseFolder, List<BcnesaMatchReportProcessor> processors)
             throws IOException {
         return traverse(baseFolder, season -> true, processors, new ImportRunContext(
-                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.BCNESA, null),
+                ImportSource.BCNESA, null),
                 ImportProgressListener.noop());
     }
     public BcnesaTraversalSummary traverse(Path baseFolder, List<BcnesaMatchReportProcessor> processors,
@@ -142,7 +147,7 @@ public class BcnesaActasDirectoryNavigator {
     public BcnesaTraversalSummary traverseSeason(Path baseFolder, String season,
                                                  List<BcnesaMatchReportProcessor> processors) throws IOException {
         return traverse(baseFolder, season::equals, processors, new ImportRunContext(
-                org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource.BCNESA, season),
+                ImportSource.BCNESA, season),
                 ImportProgressListener.noop());
     }
     public BcnesaTraversalSummary traverseSeason(Path baseFolder, String season,
@@ -181,9 +186,9 @@ public class BcnesaActasDirectoryNavigator {
             LOGGER.warn("Traversing {} with no processors; nothing will be stored", baseFolder);
         }
 
-        Counters counters = new Counters();
-        counters.total = countReportFiles(baseFolder, seasonFilter);
-        progressListener.onProgress(ImportRunProgress.determinate(0, counters.total, 0, 0));
+        FcttWebTraversalCounters counters = new FcttWebTraversalCounters();
+        counters.total(countReportFiles(baseFolder, seasonFilter));
+        progressListener.onProgress(counters.progress());
         LOGGER.info("Traversing BCNESA match reports under {}", baseFolder);
 
         for (Path seasonFolder : listDirectories(baseFolder)) {
@@ -199,7 +204,7 @@ public class BcnesaActasDirectoryNavigator {
             traverseSeasonFolder(seasonFolder, season, processors, counters, runContext, progressListener);
         }
 
-        BcnesaTraversalSummary summary = counters.toSummary(runContext.lifecycleCounters());
+        BcnesaTraversalSummary summary = toSummary(counters, runContext.lifecycleCounters());
         LOGGER.info("Traversal of {} finished: {}", baseFolder, summary);
         return summary;
     }
@@ -207,7 +212,7 @@ public class BcnesaActasDirectoryNavigator {
     private void traverseSeasonFolder(Path seasonFolder,
                                       String season,
                                       List<BcnesaMatchReportProcessor> processors,
-                                      Counters counters, ImportRunContext runContext,
+                                      FcttWebTraversalCounters counters, ImportRunContext runContext,
                                       ImportProgressListener progressListener) throws IOException {
         for (Path competitionFolder : listDirectories(seasonFolder)) {
             String folderName = competitionFolder.getFileName().toString();
@@ -231,18 +236,24 @@ public class BcnesaActasDirectoryNavigator {
                 }
             }
         }
+        ingestNavigator.traverseSeason(seasonFolder, season, runContext, counters, progressListener,
+                BCNESA_CONTEXTS, context -> dispatch(context, processors, counters));
     }
+
+    private static final FcttWebContextFactory<BcnesaMatchReportContext> BCNESA_CONTEXTS = report ->
+            new BcnesaMatchReportContext(report.season(), report.competition(), report.group(), report.phase(),
+                    report.round(), report.fixtureIndex(), report.homeTeamName(), report.awayTeamName(),
+                    report.file(), report.acta(), report.games(), report.runContext());
 
     /**
      * A group folder is accepted when it fits the regular {@code G<n>} layout, or when it is the
-     * literal "Other" group folder of a Veterans competition (see {@link BcnesaVeteransPhases}) -
+     * literal "Other" group folder of a Veterans competition (see {@code BcnesaVeteransPhases}) -
      * the folder that holds every playoff/promotion/relegation/finals phase and whose fixtures carry
      * no numbered group. Any other competition's non-{@code G<n>} group folder is rejected (fail
      * closed) rather than silently imported under wrong assumptions.
      */
     private static boolean isAcceptedGroupFolder(String leagueCompetition, String group) {
-        return GROUP_FOLDER_PATTERN.matcher(group).matches()
-                || BcnesaVeteransPhases.isOtherGroup(leagueCompetition, group);
+        return FcttWebActasDirectoryNavigator.isAcceptedBcnesaGroupFolder(leagueCompetition, group);
     }
 
     /**
@@ -278,80 +289,42 @@ public class BcnesaActasDirectoryNavigator {
                                       String phase,
                                       Supplier<BcnesaClubIndex> clubIndex,
                                       List<BcnesaMatchReportProcessor> processors,
-                                      Counters counters, ImportRunContext runContext,
+                                      FcttWebTraversalCounters counters, ImportRunContext runContext,
                                       ImportProgressListener progressListener) throws IOException {
+        FixtureSplitter fixtureSplitter = splitter.asFixtureSplitter(clubIndex);
         for (Path reportFile : listJsonFiles(reportFolder)) {
-            counters.filesSeen++;
+            String fileName = reportFile.getFileName().toString();
+            if (ingestNavigator.isIngestReportName(fileName)) {
+                // The ingest layout is read, and counted, by the shared navigator.
+                continue;
+            }
+            counters.fileSeen();
 
-            if (!BcnesaReportFileNames.isMatchReport(reportFile.getFileName().toString())) {
-                counters.filesSkipped++;
-                counters.issues.add(new ImportExecutionIssue("BcnesaActasDirectoryNavigator",
+            if (!BcnesaReportFileNames.isMatchReport(fileName)) {
+                counters.fileSkipped();
+                counters.issue(new ImportExecutionIssue("BcnesaActasDirectoryNavigator",
                         reportFile.toString(), "unrecognised match report file name"));
                 LOGGER.warn("Skipping {}: unrecognised match report file name", reportFile);
-                reportProgress(counters, progressListener);
+                progressListener.onProgress(counters.progress());
                 continue;
             }
 
-            Acta acta;
-            try {
-                acta = actaParser.parse(reportFile);
-            } catch (ActaParseException e) {
-                counters.filesSkipped++;
-                LOGGER.error("Skipping {}: {}", reportFile, e.getMessage());
-                reportProgress(counters, progressListener);
-                continue;
-            }
-
-            Integer round = acta.round();
-            if (round == null && BcnesaVeteransPhases.isOtherGroup(leagueCompetition, group)) {
-                round = parseRoundFromFileName(reportFile);
-                if (round != null) {
-                    runContext.recordRoundFallback("BcnesaActasDirectoryNavigator", reportFile,
-                            "payload carries no jornada; round " + round + " taken from the file name");
-                }
-            }
-            if (round == null) {
-                counters.filesSkipped++;
-                LOGGER.warn("Skipping {}: payload carries no match day", reportFile);
-                reportProgress(counters, progressListener);
-                continue;
-            }
-
-            List<BcnesaMatchdaySplitter.Fixture> fixtures;
-            try {
-                fixtures = splitter.split(acta, clubIndex);
-            } catch (UncheckedIOException e) {
-                throw e.getCause();
-            }
-            for (int i = 0; i < fixtures.size(); i++) {
-                counters.fixturesSeen++;
-                dispatchFixture(reportFile, season, leagueCompetition, group, phase, round, i, fixtures.get(i),
-                        acta, processors, counters, runContext);
-            }
-            reportProgress(counters, progressListener);
+            ingestNavigator.handleBcnesaReport(reportFile, season, leagueCompetition, group, phase,
+                    fixtureSplitter, BCNESA_CONTEXTS, context -> dispatch(context, processors, counters),
+                    runContext, counters, progressListener);
         }
-    }
-
-    /**
-     * Parses the match day out of a Veterans "Other"-group file name (see
-     * {@link BcnesaReportFileNames#roundFromFileName}). Returns {@code null} when the name carries
-     * none, so the caller skips the file exactly as it does when the payload itself carries no
-     * {@code jornada}.
-     */
-    private static Integer parseRoundFromFileName(Path reportFile) {
-        return BcnesaReportFileNames.roundFromFileName(reportFile.getFileName().toString());
     }
 
     /**
      * Counts the files of an unmapped {@code rtb-*} competition folder as seen and skipped, using
      * the same group and phase walk as a mapped one, and reports one issue for the folder.
      */
-    private void skipUnmappedCompetition(Path competitionFolder, String folderName, Counters counters)
+    private void skipUnmappedCompetition(Path competitionFolder, String folderName,
+                                         FcttWebTraversalCounters counters)
             throws IOException {
         long files = countFolderFiles(competitionFolder, folderName);
-        counters.filesSeen += files;
-        counters.filesSkipped += files;
-        counters.issues.add(new ImportExecutionIssue("BcnesaActasDirectoryNavigator", competitionFolder.toString(),
+        counters.filesSeenAndSkipped(files);
+        counters.issue(new ImportExecutionIssue("BcnesaActasDirectoryNavigator", competitionFolder.toString(),
                 "unmapped BCNESA competition folder " + folderName + "; add it to BcnesaCompetitionNames"));
         LOGGER.error("Skipping unmapped BCNESA competition folder {}", competitionFolder);
     }
@@ -367,16 +340,6 @@ public class BcnesaActasDirectoryNavigator {
             }
         }
         return total;
-    }
-
-    /**
-     * Reports progress in file-level units to match {@code total} (a file count, not a fixture
-     * count, since fixture counts per file are only known after parsing). {@code fixturesDispatched}
-     * remains the unit of the final {@link BcnesaTraversalSummary}.
-     */
-    private static void reportProgress(Counters counters, ImportProgressListener progressListener) {
-        progressListener.onProgress(ImportRunProgress.determinate(counters.filesSeen, counters.total,
-                counters.filesSkipped + counters.fixturesUnresolved, counters.processorFailures));
     }
 
     /**
@@ -400,45 +363,16 @@ public class BcnesaActasDirectoryNavigator {
         return total;
     }
 
-    private void dispatchFixture(Path reportFile,
-                                 String season,
-                                 String leagueCompetition,
-                                 String group,
-                                 String phase,
-                                 int round,
-                                 int fixtureIndex,
-                                 BcnesaMatchdaySplitter.Fixture fixture,
-                                 Acta acta,
-                                 List<BcnesaMatchReportProcessor> processors,
-                                 Counters counters, ImportRunContext runContext) {
-        if (!fixture.isResolved()) {
-            counters.fixturesUnresolved++;
-            ActaClassification classification = classifier.classify(acta, fixture.games());
-            if (classification.unresolvedPendingFixture()) {
-                runContext.recordUnresolvedPendingFixture("BcnesaActasDirectoryNavigator", reportFile,
-                        classification.reason());
-            }
-            LOGGER.warn("Skipping fixture {} of {}: clubs could not be attributed ({} games)",
-                    fixtureIndex, reportFile, fixture.games().size());
-            return;
-        }
-
-        BcnesaMatchReportContext context = new BcnesaMatchReportContext(
-                season, leagueCompetition, group, phase, round, fixtureIndex,
-                fixture.homeTeamName(), fixture.awayTeamName(), reportFile, acta, fixture.games(), runContext);
-        dispatch(context, processors, counters);
-    }
-
     private void dispatch(BcnesaMatchReportContext context,
                           List<BcnesaMatchReportProcessor> processors,
-                          Counters counters) {
-        counters.fixturesDispatched++;
+                          FcttWebTraversalCounters counters) {
+        counters.fixtureDispatched();
         for (BcnesaMatchReportProcessor processor : processors) {
             try {
                 processor.process(context);
             } catch (RuntimeException e) {
-                counters.processorFailures++;
-                counters.issues.add(new ImportExecutionIssue(processor.getClass().getSimpleName(),
+                counters.processorFailed();
+                counters.issue(new ImportExecutionIssue(processor.getClass().getSimpleName(),
                         context.matchReportFile().toString(), e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage()));
                 LOGGER.error("Processor {} failed on fixture {} of {}",
                         processor.getClass().getSimpleName(), context.fixtureIndex(), context.matchReportFile(), e);
@@ -468,20 +402,10 @@ public class BcnesaActasDirectoryNavigator {
         return entries;
     }
 
-    /** Mutable tally kept for the duration of one traversal. */
-    private static final class Counters {
-        private long total;
-        private long filesSeen;
-        private long filesSkipped;
-        private long fixturesSeen;
-        private long fixturesDispatched;
-        private long fixturesUnresolved;
-        private long processorFailures;
-        private final List<ImportExecutionIssue> issues = new ArrayList<>();
-
-        private BcnesaTraversalSummary toSummary(ImportLifecycleCounters lifecycle) {
-            return new BcnesaTraversalSummary(filesSeen, filesSkipped, fixturesSeen, fixturesDispatched,
-                    fixturesUnresolved, processorFailures, issues, lifecycle);
-        }
+    private static BcnesaTraversalSummary toSummary(FcttWebTraversalCounters counters,
+                                                    ImportLifecycleCounters lifecycle) {
+        return new BcnesaTraversalSummary(counters.filesSeen(), counters.filesSkipped(), counters.fixturesSeen(),
+                counters.fixturesDispatched(), counters.fixturesUnresolved(), counters.processorFailures(),
+                counters.issues(), lifecycle);
     }
 }

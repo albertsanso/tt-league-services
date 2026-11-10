@@ -1,0 +1,9 @@
+https://fctt.cat/robots.txt
+https://fctt.cat/competicions-estatals/
+https://fctt.cat/lligues/rtb-preferent-g4/
+https://fctt.cat/lligues/rtb-preferent-g4/?jornada=1
+https://control.fctt.cat/robots.txt
+https://control.fctt.cat/partido/6801/imprimir/acta
+https://control.fctt.cat/partido/6801/imprimir/acta
+https://control.fctt.cat/partido/6801/imprimir/acta
+https://control.fctt.cat/partido/6801/imprimir/acta

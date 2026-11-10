@@ -5,8 +5,7 @@ requires-python = ">=3.12"
 dependencies = [
     "tt-league-ingest-common",
     "tt-league-ingest-rfetm",
-    "tt-league-ingest-bcnesa",
-    "tt-league-ingest-fctt",
+    "tt-league-ingest-fcttweb",
     "fastapi>=0.110",
     "uvicorn>=0.29",
 ]
@@ -24,5 +23,4 @@ packages = ["src/ingest_rest"]
 [tool.uv.sources]
 tt-league-ingest-common = { workspace = true }
 tt-league-ingest-rfetm = { workspace = true }
-tt-league-ingest-bcnesa = { workspace = true }
-tt-league-ingest-fctt = { workspace = true }
+tt-league-ingest-fcttweb = { workspace = true }

@@ -41,6 +41,8 @@ class FiltersBody(BaseModel):
     matchDays: str | None = None
     gender: str | None = None
     territory: str | None = None
+    region: str | None = None
+    regionType: str | None = None
 
 
 class ScopeBody(BaseModel):
@@ -50,6 +52,8 @@ class ScopeBody(BaseModel):
     group: str | None = None
     phase: str | None = None
     territory: str | None = None
+    region: str | None = None
+    regionType: str | None = None
     gender: str | None = None
     matchDays: str | list[int] | None = None
 
@@ -232,7 +236,8 @@ def create_app(settings: IngestSettings, api_key: str, ingestors: dict[Source, S
                                      allow_published_shrink=body.allowPublishedShrink, scopes=scopes)
             filters = IngestFilters(body.filters.category, body.filters.group, body.filters.phase,
                                     parse_match_days(body.filters.matchDays) if body.filters.matchDays else None,
-                                    body.filters.gender, body.filters.territory)
+                                    body.filters.gender, body.filters.territory,
+                                    body.filters.region, body.filters.regionType)
             if body.mode == "delta" and not filters.match_days:
                 raise ValueError("mode delta requires filters.matchDays")
             return IngestRequest(source, season, stages, filters, body.force, None, body.mode,

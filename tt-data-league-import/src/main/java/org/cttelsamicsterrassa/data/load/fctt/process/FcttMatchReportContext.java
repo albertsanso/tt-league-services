@@ -1,11 +1,14 @@
 package org.cttelsamicsterrassa.data.load.fctt.process;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
+import org.cttelsamicsterrassa.data.load.shared.fcttweb.process.FcttWebFixtureContext;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
+import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext;
 
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Objects;
 import java.util.OptionalInt;
 import java.util.regex.Matcher;
@@ -34,7 +37,7 @@ public record FcttMatchReportContext(
         int round,
         Path matchReportFile,
         Acta acta,
-        ImportRunContext runContext) {
+        ImportRunContext runContext) implements FcttWebFixtureContext {
 
     public FcttMatchReportContext(String season, String gender, String leagueCompetition, String group, int round,
                                   Path matchReportFile, Acta acta) {
@@ -113,5 +116,37 @@ public record FcttMatchReportContext(
         } catch (NumberFormatException e) {
             return OptionalInt.empty();
         }
+    }
+
+    @Override
+    public Integer groupNumberOrNull() {
+        OptionalInt number = groupNumber();
+        return number.isPresent() ? number.getAsInt() : null;
+    }
+
+    @Override
+    public boolean hasInvalidGroupFolder() {
+        return hasGroupFolder() && groupNumber().isEmpty();
+    }
+
+    @Override
+    public String homeTeamName() {
+        return acta.teams() == null || acta.teams().home() == null ? null : acta.teams().home().name();
+    }
+
+    @Override
+    public String awayTeamName() {
+        return acta.teams() == null || acta.teams().away() == null ? null : acta.teams().away().name();
+    }
+
+    @Override
+    public List<ActaGame> games() {
+        return acta.games();
+    }
+
+    @Override
+    public FcttMatchReportContext withActa(Acta acta) {
+        return new FcttMatchReportContext(season, gender, leagueCompetition, group, round, matchReportFile, acta,
+                runContext);
     }
 }

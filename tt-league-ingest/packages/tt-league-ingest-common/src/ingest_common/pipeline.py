@@ -33,6 +33,10 @@ class SourceIngestor(Protocol):
 
     def teams(self, request: IngestRequest, settings: IngestSettings, listener: ProgressListener) -> StageReport: ...
 
+    def scope_error(self, scope: IngestFilters) -> str | None:
+        """Why ``scope`` can never select anything in this source (``None`` when it can); checked before any stage."""
+        ...
+
     def scope_matches(self, scope: IngestFilters, relative: PurePosixPath, match_day: int | None) -> bool:
         """Whether an ``actas-json/<season>`` file (path relative to the season folder, payload ``jornada``)
         belongs to ``scope``; used to package scoped delta runs."""
@@ -73,10 +77,13 @@ class IngestPipeline:
         for index, scope in enumerate(request.effective_scopes(), 1):
             unsupported_filters = [name for name in FILTER_FIELDS
                                    if getattr(scope, name) and name not in ingestor.supported_filters]
+            where = f" (scope {index})" if request.scopes else ""
             if unsupported_filters:
-                where = f" (scope {index})" if request.scopes else ""
                 names = ", ".join(unsupported_filters)
                 return self._fail_early(report, f"{request.source.value} does not support filter(s): {names}{where}")
+            scope_error = getattr(ingestor, "scope_error", lambda _: None)(scope)
+            if scope_error:
+                return self._fail_early(report, f"{request.source.value}: {scope_error}{where}")
         if IngestStage.UPLOAD in request.stages:
             try:
                 self._settings.require_upload()

@@ -1,0 +1,423 @@
+{
+  "id_partido": "2026-2027_copa-catalana-femenina_1a-divisio_regular_300-301_1",
+  "acta_publicada": true,
+  "federacion": "Federació Catalana de Tennis Taula",
+  "region": "catalunya",
+  "tipo_region": "autonomica",
+  "temporada": "2026/2027",
+  "genero": "femenino",
+  "competicion": "COPA CATALANA FEMENINA 1a DIVISIÓ",
+  "fase": "1a Fase",
+  "grupo": 0,
+  "jornada": 1,
+  "fecha": "2026-09-26",
+  "hora": "17:00",
+  "lugar": {
+    "ciudad": "CIUTAT",
+    "recinto": "Ctt Dones Uno. C/ MAJOR 1,08000 CIUTAT"
+  },
+  "equipos": {
+    "local": {
+      "id": "300",
+      "nombre": "CTT DONES UNO",
+      "delegado": null,
+      "entrenador": null
+    },
+    "visitante": {
+      "id": "301",
+      "nombre": "CTT DONES DOS",
+      "delegado": null,
+      "entrenador": null
+    }
+  },
+  "abc_es_local": true,
+  "arbitros": {
+    "principal": {
+      "nombre": "ARBITRA UNA",
+      "licencia": null
+    },
+    "asistente": null
+  },
+  "alineaciones": {
+    "local": {
+      "A": {
+        "nombre": "JUGADOR300A, NOM1",
+        "licencia": "3001",
+        "id": "3001"
+      },
+      "B": {
+        "nombre": "JUGADOR300B, NOM2",
+        "licencia": "3002",
+        "id": "3002"
+      },
+      "C": {
+        "nombre": "JUGADOR300C, NOM3",
+        "licencia": "3003",
+        "id": "3003"
+      }
+    },
+    "visitante": {
+      "Y": {
+        "nombre": "JUGADOR301B, NOM2",
+        "licencia": "3012",
+        "id": "3012"
+      },
+      "X": {
+        "nombre": "JUGADOR301A, NOM1",
+        "licencia": "3011",
+        "id": "3011"
+      },
+      "Z": {
+        "nombre": "JUGADOR301C, NOM3",
+        "licencia": "3013",
+        "id": "3013"
+      }
+    }
+  },
+  "dobles": {
+    "local": [
+      {
+        "nombre": "JUGADOR300A, NOM1",
+        "licencia": "3001",
+        "id": "3001"
+      },
+      {
+        "nombre": "JUGADOR300B, NOM2",
+        "licencia": "3002",
+        "id": "3002"
+      }
+    ],
+    "visitante": [
+      {
+        "nombre": "JUGADOR301A, NOM1",
+        "licencia": "3011",
+        "id": "3011"
+      },
+      {
+        "nombre": "JUGADOR301B, NOM2",
+        "licencia": "3012",
+        "id": "3012"
+      }
+    ]
+  },
+  "partidos": [
+    {
+      "numero": 1,
+      "tipo": "individual",
+      "cruce": "A vs Y",
+      "local": {
+        "letra": "A",
+        "nombre": "JUGADOR300A, NOM1",
+        "licencia": "3001",
+        "id": "3001"
+      },
+      "visitante": {
+        "letra": "Y",
+        "nombre": "JUGADOR301B, NOM2",
+        "licencia": "3012",
+        "id": "3012"
+      },
+      "sets": [
+        {
+          "set": 1,
+          "local": 5,
+          "visitante": 11
+        },
+        {
+          "set": 2,
+          "local": 7,
+          "visitante": 11
+        },
+        {
+          "set": 3,
+          "local": 11,
+          "visitante": 9
+        },
+        {
+          "set": 4,
+          "local": 6,
+          "visitante": 11
+        }
+      ],
+      "resultado_juegos": {
+        "local": 1,
+        "visitante": 3
+      },
+      "ganador": "visitante",
+      "marcador_acumulado": {
+        "local": 0,
+        "visitante": 1
+      }
+    },
+    {
+      "numero": 2,
+      "tipo": "individual",
+      "cruce": "B vs X",
+      "local": {
+        "letra": "B",
+        "nombre": "JUGADOR300B, NOM2",
+        "licencia": "3002",
+        "id": "3002"
+      },
+      "visitante": {
+        "letra": "X",
+        "nombre": "JUGADOR301A, NOM1",
+        "licencia": "3011",
+        "id": "3011"
+      },
+      "sets": [
+        {
+          "set": 1,
+          "local": 11,
+          "visitante": 5
+        },
+        {
+          "set": 2,
+          "local": 11,
+          "visitante": 7
+        },
+        {
+          "set": 3,
+          "local": 9,
+          "visitante": 11
+        },
+        {
+          "set": 4,
+          "local": 11,
+          "visitante": 6
+        }
+      ],
+      "resultado_juegos": {
+        "local": 3,
+        "visitante": 1
+      },
+      "ganador": "local",
+      "marcador_acumulado": {
+        "local": 1,
+        "visitante": 1
+      }
+    },
+    {
+      "numero": 3,
+      "tipo": "individual",
+      "cruce": "C vs Z",
+      "local": {
+        "letra": "C",
+        "nombre": "JUGADOR300C, NOM3",
+        "licencia": "3003",
+        "id": "3003"
+      },
+      "visitante": {
+        "letra": "Z",
+        "nombre": "JUGADOR301C, NOM3",
+        "licencia": "3013",
+        "id": "3013"
+      },
+      "sets": [
+        {
+          "set": 1,
+          "local": 11,
+          "visitante": 5
+        },
+        {
+          "set": 2,
+          "local": 11,
+          "visitante": 7
+        },
+        {
+          "set": 3,
+          "local": 9,
+          "visitante": 11
+        },
+        {
+          "set": 4,
+          "local": 11,
+          "visitante": 6
+        }
+      ],
+      "resultado_juegos": {
+        "local": 3,
+        "visitante": 1
+      },
+      "ganador": "local",
+      "marcador_acumulado": {
+        "local": 2,
+        "visitante": 1
+      }
+    },
+    {
+      "numero": 4,
+      "tipo": "dobles",
+      "cruce": "Db vs Db",
+      "local": {
+        "letra": "Db",
+        "jugadores": [
+          {
+            "nombre": "JUGADOR300A, NOM1",
+            "licencia": "3001",
+            "id": "3001"
+          },
+          {
+            "nombre": "JUGADOR300B, NOM2",
+            "licencia": "3002",
+            "id": "3002"
+          }
+        ]
+      },
+      "visitante": {
+        "letra": "Db",
+        "jugadores": [
+          {
+            "nombre": "JUGADOR301A, NOM1",
+            "licencia": "3011",
+            "id": "3011"
+          },
+          {
+            "nombre": "JUGADOR301B, NOM2",
+            "licencia": "3012",
+            "id": "3012"
+          }
+        ]
+      },
+      "sets": [
+        {
+          "set": 1,
+          "local": 5,
+          "visitante": 11
+        },
+        {
+          "set": 2,
+          "local": 7,
+          "visitante": 11
+        },
+        {
+          "set": 3,
+          "local": 11,
+          "visitante": 9
+        },
+        {
+          "set": 4,
+          "local": 6,
+          "visitante": 11
+        }
+      ],
+      "resultado_juegos": {
+        "local": 1,
+        "visitante": 3
+      },
+      "ganador": "visitante",
+      "marcador_acumulado": {
+        "local": 2,
+        "visitante": 2
+      }
+    },
+    {
+      "numero": 5,
+      "tipo": "individual",
+      "cruce": "A vs X",
+      "local": {
+        "letra": "A",
+        "nombre": "JUGADOR300A, NOM1",
+        "licencia": "3001",
+        "id": "3001"
+      },
+      "visitante": {
+        "letra": "X",
+        "nombre": "JUGADOR301A, NOM1",
+        "licencia": "3011",
+        "id": "3011"
+      },
+      "sets": [
+        {
+          "set": 1,
+          "local": 11,
+          "visitante": 5
+        },
+        {
+          "set": 2,
+          "local": 11,
+          "visitante": 7
+        },
+        {
+          "set": 3,
+          "local": 9,
+          "visitante": 11
+        },
+        {
+          "set": 4,
+          "local": 11,
+          "visitante": 6
+        }
+      ],
+      "resultado_juegos": {
+        "local": 3,
+        "visitante": 1
+      },
+      "ganador": "local",
+      "marcador_acumulado": {
+        "local": 3,
+        "visitante": 2
+      }
+    },
+    {
+      "numero": 6,
+      "tipo": "individual",
+      "cruce": "C vs Y",
+      "local": {
+        "letra": "C",
+        "nombre": "JUGADOR300C, NOM3",
+        "licencia": "3003",
+        "id": "3003"
+      },
+      "visitante": {
+        "letra": "Y",
+        "nombre": "JUGADOR301B, NOM2",
+        "licencia": "3012",
+        "id": "3012"
+      },
+      "sets": [
+        {
+          "set": 1,
+          "local": 11,
+          "visitante": 5
+        },
+        {
+          "set": 2,
+          "local": 11,
+          "visitante": 7
+        },
+        {
+          "set": 3,
+          "local": 9,
+          "visitante": 11
+        },
+        {
+          "set": 4,
+          "local": 11,
+          "visitante": 6
+        }
+      ],
+      "resultado_juegos": {
+        "local": 3,
+        "visitante": 1
+      },
+      "ganador": "local",
+      "marcador_acumulado": {
+        "local": 4,
+        "visitante": 2
+      }
+    }
+  ],
+  "resultado_final": {
+    "ganador": "CTT DONES UNO",
+    "marcador_partidos": {
+      "local": 4,
+      "visitante": 2
+    },
+    "marcador_juegos": {
+      "local": 14,
+      "visitante": 10
+    }
+  },
+  "acta_protestada": false
+}

@@ -20,7 +20,8 @@ import org.springframework.web.client.RestClientResponseException;
 /**
  * {@link IngestStatusGateway} over {@code GET /api/v1/ingest/sources/{source}/match-days-status?season=}. A 404 (no
  * status file yet, or no match days of the season) is an empty result; every other failure is a
- * {@link GatewayException} that never carries the API key. Only the fields the scope join needs are mapped; unknown
+ * {@link GatewayException} that never carries the API key. Only the fields the scope join needs are mapped (plus the optional
+ * {@code region} and {@code regionType} of FEAT-00121, which never take part in scope identity); unknown
  * fields are ignored.
  */
 public final class HttpIngestStatusGateway implements IngestStatusGateway {
@@ -70,7 +71,7 @@ public final class HttpIngestStatusGateway implements IngestStatusGateway {
                 }
                 rows.add(new IngestStatusRow(row.season(), row.category(), row.group(), row.phase(), row.gender(),
                         row.territory(), row.matchDay(), row.status(), dateTime(row.firstMatchAt()),
-                        dateTime(row.lastMatchAt())));
+                        dateTime(row.lastMatchAt()), row.region(), row.regionType()));
             }
             return Optional.of(new IngestMatchDayStatus(source, season, rows));
         } catch (DateTimeException | IllegalArgumentException e) {
@@ -97,6 +98,8 @@ public final class HttpIngestStatusGateway implements IngestStatusGateway {
             Integer matchDay,
             String status,
             String firstMatchAt,
-            String lastMatchAt) {
+            String lastMatchAt,
+            String region,
+            String regionType) {
     }
 }

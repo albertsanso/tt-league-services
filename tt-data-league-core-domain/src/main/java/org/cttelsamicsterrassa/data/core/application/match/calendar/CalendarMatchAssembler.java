@@ -62,6 +62,7 @@ public final class CalendarMatchAssembler {
                 match.getCompetition(), match.getGroupNumber(), match.getPhase(), match.getRound(),
                 match.getHomeTeam() == null ? null : match.getHomeTeam().getId(),
                 match.getAwayTeam() == null ? null : match.getAwayTeam().getId(),
-                CalendarStateResolver.canMarkOverdue(match, today));
+                CalendarStateResolver.canMarkOverdue(match, today),
+                match.getRegion(), match.getRegionType());
     }
 }

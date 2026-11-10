@@ -1,0 +1,322 @@
+{
+ "created_at": "2026-10-02T12:00:00",
+ "match_days": {
+  "2026-2027/RTB PREFERENT/G4/1a Fase/J1": {
+   "downloads": 2,
+   "failures": 0,
+   "history": [
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": null,
+     "outcome": "new",
+     "retries": 0
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": null,
+     "outcome": "updated",
+     "retries": 0
+    }
+   ],
+   "incomplete": 0,
+   "last_duration_s": "<volatile>",
+   "last_issues": [],
+   "last_outcome": "updated",
+   "last_retries": 0,
+   "retries": 0,
+   "skipped": 0,
+   "updated_at": "2026-10-02T12:00:00"
+  }
+ },
+ "recent_failures": [
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 4,
+   "duration_s": "<volatile>",
+   "errors": [
+    "response is not a PDF (text/html, 22 bytes)",
+    "response is not a PDF (text/html, 22 bytes)",
+    "response is not a PDF (text/html, 22 bytes)",
+    "response is not a PDF (text/html, 22 bytes)"
+   ],
+   "key": "2026-2027/RTB PREFERENT/G4/1a Fase/J1/6801",
+   "kind": "pdf",
+   "outcome": "failed",
+   "url": "https://control.fctt.cat/partido/6801/imprimir/acta"
+  }
+ ],
+ "recent_requests": [
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/competicions-estatals/",
+   "kind": "index",
+   "outcome": "ok",
+   "url": "https://fctt.cat/competicions-estatals/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/lligues/rtb-preferent-g4/",
+   "kind": "league",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g4/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "2026-2027/RTB PREFERENT/G4/1a Fase/J1",
+   "kind": "jornada",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g4/?jornada=1"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 4,
+   "duration_s": "<volatile>",
+   "errors": [
+    "response is not a PDF (text/html, 22 bytes)",
+    "response is not a PDF (text/html, 22 bytes)",
+    "response is not a PDF (text/html, 22 bytes)",
+    "response is not a PDF (text/html, 22 bytes)"
+   ],
+   "key": "2026-2027/RTB PREFERENT/G4/1a Fase/J1/6801",
+   "kind": "pdf",
+   "outcome": "failed",
+   "url": "https://control.fctt.cat/partido/6801/imprimir/acta"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/competicions-estatals/",
+   "kind": "index",
+   "outcome": "ok",
+   "url": "https://fctt.cat/competicions-estatals/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/lligues/rtb-preferent-g4/",
+   "kind": "league",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g4/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "2026-2027/RTB PREFERENT/G4/1a Fase/J1",
+   "kind": "jornada",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g4/?jornada=1"
+  }
+ ],
+ "request_kinds": {
+  "index": {
+   "attempts": 2,
+   "attempts_to_success": {
+    "1": 2
+   },
+   "duration_s": "<volatile>",
+   "errors": {},
+   "failures": 0,
+   "incomplete": 0,
+   "requests": 2,
+   "retries": 0,
+   "retry_successes": 0,
+   "successes": 2
+  },
+  "jornada": {
+   "attempts": 2,
+   "attempts_to_success": {
+    "1": 2
+   },
+   "duration_s": "<volatile>",
+   "errors": {},
+   "failures": 0,
+   "incomplete": 0,
+   "requests": 2,
+   "retries": 0,
+   "retry_successes": 0,
+   "successes": 2
+  },
+  "league": {
+   "attempts": 2,
+   "attempts_to_success": {
+    "1": 2
+   },
+   "duration_s": "<volatile>",
+   "errors": {},
+   "failures": 0,
+   "incomplete": 0,
+   "requests": 2,
+   "retries": 0,
+   "retry_successes": 0,
+   "successes": 2
+  },
+  "pdf": {
+   "attempts": 4,
+   "attempts_to_success": {},
+   "duration_s": "<volatile>",
+   "errors": {
+    "not a PDF": 4
+   },
+   "failures": 1,
+   "incomplete": 0,
+   "requests": 1,
+   "retries": 3,
+   "retry_successes": 0,
+   "successes": 0
+  }
+ },
+ "runs": [
+  {
+   "arguments": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "category": null,
+    "delay": 0.0,
+    "force": false,
+    "format": "both",
+    "group": null,
+    "log_file": "<tmp>/work/logs/download.log",
+    "match_day": null,
+    "metrics_file": "<tmp>/work/logs/download_metrics.json",
+    "output_dir": "<tmp>/work/content",
+    "phase": null,
+    "region_type": null,
+    "retry": 3,
+    "season": "2026-2027",
+    "skip_pdf": false,
+    "territory": null,
+    "timeout": 60.0
+   },
+   "counters": {
+    "leagues processed": 1,
+    "match days new": 1,
+    "pdfs failed": 1
+   },
+   "duration_s": "<volatile>",
+   "finished_at": "2026-10-02T12:00:00",
+   "policy": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "delay": 0.0,
+    "retries": {
+     "index": 3,
+     "jornada": 3,
+     "league": 3,
+     "pdf": 3
+    }
+   },
+   "requests": 4,
+   "retries": 3,
+   "started_at": "2026-10-02T12:00:00"
+  },
+  {
+   "arguments": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "category": null,
+    "delay": 0.0,
+    "force": true,
+    "format": "both",
+    "group": null,
+    "log_file": "<tmp>/work/logs/download.log",
+    "match_day": null,
+    "metrics_file": "<tmp>/work/logs/download_metrics.json",
+    "output_dir": "<tmp>/work/content",
+    "phase": null,
+    "region_type": null,
+    "retry": 3,
+    "season": "2026-2027",
+    "skip_pdf": false,
+    "territory": null,
+    "timeout": 60.0
+   },
+   "counters": {
+    "leagues processed": 1,
+    "match days updated": 1
+   },
+   "duration_s": "<volatile>",
+   "finished_at": "2026-10-02T12:00:00",
+   "policy": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "delay": 0.0,
+    "retries": {
+     "index": 3,
+     "jornada": 3,
+     "league": 3,
+     "pdf": 3
+    }
+   },
+   "requests": 3,
+   "retries": 0,
+   "started_at": "2026-10-02T12:00:00"
+  }
+ ],
+ "schema_version": 1,
+ "targets": {
+  "index:https://fctt.cat/competicions-estatals/": {
+   "consecutive_failures": 0,
+   "failures": 0,
+   "last_outcome": "ok",
+   "last_seen": "2026-10-02T12:00:00",
+   "requests": 2,
+   "retries": 0,
+   "url": "https://fctt.cat/competicions-estatals/"
+  },
+  "jornada:2026-2027/RTB PREFERENT/G4/1a Fase/J1": {
+   "consecutive_failures": 0,
+   "failures": 0,
+   "last_outcome": "ok",
+   "last_seen": "2026-10-02T12:00:00",
+   "requests": 2,
+   "retries": 0,
+   "url": "https://fctt.cat/lligues/rtb-preferent-g4/?jornada=1"
+  },
+  "league:https://fctt.cat/lligues/rtb-preferent-g4/": {
+   "consecutive_failures": 0,
+   "failures": 0,
+   "last_outcome": "ok",
+   "last_seen": "2026-10-02T12:00:00",
+   "requests": 2,
+   "retries": 0,
+   "url": "https://fctt.cat/lligues/rtb-preferent-g4/"
+  },
+  "pdf:2026-2027/RTB PREFERENT/G4/1a Fase/J1/6801": {
+   "consecutive_failures": 1,
+   "failures": 1,
+   "last_error": "response is not a PDF (text/html, 22 bytes)",
+   "last_outcome": "failed",
+   "last_seen": "2026-10-02T12:00:00",
+   "requests": 1,
+   "retries": 3,
+   "url": "https://control.fctt.cat/partido/6801/imprimir/acta"
+  }
+ },
+ "totals": {
+  "leagues processed": 2,
+  "match days new": 1,
+  "match days updated": 1,
+  "pdfs failed": 1,
+  "requests": 7,
+  "retries": 3,
+  "runs": 2
+ },
+ "updated_at": "2026-10-02T12:00:00"
+}

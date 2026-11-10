@@ -23,6 +23,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## Main index
 
+- [FEAT-00121: align bcnesa and fctt import. Decouple source and seggregate by region](#feat-00121-align-bcnesa-and-fctt-import-decouple-source-and-seggregate-by-region)
+
 - [FEAT-00120: tt-league frontend client app season calendar redesign](#feat-00120-tt-league-frontend-client-app-season-calendar-redesign)
 
 - [FEAT-00119: tt-league client app - allow all sources for current season as default filters in calendar view](#feat-00119-tt-league-client-app---allow-all-sources-for-current-season-as-default-filters-in-calendar-view)
@@ -35,7 +37,41 @@ This file is the single source of truth for planned, in-progress, and completed 
 No features currently in progress.
 ## In Review
 
-No features currently in review.
+### [FEAT-00121] align bcnesa and fctt import. Decouple source and seggregate by region
+- **Status:** in-review
+- **Priority:** medium
+- **Effort:** large (> 8h)
+- **Depends on:** —
+
+#### Goal
+Replace the two duplicated fctt.cat ingest/parse implementations (BCNESA and FCTT) with one
+profile-driven implementation and a shared current-season import path, keeping `source` as the
+segregation key and adding `region` and `regionType` to every match.
+
+#### Acceptance Criteria
+- [x] One Python package (`ingest_fcttweb`) implements download, parse and status scan for both
+  `bcnesa` and `fctt` entry points through a `SiteProfile`; `ingest_bcnesa` and `ingest_fctt` are removed.
+- [x] Golden tests (`tt-league-ingest/tests/golden`) prove the unified package produces
+  byte-identical content HTML and acta JSON to the legacy implementations for both sources (the goldens
+  were produced by the legacy ports, which already carried `region` / `tipo_region`).
+- [x] `Source`/`ImportSource` values, entry points, CLI/REST source names, data directories,
+  manifests, `id_partido` formats and source-scoped club/player/fixture identity are unchanged.
+- [x] `region` (`espana`, `catalunya`, `barcelona`, `girona`, `lleida`, `tarragona`) and
+  `regionType` (`nacional`, `autonomica`, `provincial`, `comarcal`) are closed vocabularies derived
+  deterministically; unknown input fails clearly.
+- [x] Acta JSON carries optional `region` / `tipo_region` (schema and schema copy updated together);
+  ingest status rows and filters expose `region` / `regionType` while `territory` keeps working.
+- [x] `match_record` stores nullable `region` / `region_type`, documented in `rfetm-datamodel.md`;
+  an opt-in report/write backfill fills existing rows.
+- [x] The Java ingest-layout path for BCNESA and FCTT runs through one shared navigator and
+  processor set; legacy-history readers stay source-specific and their tests pass unchanged.
+- [x] API match/calendar responses expose `region` / `regionType` and accept them as optional filters.
+- [x] `uv run pytest` and the full `mvn test` build pass.
+
+#### Feature Details
+→ See [FEAT-00121-DETAILS.md](./FEAT-00121-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
+
+---
 ## Backlog
 
 No features currently in the backlog.

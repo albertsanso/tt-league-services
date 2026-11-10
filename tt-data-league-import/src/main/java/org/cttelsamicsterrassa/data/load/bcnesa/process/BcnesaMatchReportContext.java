@@ -3,6 +3,7 @@ package org.cttelsamicsterrassa.data.load.bcnesa.process;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.BcnesaVeteransPhases;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaMatchdaySplitter;
+import org.cttelsamicsterrassa.data.load.shared.fcttweb.process.FcttWebFixtureContext;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaScore;
@@ -57,7 +58,7 @@ public record BcnesaMatchReportContext(
         Path matchReportFile,
         Acta acta,
         List<ActaGame> games,
-        ImportRunContext runContext) {
+        ImportRunContext runContext) implements FcttWebFixtureContext {
 
     public BcnesaMatchReportContext(String season, String leagueCompetition, String group, String phase,
                                     int round, int fixtureIndex, String homeTeamName, String awayTeamName,
@@ -103,6 +104,17 @@ public record BcnesaMatchReportContext(
             return null;
         }
         return Integer.parseInt(group.substring(1));
+    }
+
+    @Override
+    public Integer groupNumberOrNull() {
+        return groupNumber();
+    }
+
+    @Override
+    public BcnesaMatchReportContext withActa(Acta acta) {
+        return new BcnesaMatchReportContext(season, leagueCompetition, group, phase, round, fixtureIndex,
+                homeTeamName, awayTeamName, matchReportFile, acta, games, runContext);
     }
 
     /**

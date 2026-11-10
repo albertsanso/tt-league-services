@@ -1,0 +1,32 @@
+{
+ "pages": {
+  "2026-2027/copa-catalana-femenina/1a-divisio/regular/jornada-1.html": {
+   "outputs": [
+    "2026-2027/copa-catalana-femenina/1a-divisio/regular/jornada_1_local_team_300_away_team_301.json",
+    "2026-2027/copa-catalana-femenina/1a-divisio/regular/jornada_1_local_team_302_away_team_303.json"
+   ],
+   "parsed_at": "2026-10-02T10:00:00Z",
+   "sha256": "166d72c7aa45adf68003c8bf47f7e4fc1712e2c4484cfc7c119d738af2ff2c30",
+   "status": "partial"
+  },
+  "2026-2027/copa-catalana-femenina/1a-divisio/regular/jornada-2.html": {
+   "outputs": [
+    "2026-2027/copa-catalana-femenina/1a-divisio/regular/jornada_2_local_team_300_away_team_302.json",
+    "2026-2027/copa-catalana-femenina/1a-divisio/regular/jornada_2_local_team_301_away_team_303.json"
+   ],
+   "parsed_at": "2026-10-02T10:00:00Z",
+   "sha256": "f0176d4a4d687d34a57d31571850f98985823fe8674e4d48f4f7cb9b14defa4f",
+   "status": "partial"
+  },
+  "2026-2027/copa-catalana-femenina/2a-divisio/fase-final/jornada-1.html": {
+   "outputs": [
+    "2026-2027/copa-catalana-femenina/2a-divisio/fase-final/jornada_1_local_team_400_away_team_401.json"
+   ],
+   "parsed_at": "2026-10-02T10:00:00Z",
+   "sha256": "be0d0ce5d463dd4d431cf123f93b943af2fe94e923ea54616fe4074e9a245cba",
+   "status": "complete"
+  }
+ },
+ "parser_version": 2,
+ "updated_at": "2026-10-02T10:00:00Z"
+}

@@ -2,6 +2,8 @@ package org.cttelsamicsterrassa.data.core.application.match.calendar.dto;
 
 import org.cttelsamicsterrassa.data.core.domain.match.model.CalendarMatchState;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 
 import java.time.ZonedDateTime;
 import java.util.UUID;
@@ -11,7 +13,8 @@ import java.util.UUID;
  * added by FEAT-00093). The three manual-mark fields are filled only
  * for a SCHEDULED match ({@code false}/{@code null} for a PLAYED match). {@code overdueMarkable} tells
  * whether the match may be manually marked overdue today (a dated SCHEDULED match, from the day after
- * its date).
+ * its date). {@code region} and {@code regionType} (FEAT-00121) are {@code null} for matches not
+ * backfilled yet.
  */
 public record CalendarMatchReadModel(
         UUID id,
@@ -34,5 +37,7 @@ public record CalendarMatchReadModel(
         int round,
         UUID homeTeamId,
         UUID awayTeamId,
-        boolean overdueMarkable) {
+        boolean overdueMarkable,
+        Region region,
+        RegionType regionType) {
 }

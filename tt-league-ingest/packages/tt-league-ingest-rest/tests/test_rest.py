@@ -27,7 +27,7 @@ KEY = {"X-API-Key": "k"}
 class FakeIngestor:
     source = Source.FCTT
     supported_stages = frozenset({IngestStage.DOWNLOAD, IngestStage.PARSE})
-    supported_filters = frozenset({"category", "group", "phase", "match_days", "gender"})
+    supported_filters = frozenset({"category", "group", "phase", "match_days", "gender", "region", "region_type"})
 
     def __init__(self, fail=False, download_exit=0, write_page=False, raises=False):
         self.fail, self.download_exit, self.write_page, self.raises = fail, download_exit, write_page, raises
@@ -271,8 +271,8 @@ def test_scoped_run_is_accepted_and_reports_its_scopes(tmp_path):
     body = wait_for(client, response.json()["runId"])
     assert body["status"] == "SUCCEEDED"
     assert body["scopes"] == [
-        {"category": "tdm", "group": "g1", "phase": None, "territory": None, "gender": None, "matchDays": [3, 4]},
-        {"category": None, "group": None, "phase": None, "territory": None, "gender": "female", "matchDays": [2, 3]}]
+        {"category": "tdm", "group": "g1", "phase": None, "territory": None, "region": None, "regionType": None, "gender": None, "matchDays": [3, 4]},
+        {"category": None, "group": None, "phase": None, "territory": None, "region": None, "regionType": None, "gender": "female", "matchDays": [2, 3]}]
 
 
 def test_filter_run_reports_its_filters_as_the_only_scope(tmp_path):
@@ -306,6 +306,17 @@ def test_unsupported_scope_field_fails_the_run_before_any_stage(tmp_path):
     body = wait_for(client, post(client, scopes=[{"group": "g1"}, {"territory": "catalunya"}]).json()["runId"])
     assert body["status"] == "FAILED" and body["outcome"] == "FAILED"
     assert body["stages"][0]["issues"][0]["message"] == "FCTT does not support filter(s): territory (scope 2)"
+
+
+def test_region_scope_is_validated_and_checked_by_the_source(tmp_path):
+    client = client_for(tmp_path, FakeIngestor())
+    unknown = post(client, scopes=[{"region": "mars"}])
+    assert unknown.status_code == 400 and "unknown region 'mars'" in unknown.text
+    ok = post(client, scopes=[{"region": "catalunya", "regionType": "autonomica"}])
+    assert ok.status_code == 202
+    body = wait_for(client, ok.json()["runId"])
+    assert body["scopes"] == [{"category": None, "group": None, "phase": None, "territory": None,
+                               "region": "catalunya", "regionType": "autonomica", "gender": None, "matchDays": None}]
 
 
 # --------------------------------------------------------------------------- match-day status

@@ -60,6 +60,9 @@ def _add_filters(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--match-day", help="Match days: 3, 1,4 or 2-5")
     parser.add_argument("--gender", help="Gender filter (FCTT)")
     parser.add_argument("--territory", help="Download territory (BCNESA: Barcelona, Girona, Lleida, Tarragona; FCTT)")
+    parser.add_argument("--region", help="Region (BCNESA: barcelona, girona, lleida, tarragona; FCTT: catalunya)")
+    parser.add_argument("--region-type", dest="region_type",
+                        help="Region type (BCNESA: provincial, comarcal; FCTT: autonomica)")
     parser.add_argument("--force", action="store_true", help="Redo work even if outputs are up to date")
 
 
@@ -108,7 +111,7 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-FILTER_OPTIONS = ("category", "group", "phase", "match_day", "gender", "territory")
+FILTER_OPTIONS = ("category", "group", "phase", "match_day", "gender", "territory", "region", "region_type")
 
 
 def read_scope_file(path: Path) -> tuple[IngestFilters, ...]:
@@ -151,7 +154,8 @@ def build_request(args: argparse.Namespace) -> IngestRequest:
             source=Source.parse(args.source), season=season, stages=stages,
             filters=IngestFilters(getattr(args, "category", None), getattr(args, "group", None),
                                   getattr(args, "phase", None), match_days, getattr(args, "gender", None),
-                                  getattr(args, "territory", None)),
+                                  getattr(args, "territory", None), getattr(args, "region", None),
+                                  getattr(args, "region_type", None)),
             force=getattr(args, "force", False), delay_seconds=getattr(args, "delay", None), mode=mode,
             allow_published_shrink=getattr(args, "allow_published_shrink", False), zip_path=zip_path,
             dry_run=getattr(args, "dry_run", False), scopes=scopes, run_id=getattr(args, "run_id", None))

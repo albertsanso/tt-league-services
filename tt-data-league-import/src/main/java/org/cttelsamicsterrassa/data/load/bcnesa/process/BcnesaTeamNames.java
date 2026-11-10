@@ -16,14 +16,14 @@ import java.util.regex.Pattern;
  * ({@code CLUB ARIEL A} vs {@code CLUB ARIEL B}) are never merged - only the quoting around one
  * letter is.</p>
  */
-final class BcnesaTeamNames {
+public final class BcnesaTeamNames {
 
     private static final Pattern TEAM_LETTER_SUFFIX = Pattern.compile("[\"']{1,2}\\s*([A-Za-z])\\s*[\"']{1,2}$");
 
     private BcnesaTeamNames() {
     }
 
-    static String normalize(String name) {
+    public static String normalize(String name) {
         if (name == null) {
             return null;
         }

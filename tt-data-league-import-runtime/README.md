@@ -106,6 +106,9 @@ The application is launched with `--key=value` parameters:
 | `--backfill-scheduled-matches`          | No | Runs the scheduled-match backfill (see below) in write mode instead of an import. |
 | `--backfill-scheduled-matches=write`    | No | Explicitly runs the backfill in write mode. |
 | `--backfill-scheduled-matches=report`   | No | Runs the same backfill candidate query without saving changes. |
+| `--backfill-regions`                    | No | Sets `region` / `region_type` on stored matches that lack them (see below), in write mode, for `--source`. |
+| `--backfill-regions=write`              | No | Explicitly runs the region backfill in write mode. |
+| `--backfill-regions=report`             | No | Runs the same region analysis without saving changes. |
 | `--detect-amended-actas`                | No | Detects amended actas and re-applies them in write mode (see below). |
 | `--detect-amended-actas=write`          | No | Explicitly runs amended-acta detection in write mode. |
 | `--detect-amended-actas=report`         | No | Runs the same detection without saving changes. |
@@ -309,6 +312,44 @@ java -jar target\tt-data-league-import-runtime.jar `
 
 java -jar target\tt-data-league-import-runtime.jar `
   --source=rfetm --season=2025-2026 --backfill-scheduled-matches
+```
+
+### Backfill match regions
+
+`--backfill-regions[=write|report]` fills the nullable `region` and
+`region_type` columns of `match_record` for the matches of `--source` that have
+no region yet (FEAT-00121). Matches imported after the feature get both values
+from the acta (`region`, `tipo_region`) or, when the acta has none, from
+`source` and the stored competition; matches imported before it keep `NULL`
+until this command runs, because the values are excluded from the content
+checksum and an unchanged acta is never re-written. An acta whose `region` or
+`tipo_region` the source cannot have (for example an RFETM acta in `girona`) is
+rejected with an error and not imported. The backfill fills only the column that
+is still `NULL`; a value already stored is never overwritten.
+
+Both values come from the closed `RegionResolver` table:
+
+| Source | `region` | `region_type` |
+| --- | --- | --- |
+| RFETM | `espana` | `nacional` |
+| FCTT | `catalunya` | `autonomica` |
+| BCNESA | `barcelona` for display-name competitions (legacy exports are Barcelona-only) and `rtb-` names; `girona`, `lleida`, `tarragona` for `rtg-`, `rtl-`, `rtt-` names | `comarcal` when the competition contains `comarcal`, else `provincial` |
+
+A match whose competition the resolver does not know (a blank BCNESA
+competition or an `rt?-` prefix outside `rtb`/`rtg`/`rtl`/`rtt`) is logged as a
+warning, counted as unresolved and left unchanged; nothing falls back to a
+default region.
+
+The command is opt-in, never enabled by default, source-scoped and exclusive
+with every import argument and with `--backfill-scheduled-matches`; it needs no
+`--season` and does not traverse actas. Report mode performs the same matching
+analysis and writes nothing. Write mode only sets the two columns, in chunks;
+it is idempotent because a second run finds no candidate left.
+
+```powershell
+java -jar target\tt-data-league-import-runtime.jar --source=bcnesa --backfill-regions=report
+
+java -jar target\tt-data-league-import-runtime.jar --source=bcnesa --backfill-regions
 ```
 
 ### Detect amended actas

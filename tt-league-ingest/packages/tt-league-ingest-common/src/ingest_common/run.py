@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Protocol
 
 from ingest_common.packaging import RUN_ID_PATTERN
+from ingest_common.region import Region, RegionType
 from ingest_common.season import Season
 from ingest_common.source import Source
 
@@ -46,7 +47,7 @@ RETRYABLE_OUTCOMES = frozenset({RunOutcome.SOURCE_UNAVAILABLE})
 LEGACY_FAILURE_MESSAGE = "the script finished with failures (see its log)"
 
 
-FILTER_FIELDS = ("category", "group", "phase", "match_days", "gender", "territory")
+FILTER_FIELDS = ("category", "group", "phase", "match_days", "gender", "territory", "region", "region_type")
 
 
 @dataclass(frozen=True)
@@ -59,6 +60,15 @@ class IngestFilters:
     match_days: frozenset[int] | None = None
     gender: str | None = None
     territory: str | None = None
+    region: str | None = None  # a ``Region`` value; ``territory`` stays and names the same attribute for BCNESA
+    region_type: str | None = None  # a ``RegionType`` value
+
+    def __post_init__(self) -> None:
+        # Closed vocabularies: unknown values fail here, for every entry point (CLI, REST, scope file).
+        if self.region:
+            object.__setattr__(self, "region", Region.parse(self.region).value)
+        if self.region_type:
+            object.__setattr__(self, "region_type", RegionType.parse(self.region_type).value)
 
     @property
     def is_empty(self) -> bool:
@@ -66,7 +76,7 @@ class IngestFilters:
 
     def describe(self) -> str:
         """``territory=Girona category=PREFERENT group=G2 days=3,4``, used in issue labels."""
-        parts = [f"{name}={getattr(self, name)}" for name in ("territory", "category", "gender", "group", "phase")
+        parts = [f"{name}={getattr(self, name)}" for name in ("territory", "region", "region_type", "category", "gender", "group", "phase")
                  if getattr(self, name)]
         if self.match_days:
             parts.append("days=" + ",".join(str(day) for day in sorted(self.match_days)))
@@ -74,7 +84,7 @@ class IngestFilters:
 
     def to_dict(self) -> dict[str, object]:
         return {"category": self.category, "group": self.group, "phase": self.phase, "territory": self.territory,
-                "gender": self.gender, "matchDays": sorted(self.match_days) if self.match_days else None}
+                "region": self.region, "regionType": self.region_type, "gender": self.gender, "matchDays": sorted(self.match_days) if self.match_days else None}
 
 
 @dataclass(frozen=True)

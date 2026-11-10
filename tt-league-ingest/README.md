@@ -21,12 +21,38 @@ uv sync --all-packages
 | --- | --- | --- |
 | `tt-league-ingest-common` | `ingest_common` | Season/source values, settings, run model, HTTP client, JSON IO, schema validation, packaging, upload client, stage pipeline |
 | `tt-league-ingest-rfetm` | `ingest_rfetm` | RFETM actas (HTML + PDF) and teams |
-| `tt-league-ingest-bcnesa` | `ingest_bcnesa` | BCNESA actas (HTML) |
-| `tt-league-ingest-fctt` | `ingest_fctt` | FCTT actas (HTML) |
+| `tt-league-ingest-fcttweb` | `ingest_fcttweb` | BCNESA and FCTT actas (HTML): one fctt.cat scraper and parser driven by a `SiteProfile` per source |
 | `tt-league-ingest-cli` | `ingest_cli` | `tt-league-ingest` command |
 | `tt-league-ingest-rest` | `ingest_rest` | `tt-league-ingest-rest` FastAPI service |
 
 Federation packages register their `SourceIngestor` under the entry-point group `tt_league_ingest.sources`.
+`ingest_fcttweb` registers two, `bcnesa` and `fctt` (the unchanged `--source` values, REST paths, data directories
+`<data>/bcnesa/…` and `<data>/fctt/…` and ZIP manifests), each an `FcttWebIngestor` bound to its profile.
+
+### `ingest_fcttweb`: one scraper, two profiles
+
+BCNESA and FCTT scrape the same website (`https://fctt.cat/competicions-estatals/`, the same `.match-container`
+markup) and emit the same acta model, so they share one implementation: index discovery, markup extraction
+(BeautifulSoup), the fetch client (robots.txt, pacing, `Retry-After`, backoff, user-agent rotation), acta assembly,
+the status scan and the ingestor. What really differs is declared as data in `ingest_fcttweb/profile.py`
+(`BCNESA_PROFILE`, `FCTT_PROFILE`, frozen dataclasses) and nothing else may branch on the source:
+
+| Profile fact | BCNESA | FCTT |
+| --- | --- | --- |
+| Index sections | territorial cards (`Lligues de la representació territorial de <territory>`) | `TDM` and `Copa Catalana Femenina` headings |
+| Request delay, backoff, timeout | 1 s (`--delay`), 2 s, 60 s | 3 s (`--request_delay`), 5 s, 30 s |
+| Retried statuses | 403, 404, 408, 425, 429, 5xx | 404, 408, 425, 429, 5xx, 520-524 (never 401/403) |
+| User agents | browser agents, shuffled | the tool agent first, browser agents on retries |
+| Files | `<category>/<group>/<phase>/jornada_NN.html`, `jornada_NN_local_team_…json` | `…/jornada-N.html`, `jornada_N_local_team_…json` |
+| Download model | each page validated on its own and rebuilt (`ingest_fcttweb.validated`) | each page checked against the league calendar and saved as served (`ingest_fcttweb.calendar_checked`) |
+| Metrics file | one record per request, learns the retry budget | one record per attempt, tunes delay and backoff |
+| `id_partido` | `<season>_<CATEGORYCOMPACT>_<group>_<phasecompact>_<home>-<away>_<day>` | `<season>_<category>_<group>_<phase>_<home>-<away>_<day>` (slugs) |
+| `genero` | not emitted | `masculino` / `femenino` |
+| Match status | published when the results table has rows (`ingest_fcttweb.acta.TableActaBuilder`) | per-match `complete` / `partial` / `incomplete`, a walkover is complete (`StatusActaBuilder`) |
+| Incremental parse | rewrite on change; a published acta is never replaced by an unpublished one unless `--force` | `.parse_state.json` skips unchanged pages and removes JSON a page no longer produces |
+
+The two download and parse models are the remaining behavioural differences of the original ports; converging them
+would change the output and is a separate, versioned decision.
 
 ## Configuration
 
@@ -85,11 +111,38 @@ jornada page of one group) gets one status:
 
 The file holds `source`, `generatedAt`, `evaluatedAt` (local time used for the date comparison), `seasons`,
 a `summary` (counts per status, `matches`, `played`, `reported`, `emptyPages`, `unreadablePages`) and a
-`matchDays` list. Each entry has `season`, `category`, `group`, `phase`, `gender`, `territory`, `matchDay`,
+`matchDays` list. Each entry has `season`, `category`, `group`, `phase`, `gender`, `territory`, `region`,
+`regionType`, `matchDay`,
 `status`, `matches`, `played`, `reported`, `firstMatchAt`, `lastMatchAt`, `file` (relative to the content
 folder) and `contentUpdatedAt`. Pages that list no matches are only counted in `emptyPages`. The file is
 written atomically, so a reader never sees a half-written file. The REST service serves it at
 `GET /api/v1/ingest/sources/{source}/match-days-status` (see [REST service](#rest-service)).
+
+## Region and region type (FEAT-00121)
+
+`source` stays the segregation key. Every BCNESA and FCTT acta also carries two optional attributes, `region` and
+`tipo_region` (`regionType` in filters, REST and the status file), both closed vocabularies derived by
+`ingest_common.region` without defaults:
+
+| Source | `region` | `regionType` |
+| --- | --- | --- |
+| FCTT (TDM, Copa Catalana Femenina) | `catalunya` | `autonomica` |
+| BCNESA | `barcelona`, `girona`, `lleida` or `tarragona`, from the category folder prefix `rtb`/`rtg`/`rtl`/`rtt` | `comarcal` when the category contains `comarcal`, else `provincial` |
+
+A BCNESA category without one of those prefixes cannot be placed: the parser reports an error for the match and
+writes no file (the downloader and the status file leave the region empty instead of failing). RFETM is Spain-wide
+(`espana`/`nacional`) and its acta files do not carry the fields; the Java import derives them. The downloaders
+write the attributes as page meta tags (`region`, `region-type` for BCNESA; `acta-region`, `acta-region-type` for
+FCTT) and the status file derives them from the category, so pages downloaded before the feature report them too.
+The FCTT parse state version moves to 2 and BCNESA rewrites a JSON whenever its content changes, so existing
+actas gain the two keys on the next parse without `--force`; no other key changes.
+
+The filters `--region` and `--region-type` (scope keys `region` and `regionType`, REST filter and scope fields of
+the same names) accept the vocabularies above. BCNESA maps a `region` onto the downloader's territory
+(`--region girona` equals `--territory Girona`; both given must agree) and passes `--region_type` to the downloader;
+packaging matches both against the category prefix. FCTT accepts only `catalunya`/`autonomica`, RFETM neither. A
+value outside the vocabulary, or one the source can never match (`region=girona` for FCTT), fails the run before
+any network call. `territory` keeps working unchanged.
 
 ## CLI
 
@@ -169,12 +222,12 @@ several competitions. It replaces the filter options with a list of **scopes**:
 uv run tt-league-ingest run --source bcnesa --scope-file scopes.json --package --mode delta --upload
 ```
 
-- A scope has the optional keys `category`, `group`, `phase`, `territory`, `gender` (the same values as the
+- A scope has the optional keys `category`, `group`, `phase`, `territory`, `region`, `regionType`, `gender` (the same values as the
   filter options) and `matchDays` (an array of positive integers, or a selector such as `3`, `1,4`, `2-5`).
   Keys inside one scope must all match; a run covers every scope. A scope must set at least one key,
   unknown keys are rejected and identical scopes run once.
 - Supported keys per source, as for the filters: RFETM `category`, `matchDays`; BCNESA `category`, `group`,
-  `phase`, `territory`, `matchDays`; FCTT all six. A key the source does not support fails the run before
+  `phase`, `territory`, `region`, `regionType`, `matchDays`; FCTT all six plus `region` and `regionType` (RFETM supports neither). A key the source does not support fails the run before
   any network call, naming the scope (`... does not support filter(s): group (scope 2)`).
 - The download and parse scripts run once per scope with that scope's filters (identical argument lists
   run once, for example two BCNESA scopes that differ only by territory parse once). Between two
@@ -289,10 +342,16 @@ and is not used by the orchestrator. See [deploy/README.md](../deploy/README.md)
 ```text
 uv lock --check
 uv run pytest                                   # whole workspace
-uv run pytest packages/tt-league-ingest-fctt    # one package
+uv run pytest packages/tt-league-ingest-fcttweb # one package
+uv run pytest tests/golden                      # byte-for-byte golden outputs of BCNESA and FCTT
 ```
 
-Tests never use the network.
+Tests never use the network. `tests/golden/` serves saved pages (`sites/bcnesa`, `sites/fctt`: one league per
+territory, comarcal and veterans leagues, a real saved FCTT page, future, partial and walkover match days, a women's
+league, a duplicated pairing, faults) through a fake HTTP session with a frozen clock, runs the download and parse of
+each source over several rounds and compares the produced trees, request sequence and normalised metrics with
+`expected/`. Those outputs were produced by the original `ingest_bcnesa` / `ingest_fctt` ports; regenerate them
+(`uv run python tests/golden/regenerate.py`) only for an intentional, reviewed output change.
 
 ## Quick Run - Start services
 

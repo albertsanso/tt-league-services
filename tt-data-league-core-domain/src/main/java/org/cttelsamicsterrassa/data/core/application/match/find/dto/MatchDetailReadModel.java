@@ -2,6 +2,8 @@ package org.cttelsamicsterrassa.data.core.application.match.find.dto;
 
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.time.ZonedDateTime;
@@ -37,7 +39,9 @@ public record MatchDetailReadModel(
         List<PlayerFormReadModel> playerForm,
         AlignmentStabilityReadModel homeAlignmentStability,
         AlignmentStabilityReadModel awayAlignmentStability,
-        MatchStatus status) {
+        MatchStatus status,
+        Region region,
+        RegionType regionType) {
 
     public record TeamReadModel(UUID id, String name, String source, String season, UUID clubId) {
     }
