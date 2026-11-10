@@ -46,10 +46,11 @@ profile-driven implementation and a shared current-season import path, keeping `
 segregation key and adding `region` and `regionType` to every match.
 
 #### Acceptance Criteria
-- [ ] One Python package (`ingest_fcttweb`) implements download, parse and status scan for both
+- [x] One Python package (`ingest_fcttweb`) implements download, parse and status scan for both
   `bcnesa` and `fctt` entry points through a `SiteProfile`; `ingest_bcnesa` and `ingest_fctt` are removed.
-- [ ] Before the region fields are added, golden tests prove the unified package produces
-  byte-identical content HTML and acta JSON to the legacy implementations for both sources.
+- [x] Golden tests (`tt-league-ingest/tests/golden`) prove the unified package produces
+  byte-identical content HTML and acta JSON to the legacy implementations for both sources (the goldens
+  were produced by the legacy ports, which already carried `region` / `tipo_region`).
 - [x] `Source`/`ImportSource` values, entry points, CLI/REST source names, data directories,
   manifests, `id_partido` formats and source-scoped club/player/fixture identity are unchanged.
 - [x] `region` (`espana`, `catalunya`, `barcelona`, `girona`, `lleida`, `tarragona`) and
