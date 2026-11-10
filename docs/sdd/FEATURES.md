@@ -34,8 +34,11 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## In Progress
 
+No features currently in progress.
+## In Review
+
 ### [FEAT-00121] align bcnesa and fctt import. Decouple source and seggregate by region
-- **Status:** in-progress
+- **Status:** in-review
 - **Priority:** medium
 - **Effort:** large (> 8h)
 - **Depends on:** —
@@ -69,9 +72,6 @@ segregation key and adding `region` and `regionType` to every match.
 → See [FEAT-00121-DETAILS.md](./FEAT-00121-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
-## In Review
-
-No features currently in review.
 ## Backlog
 
 No features currently in the backlog.

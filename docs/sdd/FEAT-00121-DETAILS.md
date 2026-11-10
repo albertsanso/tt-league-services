@@ -486,3 +486,15 @@ Phases are ordered so that every phase is releasable on its own and the full `mv
 - 2026-11-10 integration: the region work (commit 2151a85) and the two follow-up branches (Python Phase 0-1, Java steps
   25-26) were merged into `feature/align-bcnesa-fctt`. The "Not done" list of the execution-status note above is
   superseded by the two notes that follow it: only step 33 (the manual live smoke) and the Phase 5 closing checks remain.
+- 2026-11-10 live smoke (step 33), run after the merge against fctt.cat, season 2026-2027, match day 1, old code
+  (pre-change commit `47cfe1e`) and new code each into a fresh data directory, minutes apart: BCNESA Tarragona (26 actas),
+  Girona (25), Lleida (15), Barcelona (177) and FCTT with `--package --dry-run` (34 actas, 5 pages). Run reports have the
+  same counts for old and new (the 2 Tarragona and 3 Girona parse errors are identical in both, pre-existing). Every
+  acta JSON that the site did not change in between differs only by `region` / `tipo_region` (Tarragona 26, Girona 25,
+  Lleida 15, Barcelona 174, FCTT 34, no file added or removed). Page differences: the new meta tags (`region`,
+  `region-type` / `acta-region`, `acta-region-type`), the download timestamp and, for FCTT, the site's cache comment.
+  The 3 remaining Barcelona actas (and their page, `rtb-veterans-3a-a` G2) differ because the site changed between the
+  two runs (its player links went live and the page turned from `partial` to `complete`), not because of the code.
+  FCTT `.parse_state.json` differs by the parser version and timestamps, as intended. All tooling data was kept outside
+  the repository.
+
