@@ -1,6 +1,8 @@
 package org.cttelsamicsterrassa.data.core.domain.match.model;
 
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.time.LocalDate;
@@ -19,7 +21,9 @@ public record MatchSearchCriteria(
         String clubName,
         int page,
         int pageSize,
-        MatchStatus status) {
+        MatchStatus status,
+        Region region,
+        RegionType regionType) {
 
     public MatchSearchCriteria {
         if (source == null || season == null) {
@@ -35,6 +39,24 @@ public record MatchSearchCriteria(
         competition = competition == null || competition.isBlank() ? null : competition.trim();
         playerName = playerName == null || playerName.isBlank() ? null : playerName.trim();
         clubName = clubName == null || clubName.isBlank() ? null : clubName.trim();
+    }
+
+    /** Without the FEAT-00121 region filters: every region and region type matches. */
+    public MatchSearchCriteria(
+            ImportSource source,
+            Season season,
+            String competition,
+            LocalDate fromDate,
+            LocalDate toDate,
+            UUID playerId,
+            PlayerLocation playerLocation,
+            String playerName,
+            String clubName,
+            int page,
+            int pageSize,
+            MatchStatus status) {
+        this(source, season, competition, fromDate, toDate, playerId, playerLocation, playerName,
+                clubName, page, pageSize, status, null, null);
     }
 
     public MatchSearchCriteria(

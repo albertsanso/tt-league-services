@@ -64,7 +64,10 @@ public class FindSeasonCalendarQueryHandler
 
     private SeasonCalendarReadModel build(FindSeasonCalendarQuery query) {
         List<Match> calendarMatches = matches.findMatchesBySourceSeasonAndCompetition(
-                query.getSource(), query.getSeason(), query.getCompetition());
+                        query.getSource(), query.getSeason(), query.getCompetition()).stream()
+                .filter(m -> query.getRegion() == null || query.getRegion() == m.getRegion())
+                .filter(m -> query.getRegionType() == null || query.getRegionType() == m.getRegionType())
+                .toList();
 
         List<RoundProgress> progress = RoundProgressCalculator.compute(query.getSource(), query.getSeason(),
                 roundStatusCounts(query.getCompetition(), calendarMatches));

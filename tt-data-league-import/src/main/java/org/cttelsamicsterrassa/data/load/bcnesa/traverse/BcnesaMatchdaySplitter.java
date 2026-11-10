@@ -1,5 +1,6 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.traverse;
 
+import org.cttelsamicsterrassa.data.load.shared.fcttweb.traverse.FixtureSplitter;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaParticipant;
@@ -45,6 +46,17 @@ public final class BcnesaMatchdaySplitter {
         public boolean isResolved() {
             return homeTeamName != null && awayTeamName != null;
         }
+    }
+
+    /**
+     * This splitter as the shared {@link FixtureSplitter} hook, so the fctt.cat navigator can read a
+     * legacy multi-fixture file with the club index of its group.
+     */
+    public FixtureSplitter asFixtureSplitter(Supplier<BcnesaClubIndex> clubIndex) {
+        return acta -> split(acta, clubIndex).stream()
+                .map(fixture -> new FixtureSplitter.Fixture(fixture.homeTeamName(), fixture.awayTeamName(),
+                        fixture.games()))
+                .toList();
     }
 
     /**

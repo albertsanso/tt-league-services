@@ -2,12 +2,15 @@ package org.cttelsamicsterrassa.data.core.domain.match.model;
 
 import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.junit.jupiter.api.Test;
 
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class MatchTest {
@@ -216,6 +219,32 @@ class MatchTest {
                 .awayGamesWon(match.getAwayGamesWon()).homeSetsWon(match.getHomeSetsWon())
                 .awaySetsWon(match.getAwaySetsWon()).winnerTeam(match.getWinnerTeam())
                 .status(match.getStatus());
+    }
+
+    @Test
+    void regionAttributesAreNullableAndNotPartOfTheNaturalKey() {
+        Match without = builder().createExisting();
+        Match with = builder().region(Region.GIRONA).regionType(RegionType.COMARCAL).createExisting();
+
+        assertNull(without.getRegion());
+        assertNull(without.getRegionType());
+        assertEquals(Region.GIRONA, with.getRegion());
+        assertEquals(RegionType.COMARCAL, with.getRegionType());
+        assertEquals(true, without.hasSameNaturalKeyAs(without.withRegion(Region.BARCELONA, RegionType.PROVINCIAL)));
+    }
+
+    @Test
+    void headerCopiesKeepTheRegionAttributes() {
+        Match match = builder().region(Region.LLEIDA).regionType(RegionType.PROVINCIAL).createExisting();
+
+        for (Match copy : new Match[] {match.withSourceFixtureId("fixture-1"), match.withSourceChecksum("checksum-1")}) {
+            assertEquals(Region.LLEIDA, copy.getRegion());
+            assertEquals(RegionType.PROVINCIAL, copy.getRegionType());
+        }
+        Match moved = match.withRegion(Region.TARRAGONA, RegionType.COMARCAL);
+        assertEquals(match.getId(), moved.getId());
+        assertEquals(Region.TARRAGONA, moved.getRegion());
+        assertEquals(RegionType.COMARCAL, moved.getRegionType());
     }
 
     private Match.MatchBuilder builder() {

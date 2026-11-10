@@ -96,6 +96,18 @@ class MatchContentChecksumTest {
     }
 
     @Test
+    void regionAttributesAreNotPartOfTheChecksumSoSettingThemNeverAmendsAMatch() {
+        String base = MatchContentChecksum.of(content(match(b -> b), false));
+
+        String withRegion = MatchContentChecksum.of(content(
+                match(b -> b.region(org.cttelsamicsterrassa.data.core.domain.shared.model.Region.GIRONA)
+                        .regionType(org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType.COMARCAL)),
+                false));
+
+        assertEquals(base, withRegion);
+    }
+
+    @Test
     void changingAChildChangesTheChecksum() {
         Match match = match(b -> b);
         String base = MatchContentChecksum.of(content(match, false));

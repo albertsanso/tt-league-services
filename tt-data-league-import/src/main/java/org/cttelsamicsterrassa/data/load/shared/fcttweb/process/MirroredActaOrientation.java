@@ -1,4 +1,4 @@
-package org.cttelsamicsterrassa.data.load.fctt.process;
+package org.cttelsamicsterrassa.data.load.shared.fcttweb.process;
 
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.Acta;
 import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaDoubles;
@@ -10,16 +10,16 @@ import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaSet;
 import java.util.Objects;
 
 /**
- * Older FCTT extracts key lineups, doubles and games by the A/B/C column instead of home/away while
+ * The {@link ActaOrientation#MIRRORED} hook. Older FCTT extracts key lineups, doubles and games by the A/B/C column instead of home/away while
  * {@code equipos} and {@code resultado_final} use the real sides; a last running score that mirrors
  * the final score reveals that A/B/C was the away team.
  */
-final class FcttActaOrientation {
+public final class MirroredActaOrientation {
 
-    private FcttActaOrientation() {
+    private MirroredActaOrientation() {
     }
 
-    static Acta toHomeAway(Acta acta) {
+    public static Acta toHomeAway(Acta acta) {
         if (!isMirrored(acta)) {
             return acta;
         }
@@ -27,11 +27,11 @@ final class FcttActaOrientation {
                 acta.group(), acta.round(), acta.phase(), acta.gender(),
                 acta.date(), acta.time(), acta.venue(), acta.teams(), false, acta.officials(),
                 swapLineups(acta.lineups()), swapDoubles(acta.doubles()),
-                acta.games().stream().map(FcttActaOrientation::swapGame).toList(),
-                acta.finalResult(), acta.protested());
+                acta.games().stream().map(MirroredActaOrientation::swapGame).toList(),
+                acta.finalResult(), acta.protested(), acta.region(), acta.regionType());
     }
 
-    static boolean isMirrored(Acta acta) {
+    public static boolean isMirrored(Acta acta) {
         ActaScore finalScore = acta.finalResult() == null ? null : acta.finalResult().gamesWon();
         ActaScore running = acta.games().isEmpty() ? null : acta.games().getLast().cumulativeScore();
         if (finalScore == null || running == null || finalScore.home() == null || finalScore.away() == null

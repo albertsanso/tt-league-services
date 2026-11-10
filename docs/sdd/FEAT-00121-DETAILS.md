@@ -126,7 +126,8 @@ Closed vocabularies, defined once per language and mirrored by tests:
 
 | `regionType` | Meaning |
 |---|---|
-| `nacional` | league of a national or Catalonia-wide competition (RFETM, FCTT) |
+| `nacional` | league of a Spain-wide competition (RFETM) |
+| `autonomica` | league of a Catalonia-wide competition (FCTT TDM, Copa Catalana Femenina) |
 | `provincial` | provincial representation league (BCNESA, default) |
 | `comarcal` | BCNESA league whose category name contains `comarcal` |
 
@@ -135,7 +136,7 @@ Deterministic derivation (no fuzzy matching, no defaults for unknown input):
 | Source | Input | `region` | `regionType` |
 |---|---|---|---|
 | RFETM | any | `espana` | `nacional` |
-| FCTT | any league of the `TDM` / `Copa Catalana Femenina` sections | `catalunya` | `nacional` |
+| FCTT | any league of the `TDM` / `Copa Catalana Femenina` sections | `catalunya` | `autonomica` |
 | BCNESA | card heading territory, or category prefix `rtb`/`rtg`/`rtl`/`rtt` | `barcelona`/`girona`/`lleida`/`tarragona` | `comarcal` when the folded category contains `comarcal`, else `provincial` |
 | BCNESA legacy (2020-2021…2025-2026, display-name folders) | Barcelona-only export | `barcelona` | same comarcal rule |
 | BCNESA | unknown prefix | — fail clearly (issue, file not imported) | — |
@@ -154,7 +155,7 @@ SiteProfile
   source: Source                       # BCNESA | FCTT (unchanged segregation)
   sections: SectionMatcher             # territorial cards | TDM + Copa Catalana Femenina
   region_of(league) -> Region          # heading territory / constant catalunya
-  region_type_of(league) -> RegionType # comarcal rule / nacional
+  region_type_of(league) -> RegionType # comarcal rule / autonomica
   layout: OutputLayout                 # folder values, html/json file names, meta keys
   fixture_id: FixtureIdFormat          # legacy id_partido format per source
   http: HttpPolicy                     # delay, retryable statuses, UA sequence, accept headers
@@ -301,8 +302,8 @@ Phases are ordered so that every phase is releasable on its own and the full `mv
     run `BcnesaImportProcessorsTest`, `MatchLifecycleImportProcessorsTest`,
     `IncrementalActaFixturesTest` and the navigator tests for both sources unchanged.
 27. Match processors set `region` / `regionType` from the payload, else from `RegionResolver`;
-    include both in `MatchContentChecksum` only if the checksum version is bumped explicitly
-    (otherwise every existing match becomes "amended" — decide in review; default: excluded).
+    both are excluded from `MatchContentChecksum` (no checksum version bump), so existing matches
+    are not reported as amended; existing rows get the columns through the step-28 backfill.
 28. Backfill: `tt-data-league-import-runtime` option `--backfill-regions[=report|write]`
     (opt-in, source-scoped with `--source`) that resolves and, in write mode, updates the two
     columns for existing `match_record` rows; README updated; tests in report and write mode.
@@ -360,8 +361,83 @@ Phases are ordered so that every phase is releasable on its own and the full `mv
   `regionType = nacional`. Open question: add a fourth `regionType` (`autonomica`) for
   Copa Catalana Femenina / TDM instead of `nacional`? The enum is closed and defined once, so the
   change is cheap before Phase 2 lands.
+- 2026-11-10 decision (resolves the question above): `regionType` gains a fourth value,
+  `autonomica`. Catalonia-wide FCTT leagues (TDM, Copa Catalana Femenina) use
+  `region = catalunya`, `regionType = autonomica`; `nacional` is reserved for Spain-wide RFETM
+  competitions. Target-model tables and acceptance criteria updated accordingly.
+- 2026-11-10: status moved to `ready` on user request. The remaining open questions are resolved
+  with the plan defaults: `region` / `regionType` stay out of `MatchContentChecksum` (step 27), and
+  the unified package is `tt-league-ingest-fcttweb` / `ingest_fcttweb`.
 - Open question: include `region` / `regionType` in `MatchContentChecksum` (forces a one-time
   "amended" wave) or keep them out (default in plan: out, columns set by import + backfill).
 - Open question: package name `ingest_fcttweb` (scraped site) vs `ingest_catalonia`.
 - Risk: unifying on BeautifulSoup drops FCTT's stdlib DOM; Phase 0 goldens must cover FCTT edge
   cases (calendar pages without league title, duplicated pairings, walkovers) before the switch.
+- 2026-11-10 execution decision: Phase 1 (one profile-driven `ingest_fcttweb` package, byte-identical to both ports)
+  is a ~4,400-line rewrite of two ports that differ in HTTP stack, retry/metrics state machines, CLI arguments and
+  HTML parser, and the repository holds no saved BCNESA pages to prove byte equality. On the user's choice
+  ("Region first") the region attributes were delivered on top of the existing `ingest_bcnesa` / `ingest_fctt`
+  packages and the existing Java processors; the unification is still open. Reordering is safe because the region
+  code lives in shared places (`ingest_common.region`, the acta schema, `RegionResolver`, `MatchRegions`) that the
+  unified package will reuse unchanged.
+- 2026-11-10 execution status by step. **Done:** 17 (`ingest_common/region.py`), 18 (schema and copy), 19 (both parsers
+  emit `region` / `tipo_region`; FCTT `PARSER_VERSION` 2; BCNESA needs no marker because its parser rewrites a JSON
+  whenever the content differs and the published-acta guard only blocks unpublished replacements), 20 (page meta tags,
+  `MatchDayEntry` and status JSON `region` / `regionType`; the status scan derives them from the category, so pages
+  downloaded earlier report them too), 21 (`IngestFilters`, scopes, CLI `--region` / `--region-type`, REST
+  `region` / `regionType`, `SourceIngestor.scope_error`, BCNESA `--region_type` downloader option), 22, 23, 24, 27, 28
+  (domain enums, `RegionResolver`, `Match`, JPA columns + index + datamodel doc, `Acta` / `ActaParser`,
+  `MatchRegions` in the three match processors, `--backfill-regions[=report|write]` + README), 29 (REST DTOs,
+  `region` / `regionType` query parameters on `/search`, `/calendar` and `/calendar/range`), 30 (`IngestStatusRow`
+  reads the optional fields; `UnitKey` / `PollUnit` / `ScopeFilter` untouched). 32 passed: `uv lock --check`,
+  `uv sync --all-packages`, `uv run pytest` (398 tests) and the full offline `mvn test` reactor.
+  **Not done:** 1-2 (Phase 0 golden fixtures and harness), 3-16 (Phase 1 unified Python package and removal of
+  `ingest_bcnesa` / `ingest_fctt`), 25-26 (shared Java navigator and processor set), 33 (live smoke, manual),
+  and the `deploy/README.md` / workspace-layout part of 34, which only changes with the package rename.
+  31 stays out of scope. The feature therefore stays `in-progress`; the three unmet acceptance criteria are the
+  unified package, the golden tests and the shared Java ingest-layout path.
+- 2026-11-10 findings while implementing: (a) the stored BCNESA competition names are the legacy display names, and
+  only `rtb-*` folders are mapped by `BcnesaCompetitionNames`, so today only Barcelona leagues reach the database;
+  `RegionResolver` still resolves `rtg-`, `rtl-` and `rtt-` names so the table does not change when the mapping is
+  extended. (b) The `regionType` filter of the BCNESA downloader is an extra script option (`--region_type`), parsing
+  is not narrowed by it (as for `territory`), packaging is, through `scope_matches`. (c) The calendar range `facets`
+  stay computed before the region filter, like every other filter. (d) A match imported before the feature and
+  unchanged keeps `NULL` region until `--backfill-regions` runs.
+- 2026-11-10 steps 25-26 done (Java shared current-season path, `tt-data-league-import`). New package
+  `shared/fcttweb`: `traverse/FcttWebActasDirectoryNavigator` is the one reader of the ingest layout
+  (`<season>/<category>/<group>/<phase>/jornada_<N|NN>_local_team_…json`), parameterised by `ImportSource`
+  (BCNESA: `BcnesaCompetitionNames`, `G<n>` / Veterans "Other" groups, round fallback from the file name;
+  FCTT: `tdm` → `tercera-nacional`, payload `genero`, legacy `male`/`female` folders skipped). It also owns the
+  per-report acceptance rules (`handleBcnesaReport`, `handleFcttReport`) that the legacy walks reuse, and a
+  `FixtureSplitter` hook (`wholeFile()` for the ingest layout, `BcnesaMatchdaySplitter#asFixtureSplitter` for the
+  legacy multi-fixture files). `BcnesaActasDirectoryNavigator` / `FcttActasDirectoryNavigator` keep only their
+  legacy walks and unmapped-folder reporting, call the shared navigator for the ingest layout after the legacy
+  pass of each season and share one `FcttWebTraversalCounters`. `process/` holds
+  `FcttWebTeam|Player|Match|PreviewValidation|PreviewClassificationProcessor` (parameterised by `ImportSource`)
+  over `FcttWebFixtureContext`, implemented by `BcnesaMatchReportContext` and `FcttMatchReportContext`; the
+  `ActaOrientation` hook has `IDENTITY` and `MIRRORED` (the former `FcttActaOrientation`). Region / regionType
+  still come from `MatchRegions` in the shared match processor.
+- Why the per-source processors still exist: they are thin subclasses (`@Component`, `@Order`, one bridging
+  `process(<Source>MatchReportContext)`) kept because `BcnesaImportProcessorsTest`, `FcttImportProcessorsTest`,
+  `MatchLifecycleImportProcessorsTest`, the navigator tests and the runtime `AppTest` build them, the contexts and
+  the `List<…MatchReportProcessor>` constructor of `NavigatorImportExecutionService` unchanged, and Spring
+  injects the two sources into separate lists by those types. `NavigatorImportExecutionService` therefore needed no
+  change: its per-source lists now hold the shared logic. Removed: `BcnesaPreviewClassificationProcessor`,
+  `FcttPreviewClassificationProcessor` (the preview service uses `FcttWebPreviewClassificationProcessor`),
+  `FcttActaOrientation`, `FcttLicenses` (now `MirroredActaOrientation`, `FcttWebLicenses`).
+- Deliberate deviations from the step-26 wording, to keep stored data and identity stable: (a) `BcnesaTeamNames`
+  normalisation is applied to BCNESA only, not to FCTT. Applying it to FCTT would make existing stored FCTT team
+  names stop matching on re-import and create duplicate teams and matches; revisit only together with a data
+  migration. (b) The played header stays source-specific (BCNESA from the fixture's own games, FCTT from
+  `resultado_final`, which also covers walkovers without games), as do lineups (BCNESA from game participants, FCTT
+  from `alineaciones` with ranking) and the FCTT-only `NotStored` early exits. (c) Lineup and doubles-pair rows
+  carry `source` for FCTT only, as before; BCNESA leaves it null (nullable column). Writing it for BCNESA is a
+  separate, data-affecting decision. (d) Intentional behaviour changes: the player processor registers the union of
+  lineups, declared doubles and game participants for both sources, de-duplicated by licence, and an all-zero
+  placeholder licence is no longer registered for BCNESA either (it was already ignored for FCTT); doubles members
+  are de-duplicated by player id for both sources. `id_partido` formats, `source_fixture_id` rules and the identity
+  guard are untouched.
+- Validation: `tt-data-league-import` suite (463 existing tests unchanged, plus the new
+  `FcttWebActasDirectoryNavigatorTest` and `FcttWebProcessorsTest`) and the full offline `mvn test` reactor pass.
+  Criterion 7 is met by the delivered Java path; criteria 1 and 2 (unified Python package, goldens) stay open, so the
+  feature remains `in-progress`.

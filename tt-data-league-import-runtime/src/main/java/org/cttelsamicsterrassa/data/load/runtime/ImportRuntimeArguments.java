@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
+import org.cttelsamicsterrassa.data.load.shared.match.backfill.MatchRegionBackfillMode;
 import org.cttelsamicsterrassa.data.load.shared.match.backfill.ScheduledMatchBackfillMode;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.AmendedActaMode;
 
@@ -21,7 +22,9 @@ public record ImportRuntimeArguments(
         ConsolidationMode playerConsolidationMode,
         boolean backfillScheduledMatches,
         ScheduledMatchBackfillMode backfillMode,
-        AmendedActaMode amendedActaMode
+        AmendedActaMode amendedActaMode,
+        boolean backfillRegions,
+        MatchRegionBackfillMode regionBackfillMode
 ) {
     public static ImportRuntimeArguments parse(String... args) {
         String source = valueOf(args, ImportRuntimeCliContract.SOURCE_ARGUMENT);
@@ -33,6 +36,7 @@ public record ImportRuntimeArguments(
         ModeSelection players = parseModeSelection(args, ImportRuntimeCliContract.CONSOLIDATE_PLAYERS_ARGUMENT);
         ModeSelection backfill =
                 parseModeSelection(args, ImportRuntimeCliContract.BACKFILL_SCHEDULED_MATCHES_ARGUMENT);
+        ModeSelection regions = parseModeSelection(args, ImportRuntimeCliContract.BACKFILL_REGIONS_ARGUMENT);
         ModeSelection amendedActas =
                 parseModeSelection(args, ImportRuntimeCliContract.DETECT_AMENDED_ACTAS_ARGUMENT);
 
@@ -50,7 +54,9 @@ public record ImportRuntimeArguments(
                 amendedActas.enabled()
                         ? toAmendedActaMode(ImportRuntimeCliContract.DETECT_AMENDED_ACTAS_ARGUMENT,
                                 amendedActas.rawMode())
-                        : null);
+                        : null,
+                regions.enabled(),
+                toRegionBackfillMode(ImportRuntimeCliContract.BACKFILL_REGIONS_ARGUMENT, regions.rawMode()));
     }
 
     public Optional<String> optionalSeason() {
@@ -96,6 +102,15 @@ public record ImportRuntimeArguments(
             case "report" -> ScheduledMatchBackfillMode.REPORT;
             default -> throw new IllegalArgumentException(
                     "Unsupported backfill mode: " + optionName + "=" + rawValue);
+        };
+    }
+
+    private static MatchRegionBackfillMode toRegionBackfillMode(String optionName, String rawValue) {
+        return switch (rawValue) {
+            case "", "true", "write" -> MatchRegionBackfillMode.WRITE;
+            case "report" -> MatchRegionBackfillMode.REPORT;
+            default -> throw new IllegalArgumentException(
+                    "Unsupported region backfill mode: " + optionName + "=" + rawValue);
         };
     }
 

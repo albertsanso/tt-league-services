@@ -91,18 +91,26 @@ public record SeasonCalendarDto(
             int round,
             UUID homeTeamId,
             UUID awayTeamId,
-            boolean overdueMarkable) {
+            boolean overdueMarkable,
+            String region,
+            String regionType) {
         static CalendarMatchDto from(CalendarMatchReadModel value) {
             return new CalendarMatchDto(value.id(), value.dateTime(), value.city(), value.venue(),
                     value.homeTeamName(), value.awayTeamName(), value.winnerTeamName(),
                     value.homeGamesWon(), value.awayGamesWon(), name(value.status()),
                     name(value.calendarState()), value.overdueMarked(), value.overdueMarkedAt(),
                     value.overdueMarkedBy(), value.competition(), value.groupNumber(), value.phase(),
-                    value.round(), value.homeTeamId(), value.awayTeamId(), value.overdueMarkable());
+                    value.round(), value.homeTeamId(), value.awayTeamId(), value.overdueMarkable(),
+                    wire(value.region()), wire(value.regionType()));
         }
 
         private static String name(Enum<?> value) {
             return value == null ? null : value.name();
+        }
+
+        /** FEAT-00121: the lower-case wire value of a region attribute, {@code null} when not set. */
+        private static String wire(Enum<?> value) {
+            return value == null ? null : value.name().toLowerCase(java.util.Locale.ROOT);
         }
     }
 }

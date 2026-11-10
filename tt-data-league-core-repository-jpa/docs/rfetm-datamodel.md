@@ -28,6 +28,8 @@ tables.
 | --- | --- |
 | `Source` | `RFETM`, `BCNESA`, `FCTT` |
 | `MatchStatus` | `SCHEDULED`, `PLAYED` |
+| `Region` | `ESPANA`, `CATALUNYA`, `BARCELONA`, `GIRONA`, `LLEIDA`, `TARRAGONA` |
+| `RegionType` | `NACIONAL`, `AUTONOMICA`, `PROVINCIAL`, `COMARCAL` |
 | `GameType` | `INDIVIDUAL`, `DOUBLES` |
 | `MatchResult` | `HOME`, `AWAY` |
 | `Side` | `HOME`, `AWAY` |
@@ -185,6 +187,8 @@ Top-level team match event.
 | `external_id` | `VARCHAR(20)` | Yes | Unique; `idx_match_external_id` |
 | `source_fixture_id` | `VARCHAR(100)` | Yes | `uk_match_source_fixture_id` |
 | `source_checksum` | `VARCHAR(80)` | Yes | — |
+| `region` | `VARCHAR(20)` | Yes | `idx_match_source_season_region` |
+| `region_type` | `VARCHAR(20)` | Yes | — |
 | `competition` | `VARCHAR(255)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status` |
 | `season` | `VARCHAR(9)` | Yes | `idx_match_competition_season_group_round`, `idx_match_source_season_competition_status`, `idx_match_source_season_date` |
 | `group_num` | `INTEGER` | Yes | `idx_match_competition_season_group_round` |
@@ -205,6 +209,15 @@ Top-level team match event.
 | `winner_team_id` | `UUID` | Yes | FK to `team`; `idx_match_winner_team_id` |
 | `protested` | `BOOLEAN` | No | Database default `false` |
 | `status` | `VARCHAR(20)` | No | Database default `'PLAYED'`; `idx_match_source_season_competition_status` |
+
+**FEAT-00121 region.** `region` (`ESPANA`, `CATALUNYA`, `BARCELONA`, `GIRONA`, `LLEIDA`, `TARRAGONA`) and
+`region_type` (`NACIONAL`, `AUTONOMICA`, `PROVINCIAL`, `COMARCAL`) are nullable `@Enumerated(STRING)` columns
+describing where the competition belongs; the API exposes the lower-case names. They are attributes of the
+match, never part of a club, player, team or fixture identity, of `uk_match_source_fixture_id`, of the natural
+key or of the content checksum, so setting them never reports a match as amended. Rows imported before the
+columns existed read as `NULL` until the opt-in `tt-data-league-import-runtime` `--backfill-regions` command
+fills them from `source` and `competition` (`RegionResolver`); `ddl-auto: update` adds the columns without a
+default. `idx_match_source_season_region` serves the `region` filter of the calendar and match queries.
 
 `status` is `SCHEDULED` while the fixture is known but not yet played, and `PLAYED` once results are
 stored. The database default is what lets `ddl-auto: update` add this column to an already-populated

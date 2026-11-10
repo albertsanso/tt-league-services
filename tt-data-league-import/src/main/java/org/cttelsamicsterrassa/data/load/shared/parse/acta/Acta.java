@@ -41,10 +41,25 @@ public record Acta(
         @JsonProperty("dobles") ActaDoubles doubles,
         @JsonProperty("partidos") List<ActaGame> games,
         @JsonProperty("resultado_final") ActaFinalResult finalResult,
-        @JsonProperty("acta_protestada") Boolean protested) {
+        @JsonProperty("acta_protestada") Boolean protested,
+        @JsonProperty("region") String region,
+        @JsonProperty("tipo_region") String regionType) {
 
     public Acta {
         games = games == null ? List.of() : List.copyOf(games);
+    }
+
+    /**
+     * An acta without {@code region} / {@code tipo_region}: every export written before FEAT-00121 and
+     * every RFETM export. The region is then derived by {@link
+     * org.cttelsamicsterrassa.data.core.domain.shared.model.RegionResolver}.
+     */
+    public Acta(String matchId, Boolean published, String federation, String season, String competition,
+                Integer group, Integer round, String phase, String gender, LocalDate date, LocalTime time,
+                ActaVenue venue, ActaTeams teams, Boolean abcIsHome, ActaOfficials officials, ActaLineups lineups,
+                ActaDoubles doubles, List<ActaGame> games, ActaFinalResult finalResult, Boolean protested) {
+        this(matchId, published, federation, season, competition, group, round, phase, gender, date, time, venue,
+                teams, abcIsHome, officials, lineups, doubles, games, finalResult, protested, null, null);
     }
 
     public boolean wasProtested() {

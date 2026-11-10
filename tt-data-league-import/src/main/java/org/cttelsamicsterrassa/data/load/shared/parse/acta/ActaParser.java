@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -43,9 +45,22 @@ public class ActaParser {
      */
     public Acta parse(Path file) {
         try (InputStream in = Files.newInputStream(file)) {
-            return objectMapper.readValue(in, Acta.class);
+            Acta acta = objectMapper.readValue(in, Acta.class);
+            requireKnownRegion(acta);
+            return acta;
         } catch (IOException | RuntimeException e) {
             throw new ActaParseException(file, e);
+        }
+    }
+
+    /** FEAT-00121: the optional region fields are closed vocabularies; an unknown value is a parse error. */
+    private static void requireKnownRegion(Acta acta) {
+        if (acta.region() != null && !acta.region().isBlank() && Region.fromValue(acta.region()).isEmpty()) {
+            throw new IllegalArgumentException("unknown region '" + acta.region() + "'");
+        }
+        if (acta.regionType() != null && !acta.regionType().isBlank()
+                && RegionType.fromValue(acta.regionType()).isEmpty()) {
+            throw new IllegalArgumentException("unknown tipo_region '" + acta.regionType() + "'");
         }
     }
 

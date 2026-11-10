@@ -158,6 +158,33 @@ class ActaParserTest {
         assertEquals(broken, failure.getFile());
     }
 
+    @Test
+    void readsTheOptionalRegionFieldsAndTreatsTheirAbsenceAsNull(@TempDir Path tempDir) throws Exception {
+        assertNull(parser.parse(fixture("acta_singles.json")).region());
+        assertNull(parser.parse(fixture("acta_singles.json")).regionType());
+
+        Path regional = tempDir.resolve("acta_1_2.json");
+        Files.writeString(regional, "{\"region\": \"girona\", \"tipo_region\": \"comarcal\"}");
+
+        Acta acta = parser.parse(regional);
+        assertEquals("girona", acta.region());
+        assertEquals("comarcal", acta.regionType());
+    }
+
+    @Test
+    void rejectsAnUnknownRegionOrRegionType(@TempDir Path tempDir) throws Exception {
+        Path unknownRegion = tempDir.resolve("acta_1_2.json");
+        Files.writeString(unknownRegion, "{\"region\": \"mars\"}");
+        Path unknownType = tempDir.resolve("acta_3_4.json");
+        Files.writeString(unknownType, "{\"tipo_region\": \"local\"}");
+
+        ActaParseException region = assertThrows(ActaParseException.class, () -> parser.parse(unknownRegion));
+        ActaParseException type = assertThrows(ActaParseException.class, () -> parser.parse(unknownType));
+
+        assertTrue(region.getCause().getMessage().contains("unknown region 'mars'"));
+        assertTrue(type.getCause().getMessage().contains("unknown tipo_region 'local'"));
+    }
+
     private static Path fixture(String name) throws URISyntaxException, IOException {
         URL resource = ActaParserTest.class.getResource("/actas/" + name);
         assertNotNull(resource, () -> "Missing test fixture " + name);

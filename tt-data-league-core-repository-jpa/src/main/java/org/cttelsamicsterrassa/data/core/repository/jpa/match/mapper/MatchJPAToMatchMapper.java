@@ -30,6 +30,13 @@ public class MatchJPAToMatchMapper implements Function<MatchJPA, Match> {
                 .externalId(matchJpa.getExternalId())
                 .sourceFixtureId(matchJpa.getSourceFixtureId())
                 .sourceChecksum(matchJpa.getSourceChecksum())
+                .region(matchJpa.getRegion() != null
+                        ? org.cttelsamicsterrassa.data.core.domain.shared.model.Region.valueOf(matchJpa.getRegion().name())
+                        : null)
+                .regionType(matchJpa.getRegionType() != null
+                        ? org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType.valueOf(
+                                matchJpa.getRegionType().name())
+                        : null)
                 .competition(matchJpa.getCompetition())
                 .season(matchJpa.getSeason() != null ? Season.fromFormatted(matchJpa.getSeason()) : null)
                 .groupNumber(matchJpa.getGroupNumber())

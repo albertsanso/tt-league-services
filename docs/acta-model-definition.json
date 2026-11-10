@@ -51,6 +51,18 @@
       "enum": ["masculino", "femenino"],
       "examples": ["masculino", "femenino"]
     },
+    "region": {
+      "type": "string",
+      "description": "Región de la competición del acta (vocabulario cerrado). Solo se incluye en las fuentes que la derivan (BCNESA, FCTT).",
+      "enum": ["espana", "catalunya", "barcelona", "girona", "lleida", "tarragona"],
+      "examples": ["barcelona", "catalunya"]
+    },
+    "tipo_region": {
+      "type": "string",
+      "description": "Tipo de región de la competición del acta (vocabulario cerrado): nacional (toda España), autonomica (toda Cataluña), provincial (representación territorial) o comarcal.",
+      "enum": ["nacional", "autonomica", "provincial", "comarcal"],
+      "examples": ["provincial", "autonomica"]
+    },
     "competicion": {
       "type": ["string", "null"],
       "description": "Nombre de la competición, categoría y, habitualmente, género.",

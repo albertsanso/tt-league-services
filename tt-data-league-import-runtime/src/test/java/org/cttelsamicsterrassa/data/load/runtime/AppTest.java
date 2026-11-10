@@ -7,7 +7,12 @@ import org.cttelsamicsterrassa.data.core.domain.load.model.ImportProcessStatus;
 import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
 import org.cttelsamicsterrassa.data.core.domain.match.model.ScheduledMatchBackfillCandidate;
 import org.cttelsamicsterrassa.data.core.domain.match.model.ScheduledMatchBackfillWriteResult;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchRegionCandidate;
+import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRegionBackfillRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.ScheduledMatchBackfillRepository;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
+import org.cttelsamicsterrassa.data.load.shared.match.backfill.MatchRegionBackfillService;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaActasDirectoryNavigator;
@@ -139,6 +144,46 @@ class AppTest {
 
         assertTrue(repository.markScheduledCalled);
         assertFalse(executionService.called);
+    }
+
+    @Test
+    void regionBackfillDispatchesReportAndWriteForTheParsedSourceOnly() {
+        RecordingRegionBackfillRepository repository = new RecordingRegionBackfillRepository();
+        FailingImportExecutionService executionService = new FailingImportExecutionService();
+        App app = new App(executionService, new ScheduledMatchBackfillService(new RecordingBackfillRepository()),
+                new MatchRegionBackfillService(repository));
+
+        app.run("--source=bcnesa", "--backfill-regions=report");
+
+        assertEquals(ImportSource.BCNESA, repository.lastSource);
+        assertEquals(0, repository.setRegionCalls);
+
+        app.run("--source=bcnesa", "--backfill-regions");
+
+        assertEquals(1, repository.setRegionCalls);
+        assertFalse(executionService.called);
+    }
+
+    @Test
+    void regionBackfillCombinedWithImportArgumentsOrTheOtherBackfillIsRejected() {
+        App app = new App(new FailingImportExecutionService(),
+                new ScheduledMatchBackfillService(new RecordingBackfillRepository()),
+                new MatchRegionBackfillService(new RecordingRegionBackfillRepository()));
+
+        assertThrows(IllegalArgumentException.class,
+                () -> app.run("--actas-folder=C:\\data", "--backfill-regions"));
+        assertThrows(IllegalArgumentException.class,
+                () -> app.run("--season=2025-2026", "--backfill-regions"));
+        assertThrows(IllegalArgumentException.class,
+                () -> app.run("--season=2025-2026", "--backfill-scheduled-matches", "--backfill-regions"));
+    }
+
+    @Test
+    void regionBackfillWithoutTheServiceWiredFailsClearly() {
+        App app = new App(new FailingImportExecutionService(),
+                new ScheduledMatchBackfillService(new RecordingBackfillRepository()));
+
+        assertThrows(IllegalStateException.class, () -> app.run("--backfill-regions"));
     }
 
     @Test
@@ -274,6 +319,23 @@ class AppTest {
             lastSeason = season;
             markScheduledCalled = true;
             return new ScheduledMatchBackfillWriteResult(0, 0, 0, 0, 0);
+        }
+    }
+
+    private static final class RecordingRegionBackfillRepository implements MatchRegionBackfillRepository {
+        private ImportSource lastSource;
+        private int setRegionCalls;
+
+        @Override
+        public List<MatchRegionCandidate> findMatchesWithoutRegion(ImportSource source) {
+            lastSource = source;
+            return List.of(new MatchRegionCandidate(UUID.randomUUID(), "Preferent"));
+        }
+
+        @Override
+        public int setRegion(ImportSource source, Region region, RegionType regionType, Collection<UUID> matchIds) {
+            setRegionCalls++;
+            return matchIds.size();
         }
     }
 

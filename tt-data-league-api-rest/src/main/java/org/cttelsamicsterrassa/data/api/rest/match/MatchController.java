@@ -21,6 +21,9 @@ import org.cttelsamicsterrassa.data.core.application.match.find.dto.MatchDetailR
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchSearchCriteria;
 import org.cttelsamicsterrassa.data.core.domain.match.model.PlayerLocation;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,6 +85,8 @@ public class MatchController {
             @RequestParam(name = "playerLocation", required = false) String playerLocation,
             @RequestParam(name = "playerName", required = false) String playerName,
             @RequestParam(name = "clubName", required = false) String clubName,
+            @RequestParam(name = "region", required = false) String region,
+            @RequestParam(name = "regionType", required = false) String regionType,
             @RequestParam(name = "page", defaultValue = "0") int page,
             @RequestParam(name = "pageSize", defaultValue = "10") int pageSize) {
         MatchSearchCriteria criteria;
@@ -89,7 +94,8 @@ public class MatchController {
             criteria = new MatchSearchCriteria(parseSource(source), Season.fromFormatted(season.trim()),
                     competition, fromDate, toDate, playerId,
                     playerLocation == null ? null : PlayerLocation.valueOf(playerLocation.trim().toUpperCase(Locale.ROOT)),
-                    playerName, clubName, page, pageSize);
+                    playerName, clubName, page, pageSize, MatchStatus.PLAYED,
+                    parseRegion(region), parseRegionType(regionType));
         } catch (RuntimeException exception) {
             return ResponseEntity.badRequest().body(new ErrorMessage("Invalid match filters"));
         }
@@ -122,7 +128,9 @@ public class MatchController {
             @RequestParam(name = "season") String season,
             @RequestParam(name = "competition") String competition,
             @RequestParam(name = "group", required = false) String group,
-            @RequestParam(name = "round", required = false) String round) {
+            @RequestParam(name = "round", required = false) String round,
+            @RequestParam(name = "region", required = false) String region,
+            @RequestParam(name = "regionType", required = false) String regionType) {
         FindSeasonCalendarQuery query;
         try {
             ImportSource parsedSource = parseSource(source);
@@ -131,7 +139,8 @@ public class MatchController {
                 return ResponseEntity.badRequest().body(new ErrorMessage("Invalid calendar filters"));
             }
             query = new FindSeasonCalendarQuery(parsedSource, parsedSeason, competition.trim(),
-                    parseOptionalInt(group), parseOptionalInt(round));
+                    parseOptionalInt(group), parseOptionalInt(round), parseRegion(region),
+                    parseRegionType(regionType));
         } catch (RuntimeException exception) {
             return ResponseEntity.badRequest().body(new ErrorMessage("Invalid calendar filters"));
         }
@@ -155,14 +164,17 @@ public class MatchController {
             @RequestParam(name = "to") String to,
             @RequestParam(name = "competition", required = false) String competition,
             @RequestParam(name = "group", required = false) String group,
-            @RequestParam(name = "team", required = false) String team) {
+            @RequestParam(name = "team", required = false) String team,
+            @RequestParam(name = "region", required = false) String region,
+            @RequestParam(name = "regionType", required = false) String regionType) {
         FindCalendarRangeQuery query;
         try {
             query = new FindCalendarRangeQuery(parseSource(source), Season.fromFormatted(season.trim()),
                     LocalDate.parse(from.trim()), LocalDate.parse(to.trim()),
                     competition == null || competition.isBlank() ? null : competition.trim(),
                     parseOptionalInt(group),
-                    team == null || team.isBlank() ? null : UUID.fromString(team.trim()));
+                    team == null || team.isBlank() ? null : UUID.fromString(team.trim()),
+                    parseRegion(region), parseRegionType(regionType));
         } catch (RuntimeException exception) {
             return ResponseEntity.badRequest().body(new ErrorMessage("Invalid calendar range"));
         }
@@ -261,6 +273,23 @@ public class MatchController {
             throw new IllegalArgumentException("source is mandatory");
         }
         return ImportSource.valueOf(value.trim().toUpperCase(Locale.ROOT));
+    }
+
+    /** FEAT-00121: blank means no filter; an unknown value is rejected (the callers answer 400). */
+    private static Region parseRegion(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return Region.fromValue(value)
+                .orElseThrow(() -> new IllegalArgumentException("unknown region: " + value));
+    }
+
+    private static RegionType parseRegionType(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return RegionType.fromValue(value)
+                .orElseThrow(() -> new IllegalArgumentException("unknown regionType: " + value));
     }
 
     private static Integer parseOptionalInt(String value) {

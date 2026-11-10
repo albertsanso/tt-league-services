@@ -9,6 +9,8 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.UUID;
 import org.cttelsamicsterrassa.data.core.repository.jpa.club.model.TeamJPA;
+import org.cttelsamicsterrassa.data.core.repository.jpa.common.Region;
+import org.cttelsamicsterrassa.data.core.repository.jpa.common.RegionType;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus;
 
@@ -25,7 +27,8 @@ import org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus;
                 @Index(name="idx_match_away_team_id", columnList="away_team_id"),
                 @Index(name="idx_match_winner_team_id", columnList="winner_team_id"),
                 @Index(name="idx_match_source_season_competition_status", columnList="source,season,competition,status"),
-                @Index(name="idx_match_source_season_date", columnList="source,season,match_date")
+                @Index(name="idx_match_source_season_date", columnList="source,season,match_date"),
+                @Index(name="idx_match_source_season_region", columnList="source,season,region")
         },
         uniqueConstraints = {
                 // A round holds one match per pair of teams, so the two teams are part of the key.
@@ -59,6 +62,18 @@ public class MatchJPA {
      */
     @Column(name = "source_checksum", nullable = true, length = 80)
     private String sourceChecksum;
+
+    /**
+     * FEAT-00121: where the competition belongs, or {@code null} for rows imported before the column
+     * existed and not yet backfilled. An attribute of the match, never part of any key.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "region", nullable = true, length = 20)
+    private Region region;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "region_type", nullable = true, length = 20)
+    private RegionType regionType;
 
     @Column(name = "competition", nullable = true, length = 255)
     private String competition;

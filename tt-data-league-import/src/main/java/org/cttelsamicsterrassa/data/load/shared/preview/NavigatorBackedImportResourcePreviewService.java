@@ -15,12 +15,12 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.domain.load.service.ImportResourcePreviewService;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchImportProcessor;
-import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaPreviewClassificationProcessor;
+import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchReportProcessor;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaPreviewValidationProcessor;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.bcnesa.traverse.BcnesaTraversalSummary;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchImportProcessor;
-import org.cttelsamicsterrassa.data.load.fctt.process.FcttPreviewClassificationProcessor;
+import org.cttelsamicsterrassa.data.load.fctt.process.FcttMatchReportProcessor;
 import org.cttelsamicsterrassa.data.load.fctt.process.FcttPreviewValidationProcessor;
 import org.cttelsamicsterrassa.data.load.fctt.traverse.FcttActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmMatchImportProcessor;
@@ -28,6 +28,7 @@ import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmPreviewClassificatio
 import org.cttelsamicsterrassa.data.load.rfetm.process.RfetmPreviewValidationProcessor;
 import org.cttelsamicsterrassa.data.load.rfetm.traverse.RfetmActasDirectoryNavigator;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportRunContext;
+import org.cttelsamicsterrassa.data.load.shared.fcttweb.process.FcttWebPreviewClassificationProcessor;
 import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
@@ -118,9 +119,11 @@ public class NavigatorBackedImportResourcePreviewService implements ImportResour
     private Traversal traverseBcnesa(Path baseFolder, String seasonFolder, ImportPreviewCollector collector,
                                      IncrementalPreviewCollector incremental, ImportRunContext runContext)
             throws IOException {
-        BcnesaTraversalSummary summary = bcnesaNavigator.traverseSeason(baseFolder, seasonFolder,
-                List.of(new BcnesaPreviewValidationProcessor(collector),
-                        new BcnesaPreviewClassificationProcessor(bcnesaMatchProcessor, incremental)),
+        FcttWebPreviewClassificationProcessor classification =
+                new FcttWebPreviewClassificationProcessor(bcnesaMatchProcessor, incremental);
+        List<BcnesaMatchReportProcessor> processors = List.of(
+                new BcnesaPreviewValidationProcessor(collector), classification::process);
+        BcnesaTraversalSummary summary = bcnesaNavigator.traverseSeason(baseFolder, seasonFolder, processors,
                 runContext);
         long skipped = summary.filesSkipped() + summary.fixturesUnresolved();
         return new Traversal(summary.filesSeen(), summary.fixturesDispatched(), skipped,
@@ -130,10 +133,11 @@ public class NavigatorBackedImportResourcePreviewService implements ImportResour
     private Traversal traverseFctt(Path baseFolder, String seasonFolder, ImportPreviewCollector collector,
                                    IncrementalPreviewCollector incremental, ImportRunContext runContext)
             throws IOException {
-        TraversalSummary summary = fcttNavigator.traverseSeason(baseFolder, seasonFolder,
-                List.of(new FcttPreviewValidationProcessor(collector),
-                        new FcttPreviewClassificationProcessor(fcttMatchProcessor, incremental)),
-                runContext);
+        FcttWebPreviewClassificationProcessor classification =
+                new FcttWebPreviewClassificationProcessor(fcttMatchProcessor, incremental);
+        List<FcttMatchReportProcessor> processors = List.of(
+                new FcttPreviewValidationProcessor(collector), classification::process);
+        TraversalSummary summary = fcttNavigator.traverseSeason(baseFolder, seasonFolder, processors, runContext);
         return new Traversal(summary.filesSeen(), summary.dispatched(), summary.skipped(),
                 summary.processorFailures());
     }

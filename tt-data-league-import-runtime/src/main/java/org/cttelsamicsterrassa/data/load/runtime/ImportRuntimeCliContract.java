@@ -10,6 +10,7 @@ final class ImportRuntimeCliContract {
     static final String CONSOLIDATE_CLUBS_ARGUMENT = "--consolidate-clubs";
     static final String CONSOLIDATE_PLAYERS_ARGUMENT = "--consolidate-players";
     static final String BACKFILL_SCHEDULED_MATCHES_ARGUMENT = "--backfill-scheduled-matches";
+    static final String BACKFILL_REGIONS_ARGUMENT = "--backfill-regions";
     static final String DETECT_AMENDED_ACTAS_ARGUMENT = "--detect-amended-actas";
 
     static final String SOURCE_RFETM = "rfetm";
@@ -35,7 +36,9 @@ final class ImportRuntimeCliContract {
                 + " [" + DETECT_AMENDED_ACTAS_ARGUMENT + "[=write|report]]"
                 + "\n" + SOURCE_ARGUMENT + String.join("|", SUPPORTED_SOURCES)
                 + " " + SEASON_ARGUMENT + "<YYYY-YYYY>"
-                + " " + BACKFILL_SCHEDULED_MATCHES_ARGUMENT + "[=write|report]";
+                + " " + BACKFILL_SCHEDULED_MATCHES_ARGUMENT + "[=write|report]"
+                + "\n" + SOURCE_ARGUMENT + String.join("|", SUPPORTED_SOURCES)
+                + " " + BACKFILL_REGIONS_ARGUMENT + "[=write|report]";
     }
 
     static String supportedSourcesForMessage() {

@@ -2,6 +2,8 @@ package org.cttelsamicsterrassa.data.core.application.match.calendar.range;
 
 import org.albertsanso.commons.query.DomainQuery;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.time.LocalDate;
@@ -11,7 +13,8 @@ import java.util.UUID;
 
 /**
  * Reads the matches of every competition of a source and season dated in {@code [from, to)}
- * (FEAT-00093). {@code competition}, {@code groupNumber} and {@code teamId} are optional filters.
+ * (FEAT-00093). {@code competition}, {@code groupNumber} and {@code teamId} are optional filters, and so
+ * are {@code region} and {@code regionType} (FEAT-00121): a match without the attribute never matches one.
  */
 public class FindCalendarRangeQuery extends DomainQuery {
 
@@ -25,9 +28,17 @@ public class FindCalendarRangeQuery extends DomainQuery {
     private final String competition;
     private final Integer groupNumber;
     private final UUID teamId;
+    private final Region region;
+    private final RegionType regionType;
 
     public FindCalendarRangeQuery(ImportSource source, Season season, LocalDate from, LocalDate to,
                                   String competition, Integer groupNumber, UUID teamId) {
+        this(source, season, from, to, competition, groupNumber, teamId, null, null);
+    }
+
+    public FindCalendarRangeQuery(ImportSource source, Season season, LocalDate from, LocalDate to,
+                                  String competition, Integer groupNumber, UUID teamId,
+                                  Region region, RegionType regionType) {
         super(ZonedDateTime.now(), UUID.randomUUID().toString());
         if (source == null || season == null || from == null || to == null) {
             throw new IllegalArgumentException("source, season, from and to are mandatory");
@@ -54,6 +65,8 @@ public class FindCalendarRangeQuery extends DomainQuery {
         this.competition = competition;
         this.groupNumber = groupNumber;
         this.teamId = teamId;
+        this.region = region;
+        this.regionType = regionType;
     }
 
     public ImportSource getSource() {
@@ -82,5 +95,13 @@ public class FindCalendarRangeQuery extends DomainQuery {
 
     public UUID getTeamId() {
         return teamId;
+    }
+
+    public Region getRegion() {
+        return region;
+    }
+
+    public RegionType getRegionType() {
+        return regionType;
     }
 }

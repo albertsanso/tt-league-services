@@ -6,6 +6,8 @@ import org.cttelsamicsterrassa.data.core.domain.game.model.SetScore;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaTeamImportProcessor;
 import org.cttelsamicsterrassa.data.load.bcnesa.process.BcnesaMatchImportProcessor;
@@ -129,6 +131,28 @@ class BcnesaImportProcessorsTest {
         assertEquals(2, second.getHomeGamesWon());
         assertEquals(0, second.getAwayGamesWon());
         assertEquals(second.getHomeTeam(), second.getWinnerTeam());
+    }
+
+    @Test
+    void legacyReportsWithoutRegionFieldsAreStoredWithTheRegionDerivedFromTheCompetition() {
+        run(firstFixture());
+
+        Match stored = matches.saved.getFirst();
+        assertEquals(Region.BARCELONA, stored.getRegion());
+        assertEquals(RegionType.PROVINCIAL, stored.getRegionType());
+    }
+
+    @Test
+    void theRegionFieldsOfTheReportWinOverTheDerivedOnes() {
+        Acta regional = withRegion(acta, "girona", "comarcal");
+        List<ActaGame> fixtureGames = regional.games().subList(0, regional.games().size() / 2);
+
+        run(new BcnesaMatchReportContext("2026-2027", "1a Comarcal", "G1", "1a Fase", 7, 0,
+                "FALCONS DE SABADELL", "CTT DELS HORTS", fixture("acta_matchday.json"), regional, fixtureGames));
+
+        Match stored = matches.saved.getFirst();
+        assertEquals(Region.GIRONA, stored.getRegion());
+        assertEquals(RegionType.COMARCAL, stored.getRegionType());
     }
 
     @Test
@@ -278,6 +302,14 @@ class BcnesaImportProcessorsTest {
 
         assertFalse(games.saved.isEmpty());
         assertTrue(setScores.saved.isEmpty());
+    }
+
+    private static Acta withRegion(Acta original, String region, String regionType) {
+        return new Acta(original.matchId(), original.published(), original.federation(), original.season(),
+                original.competition(), original.group(), original.round(), original.phase(), original.gender(),
+                original.date(), original.time(), original.venue(), original.teams(), original.abcIsHome(),
+                original.officials(), original.lineups(), original.doubles(), original.games(),
+                original.finalResult(), original.protested(), region, regionType);
     }
 
     private void run(BcnesaMatchReportContext context) {

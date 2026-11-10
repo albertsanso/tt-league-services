@@ -12,6 +12,8 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.RoundProgress;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchOverdueMarkRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.junit.jupiter.api.Test;
 
@@ -130,6 +132,33 @@ class FindCalendarRangeQueryHandlerTest {
     }
 
     @Test
+    void regionAndRegionTypeFiltersNarrowTheMatchesAndExposeThemOnEachRow() {
+        Match girona = regional(match(TERCERA, 1, 5, LocalDate.of(2026, 9, 19), 10, MatchStatus.SCHEDULED, teamA, teamB),
+                Region.GIRONA, RegionType.COMARCAL);
+        Match barcelona = regional(match(TERCERA, 2, 5, LocalDate.of(2026, 9, 19), 11, MatchStatus.SCHEDULED, teamC, teamD),
+                Region.BARCELONA, RegionType.PROVINCIAL);
+        Match unknown = match(SEGUNDA, 1, 5, LocalDate.of(2026, 9, 19), 12, MatchStatus.SCHEDULED, teamA, teamD);
+        Fixture fixture = fixture(List.of(girona, barcelona, unknown));
+        LocalDate today = LocalDate.of(2026, 9, 16);
+
+        assertEquals(List.of(girona.getId()), ids(fixture.handle(
+                new FindCalendarRangeQuery(SOURCE, SEASON, WEEK_START, WEEK_END, null, null, null,
+                        Region.GIRONA, null), today)));
+        assertEquals(List.of(barcelona.getId()), ids(fixture.handle(
+                new FindCalendarRangeQuery(SOURCE, SEASON, WEEK_START, WEEK_END, null, null, null,
+                        null, RegionType.PROVINCIAL), today)));
+        assertTrue(ids(fixture.handle(
+                new FindCalendarRangeQuery(SOURCE, SEASON, WEEK_START, WEEK_END, null, null, null,
+                        Region.GIRONA, RegionType.PROVINCIAL), today)).isEmpty());
+        assertEquals(3, ids(fixture.handle(query(null, null, null), today)).size());
+
+        CalendarMatchReadModel row = fixture.handle(new FindCalendarRangeQuery(SOURCE, SEASON, WEEK_START,
+                WEEK_END, null, null, null, Region.GIRONA, null), today).matches().getFirst();
+        assertEquals(Region.GIRONA, row.region());
+        assertEquals(RegionType.COMARCAL, row.regionType());
+    }
+
+    @Test
     void anEmptyRangeIsASuccessWithNoMatches() {
         Fixture fixture = fixture(List.of());
 
@@ -207,6 +236,10 @@ class FindCalendarRangeQueryHandlerTest {
 
     private Team team(String name) {
         return Team.createExisting(UUID.randomUUID(), SOURCE, name, SEASON, null);
+    }
+
+    private static Match regional(Match match, Region region, RegionType regionType) {
+        return match.withRegion(region, regionType);
     }
 
     private Match match(String competition, int group, int round, LocalDate date, int hour,
