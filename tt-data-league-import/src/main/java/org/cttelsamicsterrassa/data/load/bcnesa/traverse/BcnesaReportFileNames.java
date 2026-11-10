@@ -37,6 +37,11 @@ public final class BcnesaReportFileNames {
         return CURRENT.matcher(fileName).matches() || LEGACY_ANY.matcher(fileName).matches();
     }
 
+    /** Whether {@code fileName} follows the current ingest naming, read by the shared fctt.cat navigator. */
+    public static boolean isIngestReport(String fileName) {
+        return CURRENT.matcher(fileName).matches();
+    }
+
     /**
      * The match day encoded in {@code fileName}, or {@code null} when the name carries none.
      */

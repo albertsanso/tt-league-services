@@ -1,84 +1,25 @@
 package org.cttelsamicsterrassa.data.load.fctt.process;
 
-import org.cttelsamicsterrassa.data.core.domain.player.model.PlayerSeason;
 import org.cttelsamicsterrassa.data.core.domain.player.repository.PlayerSeasonRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaGame;
-import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaLineupPlayer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.cttelsamicsterrassa.data.load.shared.fcttweb.process.FcttWebPlayerImportProcessor;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
-import java.util.List;
-import java.util.Objects;
-import java.util.stream.Stream;
 
+/** Registers the players of a FCTT fixture; the logic is {@link FcttWebPlayerImportProcessor}. */
 @Component
-@Order(FcttPlayerImportProcessor.ORDER)
-public class FcttPlayerImportProcessor implements FcttMatchReportProcessor {
-
-    /** Players are stored after clubs and before matches. */
-    public static final int ORDER = 20;
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(FcttPlayerImportProcessor.class);
-
-    private final PlayerSeasonRepository playerSeasonRepository;
+@Order(FcttWebPlayerImportProcessor.ORDER)
+public class FcttPlayerImportProcessor extends FcttWebPlayerImportProcessor implements FcttMatchReportProcessor {
 
     @Inject
     public FcttPlayerImportProcessor(PlayerSeasonRepository playerSeasonRepository) {
-        this.playerSeasonRepository = playerSeasonRepository;
+        super(ImportSource.FCTT, playerSeasonRepository);
     }
 
     @Override
     public void process(FcttMatchReportContext context) {
-        Season season = context.toSeason();
-        for (ActaLineupPlayer player : players(context)) {
-            importPlayerSeason(player, season, context);
-        }
-    }
-
-    private void importPlayerSeason(ActaLineupPlayer lineupPlayer, Season season, FcttMatchReportContext context) {
-        if (isBlank(lineupPlayer.name()) || !FcttLicenses.isUsable(lineupPlayer.licenseId())) {
-            LOGGER.warn("Skipping FCTT player \"{}\" without name or usable licence ({}) in {}",
-                    lineupPlayer.name(), lineupPlayer.licenseId(), context.matchReportFile());
-            return;
-        }
-
-        playerSeasonRepository.findPlayerSeasonBySourceLicenseAndSeason(ImportSource.FCTT, lineupPlayer.licenseId(), season)
-                .orElseGet(() -> {
-                    PlayerSeason created = PlayerSeason.createNew(
-                            ImportSource.FCTT, lineupPlayer.name(), lineupPlayer.licenseId(), null, season);
-                    playerSeasonRepository.savePlayerSeason(created);
-                    LOGGER.debug("Created FCTT player season {} {} ({})",
-                            lineupPlayer.name(), season, lineupPlayer.licenseId());
-                    return created;
-                });
-    }
-
-    private static List<ActaLineupPlayer> players(FcttMatchReportContext context) {
-        Stream<ActaLineupPlayer> lineupPlayers = context.acta().lineups() == null
-                ? Stream.empty()
-                : Stream.concat(context.acta().lineups().home().values().stream(),
-                        context.acta().lineups().away().values().stream());
-        Stream<ActaLineupPlayer> declaredDoublesPlayers = context.acta().doubles() == null
-                ? Stream.empty()
-                : Stream.concat(context.acta().doubles().home().stream(), context.acta().doubles().away().stream());
-        Stream<ActaLineupPlayer> gameDoublesPlayers = context.acta().games().stream()
-                .filter(ActaGame::isDoubles)
-                .flatMap(game -> Stream.of(game.home(), game.away()))
-                .filter(Objects::nonNull)
-                .flatMap(participant -> participant.doublesPlayers().stream());
-
-        return Stream.of(lineupPlayers, declaredDoublesPlayers, gameDoublesPlayers)
-                .flatMap(stream -> stream)
-                .filter(Objects::nonNull)
-                .toList();
-    }
-
-    private static boolean isBlank(String value) {
-        return value == null || value.isBlank();
+        super.process(context);
     }
 }

@@ -1,55 +1,25 @@
 package org.cttelsamicsterrassa.data.load.bcnesa.process;
 
-import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.ClubRepository;
-import org.cttelsamicsterrassa.data.core.domain.club.repository.FederatedClubRepository;
 import org.cttelsamicsterrassa.data.core.domain.club.repository.TeamRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
-import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
-import org.cttelsamicsterrassa.data.load.shared.parse.acta.ActaTeam;
-import org.cttelsamicsterrassa.data.load.shared.process.MatchReportContext;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.cttelsamicsterrassa.data.load.shared.fcttweb.process.FcttWebTeamImportProcessor;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import javax.inject.Inject;
 
+/** Registers the clubs of a BCNESA fixture; the logic is {@link FcttWebTeamImportProcessor}. */
 @Component
-@Order(BcnesaTeamImportProcessor.ORDER)
-public class BcnesaTeamImportProcessor implements BcnesaMatchReportProcessor {
-
-    /** Clubs come first: players and matches both reference them. */
-    public static final int ORDER = 10;
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(BcnesaTeamImportProcessor.class);
-
-    private final TeamRepository teamRepository;
+@Order(FcttWebTeamImportProcessor.ORDER)
+public class BcnesaTeamImportProcessor extends FcttWebTeamImportProcessor implements BcnesaMatchReportProcessor {
 
     @Inject
     public BcnesaTeamImportProcessor(TeamRepository teamRepository) {
-        this.teamRepository = teamRepository;
+        super(ImportSource.BCNESA, teamRepository);
     }
 
     @Override
     public void process(BcnesaMatchReportContext context) {
-        Season season = context.toSeason();
-        importTeam(context.homeTeamName(), season);
-        importTeam(context.awayTeamName(), season);
-    }
-
-    private void importTeam(String rawName, Season season) {
-        String name = BcnesaTeamNames.normalize(rawName);
-        if (name == null) {
-            return;
-        }
-
-        teamRepository.findTeamByNameAndSeasonAndSource(name, season, ImportSource.BCNESA)
-            .orElseGet(() -> {
-                Team created = Team.createNew(ImportSource.BCNESA, name, season, null);
-                teamRepository.saveTeam(created);
-                LOGGER.debug("Created BCNESA team {} {}", name, season);
-                return created;
-            });
+        super.process(context);
     }
 }

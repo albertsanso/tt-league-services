@@ -60,7 +60,7 @@ segregation key and adding `region` and `regionType` to every match.
   ingest status rows and filters expose `region` / `regionType` while `territory` keeps working.
 - [x] `match_record` stores nullable `region` / `region_type`, documented in `rfetm-datamodel.md`;
   an opt-in report/write backfill fills existing rows.
-- [ ] The Java ingest-layout path for BCNESA and FCTT runs through one shared navigator and
+- [x] The Java ingest-layout path for BCNESA and FCTT runs through one shared navigator and
   processor set; legacy-history readers stay source-specific and their tests pass unchanged.
 - [x] API match/calendar responses expose `region` / `regionType` and accept them as optional filters.
 - [x] `uv run pytest` and the full `mvn test` build pass.

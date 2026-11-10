@@ -445,3 +445,44 @@ Phases are ordered so that every phase is releasable on its own and the full `mv
   package change (the Dockerfile lists no package: `uv sync --frozen --package tt-league-ingest-rest` follows the
   lock, so it needed no edit). Validation: `uv lock --check`, `uv sync --all-packages`, `uv run pytest` (407 passed).
   Not run here: `mvn test` (no Java change), live smoke (step 33).
+- 2026-11-10 steps 25-26 done (Java shared current-season path, `tt-data-league-import`). New package
+  `shared/fcttweb`: `traverse/FcttWebActasDirectoryNavigator` is the one reader of the ingest layout
+  (`<season>/<category>/<group>/<phase>/jornada_<N|NN>_local_team_…json`), parameterised by `ImportSource`
+  (BCNESA: `BcnesaCompetitionNames`, `G<n>` / Veterans "Other" groups, round fallback from the file name;
+  FCTT: `tdm` → `tercera-nacional`, payload `genero`, legacy `male`/`female` folders skipped). It also owns the
+  per-report acceptance rules (`handleBcnesaReport`, `handleFcttReport`) that the legacy walks reuse, and a
+  `FixtureSplitter` hook (`wholeFile()` for the ingest layout, `BcnesaMatchdaySplitter#asFixtureSplitter` for the
+  legacy multi-fixture files). `BcnesaActasDirectoryNavigator` / `FcttActasDirectoryNavigator` keep only their
+  legacy walks and unmapped-folder reporting, call the shared navigator for the ingest layout after the legacy
+  pass of each season and share one `FcttWebTraversalCounters`. `process/` holds
+  `FcttWebTeam|Player|Match|PreviewValidation|PreviewClassificationProcessor` (parameterised by `ImportSource`)
+  over `FcttWebFixtureContext`, implemented by `BcnesaMatchReportContext` and `FcttMatchReportContext`; the
+  `ActaOrientation` hook has `IDENTITY` and `MIRRORED` (the former `FcttActaOrientation`). Region / regionType
+  still come from `MatchRegions` in the shared match processor.
+- Why the per-source processors still exist: they are thin subclasses (`@Component`, `@Order`, one bridging
+  `process(<Source>MatchReportContext)`) kept because `BcnesaImportProcessorsTest`, `FcttImportProcessorsTest`,
+  `MatchLifecycleImportProcessorsTest`, the navigator tests and the runtime `AppTest` build them, the contexts and
+  the `List<…MatchReportProcessor>` constructor of `NavigatorImportExecutionService` unchanged, and Spring
+  injects the two sources into separate lists by those types. `NavigatorImportExecutionService` therefore needed no
+  change: its per-source lists now hold the shared logic. Removed: `BcnesaPreviewClassificationProcessor`,
+  `FcttPreviewClassificationProcessor` (the preview service uses `FcttWebPreviewClassificationProcessor`),
+  `FcttActaOrientation`, `FcttLicenses` (now `MirroredActaOrientation`, `FcttWebLicenses`).
+- Deliberate deviations from the step-26 wording, to keep stored data and identity stable: (a) `BcnesaTeamNames`
+  normalisation is applied to BCNESA only, not to FCTT. Applying it to FCTT would make existing stored FCTT team
+  names stop matching on re-import and create duplicate teams and matches; revisit only together with a data
+  migration. (b) The played header stays source-specific (BCNESA from the fixture's own games, FCTT from
+  `resultado_final`, which also covers walkovers without games), as do lineups (BCNESA from game participants, FCTT
+  from `alineaciones` with ranking) and the FCTT-only `NotStored` early exits. (c) Lineup and doubles-pair rows
+  carry `source` for FCTT only, as before; BCNESA leaves it null (nullable column). Writing it for BCNESA is a
+  separate, data-affecting decision. (d) Intentional behaviour changes: the player processor registers the union of
+  lineups, declared doubles and game participants for both sources, de-duplicated by licence, and an all-zero
+  placeholder licence is no longer registered for BCNESA either (it was already ignored for FCTT); doubles members
+  are de-duplicated by player id for both sources. `id_partido` formats, `source_fixture_id` rules and the identity
+  guard are untouched.
+- Validation: `tt-data-league-import` suite (463 existing tests unchanged, plus the new
+  `FcttWebActasDirectoryNavigatorTest` and `FcttWebProcessorsTest`) and the full offline `mvn test` reactor pass.
+  Criterion 7 is met by the delivered Java path; criteria 1 and 2 (unified Python package, goldens) stay open, so the
+  feature remains `in-progress`.
+- 2026-11-10 integration: the region work (commit 2151a85) and the two follow-up branches (Python Phase 0-1, Java steps
+  25-26) were merged into `feature/align-bcnesa-fctt`. The "Not done" list of the execution-status note above is
+  superseded by the two notes that follow it: only step 33 (the manual live smoke) and the Phase 5 closing checks remain.
