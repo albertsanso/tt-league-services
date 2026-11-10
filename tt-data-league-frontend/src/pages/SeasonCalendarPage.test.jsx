@@ -144,6 +144,22 @@ function renderPage(path = '/calendari?source=FCTT&season=2026-2027&date=2026-09
 
 const search = () => new URLSearchParams(screen.getByTestId('search').textContent)
 
+// The week view starts with every group collapsed: open sources, then competitions, so the entries show.
+const expandWeek = () => {
+  for (let level = 0; level < 2; level += 1) {
+    screen.queryAllByRole('button', { expanded: false })
+      .filter((button) => button.closest('.week-grid'))
+      .forEach((button) => fireEvent.click(button))
+  }
+}
+const openWeekMatch = async (name) => {
+  await screen.findByRole('button', { name: /^FCTT, \d+ partit/ })
+  expandWeek()
+  fireEvent.click(screen.getByRole('button', { name }))
+  return screen.findByRole('dialog')
+}
+const waitForWeek = () => screen.findAllByRole('button', { name: /partit/ })
+
 // Each source imports a different newest season; every source returns one match with its own team names.
 function mockSources() {
   const seasonsBySource = {
@@ -154,6 +170,7 @@ function mockSources() {
   getMatchOptions.mockImplementation((source) => Promise.resolve(seasonsBySource[source]))
   getCalendarRange.mockImplementation(({ source }) => Promise.resolve(rangeWith([match({
     id: `match-${source}`,
+    source,
     homeTeamName: source === 'FCTT' ? 'Club A' : `Club ${source}`,
     awayTeamName: 'Club B',
     homeTeamId: `team-${source}`,
@@ -172,13 +189,14 @@ describe('SeasonCalendarPage', () => {
   afterEach(cleanup)
 
   it('defaults to the week view of today and requests the computed range', async () => {
-    renderPage('/calendari?source=FCTT&season=2026-2027')
+    const { container } = renderPage('/calendari?source=FCTT&season=2026-2027')
 
-    await screen.findByText('Club A – Club B')
+    await waitFor(() => expect(getCalendarRange).toHaveBeenCalled())
     const call = getCalendarRange.mock.calls[0][0]
     expect(call).toMatchObject({ source: 'FCTT', season: '2026-2027' })
     expect(new Date(call.to) - new Date(call.from)).toBe(7 * 86400000)
-    expect(screen.getByTestId('calendar')).toHaveAttribute('data-view', 'week')
+    expect(container.querySelector('.week-grid')).not.toBeNull()
+    expect(screen.queryByTestId('calendar')).toBeNull()
     expect(screen.getByRole('button', { name: 'Setmana' })).toHaveAttribute('aria-pressed', 'true')
   })
 
@@ -203,7 +221,7 @@ describe('SeasonCalendarPage', () => {
 
   it('navigates to the previous and next period and back to today', async () => {
     renderPage('/calendari?source=FCTT&season=2026-2027&date=2026-09-16&view=week')
-    await screen.findByTestId('calendar')
+    await screen.findByRole('button', { name: /^FCTT, 1 partit/ })
 
     fireEvent.click(screen.getByRole('button', { name: 'Període següent' }))
     await waitFor(() => expect(search().get('date')).toBe('2026-09-23'))
@@ -216,13 +234,12 @@ describe('SeasonCalendarPage', () => {
 
   it('keeps every filter in the URL and clears dependent ones', async () => {
     renderPage('/calendari?source=FCTT&season=2026-2027&date=2026-09-16')
-    await screen.findByText('Club A – Club B')
+    await waitForWeek()
 
     fireEvent.change(screen.getByLabelText('Competició'), { target: { value: 'tercera' } })
     await waitFor(() => expect(search().get('competition')).toBe('tercera'))
     fireEvent.change(screen.getByLabelText('Grup'), { target: { value: '1' } })
     fireEvent.change(screen.getByLabelText('Equip'), { target: { value: 'team-b' } })
-    fireEvent.change(screen.getByLabelText('Ordenar per'), { target: { value: 'venue' } })
 
     await waitFor(() => expect(getCalendarRange).toHaveBeenCalledWith(
       expect.objectContaining({ competition: 'tercera', group: '1', team: 'team-b' }),
@@ -230,44 +247,44 @@ describe('SeasonCalendarPage', () => {
     ))
     expect(search().get('group')).toBe('1')
     expect(search().get('team')).toBe('team-b')
-    expect(search().get('sort')).toBe('venue')
+    expect(screen.queryByLabelText('Ordenar per')).toBeNull()
 
     fireEvent.change(screen.getByLabelText('Competició'), { target: { value: 'segunda' } })
     await waitFor(() => expect(search().get('competition')).toBe('segunda'))
     expect(search().has('group')).toBe(false)
     expect(search().has('team')).toBe(false)
-    expect(search().get('sort')).toBe('venue')
   })
 
-  it('a day selection narrows the detail list and a view switch clears it', async () => {
-    getCalendarRange.mockResolvedValue(rangeWith([
-      match({ id: 'sat' }),
-      match({ id: 'sun', dateTime: '2026-09-20T10:00:00+02:00', homeTeamName: 'Club S', awayTeamName: 'Club T' }),
-    ]))
+  it('a week day header opens the day view of that date', async () => {
     renderPage('/calendari?source=FCTT&season=2026-2027&date=2026-09-16&view=week')
-    const detail = await screen.findByRole('region', { name: 'Detall del calendari' })
-    await within(detail).findByText('Club S – Club T')
 
-    fireEvent.click(screen.getByRole('button', { name: 'day 2026-09-19' }))
+    fireEvent.click(await screen.findByRole('button', { name: /^dissabte, 19 de setembre/ }))
 
-    await waitFor(() => expect(within(detail).queryByText('Club S – Club T')).toBeNull())
-    expect(within(detail).getByText('Club A – Club B')).toBeInTheDocument()
-    expect(search().get('selected')).toBe('2026-09-19')
-
-    fireEvent.click(screen.getByRole('button', { name: 'Mes' }))
-    await waitFor(() => expect(search().has('selected')).toBe(false))
-    expect(await within(detail).findByText('Club S – Club T')).toBeInTheDocument()
+    await waitFor(() => expect(search().get('view')).toBe('day'))
+    expect(search().get('date')).toBe('2026-09-19')
+    expect(search().has('selected')).toBe(false)
+    expect(screen.getByTestId('calendar')).toHaveAttribute('data-view', 'day')
   })
 
-  it('clicking an event selects its day and focuses its row link to the match detail', async () => {
+  it('opens the match dialog from a week entry without changing the URL, and closing it returns focus to the entry', async () => {
     renderPage('/calendari?source=FCTT&season=2026-2027&date=2026-09-16&view=week')
+    const before = screen.getByTestId('search').textContent
 
-    fireEvent.click(await screen.findByRole('button', { name: 'event Club A – Club B' }))
+    await screen.findByRole('button', { name: /^FCTT, 1 partit/ })
+    expandWeek()
+    const entry = screen.getByRole('button', { name: /^Club A – Club B, 18:30/ })
+    entry.focus()
+    fireEvent.click(entry)
 
-    await waitFor(() => expect(search().get('selected')).toBe('2026-09-19'))
-    const link = within(screen.getByRole('region', { name: 'Detall del calendari' })).getByRole('link')
-    expect(link).toHaveAttribute('href', expect.stringContaining('/partits/match-1?'))
-    await waitFor(() => expect(link).toHaveFocus())
+    const dialog = await screen.findByRole('dialog', { name: 'Club A – Club B' })
+    expect(within(dialog).getByRole('link', { name: 'Obre el resum del partit' }))
+      .toHaveAttribute('href', expect.stringContaining('/partits/match-1?'))
+    expect(screen.getByTestId('search').textContent).toBe(before)
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(entry).toHaveFocus()
+    expect(screen.getByTestId('search').textContent).toBe(before)
   })
 
   it('jornada view asks for a competition first', async () => {
@@ -281,27 +298,25 @@ describe('SeasonCalendarPage', () => {
   it('jornada view defaults to the current round and navigates between rounds', async () => {
     renderPage('/calendari?source=FCTT&season=2026-2027&competition=tercera&view=jornada')
 
-    const detail = await screen.findByRole('region', { name: 'Detall del calendari' })
-    await within(detail).findByText('Club C – Club D')
-    expect(screen.getAllByRole('heading', { name: 'Jornada 2' })).toHaveLength(2)
+    await screen.findByRole('button', { name: 'event Club C – Club D' })
     expect(getSeasonCalendar.mock.calls[0][0]).toMatchObject({ competition: 'tercera', round: '' })
     expect(screen.getByTestId('calendar')).toHaveAttribute('data-range', '2026-09-19/2026-09-20')
-    expect(within(detail).getByRole('heading', { name: 'Sense data', level: 3 })).toBeInTheDocument()
-    expect(within(detail).getByText('Club E – Club F')).toBeInTheDocument()
+    const undated = screen.getByRole('region', { name: /Sense data/ })
+    expect(within(undated).getByRole('button', { name: /^Club E – Club F/ })).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Jornada anterior' }))
     await waitFor(() => expect(search().get('round')).toBe('1'))
-    expect((await screen.findAllByRole('heading', { name: 'Jornada 1' })).length).toBeGreaterThan(0)
-    expect(within(detail).queryByText('Club C – Club D')).toBeNull()
+    expect(await screen.findByRole('button', { name: 'event Club A – Club B' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'event Club C – Club D' })).toBeNull()
+    expect(screen.queryByRole('region', { name: /Sense data/ })).toBeNull()
     expect(screen.getByRole('button', { name: 'Jornada anterior' })).toBeDisabled()
   })
 
   it('jornada view filters by team on the client', async () => {
     renderPage('/calendari?source=FCTT&season=2026-2027&competition=tercera&view=jornada&team=team-c')
 
-    const detail = await screen.findByRole('region', { name: 'Detall del calendari' })
-    await within(detail).findByText('Club C – Club D')
-    expect(within(detail).queryByText('Club A – Club B')).toBeNull()
+    await screen.findByRole('button', { name: 'event Club C – Club D' })
+    expect(screen.queryByRole('button', { name: 'event Club A – Club B' })).toBeNull()
   })
 
   it('shows the group progress header in the jornada view', async () => {
@@ -314,25 +329,29 @@ describe('SeasonCalendarPage', () => {
   it('offers the mark action only to matches:write users', async () => {
     renderPage('/calendari?source=FCTT&season=2026-2027&date=2026-09-16')
 
-    await screen.findByText('Club A – Club B')
+    await openWeekMatch(/^Club A – Club B/)
     expect(screen.queryByRole('button', { name: /Marcar com a endarrerit/ })).toBeNull()
   })
 
-  it('marks a scheduled match and clears it for a write user, refetching the range', async () => {
+  it('marks a scheduled match and clears it from the dialog for a write user, refetching the range', async () => {
     useAuth.mockReturnValue({ token: 'token', clearSession: vi.fn(), hasPermission: () => true })
     markMatchOverdue.mockResolvedValue(null)
     clearMatchOverdueMark.mockResolvedValue(null)
     renderPage('/calendari?source=FCTT&season=2026-2027&date=2026-09-16')
-
-    fireEvent.click(await screen.findByRole('button', { name: /Marcar com a endarrerit/ }))
-    await waitFor(() => expect(markMatchOverdue).toHaveBeenCalledWith(
-      'match-1', 'token', undefined, expect.any(Function),
-    ))
+    await openWeekMatch(/^Club A – Club B/)
 
     getCalendarRange.mockResolvedValue(rangeWith([match({
       overdueMarked: true, calendarState: 'OVERDUE', overdueMarkedBy: 'admin', overdueMarkedAt: '2026-09-08T10:00:00+02:00',
     })]))
-    fireEvent.click(await screen.findByRole('button', { name: /Treure la marca d’endarrerit/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Marcar com a endarrerit/ }))
+    await waitFor(() => expect(markMatchOverdue).toHaveBeenCalledWith(
+      'match-1', 'token', undefined, expect.any(Function),
+    ))
+
+    // The open dialog shows the refreshed match.
+    const dialog = screen.getByRole('dialog')
+    expect(await within(dialog).findByText(/Endarrerit \(manual\) marcat per admin/)).toBeInTheDocument()
+    fireEvent.click(within(dialog).getByRole('button', { name: /Treure la marca d’endarrerit/ }))
     await waitFor(() => expect(clearMatchOverdueMark).toHaveBeenCalledWith(
       'match-1', 'token', undefined, expect.any(Function),
     ))
@@ -342,8 +361,9 @@ describe('SeasonCalendarPage', () => {
     useAuth.mockReturnValue({ token: 'token', clearSession: vi.fn(), hasPermission: () => true })
     markMatchOverdue.mockRejectedValue(Object.assign(new Error('conflict'), { status: 409 }))
     renderPage('/calendari?source=FCTT&season=2026-2027&date=2026-09-16')
+    await openWeekMatch(/^Club A – Club B/)
 
-    fireEvent.click(await screen.findByRole('button', { name: /Marcar com a endarrerit/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Marcar com a endarrerit/ }))
 
     expect(await screen.findByText('Només es poden marcar els partits programats, a partir de l’endemà de la seva data.'))
       .toBeInTheDocument()
@@ -377,7 +397,7 @@ describe('SeasonCalendarPage', () => {
     getCalendarRange.mock.calls.forEach(([filters]) => expect(filters.season).toBe('2026-2027'))
     expect(getMatchOptions).toHaveBeenCalledWith('RFETM', '', 'token', expect.anything(), expect.any(Function))
     expect(getMatchOptions).toHaveBeenCalledWith('FCTT', '2026-2027', 'token', expect.anything(), expect.any(Function))
-    expect(await screen.findByText('Club A – Club B')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /^FCTT, 1 partit/ })).toBeInTheDocument()
     expect(screen.getByRole('combobox', { name: 'Font' })).toHaveValue('')
     expect(screen.getByRole('combobox', { name: 'Temporada' })).toHaveValue('2026-2027')
     expect(search().has('season')).toBe(false)
@@ -388,7 +408,7 @@ describe('SeasonCalendarPage', () => {
     mockSources()
     renderPage('/calendari?source=FCTT&date=2026-09-16&view=week')
 
-    await screen.findByText('Club A – Club B')
+    await screen.findByRole('button', { name: /^FCTT, 1 partit/ })
     expect(getCalendarRange.mock.calls.map(([filters]) => filters.source)).toEqual(['FCTT'])
     expect(getCalendarRange.mock.calls[0][0].season).toBe('2026-2027')
     expect(getMatchOptions.mock.calls.map(([source]) => source)).toEqual(['FCTT', 'FCTT'])
@@ -432,14 +452,17 @@ describe('SeasonCalendarPage', () => {
     expect(narrowed.map(([filters]) => filters.source).sort()).toEqual(['BCNESA', 'FCTT', 'RFETM'])
   })
 
-  it('merges matches from every source, tags their source and shows it in the row', async () => {
+  it('merges matches from every source and shows each source on its group and in the dialog', async () => {
     mockSources()
     renderPage('/calendari?date=2026-09-16&view=week')
 
-    const detail = await screen.findByRole('region', { name: 'Detall del calendari' })
-    await within(detail).findByText(/tercera · Grup 1 · FCTT/)
-    expect(within(detail).getByText(/tercera · Grup 1 · RFETM/)).toBeInTheDocument()
-    expect(within(detail).getByText(/tercera · Grup 1 · BCNESA/)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /^FCTT, 1 partit/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^RFETM, 1 partit/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^BCNESA, 1 partit/ })).toBeInTheDocument()
+    expandWeek()
+    fireEvent.click(screen.getByRole('button', { name: /^Club RFETM – Club B, 18:30, RFETM/ }))
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog.querySelector('.cal-source-tag')).toHaveTextContent('RFETM')
   })
 
   it('jornada without a source asks for one and calls neither calendar API', async () => {
@@ -468,6 +491,288 @@ describe('SeasonCalendarPage', () => {
     renderPage('/calendari?date=2026-09-16&view=week')
 
     expect(await screen.findByText('No s’ha pogut carregar el calendari.')).toBeInTheDocument()
-    expect(screen.queryByText('Club A – Club B')).toBeNull()
+    expect(screen.queryByRole('button', { name: /^FCTT/ })).toBeNull()
+  })
+  describe('month view', () => {
+    const monthPath = '/calendari?source=FCTT&season=2026-2027&date=2026-09-16&view=month'
+    const withMonthMatches = () => getCalendarRange.mockResolvedValue(rangeWith([
+      match({ id: 'sat' }),
+      match({ id: 'sun', dateTime: '2026-09-20T10:00:00+02:00', homeTeamName: 'Club S', awayTeamName: 'Club T', calendarState: 'UPCOMING' }),
+    ]))
+
+    it('renders the month grid with counts instead of FullCalendar and no detail panel', async () => {
+      withMonthMatches()
+      const { container } = renderPage(monthPath)
+
+      const saturday = await screen.findByRole('button', { name: /19 de setembre/ })
+      expect(screen.queryByTestId('calendar')).toBeNull()
+      expect(saturday).toHaveAccessibleName(/1 partit, Pendent d’acta 1/)
+      expect(container.querySelector('.calendar-detail')).toBeNull()
+      expect(screen.queryByText('Club A – Club B')).toBeNull()
+    })
+
+    it('selecting a day opens the day view of that date', async () => {
+      withMonthMatches()
+      renderPage(monthPath)
+
+      fireEvent.click(await screen.findByRole('button', { name: /20 de setembre/ }))
+
+      await waitFor(() => expect(search().get('view')).toBe('day'))
+      expect(search().get('date')).toBe('2026-09-20')
+      expect(search().has('selected')).toBe(false)
+      expect(screen.getByTestId('calendar')).toHaveAttribute('data-view', 'day')
+    })
+
+    it('ignores a selected day and a sort carried by an old link, and drops them on the next change', async () => {
+      withMonthMatches()
+      const { container } = renderPage(`${monthPath}&selected=2026-09-20&sort=venue`)
+
+      await screen.findByRole('button', { name: /20 de setembre/ })
+      expect(container.querySelector('.month-grid')).not.toBeNull()
+      expect(screen.queryByRole('dialog')).toBeNull()
+      expect(screen.queryByLabelText('Ordenar per')).toBeNull()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Període següent' }))
+      await waitFor(() => expect(search().get('date')).toBe('2026-10-16'))
+      expect(search().has('selected')).toBe(false)
+      expect(search().has('sort')).toBe(false)
+    })
+
+    it('uses the today of the API response to mark the current day', async () => {
+      withMonthMatches()
+      renderPage(monthPath)
+
+      expect(await screen.findByRole('button', { name: /16 de setembre/ })).toHaveAttribute('aria-current', 'date')
+    })
+  })
+
+  describe('week view groups', () => {
+    const weekPath = '/calendari?source=FCTT&season=2026-2027&date=2026-09-16&view=week'
+    const saturdayMatches = () => getCalendarRange.mockResolvedValue(rangeWith([
+      match({ id: 'a' }),
+      match({
+        id: 'b', dateTime: '2026-09-19T10:00:00+02:00', homeTeamName: 'Club S', awayTeamName: 'Club T', competition: 'segona', calendarState: 'UPCOMING',
+      }),
+      match({ id: 'c', dateTime: '2026-09-20T10:00:00+02:00', homeTeamName: 'Club U', awayTeamName: 'Club V' }),
+    ]))
+
+    const saturdayColumn = async () => screen.findByRole('region', { name: /^dissabte, 19 de setembre/ })
+
+    it('starts with every source collapsed and shows no competition or match', async () => {
+      saturdayMatches()
+      renderPage(weekPath)
+
+      const saturday = await saturdayColumn()
+      const source = within(saturday).getByRole('button', { name: /^FCTT, 2 partits, Pendent d’acta 1, Proper 1/ })
+      expect(source).toHaveAttribute('aria-expanded', 'false')
+      expect(within(saturday).queryByRole('button', { name: /^tercera/ })).toBeNull()
+      expect(screen.queryByRole('button', { name: /^Club A – Club B/ })).toBeNull()
+    })
+
+    it('shows the competitions after the first expand and the matches after the second', async () => {
+      saturdayMatches()
+      renderPage(weekPath)
+      const saturday = await saturdayColumn()
+
+      fireEvent.click(within(saturday).getByRole('button', { name: /^FCTT/ }))
+      const tercera = within(saturday).getByRole('button', { name: /^tercera, 1 partit/ })
+      expect(tercera).toHaveAttribute('aria-expanded', 'false')
+      expect(within(saturday).getByRole('button', { name: /^segona, 1 partit/ })).toBeInTheDocument()
+      expect(within(saturday).queryByRole('button', { name: /^Club A – Club B/ })).toBeNull()
+
+      fireEvent.click(tercera)
+      expect(within(saturday).getByRole('button', { name: /^Club A – Club B, 18:30, FCTT, tercera/ })).toBeInTheDocument()
+      expect(within(saturday).queryByRole('button', { name: /^Club S – Club T/ })).toBeNull()
+    })
+
+    it('expanding or collapsing changes neither the URL nor opens a dialog', async () => {
+      saturdayMatches()
+      renderPage(weekPath)
+      const saturday = await saturdayColumn()
+      const before = screen.getByTestId('search').textContent
+
+      fireEvent.click(within(saturday).getByRole('button', { name: /^FCTT/ }))
+      fireEvent.click(within(saturday).getByRole('button', { name: /^tercera/ }))
+      fireEvent.click(within(saturday).getByRole('button', { name: /^FCTT/ }))
+
+      expect(screen.getByTestId('search').textContent).toBe(before)
+      expect(screen.queryByRole('dialog')).toBeNull()
+    })
+
+    it('keeps the groups open while a match dialog is opened and closed', async () => {
+      saturdayMatches()
+      renderPage(weekPath)
+      const saturday = await saturdayColumn()
+      fireEvent.click(within(saturday).getByRole('button', { name: /^FCTT/ }))
+      fireEvent.click(within(saturday).getByRole('button', { name: /^tercera/ }))
+
+      fireEvent.click(within(saturday).getByRole('button', { name: /^Club A – Club B/ }))
+      fireEvent.click(await screen.findByRole('button', { name: 'Tanca' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+      expect(within(saturday).getByRole('button', { name: /^FCTT/ })).toHaveAttribute('aria-expanded', 'true')
+      expect(within(saturday).getByRole('button', { name: /^Club A – Club B/ })).toBeInTheDocument()
+    })
+
+    it('starts collapsed again when the week or a filter changes', async () => {
+      saturdayMatches()
+      renderPage(weekPath)
+      let saturday = await saturdayColumn()
+      fireEvent.click(within(saturday).getByRole('button', { name: /^FCTT/ }))
+      expect(within(saturday).getByRole('button', { name: /^tercera/ })).toBeInTheDocument()
+
+      fireEvent.click(screen.getByRole('button', { name: 'Període següent' }))
+      await waitFor(() => expect(search().get('date')).toBe('2026-09-23'))
+      fireEvent.click(screen.getByRole('button', { name: 'Període anterior' }))
+      await waitFor(() => expect(search().get('date')).toBe('2026-09-16'))
+      saturday = await saturdayColumn()
+      expect(within(saturday).getByRole('button', { name: /^FCTT/ })).toHaveAttribute('aria-expanded', 'false')
+
+      fireEvent.click(within(saturday).getByRole('button', { name: /^FCTT/ }))
+      fireEvent.change(screen.getByLabelText('Competició'), { target: { value: 'tercera' } })
+      await waitFor(() => expect(search().get('competition')).toBe('tercera'))
+      saturday = await saturdayColumn()
+      expect(within(saturday).getByRole('button', { name: /^FCTT/ })).toHaveAttribute('aria-expanded', 'false')
+    })
+
+    it('groups the sources of an all-sources week in source order', async () => {
+      mockSources()
+      renderPage('/calendari?date=2026-09-16&view=week')
+
+      const saturday = await saturdayColumn()
+      await within(saturday).findByRole('button', { name: /^FCTT/ })
+      expect(within(saturday).getAllByRole('button', { expanded: false })
+        .map((button) => button.getAttribute('aria-label').split(',')[0])).toEqual(['RFETM', 'FCTT', 'BCNESA'])
+    })
+
+    describe('on a phone', () => {
+      const originalWidth = window.innerWidth
+      afterEach(() => {
+        window.innerWidth = originalWidth
+      })
+
+      it('renders the same groups, not FullCalendar', async () => {
+        window.innerWidth = 375
+        saturdayMatches()
+        const { container } = renderPage(weekPath)
+
+        expect(await screen.findByRole('button', { name: /^FCTT, 2 partits/ })).toBeInTheDocument()
+        expect(container.querySelector('.week-grid')).not.toBeNull()
+        expect(screen.queryByTestId('calendar')).toBeNull()
+      })
+    })
+  })
+
+  describe('match dialog', () => {
+    const base = '/calendari?source=FCTT&season=2026-2027&date=2026-09-16'
+
+    it.each([['day'], ['week'], ['month'], ['jornada']])('has no detail panel in the %s view and nothing after the calendar but the legend', async (view) => {
+      const extra = view === 'jornada' ? '&competition=tercera' : ''
+      const { container } = renderPage(`${base}&view=${view}${extra}`)
+
+      await screen.findByRole('region', { name: 'Llegenda dels estats' })
+      await waitFor(() => expect(getCalendarRange.mock.calls.length + getSeasonCalendar.mock.calls.length).toBeGreaterThan(0))
+      expect(container.querySelector('.calendar-detail')).toBeNull()
+      expect(screen.queryByRole('region', { name: 'Detall del calendari' })).toBeNull()
+      expect(container.querySelector('.calendar-layout').className).toBe('calendar-layout')
+      expect(screen.queryByLabelText('Ordenar per')).toBeNull()
+    })
+
+    it('opens from a day view entry and from a jornada entry, without changing the URL', async () => {
+      renderPage(`${base}&view=day`)
+      const before = screen.getByTestId('search').textContent
+
+      fireEvent.click(await screen.findByRole('button', { name: 'event Club A – Club B' }))
+
+      expect(await screen.findByRole('dialog', { name: 'Club A – Club B' })).toBeInTheDocument()
+      expect(screen.getByTestId('search').textContent).toBe(before)
+      cleanup()
+
+      renderPage(`${base}&view=jornada&competition=tercera`)
+      fireEvent.click(await screen.findByRole('button', { name: 'event Club C – Club D' }))
+      expect(await screen.findByRole('dialog', { name: 'Club C – Club D' })).toBeInTheDocument()
+    })
+
+    it('opens an undated match of the jornada view from the undated list', async () => {
+      renderPage(`${base}&view=jornada&competition=tercera`)
+
+      const list = await screen.findByRole('region', { name: /Sense data/ })
+      fireEvent.click(within(list).getByRole('button', { name: /^Club E – Club F/ }))
+
+      const dialog = await screen.findByRole('dialog', { name: 'Club E – Club F' })
+      expect(within(dialog).getByText('Sense data', { selector: 'dd' })).toBeInTheDocument()
+    })
+
+    it('lists undated matches of a range view below the calendar', async () => {
+      getCalendarRange.mockResolvedValue(rangeWith([match(), match({ id: 'u', dateTime: null, calendarState: 'UNDATED', homeTeamName: 'Club U', awayTeamName: 'Club V' })]))
+      renderPage(`${base}&view=month`)
+
+      const list = await screen.findByRole('region', { name: /Sense data/ })
+      expect(within(list).getAllByRole('button')).toHaveLength(1)
+    })
+
+    it('closes when the period changes', async () => {
+      renderPage(`${base}&view=day`)
+      fireEvent.click(await screen.findByRole('button', { name: 'event Club A – Club B' }))
+      await screen.findByRole('dialog')
+
+      // The modal dialog does not hide the toolbar from the test; a period change must still close it.
+      getCalendarRange.mockResolvedValue(rangeWith([]))
+      fireEvent.click(screen.getByRole('button', { name: 'Període següent', hidden: true }))
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+      expect(search().get('date')).toBe('2026-09-17')
+    })
+  })
+
+  describe('legend', () => {
+    it('is shown below the calendar with every state and the overdue rule of the response', async () => {
+      const { container } = renderPage('/calendari?source=FCTT&season=2026-2027&date=2026-09-16&view=week')
+
+      const legend = await screen.findByRole('region', { name: 'Llegenda dels estats' })
+      expect(legend).toHaveTextContent('sense acta 7 dies')
+      expect(container.querySelector('.week-grid').compareDocumentPosition(legend) & Node.DOCUMENT_POSITION_FOLLOWING)
+        .toBeTruthy()
+      expect(screen.queryByText(/Consulta el calendari per dia/)).toBeNull()
+    })
+  })
+
+  describe('filters on a phone', () => {
+    const originalWidth = window.innerWidth
+    afterEach(() => {
+      window.innerWidth = originalWidth
+    })
+
+    it('collapse behind a button that counts the filters set in the URL, not the defaulted ones', async () => {
+      window.innerWidth = 375
+      renderPage('/calendari?source=FCTT&season=2026-2027&competition=tercera&date=2026-09-16')
+
+      const toggle = await screen.findByRole('button', { name: /Filtres/ })
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(toggle).toHaveTextContent('3 filtres actius')
+      expect(screen.getByLabelText('Font')).not.toBeVisible()
+      fireEvent.click(toggle)
+      expect(screen.getByLabelText('Font')).toBeVisible()
+    })
+
+    it('does not count a season or group that is only defaulted', async () => {
+      window.innerWidth = 375
+      mockSources()
+      renderPage('/calendari?date=2026-09-16')
+
+      const toggle = await screen.findByRole('button', { name: /Filtres/ })
+      await screen.findByRole('button', { name: /^FCTT, 1 partit/ })
+      expect(toggle).not.toHaveTextContent('actiu')
+      expect(toggle).toHaveTextContent('Totes les fonts · 2026-2027')
+    })
+
+    it('keeps the filters open on wider screens', async () => {
+      window.innerWidth = 1440
+      renderPage('/calendari?source=FCTT&season=2026-2027&date=2026-09-16')
+
+      await screen.findByRole('button', { name: /^FCTT, 1 partit/ })
+      expect(screen.queryByRole('button', { name: /Filtres/ })).toBeNull()
+      expect(screen.getByLabelText('Font')).toBeVisible()
+    })
   })
 })

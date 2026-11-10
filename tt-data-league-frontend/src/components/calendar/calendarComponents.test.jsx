@@ -1,11 +1,10 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
-import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import CalendarDetailPanel from './CalendarDetailPanel.jsx'
 import CalendarFilters from './CalendarFilters.jsx'
+import CalendarLegend from './CalendarLegend.jsx'
 import CalendarToolbar from './CalendarToolbar.jsx'
 import MatchCalendar from './MatchCalendar.jsx'
-import { fullCalendarView, toEvents } from './calendarEvents.js'
+import { toEvents } from './calendarEvents.js'
 
 afterEach(cleanup)
 
@@ -100,10 +99,75 @@ describe('CalendarFilters', () => {
       .toEqual(['Tots els equips', 'Club A', 'Club B'])
 
     fireEvent.change(screen.getByLabelText('Equip'), { target: { value: 't2' } })
-    fireEvent.change(screen.getByLabelText('Ordenar per'), { target: { value: 'venue' } })
 
-    expect(onChange).toHaveBeenNthCalledWith(1, 'team', 't2')
-    expect(onChange).toHaveBeenNthCalledWith(2, 'sort', 'venue')
+    expect(onChange).toHaveBeenCalledWith('team', 't2')
+    expect(screen.queryByLabelText('Ordenar per')).toBeNull()
+  })
+
+  it('names its region instead of repeating a heading, and always shows the fields when not collapsible', () => {
+    render(<CalendarFilters filters={filters} options={options} onChange={vi.fn()} />)
+
+    expect(screen.getByRole('region', { name: 'Selecció de calendari' })).toBeInTheDocument()
+    expect(screen.queryByRole('heading')).toBeNull()
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByLabelText('Font')).toBeVisible()
+  })
+
+  describe('when collapsible', () => {
+    const renderCollapsible = (props = {}) => render(
+      <CalendarFilters
+        filters={filters}
+        options={options}
+        collapsible
+        activeCount={2}
+        onChange={vi.fn()}
+        {...props}
+      />,
+    )
+
+    it('hides the fields behind a button that shows the active count and the source and season', () => {
+      renderCollapsible()
+
+      const toggle = screen.getByRole('button', { name: /Filtres/ })
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+      expect(toggle).toHaveAttribute('aria-controls', document.querySelector('.match-filter-grid').id)
+      expect(toggle).toHaveTextContent('2 filtres actius')
+      expect(toggle).toHaveTextContent('FCTT · 2026-2027')
+      expect(document.querySelector('.match-filter-grid')).not.toBeVisible()
+
+      fireEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByLabelText('Font')).toBeVisible()
+      fireEvent.click(toggle)
+      expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    })
+
+    it('shows no count when no filter is active and says all sources without one', () => {
+      renderCollapsible({ activeCount: 0, filters: { ...filters, source: '' } })
+
+      const toggle = screen.getByRole('button', { name: /Filtres/ })
+      expect(toggle).not.toHaveTextContent('actiu')
+      expect(toggle).toHaveTextContent('Totes les fonts')
+    })
+
+    it('uses the singular for one active filter', () => {
+      renderCollapsible({ activeCount: 1 })
+      expect(screen.getByRole('button', { name: /Filtres/ })).toHaveTextContent('1 filtre actiu')
+    })
+
+    it('forces the fields open while the jornada view still needs a source or a competition', () => {
+      const { unmount } = renderCollapsible({ optionalScope: false, filters: { ...filters, source: '' } })
+      expect(screen.getByRole('button', { name: /Filtres/ })).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByLabelText('Font')).toBeVisible()
+      unmount()
+
+      const second = renderCollapsible({ optionalScope: false })
+      expect(screen.getByLabelText('Competició')).toBeVisible()
+      second.unmount()
+
+      renderCollapsible({ optionalScope: false, filters: { ...filters, competition: 'tercera' } })
+      expect(screen.getByRole('button', { name: /Filtres/ })).toHaveAttribute('aria-expanded', 'false')
+    })
   })
 
   it('tells teams apart across competitions when none is selected and disables the group', () => {
@@ -158,126 +222,42 @@ describe('CalendarFilters', () => {
   })
 })
 
-describe('CalendarDetailPanel', () => {
-  const renderPanel = (matches, props = {}) => render(
-    <MemoryRouter>
-      <CalendarDetailPanel
-        heading="Dissabte"
-        matches={matches}
-        sort="date"
-        returnSearch="source=FCTT&season=2026-2027"
-        onToggleMark={vi.fn()}
-        {...props}
-      />
-    </MemoryRouter>,
-  )
+describe('CalendarLegend', () => {
+  it('explains every state with its translated name and the overdue rule', () => {
+    const { container } = render(<CalendarLegend overdueGraceDays={7} />)
 
-  it('lists matches sorted, each linking to the match detail for every status', () => {
-    renderPanel([
-      match({ id: 'late', dateTime: '2026-09-19T20:00:00+02:00', homeTeamName: 'Late', awayTeamName: 'Team' }),
-      match({
-        id: 'played', dateTime: '2026-09-19T10:00:00+02:00', homeTeamName: 'Early', awayTeamName: 'Team',
-        status: 'PLAYED', calendarState: 'PLAYED', homeGamesWon: 4, awayGamesWon: 1,
-      }),
+    const legend = screen.getByRole('region', { name: 'Llegenda dels estats' })
+    expect(within(legend).getAllByRole('listitem').map((item) => item.textContent)).toEqual([
+      'Endarrerit', 'Pendent d’acta', 'Ajornat', 'Proper', 'Jugat', 'Sense data',
     ])
-
-    const links = screen.getAllByRole('link')
-    expect(links[0]).toHaveTextContent('Early – Team')
-    expect(links[0]).toHaveAttribute('href', '/partits/played?source=FCTT&season=2026-2027')
-    expect(links[0]).toHaveTextContent('4–1')
-    expect(links[1]).toHaveAttribute('href', '/partits/late?source=FCTT&season=2026-2027')
-    expect(screen.getByText('Jugat')).toBeInTheDocument()
-    expect(screen.getByText('Proper')).toBeInTheDocument()
+    expect(container.querySelectorAll('li svg[aria-hidden="true"]')).toHaveLength(6)
+    expect(legend).toHaveTextContent('Endarrerit: sense acta 7 dies després de la data')
   })
 
-  it('shows the source of each row when the matches come from several sources', () => {
-    renderPanel([match({ id: 'a', source: 'RFETM' })])
-
-    expect(screen.getByText('tercera · Grup 1 · RFETM')).toBeInTheDocument()
-  })
-
-  it('sorts by the requested criterion', () => {
-    renderPanel([
-      match({ id: 'a', venue: 'Zeta', homeTeamName: 'Zed' }),
-      match({ id: 'b', venue: 'Alfa', homeTeamName: 'Alpha' }),
-    ], { sort: 'venue' })
-
-    expect(screen.getAllByRole('link').map((link) => link.textContent.slice(0, 5))).toEqual(['Alpha', 'Zed –'])
-  })
-
-  it('hides the mark action until the backend reports the match markable (the day after its date)', () => {
-    renderPanel([match({ overdueMarkable: false })], { canWrite: true })
-
-    expect(screen.queryByRole('button', { name: /endarrerit/ })).toBeNull()
-  })
-
-  it('offers the overdue buttons only with write permission and only on scheduled rows', () => {
-    const matches = [
-      match({ overdueMarkable: true, calendarState: 'AWAITING_RESULT' }),
-      match({ id: 'played', status: 'PLAYED', calendarState: 'PLAYED' }),
-    ]
-    const onToggleMark = vi.fn()
-    const { unmount } = renderPanel(matches, { canWrite: false })
-    expect(screen.queryByRole('button', { name: /endarrerit/ })).toBeNull()
-    unmount()
-
-    renderPanel(matches, { canWrite: true, onToggleMark })
-    const buttons = screen.getAllByRole('button', { name: /Marcar com a endarrerit/ })
-    expect(buttons).toHaveLength(1)
-    fireEvent.click(buttons[0])
-    expect(onToggleMark).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }))
-  })
-
-  it('shows the clear action and the author of a manual mark', () => {
-    renderPanel([match({
-      overdueMarked: true, calendarState: 'OVERDUE', overdueMarkedBy: 'admin',
-      overdueMarkedAt: '2026-09-20T10:00:00+02:00',
-    })], { canWrite: true })
-
-    expect(screen.getByRole('button', { name: /Treure la marca d’endarrerit/ })).toBeInTheDocument()
-    expect(screen.getByText(/marcat per admin/)).toBeInTheDocument()
-  })
-
-  it('lists undated matches under their own subheading', () => {
-    renderPanel([match(), match({ id: 'undated', dateTime: null, calendarState: 'UNDATED' })])
-
-    expect(screen.getByRole('heading', { name: 'Sense data', level: 3 })).toBeInTheDocument()
-    expect(screen.getAllByRole('link')).toHaveLength(2)
-  })
-
-  it('shows an empty status for no matches', () => {
-    renderPanel([])
-    expect(screen.getByRole('status')).toHaveTextContent('No hi ha partits en aquesta selecció.')
+  it('omits the overdue rule until the API reports the grace days', () => {
+    render(<CalendarLegend />)
+    expect(screen.queryByText(/sense acta/)).toBeNull()
   })
 })
 
 describe('MatchCalendar', () => {
-  it('maps our views to FullCalendar views', () => {
-    expect(fullCalendarView('day')).toBe('listDay')
-    expect(fullCalendarView('week')).toBe('timeGridWeek')
-    expect(fullCalendarView('week', true)).toBe('listWeek')
-    expect(fullCalendarView('month')).toBe('dayGridMonth')
-    expect(fullCalendarView('jornada')).toBe('listJornada')
-  })
-
-  it('renders match events in the month grid and reports a click on one', () => {
+  it('renders a day list entry with the teams, the source tag and the state, and reports a click', () => {
     const onMatchSelect = vi.fn()
     const { container } = render(
       <MatchCalendar
-        view="month"
-        date="2026-09-16"
-        events={toEvents([match()])}
-        onDateSelect={vi.fn()}
+        view="day"
+        date="2026-09-19"
+        events={toEvents([match({ source: 'FCTT' })])}
         onMatchSelect={onMatchSelect}
       />,
     )
 
-    const event = container.querySelector('.fc-event')
-    expect(event).not.toBeNull()
-    expect(event).toHaveTextContent('Club A – Club B')
-    expect(event).toHaveClass('cal-state-upcoming')
-    expect(event.getAttribute('aria-label')).toContain('Club A – Club B')
-    fireEvent.click(event)
+    const entry = screen.getByRole('button', { name: 'Club A – Club B, 18:30, FCTT, Proper' })
+    expect(container.querySelector('.fc-event')).toContainElement(entry)
+    expect(entry).toHaveTextContent('Club A – Club B')
+    expect(entry.querySelector('.cal-source-tag')).toHaveTextContent('FCTT')
+    expect(entry.querySelector('svg.state-icon-upcoming')).toHaveAttribute('aria-hidden', 'true')
+    fireEvent.click(entry)
     expect(onMatchSelect).toHaveBeenCalledWith(expect.objectContaining({ id: 'm1' }))
   })
 
@@ -288,12 +268,29 @@ describe('MatchCalendar', () => {
         date="2026-09-16"
         events={toEvents([match()])}
         visibleRange={{ firstDate: '2026-09-19', lastDate: '2026-09-19' }}
-        onDateSelect={vi.fn()}
         onMatchSelect={vi.fn()}
       />,
     )
 
     expect(container.querySelector('.fc-list')).not.toBeNull()
     expect(container).toHaveTextContent('Club A – Club B')
+  })
+
+  it('shows teams, source tag and state icon with its name in list entries', () => {
+    const { container } = render(
+      <MatchCalendar
+        view="jornada"
+        date="2026-09-16"
+        events={toEvents([match({ source: 'BCNESA', calendarState: 'OVERDUE' })])}
+        visibleRange={{ firstDate: '2026-09-19', lastDate: '2026-09-19' }}
+        onMatchSelect={vi.fn()}
+      />,
+    )
+
+    const entry = container.querySelector('.cal-entry-list')
+    expect(entry.querySelector('.cal-entry-teams')).toHaveTextContent('Club A – Club B')
+    expect(entry.querySelector('.cal-source-tag')).toHaveTextContent('BCNESA')
+    expect(entry.querySelector('.cal-entry-state')).toHaveTextContent('Endarrerit')
+    expect(entry.querySelector('svg.state-icon-overdue')).not.toBeNull()
   })
 })

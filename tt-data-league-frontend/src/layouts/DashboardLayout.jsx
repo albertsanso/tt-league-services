@@ -4,12 +4,15 @@ import Sidebar from '../components/sidebar/Sidebar.jsx'
 import TopBar from '../components/topbar/TopBar.jsx'
 import { useAppState } from '../context/useAppState.js'
 import { useTranslation } from 'react-i18next'
+import { routePaths } from '../config/routes.js'
 
 function DashboardLayout() {
   const location = useLocation()
   const { closeMobileDrawer, closeUserDropdown, isMobile, isMobileDrawerOpen } =
     useAppState()
   const { t } = useTranslation()
+  // The season calendar uses the whole content width; every other page keeps the capped width.
+  const wide = location.pathname === routePaths.seasonCalendar
 
   useEffect(() => {
     closeMobileDrawer()
@@ -40,7 +43,7 @@ function DashboardLayout() {
       <div className="app-panel">
         <TopBar />
         <main id="main-content" className="app-content" tabIndex={-1}>
-          <div className="app-content-inner">
+          <div className={wide ? 'app-content-inner app-content-inner-wide' : 'app-content-inner'}>
             <Outlet />
           </div>
         </main>

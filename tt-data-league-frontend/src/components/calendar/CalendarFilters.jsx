@@ -1,19 +1,47 @@
+import { useState } from 'react'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { CALENDAR_SOURCES } from '../../api/calendarSources.js'
-import { SORTS } from './calendarEvents.js'
+
+const FIELDS_ID = 'calendar-filter-fields'
 
 function CalendarFilters({
-  filters, options, loadingOptions = false, optionalScope = true, onChange,
+  filters, options, loadingOptions = false, optionalScope = true, collapsible = false, activeCount = 0, onChange,
 }) {
   const { t } = useTranslation()
+  const [opened, setOpened] = useState(false)
   const groups = options.groups.filter((group) => group != null)
   const namesRepeat = !filters.competition
   const needsSource = !optionalScope && !filters.source
+  // The jornada view cannot load until a source and a competition are chosen, so the fields stay reachable.
+  const forcedOpen = !optionalScope && (!filters.source || !filters.competition)
+  const expanded = !collapsible || opened || forcedOpen
+  const Chevron = expanded ? ChevronUp : ChevronDown
 
   return (
-    <article className="card match-filter-card">
-      <h2>{t('calendarPage.filters')}</h2>
-      <div className="match-filter-grid">
+    <section className="card match-filter-card calendar-filter-card" aria-label={t('calendarPage.filters')}>
+      {collapsible ? (
+        <button
+          type="button"
+          className="calendar-filter-toggle"
+          aria-expanded={expanded}
+          aria-controls={FIELDS_ID}
+          disabled={forcedOpen}
+          onClick={() => setOpened((value) => !value)}
+        >
+          <span className="calendar-filter-toggle-text">
+            <strong>{t('calendarPage.showFilters')}</strong>
+            <span className="club-source">
+              {[filters.source || t('calendarPage.allSources'), filters.season].filter(Boolean).join(' · ')}
+            </span>
+          </span>
+          {activeCount > 0 ? (
+            <span className="calendar-filter-count">{t('calendarPage.activeFilters', { count: activeCount })}</span>
+          ) : null}
+          <Chevron aria-hidden="true" size={16} />
+        </button>
+      ) : null}
+      <div id={FIELDS_ID} className="match-filter-grid calendar-filter-grid" hidden={!expanded}>
         <label className="match-filter-field">
           {t('calendarPage.source')}
           <select value={filters.source} onChange={(event) => onChange('source', event.target.value)}>
@@ -72,14 +100,8 @@ function CalendarFilters({
             ))}
           </select>
         </label>
-        <label className="match-filter-field">
-          {t('calendarPage.sort')}
-          <select value={filters.sort} onChange={(event) => onChange('sort', event.target.value)}>
-            {SORTS.map((sort) => <option key={sort} value={sort}>{t(`calendarPage.sortBy.${sort}`)}</option>)}
-          </select>
-        </label>
       </div>
-    </article>
+    </section>
   )
 }
 

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { format, parseISO } from 'date-fns'
 import { clearMatchOverdueMark, markMatchOverdue } from '../api/matches.js'
 import { getCalendarOptions } from '../api/calendarSources.js'
 import { useCalendarRange, useSeasonCalendar } from '../hooks/useMatches.js'
@@ -10,17 +9,22 @@ import { useAppState } from '../context/useAppState.js'
 import Badge from '../components/ui/Badge.jsx'
 import ProgressBar from '../components/ui/ProgressBar.jsx'
 import Card from '../components/ui/Card.jsx'
-import CalendarDetailPanel from '../components/calendar/CalendarDetailPanel.jsx'
+import CalendarMatchDialog from '../components/calendar/CalendarMatchDialog.jsx'
+import CalendarLegend from '../components/calendar/CalendarLegend.jsx'
 import CalendarFilters from '../components/calendar/CalendarFilters.jsx'
 import CalendarToolbar from '../components/calendar/CalendarToolbar.jsx'
 import MatchCalendar from '../components/calendar/MatchCalendar.jsx'
-import { matchDay, normalizeSort, toEvents } from '../components/calendar/calendarEvents.js'
+import MonthGrid from '../components/calendar/MonthGrid.jsx'
+import UndatedMatches from '../components/calendar/UndatedMatches.jsx'
+import WeekGrid from '../components/calendar/WeekGrid.jsx'
+import { toEvents } from '../components/calendar/calendarEvents.js'
 import {
-  dateFnsLocale, normalizeDate, normalizeView, rangeFor, shift, titleFor,
+  normalizeDate, normalizeView, rangeFor, shift, titleFor, todayIso,
 } from '../components/calendar/calendarRange.js'
 
 const EMPTY_OPTIONS = { seasons: [], competitions: [] }
 const NO_MATCHES = []
+const FILTER_KEYS = ['source', 'season', 'competition', 'group', 'team']
 
 function includesTeam(match, team) {
   return !team || match.homeTeamId === team || match.awayTeamId === team
@@ -35,13 +39,11 @@ function SeasonCalendarPage() {
   const { t, i18n } = useTranslation()
   const { token, clearSession, hasPermission } = useAuth()
   const { viewport } = useAppState()
-  const compact = viewport !== 'desktop'
+  const phone = viewport === 'mobile'
   const [params, setParams] = useSearchParams()
 
   const view = normalizeView(params.get('view'))
   const date = normalizeDate(params.get('date'))
-  const sort = normalizeSort(params.get('sort'))
-  const selected = params.get('selected') ?? ''
   const roundParam = params.get('round') ?? ''
   const filters = useMemo(() => ({
     source: params.get('source') ?? '',
@@ -49,8 +51,7 @@ function SeasonCalendarPage() {
     competition: params.get('competition') ?? '',
     group: params.get('group') ?? '',
     team: params.get('team') ?? '',
-    sort,
-  }), [params, sort])
+  }), [params])
   const jornada = view === 'jornada'
 
   const [options, setOptions] = useState(EMPTY_OPTIONS)
@@ -58,7 +59,8 @@ function SeasonCalendarPage() {
   const [optionsError, setOptionsError] = useState(null)
   const [busyId, setBusyId] = useState(null)
   const [actionError, setActionError] = useState(null)
-  const [focusMatchId, setFocusMatchId] = useState(null)
+  // The match whose dialog is open. Local state: opening a match never changes the URL.
+  const [openMatchId, setOpenMatchId] = useState(null)
   // Without a season in the URL the newest season across the requested sources is used; it stays out of the URL.
   const effectiveSeason = filters.season || options.seasons[0] || ''
 
@@ -104,6 +106,9 @@ function SeasonCalendarPage() {
 
   const update = (changes) => {
     const next = new URLSearchParams(params)
+    // Old links may still carry the removed day selection and sort; they are ignored and dropped on the next change.
+    next.delete('selected')
+    next.delete('sort')
     Object.entries(changes).forEach(([key, value]) => {
       if (value) next.set(key, String(value))
       else next.delete(key)
@@ -113,7 +118,8 @@ function SeasonCalendarPage() {
   }
 
   const onFilterChange = (key, value) => {
-    const changes = { [key]: value, selected: '' }
+    const changes = { [key]: value }
+    setOpenMatchId(null)
     if (key === 'source') {
       Object.assign(changes, { season: '', competition: '', group: '', team: '', round: '' })
       setOptions(EMPTY_OPTIONS)
@@ -165,10 +171,12 @@ function SeasonCalendarPage() {
   const rangeMatches = jornada ? NO_MATCHES : data?.matches ?? NO_MATCHES
   const calendarMatches = jornada ? jornadaMatches : rangeMatches
   const events = useMemo(() => toEvents(calendarMatches), [calendarMatches])
-  const detailMatches = useMemo(() => {
-    if (jornada || !selected) return calendarMatches
-    return calendarMatches.filter((match) => matchDay(match) === selected)
-  }, [calendarMatches, jornada, selected])
+  const undatedMatches = useMemo(() => calendarMatches.filter((match) => !match.dateTime), [calendarMatches])
+  // Derived from the current data, so the dialog shows a refreshed match after marking and closes if it is gone.
+  const openMatch = useMemo(
+    () => calendarMatches.find((match) => match.id === openMatchId) ?? null,
+    [calendarMatches, openMatchId],
+  )
 
   const filterOptions = useMemo(() => {
     if (jornada) {
@@ -210,43 +218,46 @@ function SeasonCalendarPage() {
   }
 
   const changeView = (next) => {
-    update({ view: next, selected: '' })
-    setFocusMatchId(null)
+    update({ view: next })
+    setOpenMatchId(null)
   }
-  const move = (direction) => update({ date: shift(view, date, direction), selected: '' })
-  const selectDate = (value) => {
-    setFocusMatchId(null)
-    update({ selected: value })
+  const move = (direction) => {
+    update({ date: shift(view, date, direction) })
+    setOpenMatchId(null)
   }
-  const selectMatch = (match) => {
-    setFocusMatchId(match.id)
-    update({ selected: matchDay(match) ?? '' })
+  // A day of the month or week view opens the day view of that date, which lists its matches.
+  const openDay = (value) => {
+    update({ view: 'day', date: value })
+    setOpenMatchId(null)
   }
+  const selectMatch = (match) => setOpenMatchId(match.id)
+
+  // Counted from the raw URL values, so a season or group that is only defaulted is not an active filter.
+  const activeCount = FILTER_KEYS.filter((key) => filters[key]).length
+
+  // Any change of week or filter starts the week view's groups collapsed again.
+  const weekGridKey = [date, ...FILTER_KEYS.map((key) => filters[key])].join('|')
 
   const requestedReady = jornada
     ? Boolean(filters.source && effectiveSeason && filters.competition)
     : Boolean(effectiveSeason)
   const language = i18n.language
   const title = titleFor(view, date, language)
-  const detailHeading = selected
-    ? format(parseISO(selected), 'PPPP', { locale: dateFnsLocale(language) })
-    : jornada && round != null
-      ? t('calendarPage.roundLabel', { round })
-      : title
-  const hasResults = detailMatches.length > 0 || calendarMatches.length > 0
+  const hasResults = calendarMatches.length > 0
   const visibleRange = jornada ? roundDates(jornadaRounds) : null
   const returnSearch = params
 
   return (
     <section className="page-block">
       <h1 className="page-title">{t('calendarPage.title')}</h1>
-      <p className="page-description">{t('calendarPage.description')}</p>
 
       <CalendarFilters
         filters={{ ...filters, season: effectiveSeason, group: jornada ? effectiveGroup : filters.group }}
         options={filterOptions}
         loadingOptions={loadingOptions}
         optionalScope={!jornada}
+        collapsible={phone}
+        activeCount={activeCount}
         onChange={onFilterChange}
       />
 
@@ -256,10 +267,16 @@ function SeasonCalendarPage() {
         onViewChange={changeView}
         onPrevious={() => move(-1)}
         onNext={() => move(1)}
-        onToday={() => update({ date: '', selected: '' })}
+        onToday={() => {
+          update({ date: '' })
+          setOpenMatchId(null)
+        }}
         rounds={roundNumbers}
         round={round}
-        onRoundChange={(value) => update({ round: value, selected: '' })}
+        onRoundChange={(value) => {
+          update({ round: value })
+          setOpenMatchId(null)
+        }}
       />
 
       {actionError ? <p role="alert">{actionError.status === 409 ? t('calendarPage.markConflict') : t('calendarPage.markError')}</p> : null}
@@ -275,10 +292,6 @@ function SeasonCalendarPage() {
       {requestedReady && loading ? <p role="status">{t('calendarPage.loading')}</p> : null}
       {requestedReady && !loading && !error && data && !hasResults ? (
         <p role="status">{t('calendarPage.empty')}</p>
-      ) : null}
-
-      {data?.overdueGraceDays != null ? (
-        <p className="page-description">{t('calendarPage.legend', { days: data.overdueGraceDays })}</p>
       ) : null}
 
       {jornada ? activeGroups.map((group) => {
@@ -314,29 +327,49 @@ function SeasonCalendarPage() {
 
       <div className="calendar-layout">
         <div className="calendar-layout-grid">
-          {(!jornada || visibleRange) ? (
+          {view === 'month' ? (
+            <MonthGrid
+              date={date}
+              today={data?.today ?? todayIso()}
+              matches={calendarMatches}
+              compact={phone}
+              onDateSelect={openDay}
+            />
+          ) : null}
+          {view === 'week' ? (
+            <WeekGrid
+              key={weekGridKey}
+              date={date}
+              today={data?.today ?? todayIso()}
+              matches={calendarMatches}
+              fallbackSource={filters.source}
+              onDateSelect={openDay}
+              onMatchSelect={selectMatch}
+            />
+          ) : null}
+          {(view === 'day' || (jornada && visibleRange)) ? (
             <MatchCalendar
               view={view}
               date={date}
               events={events}
               visibleRange={visibleRange}
-              compact={compact}
-              onDateSelect={selectDate}
               onMatchSelect={selectMatch}
             />
           ) : null}
         </div>
-        <CalendarDetailPanel
-          heading={detailHeading}
-          matches={detailMatches}
-          sort={sort}
+        <UndatedMatches matches={undatedMatches} onMatchSelect={selectMatch} />
+      </div>
+      <CalendarLegend overdueGraceDays={data?.overdueGraceDays ?? null} />
+      {openMatch ? (
+        <CalendarMatchDialog
+          match={openMatch}
           returnSearch={returnSearch}
           canWrite={hasPermission('matches:write')}
           busyId={busyId}
-          focusMatchId={focusMatchId}
           onToggleMark={toggleMark}
+          onClose={() => setOpenMatchId(null)}
         />
-      </div>
+      ) : null}
     </section>
   )
 }
