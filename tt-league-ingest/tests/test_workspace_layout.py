@@ -7,8 +7,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 PACKAGES = ROOT / "packages"
-EXPECTED = {"common", "rfetm", "bcnesa", "fctt", "cli", "rest"}
-FEDERATIONS = {"rfetm", "bcnesa", "fctt"}
+EXPECTED = {"common", "rfetm", "fcttweb", "cli", "rest"}
+FEDERATIONS = {"rfetm", "fcttweb"}
 PREFIX = "tt-league-ingest-"
 
 
@@ -57,13 +57,25 @@ def test_dependency_direction():
 
 def test_source_imports_follow_the_direction():
     forbidden = {
-        "common": {"ingest_rfetm", "ingest_bcnesa", "ingest_fctt", "ingest_cli", "ingest_rest"},
-        "rfetm": {"ingest_bcnesa", "ingest_fctt", "ingest_cli", "ingest_rest"},
-        "bcnesa": {"ingest_rfetm", "ingest_fctt", "ingest_cli", "ingest_rest"},
-        "fctt": {"ingest_rfetm", "ingest_bcnesa", "ingest_cli", "ingest_rest"},
+        "common": {"ingest_rfetm", "ingest_fcttweb", "ingest_cli", "ingest_rest"},
+        "rfetm": {"ingest_fcttweb", "ingest_cli", "ingest_rest"},
+        "fcttweb": {"ingest_rfetm", "ingest_cli", "ingest_rest"},
     }
     for name, modules in forbidden.items():
         for path in (PACKAGES / f"{PREFIX}{name}" / "src").rglob("*.py"):
             text = path.read_text(encoding="utf-8")
             for module in modules:
                 assert f"import {module}" not in text and f"from {module}" not in text, (path, module)
+
+
+def test_the_legacy_bcnesa_and_fctt_packages_are_gone():
+    assert not (PACKAGES / f"{PREFIX}bcnesa").exists() and not (PACKAGES / f"{PREFIX}fctt").exists()
+    for path in (ROOT / "packages").rglob("*.py"):
+        text = path.read_text(encoding="utf-8")
+        assert "ingest_bcnesa" not in text and "ingest_fctt" not in text.replace("ingest_fcttweb", ""), path
+
+
+def test_both_sources_are_registered_by_the_unified_package():
+    entry_points = load("fcttweb")["project"]["entry-points"]["tt_league_ingest.sources"]
+    assert entry_points == {"bcnesa": "ingest_fcttweb.ingestor:BcnesaIngestor",
+                            "fctt": "ingest_fcttweb.ingestor:FcttIngestor"}

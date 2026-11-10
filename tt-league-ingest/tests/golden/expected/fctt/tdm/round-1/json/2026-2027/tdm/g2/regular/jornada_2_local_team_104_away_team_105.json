@@ -1,0 +1,50 @@
+{
+  "id_partido": "2026-2027_tdm_g2_regular_104-105_2",
+  "acta_publicada": false,
+  "federacion": "Federació Catalana de Tennis Taula",
+  "region": "catalunya",
+  "tipo_region": "autonomica",
+  "temporada": "2026/2027",
+  "genero": "masculino",
+  "competicion": "TERCERA DIVISIÓ MASCULINA GRUP 2",
+  "fase": "1a Fase",
+  "grupo": 2,
+  "jornada": 2,
+  "fecha": "2026-10-02",
+  "hora": "10:00",
+  "lugar": {
+    "ciudad": "CIUTAT",
+    "recinto": "Ctt Epsilon. C/ MAJOR 1,08000 CIUTAT"
+  },
+  "equipos": {
+    "local": {
+      "id": "104",
+      "nombre": "CTT EPSILON",
+      "delegado": null,
+      "entrenador": null
+    },
+    "visitante": {
+      "id": "105",
+      "nombre": "CTT ZETA",
+      "delegado": null,
+      "entrenador": null
+    }
+  },
+  "abc_es_local": null,
+  "arbitros": {
+    "principal": null,
+    "asistente": null
+  },
+  "alineaciones": {
+    "local": {},
+    "visitante": {}
+  },
+  "dobles": null,
+  "partidos": [],
+  "resultado_final": {
+    "ganador": null,
+    "marcador_partidos": null,
+    "marcador_juegos": null
+  },
+  "acta_protestada": false
+}

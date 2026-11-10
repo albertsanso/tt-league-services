@@ -1,0 +1,53 @@
+{
+  "id_partido": "2026-2027_tdm_g2_regular_102-103_1",
+  "acta_publicada": false,
+  "federacion": "Federació Catalana de Tennis Taula",
+  "region": "catalunya",
+  "tipo_region": "autonomica",
+  "temporada": "2026/2027",
+  "genero": "masculino",
+  "competicion": "TERCERA DIVISIÓ MASCULINA GRUP 2",
+  "fase": "1a Fase",
+  "grupo": 2,
+  "jornada": 1,
+  "fecha": "2026-09-26",
+  "hora": "18:00",
+  "lugar": {
+    "ciudad": "CIUTAT",
+    "recinto": "Ctt Gamma. C/ MAJOR 1,08000 CIUTAT"
+  },
+  "equipos": {
+    "local": {
+      "id": "102",
+      "nombre": "CTT GAMMA",
+      "delegado": null,
+      "entrenador": null
+    },
+    "visitante": {
+      "id": "103",
+      "nombre": "CTT DELTA",
+      "delegado": null,
+      "entrenador": null
+    }
+  },
+  "abc_es_local": null,
+  "arbitros": {
+    "principal": null,
+    "asistente": null
+  },
+  "alineaciones": {
+    "local": {},
+    "visitante": {}
+  },
+  "dobles": null,
+  "partidos": [],
+  "resultado_final": {
+    "ganador": "CTT DELTA",
+    "marcador_partidos": {
+      "local": 0,
+      "visitante": 6
+    },
+    "marcador_juegos": null
+  },
+  "acta_protestada": false
+}

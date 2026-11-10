@@ -1,0 +1,77 @@
+{
+ "pages": {
+  "2026-2027/tdm/g1/regular/jornada-1.html": {
+   "outputs": [
+    "2026-2027/tdm/g1/regular/jornada_1_local_team_130_away_team_149.json",
+    "2026-2027/tdm/g1/regular/jornada_1_local_team_135_away_team_150.json",
+    "2026-2027/tdm/g1/regular/jornada_1_local_team_151_away_team_123.json",
+    "2026-2027/tdm/g1/regular/jornada_1_local_team_145_away_team_126.json",
+    "2026-2027/tdm/g1/regular/jornada_1_local_team_157_away_team_131.json",
+    "2026-2027/tdm/g1/regular/jornada_1_local_team_140_away_team_152.json"
+   ],
+   "parsed_at": "2026-10-02T10:00:00Z",
+   "sha256": "91cfb28cb6f345aa2b3fb95b15cd1da19ff0af68447c3759ead60779bf155a14",
+   "status": "complete"
+  },
+  "2026-2027/tdm/g1/regular/jornada-4.html": {
+   "outputs": [
+    "2026-2027/tdm/g1/regular/jornada_4_local_team_149_away_team_131.json",
+    "2026-2027/tdm/g1/regular/jornada_4_local_team_126_away_team_152.json",
+    "2026-2027/tdm/g1/regular/jornada_4_local_team_151_away_team_140.json",
+    "2026-2027/tdm/g1/regular/jornada_4_local_team_150_away_team_157.json",
+    "2026-2027/tdm/g1/regular/jornada_4_local_team_130_away_team_145.json",
+    "2026-2027/tdm/g1/regular/jornada_4_local_team_123_away_team_135.json"
+   ],
+   "parsed_at": "2026-10-02T10:00:00Z",
+   "sha256": "0cebee394c272d453e72e658680382169a4406f1deaaf353446e9a1ff7e5cfa6",
+   "status": "partial"
+  },
+  "2026-2027/tdm/g2/regular/jornada-1.html": {
+   "outputs": [
+    "2026-2027/tdm/g2/regular/jornada_1_local_team_100_away_team_101.json",
+    "2026-2027/tdm/g2/regular/jornada_1_local_team_102_away_team_103.json",
+    "2026-2027/tdm/g2/regular/jornada_1_local_team_104_away_team_105.json",
+    "2026-2027/tdm/g2/regular/jornada_1_local_team_104_away_team_105_2.json"
+   ],
+   "parsed_at": "2026-10-02T10:00:00Z",
+   "sha256": "63155c187ee737585eba472e593f5c7d1ace37c663b4653e5867aaf703c40989",
+   "status": "complete"
+  },
+  "2026-2027/tdm/g2/regular/jornada-2.html": {
+   "outputs": [
+    "2026-2027/tdm/g2/regular/jornada_2_local_team_100_away_team_102.json",
+    "2026-2027/tdm/g2/regular/jornada_2_local_team_104_away_team_106.json"
+   ],
+   "parsed_at": "2026-10-02T10:00:00Z",
+   "sha256": "bbf37127198edaee1ac106b5f7bafdd3cef7d991c73b2697e09cf9bcaec8c489",
+   "status": "complete"
+  },
+  "2026-2027/tdm/g2/regular/jornada-3.html": {
+   "outputs": [
+    "2026-2027/tdm/g2/regular/jornada_3_local_team_101_away_team_103.json",
+    "2026-2027/tdm/g2/regular/jornada_3_local_team_100_away_team_106.json"
+   ],
+   "parsed_at": "2026-10-02T10:00:00Z",
+   "sha256": "5218675e77349d36872f44d53dea690a9783b1298363196efa8cf71f779c556e",
+   "status": "partial"
+  },
+  "2026-2027/tdm/g3/regular/jornada-1.html": {
+   "outputs": [
+    "2026-2027/tdm/g3/regular/jornada_1_local_team_200_away_team_201.json"
+   ],
+   "parsed_at": "2026-10-02T10:00:00Z",
+   "sha256": "a66874e63e0484e6fb23d844387782ca5294495ca8d81c457f6115ff08aea0a2",
+   "status": "complete"
+  },
+  "2026-2027/tdm/g3/regular/jornada-2.html": {
+   "outputs": [
+    "2026-2027/tdm/g3/regular/jornada_2_local_team_202_away_team_203.json"
+   ],
+   "parsed_at": "2026-10-02T10:00:00Z",
+   "sha256": "e91a0f8589cefa536fdc1f475dd1cc6520c03c9c09f80580338a7e4df3dfbf42",
+   "status": "complete"
+  }
+ },
+ "parser_version": 2,
+ "updated_at": "2026-10-02T10:00:00Z"
+}

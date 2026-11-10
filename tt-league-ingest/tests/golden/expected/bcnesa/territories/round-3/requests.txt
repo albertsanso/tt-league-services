@@ -1,0 +1,4 @@
+https://fctt.cat/robots.txt
+https://fctt.cat/competicions-estatals/
+https://fctt.cat/lligues/rtg-preferent/
+https://fctt.cat/lligues/rtg-preferent/?jornada=1

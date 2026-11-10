@@ -1,0 +1,828 @@
+{
+ "created_at": "2026-10-02T12:00:00",
+ "match_days": {
+  "2026-2027/RTB 1a COMARCAL/G1/1a Fase/J1": {
+   "downloads": 0,
+   "failures": 0,
+   "history": [
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": "8968c6a82afc",
+     "outcome": "incomplete",
+     "retries": 3
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": "8968c6a82afc",
+     "outcome": "incomplete",
+     "retries": 3
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": "8968c6a82afc",
+     "outcome": "incomplete",
+     "retries": 0
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": "8968c6a82afc",
+     "outcome": "incomplete",
+     "retries": 0
+    }
+   ],
+   "incomplete": 4,
+   "last_duration_s": "<volatile>",
+   "last_issues": [
+    "match 32-33: played (6 - 0) but without its results table"
+   ],
+   "last_outcome": "incomplete",
+   "last_retries": 0,
+   "retries": 6,
+   "skipped": 0,
+   "updated_at": "2026-10-02T12:00:00"
+  },
+  "2026-2027/RTB 1a COMARCAL/G1/1a Fase/J2": {
+   "downloads": 1,
+   "failures": 0,
+   "history": [
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": null,
+     "outcome": "future",
+     "retries": 0
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": null,
+     "outcome": "skipped",
+     "retries": 0
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": null,
+     "outcome": "skipped",
+     "retries": 0
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": null,
+     "outcome": "skipped",
+     "retries": 0
+    }
+   ],
+   "incomplete": 0,
+   "last_duration_s": "<volatile>",
+   "last_issues": [],
+   "last_outcome": "skipped",
+   "last_retries": 0,
+   "retries": 0,
+   "skipped": 3,
+   "updated_at": "2026-10-02T12:00:00"
+  },
+  "2026-2027/RTB PREFERENT/G2/1a Fase/J1": {
+   "downloads": 1,
+   "failures": 0,
+   "history": [
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": null,
+     "outcome": "new",
+     "retries": 2
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": null,
+     "outcome": "skipped",
+     "retries": 0
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": null,
+     "outcome": "skipped",
+     "retries": 0
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": null,
+     "outcome": "skipped",
+     "retries": 0
+    }
+   ],
+   "incomplete": 0,
+   "last_duration_s": "<volatile>",
+   "last_issues": [],
+   "last_outcome": "skipped",
+   "last_retries": 0,
+   "retries": 2,
+   "skipped": 3,
+   "updated_at": "2026-10-02T12:00:00"
+  },
+  "2026-2027/RTB PREFERENT/G2/1a Fase/J2": {
+   "downloads": 0,
+   "failures": 0,
+   "history": [
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": "f1275a82ac9c",
+     "outcome": "incomplete",
+     "retries": 3
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": "f1275a82ac9c",
+     "outcome": "incomplete",
+     "retries": 5
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": "f1275a82ac9c",
+     "outcome": "incomplete",
+     "retries": 0
+    },
+    {
+     "at": "2026-10-02T12:00:00",
+     "duration_s": "<volatile>",
+     "issues_signature": "f1275a82ac9c",
+     "outcome": "incomplete",
+     "retries": 0
+    }
+   ],
+   "incomplete": 4,
+   "last_duration_s": "<volatile>",
+   "last_issues": [
+    "match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link"
+   ],
+   "last_outcome": "incomplete",
+   "last_retries": 0,
+   "retries": 8,
+   "skipped": 0,
+   "updated_at": "2026-10-02T12:00:00"
+  }
+ },
+ "recent_failures": [
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 4,
+   "duration_s": "<volatile>",
+   "errors": [
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table"
+   ],
+   "key": "2026-2027/RTB 1a COMARCAL/G1/1a Fase/J1",
+   "kind": "jornada",
+   "outcome": "incomplete",
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/?jornada=1"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 4,
+   "duration_s": "<volatile>",
+   "errors": [
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link"
+   ],
+   "key": "2026-2027/RTB PREFERENT/G2/1a Fase/J2",
+   "kind": "jornada",
+   "outcome": "incomplete",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/?jornada=2"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 4,
+   "duration_s": "<volatile>",
+   "errors": [
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table"
+   ],
+   "key": "2026-2027/RTB 1a COMARCAL/G1/1a Fase/J1",
+   "kind": "jornada",
+   "outcome": "incomplete",
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/?jornada=1"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 6,
+   "duration_s": "<volatile>",
+   "errors": [
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link"
+   ],
+   "key": "2026-2027/RTB PREFERENT/G2/1a Fase/J2",
+   "kind": "jornada",
+   "outcome": "incomplete",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/?jornada=2"
+  }
+ ],
+ "recent_requests": [
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/competicions-estatals/",
+   "kind": "index",
+   "outcome": "ok",
+   "url": "https://fctt.cat/competicions-estatals/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/",
+   "kind": "league",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 4,
+   "duration_s": "<volatile>",
+   "errors": [
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table"
+   ],
+   "key": "2026-2027/RTB 1a COMARCAL/G1/1a Fase/J1",
+   "kind": "jornada",
+   "outcome": "incomplete",
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/?jornada=1"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/competicions-estatals/",
+   "kind": "index",
+   "outcome": "ok",
+   "url": "https://fctt.cat/competicions-estatals/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 2,
+   "duration_s": "<volatile>",
+   "errors": [
+    "timed out"
+   ],
+   "key": "https://fctt.cat/lligues/rtb-preferent-g2/",
+   "kind": "league",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 3,
+   "duration_s": "<volatile>",
+   "errors": [
+    "HTTP 500",
+    "page without matches (the site returned an empty page)"
+   ],
+   "key": "2026-2027/RTB PREFERENT/G2/1a Fase/J1",
+   "kind": "jornada",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/?jornada=1"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 4,
+   "duration_s": "<volatile>",
+   "errors": [
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link"
+   ],
+   "key": "2026-2027/RTB PREFERENT/G2/1a Fase/J2",
+   "kind": "jornada",
+   "outcome": "incomplete",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/?jornada=2"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/",
+   "kind": "league",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 4,
+   "duration_s": "<volatile>",
+   "errors": [
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table",
+    "incomplete content: match 32-33: played (6 - 0) but without its results table"
+   ],
+   "key": "2026-2027/RTB 1a COMARCAL/G1/1a Fase/J1",
+   "kind": "jornada",
+   "outcome": "incomplete",
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/?jornada=1"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/competicions-estatals/",
+   "kind": "index",
+   "outcome": "ok",
+   "url": "https://fctt.cat/competicions-estatals/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/lligues/rtb-preferent-g2/",
+   "kind": "league",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 6,
+   "duration_s": "<volatile>",
+   "errors": [
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link",
+    "incomplete content: match 6202 game 2 right: player 'JUGADOR23A, NOM1' has no player link"
+   ],
+   "key": "2026-2027/RTB PREFERENT/G2/1a Fase/J2",
+   "kind": "jornada",
+   "outcome": "incomplete",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/?jornada=2"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/",
+   "kind": "league",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "2026-2027/RTB 1a COMARCAL/G1/1a Fase/J1",
+   "kind": "jornada",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/?jornada=1"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/competicions-estatals/",
+   "kind": "index",
+   "outcome": "ok",
+   "url": "https://fctt.cat/competicions-estatals/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/lligues/rtb-preferent-g2/",
+   "kind": "league",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "2026-2027/RTB PREFERENT/G2/1a Fase/J2",
+   "kind": "jornada",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/?jornada=2"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/",
+   "kind": "league",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "2026-2027/RTB 1a COMARCAL/G1/1a Fase/J1",
+   "kind": "jornada",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/?jornada=1"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/competicions-estatals/",
+   "kind": "index",
+   "outcome": "ok",
+   "url": "https://fctt.cat/competicions-estatals/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "https://fctt.cat/lligues/rtb-preferent-g2/",
+   "kind": "league",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/"
+  },
+  {
+   "at": "2026-10-02T12:00:00",
+   "attempts": 1,
+   "duration_s": "<volatile>",
+   "errors": [],
+   "key": "2026-2027/RTB PREFERENT/G2/1a Fase/J2",
+   "kind": "jornada",
+   "outcome": "ok",
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/?jornada=2"
+  }
+ ],
+ "request_kinds": {
+  "index": {
+   "attempts": 5,
+   "attempts_to_success": {
+    "1": 5
+   },
+   "duration_s": "<volatile>",
+   "errors": {},
+   "failures": 0,
+   "incomplete": 0,
+   "requests": 5,
+   "retries": 0,
+   "retry_successes": 0,
+   "successes": 5
+  },
+  "jornada": {
+   "attempts": 25,
+   "attempts_to_success": {
+    "1": 4,
+    "3": 1
+   },
+   "duration_s": "<volatile>",
+   "errors": {
+    "HTTP 500": 1,
+    "empty page": 1,
+    "incomplete content": 18
+   },
+   "failures": 0,
+   "incomplete": 4,
+   "requests": 9,
+   "retries": 16,
+   "retry_successes": 1,
+   "successes": 5
+  },
+  "league": {
+   "attempts": 9,
+   "attempts_to_success": {
+    "1": 7,
+    "2": 1
+   },
+   "duration_s": "<volatile>",
+   "errors": {
+    "timeout": 1
+   },
+   "failures": 0,
+   "incomplete": 0,
+   "requests": 8,
+   "retries": 1,
+   "retry_successes": 1,
+   "successes": 8
+  }
+ },
+ "runs": [
+  {
+   "arguments": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "category": null,
+    "delay": 0.0,
+    "force": false,
+    "format": "both",
+    "group": null,
+    "log_file": "<tmp>/work/logs/download.log",
+    "match_day": null,
+    "metrics_file": "<tmp>/work/logs/download_metrics.json",
+    "output_dir": "<tmp>/work/content",
+    "phase": null,
+    "region_type": "comarcal",
+    "retry": 3,
+    "season": "2026-2027",
+    "skip_pdf": true,
+    "territory": null,
+    "timeout": 60.0
+   },
+   "counters": {
+    "leagues processed": 1,
+    "match days future": 1,
+    "match days incomplete": 1
+   },
+   "duration_s": "<volatile>",
+   "finished_at": "2026-10-02T12:00:00",
+   "policy": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "delay": 0.0,
+    "retries": {
+     "index": 3,
+     "jornada": 3,
+     "league": 3,
+     "pdf": 3
+    }
+   },
+   "requests": 3,
+   "retries": 3,
+   "started_at": "2026-10-02T12:00:00"
+  },
+  {
+   "arguments": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "category": null,
+    "delay": 0.0,
+    "force": false,
+    "format": "both",
+    "group": null,
+    "log_file": "<tmp>/work/logs/download.log",
+    "match_day": null,
+    "metrics_file": "<tmp>/work/logs/download_metrics.json",
+    "output_dir": "<tmp>/work/content",
+    "phase": null,
+    "region_type": null,
+    "retry": 3,
+    "season": "2026-2027",
+    "skip_pdf": true,
+    "territory": null,
+    "timeout": 60.0
+   },
+   "counters": {
+    "leagues processed": 2,
+    "match days incomplete": 2,
+    "match days new": 1,
+    "match days skipped": 1
+   },
+   "duration_s": "<volatile>",
+   "finished_at": "2026-10-02T12:00:00",
+   "policy": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "delay": 0.0,
+    "retries": {
+     "index": 3,
+     "jornada": 3,
+     "league": 3,
+     "pdf": 3
+    }
+   },
+   "requests": 6,
+   "retries": 9,
+   "started_at": "2026-10-02T12:00:00"
+  },
+  {
+   "arguments": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "category": null,
+    "delay": 0.0,
+    "force": false,
+    "format": "both",
+    "group": null,
+    "log_file": "<tmp>/work/logs/download.log",
+    "match_day": null,
+    "metrics_file": "<tmp>/work/logs/download_metrics.json",
+    "output_dir": "<tmp>/work/content",
+    "phase": null,
+    "region_type": null,
+    "retry": 3,
+    "season": "2026-2027",
+    "skip_pdf": true,
+    "territory": null,
+    "timeout": 60.0
+   },
+   "counters": {
+    "leagues processed": 2,
+    "match days incomplete": 2,
+    "match days skipped": 2
+   },
+   "duration_s": "<volatile>",
+   "finished_at": "2026-10-02T12:00:00",
+   "policy": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "delay": 0.0,
+    "retries": {
+     "index": 3,
+     "jornada": 5,
+     "league": 3,
+     "pdf": 3
+    }
+   },
+   "requests": 5,
+   "retries": 5,
+   "started_at": "2026-10-02T12:00:00"
+  },
+  {
+   "arguments": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "category": null,
+    "delay": 0.0,
+    "force": false,
+    "format": "both",
+    "group": null,
+    "log_file": "<tmp>/work/logs/download.log",
+    "match_day": null,
+    "metrics_file": "<tmp>/work/logs/download_metrics.json",
+    "output_dir": "<tmp>/work/content",
+    "phase": null,
+    "region_type": null,
+    "retry": 3,
+    "season": "2026-2027",
+    "skip_pdf": true,
+    "territory": null,
+    "timeout": 60.0
+   },
+   "counters": {
+    "leagues processed": 2,
+    "match days incomplete": 2,
+    "match days skipped": 2
+   },
+   "duration_s": "<volatile>",
+   "finished_at": "2026-10-02T12:00:00",
+   "policy": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "delay": 0.0,
+    "retries": {
+     "index": 3,
+     "jornada": 5,
+     "league": 3,
+     "pdf": 3
+    }
+   },
+   "requests": 5,
+   "retries": 0,
+   "started_at": "2026-10-02T12:00:00"
+  },
+  {
+   "arguments": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "category": null,
+    "delay": 0.0,
+    "force": false,
+    "format": "both",
+    "group": null,
+    "log_file": "<tmp>/work/logs/download.log",
+    "match_day": null,
+    "metrics_file": "<tmp>/work/logs/download_metrics.json",
+    "output_dir": "<tmp>/work/content",
+    "phase": null,
+    "region_type": "provincial",
+    "retry": 3,
+    "season": "2026-2027",
+    "skip_pdf": true,
+    "territory": null,
+    "timeout": 60.0
+   },
+   "counters": {
+    "leagues processed": 1,
+    "match days incomplete": 1,
+    "match days skipped": 1
+   },
+   "duration_s": "<volatile>",
+   "finished_at": "2026-10-02T12:00:00",
+   "policy": {
+    "adaptive": true,
+    "backoff": 0.0,
+    "delay": 0.0,
+    "retries": {
+     "index": 3,
+     "jornada": 5,
+     "league": 3,
+     "pdf": 3
+    }
+   },
+   "requests": 3,
+   "retries": 0,
+   "started_at": "2026-10-02T12:00:00"
+  }
+ ],
+ "schema_version": 1,
+ "targets": {
+  "index:https://fctt.cat/competicions-estatals/": {
+   "consecutive_failures": 0,
+   "failures": 0,
+   "last_outcome": "ok",
+   "last_seen": "2026-10-02T12:00:00",
+   "requests": 5,
+   "retries": 0,
+   "url": "https://fctt.cat/competicions-estatals/"
+  },
+  "jornada:2026-2027/RTB 1a COMARCAL/G1/1a Fase/J1": {
+   "consecutive_failures": 0,
+   "failures": 0,
+   "last_outcome": "ok",
+   "last_seen": "2026-10-02T12:00:00",
+   "requests": 4,
+   "retries": 6,
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/?jornada=1"
+  },
+  "jornada:2026-2027/RTB PREFERENT/G2/1a Fase/J1": {
+   "consecutive_failures": 0,
+   "failures": 0,
+   "last_outcome": "ok",
+   "last_seen": "2026-10-02T12:00:00",
+   "requests": 1,
+   "retries": 2,
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/?jornada=1"
+  },
+  "jornada:2026-2027/RTB PREFERENT/G2/1a Fase/J2": {
+   "consecutive_failures": 0,
+   "failures": 0,
+   "last_outcome": "ok",
+   "last_seen": "2026-10-02T12:00:00",
+   "requests": 4,
+   "retries": 8,
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/?jornada=2"
+  },
+  "league:https://fctt.cat/lligues/rtb-1a-comarcal-g1/": {
+   "consecutive_failures": 0,
+   "failures": 0,
+   "last_outcome": "ok",
+   "last_seen": "2026-10-02T12:00:00",
+   "requests": 4,
+   "retries": 0,
+   "url": "https://fctt.cat/lligues/rtb-1a-comarcal-g1/"
+  },
+  "league:https://fctt.cat/lligues/rtb-preferent-g2/": {
+   "consecutive_failures": 0,
+   "failures": 0,
+   "last_outcome": "ok",
+   "last_seen": "2026-10-02T12:00:00",
+   "requests": 4,
+   "retries": 1,
+   "url": "https://fctt.cat/lligues/rtb-preferent-g2/"
+  }
+ },
+ "totals": {
+  "leagues processed": 8,
+  "match days future": 1,
+  "match days incomplete": 8,
+  "match days new": 1,
+  "match days skipped": 6,
+  "requests": 22,
+  "retries": 17,
+  "runs": 5
+ },
+ "updated_at": "2026-10-02T12:00:00"
+}

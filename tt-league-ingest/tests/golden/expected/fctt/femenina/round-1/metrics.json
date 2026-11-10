@@ -1,0 +1,221 @@
+{
+ "leagues": {
+  "2026-2027/copa-catalana-femenina/1a-divisio": {
+   "consecutive_failures": 0,
+   "jornadas": 2,
+   "last_outcome": "ok",
+   "last_run_at": "2026-10-02T10:00:00Z",
+   "outcomes": {
+    "ok": 1
+   }
+  },
+  "2026-2027/copa-catalana-femenina/2a-divisio": {
+   "consecutive_failures": 0,
+   "jornadas": 1,
+   "last_outcome": "ok",
+   "last_run_at": "2026-10-02T10:00:00Z",
+   "outcomes": {
+    "ok": 1
+   }
+  },
+  "index": {
+   "consecutive_failures": 0,
+   "last_outcome": "ok",
+   "last_run_at": "2026-10-02T10:00:00Z",
+   "outcomes": {
+    "ok": 1
+   }
+  }
+ },
+ "match_days": {
+  "2026-2027/copa-catalana-femenina/1a-divisio/regular/jornada-1": {
+   "consecutive_failures": 1,
+   "history": [
+    {
+     "at": "2026-10-02T10:00:00Z",
+     "attempts": 4,
+     "duration_s": "<volatile>",
+     "errors": [
+      "match 2 (CTT DONES TRES - CTT DONES QUATRE): row 5: player(s) without codi_jugador link: JUGADOR303A, NOM1, JUGADOR303B, NOM2; match 2 (CTT DONES TRES - CTT DONES QUATRE): row 5: player(s) without codi_jugador link: JUGADOR302A, NOM1, JUGADOR302B, NOM2"
+     ],
+     "outcome": "incomplete",
+     "retries": 3,
+     "run_id": "<volatile>",
+     "status": "partial"
+    }
+   ],
+   "last_outcome": "incomplete",
+   "last_run_at": "2026-10-02T10:00:00Z",
+   "last_status": "partial",
+   "outcomes": {
+    "incomplete": 1
+   },
+   "total_attempts": 4,
+   "url": "https://fctt.cat/lligues/1a-divisio/?jornada=1"
+  },
+  "2026-2027/copa-catalana-femenina/1a-divisio/regular/jornada-2": {
+   "consecutive_failures": 1,
+   "history": [
+    {
+     "at": "2026-10-02T10:00:00Z",
+     "attempts": 4,
+     "duration_s": "<volatile>",
+     "errors": [
+      "HTTP 404 error"
+     ],
+     "outcome": "failed",
+     "retries": 3,
+     "run_id": "<volatile>",
+     "status": null
+    }
+   ],
+   "last_outcome": "failed",
+   "last_run_at": "2026-10-02T10:00:00Z",
+   "outcomes": {
+    "failed": 1
+   },
+   "total_attempts": 4,
+   "url": "https://fctt.cat/lligues/1a-divisio/?jornada=2"
+  },
+  "2026-2027/copa-catalana-femenina/2a-divisio/fase-final/jornada-1": {
+   "consecutive_failures": 1,
+   "history": [
+    {
+     "at": "2026-10-02T10:00:00Z",
+     "attempts": 1,
+     "duration_s": "<volatile>",
+     "errors": [
+      "access refused by the server (Access denied)"
+     ],
+     "outcome": "failed",
+     "retries": 0,
+     "run_id": "<volatile>",
+     "status": null
+    }
+   ],
+   "last_outcome": "failed",
+   "last_run_at": "2026-10-02T10:00:00Z",
+   "outcomes": {
+    "failed": 1
+   },
+   "total_attempts": 1,
+   "url": "https://fctt.cat/lligues/2a-divisio/?jornada=1"
+  }
+ },
+ "requests": {
+  "attempts_until_success": {
+   "1": 4
+  },
+  "by_host": {
+   "control.fctt.cat": {
+    "failures": 1,
+    "requests": 2
+   },
+   "fctt.cat": {
+    "failures": 9,
+    "requests": 12
+   }
+  },
+  "errors_by_hour_utc": {
+   "10": 10
+  },
+  "errors_by_kind": {
+   "blocked": 1,
+   "http_404": 4,
+   "incomplete_content": 4,
+   "pdf_unavailable": 1
+  },
+  "errors_by_status": {
+   "200": 6,
+   "404": 4
+  },
+  "exhausted": 2,
+  "latency_seconds": "<volatile>"
+ },
+ "robots": {},
+ "runs": [
+  {
+   "arguments": {
+    "backoff": 0.0,
+    "category": "female",
+    "force": false,
+    "format": "both",
+    "group": null,
+    "log_file": "<tmp>/work/logs/download.log",
+    "match_day": null,
+    "metrics_file": "<tmp>/work/logs/download_metrics.json",
+    "no_adaptive": false,
+    "output_dir": "<tmp>/work/content",
+    "phase": null,
+    "request_delay": 0.0,
+    "retry": 3,
+    "season": "2026-2027",
+    "skip_pdf": false,
+    "territory": null,
+    "timeout": 30.0,
+    "verbose": false
+   },
+   "counters": {
+    "bytes": 5894,
+    "failed_downloads": 3,
+    "failed_requests": 10,
+    "pdf_downloaded": 1,
+    "pdf_failed": 1,
+    "pdf_skipped": 0,
+    "requests": 14,
+    "retries": 6,
+    "skipped_match_days": 2,
+    "successful_downloads": 0
+   },
+   "duration_s": "<volatile>",
+   "errors_by_kind": {
+    "blocked": 1,
+    "http_404": 4,
+    "incomplete_content": 4,
+    "pdf_unavailable": 1
+   },
+   "failures": [
+    {
+     "error": "match 2 (CTT DONES TRES - CTT DONES QUATRE): row 5: player(s) without codi_jugador link: JUGADOR303A, NOM1, JUGADOR303B, NOM2; match 2 (CTT DONES TRES - CTT DONES QUATRE): row 5: player(s) without codi_jugador link: JUGADOR302A, NOM1, JUGADOR302B, NOM2",
+     "key": "2026-2027/copa-catalana-femenina/1a-divisio/regular/jornada-1",
+     "url": "https://fctt.cat/lligues/1a-divisio/?jornada=1"
+    },
+    {
+     "error": "HTTP 404 error",
+     "key": "2026-2027/copa-catalana-femenina/1a-divisio/regular/jornada-2",
+     "url": "https://fctt.cat/lligues/1a-divisio/?jornada=2"
+    },
+    {
+     "error": "access refused by the server (Access denied)",
+     "key": "2026-2027/copa-catalana-femenina/2a-divisio/fase-final/jornada-1",
+     "url": "https://fctt.cat/lligues/2a-divisio/?jornada=1"
+    }
+   ],
+   "finished_at": "2026-10-02T10:00:00Z",
+   "outcomes": {
+    "failed": 2,
+    "incomplete": 1
+   },
+   "run_id": "<volatile>",
+   "started_at": "2026-10-02T10:00:00Z",
+   "tuning": {
+    "backoff_factor": 1.0,
+    "chronic_leagues": [],
+    "chronic_match_days": [],
+    "delay_factor": 1.0,
+    "notes": []
+   }
+  }
+ ],
+ "schema_version": 1,
+ "totals": {
+  "failed_downloads": 3,
+  "failed_requests": 10,
+  "requests": 14,
+  "retries": 6,
+  "runs": 1,
+  "skipped_match_days": 2,
+  "successful_downloads": 0
+ },
+ "updated_at": "2026-10-02T10:00:00Z"
+}

@@ -1,0 +1,49 @@
+{
+  "acta_publicada": false,
+  "id_partido": "2026-2027_RTB1aCOMARCAL_G1_1aFase_31-32_2",
+  "federacion": "Federació Catalana de Tennis Taula",
+  "region": "barcelona",
+  "tipo_region": "comarcal",
+  "temporada": "2026/2027",
+  "competicion": "RTB 1a COMARCAL",
+  "fase": "1a Fase",
+  "grupo": 1,
+  "jornada": 2,
+  "fecha": "2026-10-10",
+  "hora": "10:00",
+  "lugar": {
+    "ciudad": "CIUTAT",
+    "recinto": "Ctt Canovelles. C/ MAJOR 1,08000 CIUTAT"
+  },
+  "equipos": {
+    "local": {
+      "id": "31",
+      "nombre": "CTT CANOVELLES",
+      "delegado": null,
+      "entrenador": null
+    },
+    "visitante": {
+      "id": "32",
+      "nombre": "CTT LLICA",
+      "delegado": null,
+      "entrenador": null
+    }
+  },
+  "arbitros": {
+    "principal": null,
+    "asistente": null
+  },
+  "abc_es_local": null,
+  "alineaciones": {
+    "local": {},
+    "visitante": {}
+  },
+  "dobles": null,
+  "partidos": [],
+  "resultado_final": {
+    "ganador": null,
+    "marcador_partidos": null,
+    "marcador_juegos": null
+  },
+  "acta_protestada": false
+}

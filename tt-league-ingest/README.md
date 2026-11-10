@@ -21,12 +21,38 @@ uv sync --all-packages
 | --- | --- | --- |
 | `tt-league-ingest-common` | `ingest_common` | Season/source values, settings, run model, HTTP client, JSON IO, schema validation, packaging, upload client, stage pipeline |
 | `tt-league-ingest-rfetm` | `ingest_rfetm` | RFETM actas (HTML + PDF) and teams |
-| `tt-league-ingest-bcnesa` | `ingest_bcnesa` | BCNESA actas (HTML) |
-| `tt-league-ingest-fctt` | `ingest_fctt` | FCTT actas (HTML) |
+| `tt-league-ingest-fcttweb` | `ingest_fcttweb` | BCNESA and FCTT actas (HTML): one fctt.cat scraper and parser driven by a `SiteProfile` per source |
 | `tt-league-ingest-cli` | `ingest_cli` | `tt-league-ingest` command |
 | `tt-league-ingest-rest` | `ingest_rest` | `tt-league-ingest-rest` FastAPI service |
 
 Federation packages register their `SourceIngestor` under the entry-point group `tt_league_ingest.sources`.
+`ingest_fcttweb` registers two, `bcnesa` and `fctt` (the unchanged `--source` values, REST paths, data directories
+`<data>/bcnesa/…` and `<data>/fctt/…` and ZIP manifests), each an `FcttWebIngestor` bound to its profile.
+
+### `ingest_fcttweb`: one scraper, two profiles
+
+BCNESA and FCTT scrape the same website (`https://fctt.cat/competicions-estatals/`, the same `.match-container`
+markup) and emit the same acta model, so they share one implementation: index discovery, markup extraction
+(BeautifulSoup), the fetch client (robots.txt, pacing, `Retry-After`, backoff, user-agent rotation), acta assembly,
+the status scan and the ingestor. What really differs is declared as data in `ingest_fcttweb/profile.py`
+(`BCNESA_PROFILE`, `FCTT_PROFILE`, frozen dataclasses) and nothing else may branch on the source:
+
+| Profile fact | BCNESA | FCTT |
+| --- | --- | --- |
+| Index sections | territorial cards (`Lligues de la representació territorial de <territory>`) | `TDM` and `Copa Catalana Femenina` headings |
+| Request delay, backoff, timeout | 1 s (`--delay`), 2 s, 60 s | 3 s (`--request_delay`), 5 s, 30 s |
+| Retried statuses | 403, 404, 408, 425, 429, 5xx | 404, 408, 425, 429, 5xx, 520-524 (never 401/403) |
+| User agents | browser agents, shuffled | the tool agent first, browser agents on retries |
+| Files | `<category>/<group>/<phase>/jornada_NN.html`, `jornada_NN_local_team_…json` | `…/jornada-N.html`, `jornada_N_local_team_…json` |
+| Download model | each page validated on its own and rebuilt (`ingest_fcttweb.validated`) | each page checked against the league calendar and saved as served (`ingest_fcttweb.calendar_checked`) |
+| Metrics file | one record per request, learns the retry budget | one record per attempt, tunes delay and backoff |
+| `id_partido` | `<season>_<CATEGORYCOMPACT>_<group>_<phasecompact>_<home>-<away>_<day>` | `<season>_<category>_<group>_<phase>_<home>-<away>_<day>` (slugs) |
+| `genero` | not emitted | `masculino` / `femenino` |
+| Match status | published when the results table has rows (`ingest_fcttweb.acta.TableActaBuilder`) | per-match `complete` / `partial` / `incomplete`, a walkover is complete (`StatusActaBuilder`) |
+| Incremental parse | rewrite on change; a published acta is never replaced by an unpublished one unless `--force` | `.parse_state.json` skips unchanged pages and removes JSON a page no longer produces |
+
+The two download and parse models are the remaining behavioural differences of the original ports; converging them
+would change the output and is a separate, versioned decision.
 
 ## Configuration
 
@@ -316,10 +342,16 @@ and is not used by the orchestrator. See [deploy/README.md](../deploy/README.md)
 ```text
 uv lock --check
 uv run pytest                                   # whole workspace
-uv run pytest packages/tt-league-ingest-fctt    # one package
+uv run pytest packages/tt-league-ingest-fcttweb # one package
+uv run pytest tests/golden                      # byte-for-byte golden outputs of BCNESA and FCTT
 ```
 
-Tests never use the network.
+Tests never use the network. `tests/golden/` serves saved pages (`sites/bcnesa`, `sites/fctt`: one league per
+territory, comarcal and veterans leagues, a real saved FCTT page, future, partial and walkover match days, a women's
+league, a duplicated pairing, faults) through a fake HTTP session with a frozen clock, runs the download and parse of
+each source over several rounds and compares the produced trees, request sequence and normalised metrics with
+`expected/`. Those outputs were produced by the original `ingest_bcnesa` / `ingest_fctt` ports; regenerate them
+(`uv run python tests/golden/regenerate.py`) only for an intentional, reviewed output change.
 
 ## Quick Run - Start services
 

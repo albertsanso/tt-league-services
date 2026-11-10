@@ -1,0 +1,6 @@
+https://fctt.cat/robots.txt
+https://fctt.cat/competicions-estatals/
+https://fctt.cat/lligues/rtb-preferent-g2/
+https://fctt.cat/lligues/rtb-preferent-g2/?jornada=2
+https://fctt.cat/lligues/rtb-1a-comarcal-g1/
+https://fctt.cat/lligues/rtb-1a-comarcal-g1/?jornada=1
