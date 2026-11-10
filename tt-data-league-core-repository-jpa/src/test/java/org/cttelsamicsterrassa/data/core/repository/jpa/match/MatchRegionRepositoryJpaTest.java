@@ -83,6 +83,24 @@ class MatchRegionRepositoryJpaTest {
     }
 
     @Test
+    void backfillFillsOnlyMissingColumnsAndNeverOverwritesAValueThatIsSet() {
+        Match half = match(ImportSource.BCNESA, "rtg-preferent", Region.GIRONA, null);
+        Match complete = match(ImportSource.BCNESA, "rtb-preferent", Region.BARCELONA, RegionType.PROVINCIAL);
+
+        assertEquals(1, backfillRepository.setRegion(ImportSource.BCNESA, Region.BARCELONA, RegionType.COMARCAL,
+                List.of(half.getId())));
+        Match filled = matchRepository.findMatchById(half.getId()).orElseThrow();
+        assertEquals(Region.GIRONA, filled.getRegion());
+        assertEquals(RegionType.COMARCAL, filled.getRegionType());
+
+        assertThrows(IllegalStateException.class, () -> backfillRepository.setRegion(
+                ImportSource.BCNESA, Region.GIRONA, RegionType.COMARCAL, List.of(complete.getId())));
+        Match untouched = matchRepository.findMatchById(complete.getId()).orElseThrow();
+        assertEquals(Region.BARCELONA, untouched.getRegion());
+        assertEquals(RegionType.PROVINCIAL, untouched.getRegionType());
+    }
+
+    @Test
     void searchAndCountFilterByRegionAndRegionTypeAndIgnoreThemWhenAbsent() {
         Match girona = match(ImportSource.BCNESA, "rtg-1a-comarcal", Region.GIRONA, RegionType.COMARCAL);
         Match barcelona = match(ImportSource.BCNESA, "rtb-preferent", Region.BARCELONA, RegionType.PROVINCIAL);

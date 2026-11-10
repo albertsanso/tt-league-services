@@ -455,12 +455,16 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
             """)
     List<MatchRegionCandidateProjection> findMatchesWithoutRegion(@Param("source") Source source);
 
-    /** FEAT-00121 backfill: sets only the two region columns of the given matches of one source. */
+    /**
+     * FEAT-00121 backfill: fills only the region columns that are still {@code null} on the given matches of one
+     * source; a value already set (for example from the acta payload) is never overwritten.
+     */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query("""
             update MatchJPA m
-               set m.region = :region, m.regionType = :regionType
+               set m.region = coalesce(m.region, :region), m.regionType = coalesce(m.regionType, :regionType)
              where m.source = :source and m.id in :matchIds
+               and (m.region is null or m.regionType is null)
             """)
     int updateRegion(@Param("source") Source source,
                      @Param("region") org.cttelsamicsterrassa.data.core.repository.jpa.common.Region region,

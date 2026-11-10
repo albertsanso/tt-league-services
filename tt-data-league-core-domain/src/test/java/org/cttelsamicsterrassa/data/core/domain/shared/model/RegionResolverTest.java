@@ -50,6 +50,21 @@ class RegionResolverTest {
     }
 
     @Test
+    void eachSourceAllowsOnlyItsOwnRegionsAndTypes() {
+        assertTrue(RegionResolver.allows(ImportSource.RFETM, Region.ESPANA));
+        assertTrue(RegionResolver.allows(ImportSource.FCTT, Region.CATALUNYA));
+        assertTrue(RegionResolver.allows(ImportSource.BCNESA, Region.GIRONA));
+        assertTrue(RegionResolver.allows(ImportSource.BCNESA, RegionType.COMARCAL));
+        assertEquals(false, RegionResolver.allows(ImportSource.RFETM, Region.GIRONA));
+        assertEquals(false, RegionResolver.allows(ImportSource.FCTT, Region.ESPANA));
+        assertEquals(false, RegionResolver.allows(ImportSource.BCNESA, Region.CATALUNYA));
+        assertEquals(false, RegionResolver.allows(ImportSource.BCNESA, RegionType.NACIONAL));
+        assertEquals(false, RegionResolver.allows(ImportSource.FCTT, RegionType.PROVINCIAL));
+        assertEquals(false, RegionResolver.allows(null, Region.ESPANA));
+        assertEquals(false, RegionResolver.allows(ImportSource.RFETM, (Region) null));
+    }
+
+    @Test
     void wireValuesAreLowerCaseAndParsedStrictly() {
         assertEquals("tarragona", Region.TARRAGONA.value());
         assertEquals("autonomica", RegionType.AUTONOMICA.value());

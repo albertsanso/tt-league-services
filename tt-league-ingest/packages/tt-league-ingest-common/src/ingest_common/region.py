@@ -51,6 +51,11 @@ TERRITORY_REGIONS = {"barcelona": Region.BARCELONA, "girona": Region.GIRONA, "ll
                      "tarragona": Region.TARRAGONA, "catalunya": Region.CATALUNYA}
 
 
+# ``rtb-preferent`` and ``RTB Preferent`` carry a prefix; ``rtbxyz`` does not. Same closed list as the Java
+# ``RegionResolver`` (which reads the stored export folder, where the separator is always a hyphen).
+_PREFIX = re.compile(r"^(" + "|".join(PREFIX_REGIONS) + r")(?![a-z0-9])")
+
+
 def _fold(text: str) -> str:
     text = unicodedata.normalize("NFD", text.replace("ª", "a"))
     text = "".join(character for character in text if unicodedata.category(character) != "Mn")
@@ -72,17 +77,23 @@ def region_for(source: Source, category: str | None = None) -> tuple[Region, Reg
     RFETM is Spain-wide, FCTT leagues (TDM, Copa Catalana Femenina) are Catalonia-wide and BCNESA leagues are
     read from the representation prefix of the category folder (``rtb``/``rtg``/``rtl``/``rtt``); a BCNESA
     category containing ``comarcal`` is a ``comarcal`` league, any other one ``provincial``.
+
+    A category without a prefix raises: there is no default territory. The Java ``RegionResolver`` deliberately
+    differs for one input class only: the *stored* BCNESA competition names are the legacy display names
+    (``Preferent``, ``Vet 1a``; ``BcnesaCompetitionNames`` maps ``rtb-*`` folders onto them), and every legacy export
+    is Barcelona-only, so it resolves a name without an ``rt?-`` prefix to Barcelona. Fresh downloads always carry
+    the prefix, so this module never sees such a name.
     """
     if source is Source.RFETM:
         return Region.ESPANA, RegionType.NACIONAL
     if source is Source.FCTT:
         return Region.CATALUNYA, RegionType.AUTONOMICA
-    folded = _fold(category or "")
-    region = PREFIX_REGIONS.get(folded[:3])
+    prefix = _PREFIX.match(unicodedata.normalize("NFD", (category or "").strip()).casefold())
+    region = PREFIX_REGIONS[prefix.group(1)] if prefix else None
     if region is None:
         raise ValueError(f"cannot derive the region of BCNESA category '{category}': "
                          f"expected a prefix among {', '.join(PREFIX_REGIONS)}")
-    return region, RegionType.COMARCAL if "comarcal" in folded else RegionType.PROVINCIAL
+    return region, RegionType.COMARCAL if "comarcal" in _fold(category) else RegionType.PROVINCIAL
 
 
 def region_values(source: Source, category: str | None = None) -> tuple[str, str] | None:

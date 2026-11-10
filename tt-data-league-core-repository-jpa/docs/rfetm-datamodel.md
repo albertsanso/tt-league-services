@@ -217,7 +217,11 @@ match, never part of a club, player, team or fixture identity, of `uk_match_sour
 key or of the content checksum, so setting them never reports a match as amended. Rows imported before the
 columns existed read as `NULL` until the opt-in `tt-data-league-import-runtime` `--backfill-regions` command
 fills them from `source` and `competition` (`RegionResolver`); `ddl-auto: update` adds the columns without a
-default. `idx_match_source_season_region` serves the `region` filter of the calendar and match queries.
+default. The backfill only fills a column that is still `NULL`; a value already stored (for example from the acta
+payload) is never overwritten. `idx_match_source_season_region` leads with `source, season`, so those scans use it
+and the `region` predicate is evaluated on the index entries; the optional filters of the match search use a
+sentinel comparison (`:region = '' or str(m.region) = :region`) like every other optional filter there, so the
+index is not a seek on `region`.
 
 `status` is `SCHEDULED` while the fixture is known but not yet played, and `PLAYED` once results are
 stored. The database default is what lets `ddl-auto: update` add this column to an already-populated

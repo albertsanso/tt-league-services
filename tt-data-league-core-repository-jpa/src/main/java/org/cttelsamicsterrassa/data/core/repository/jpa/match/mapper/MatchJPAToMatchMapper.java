@@ -6,6 +6,7 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.MatchStatus;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.TeamJPAToTeamMapper;
+import org.cttelsamicsterrassa.data.core.repository.jpa.common.RegionMapping;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.model.MatchJPA;
 import org.springframework.stereotype.Component;
 
@@ -30,13 +31,8 @@ public class MatchJPAToMatchMapper implements Function<MatchJPA, Match> {
                 .externalId(matchJpa.getExternalId())
                 .sourceFixtureId(matchJpa.getSourceFixtureId())
                 .sourceChecksum(matchJpa.getSourceChecksum())
-                .region(matchJpa.getRegion() != null
-                        ? org.cttelsamicsterrassa.data.core.domain.shared.model.Region.valueOf(matchJpa.getRegion().name())
-                        : null)
-                .regionType(matchJpa.getRegionType() != null
-                        ? org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType.valueOf(
-                                matchJpa.getRegionType().name())
-                        : null)
+                .region(RegionMapping.toDomain(matchJpa.getRegion()))
+                .regionType(RegionMapping.toDomain(matchJpa.getRegionType()))
                 .competition(matchJpa.getCompetition())
                 .season(matchJpa.getSeason() != null ? Season.fromFormatted(matchJpa.getSeason()) : null)
                 .groupNumber(matchJpa.getGroupNumber())

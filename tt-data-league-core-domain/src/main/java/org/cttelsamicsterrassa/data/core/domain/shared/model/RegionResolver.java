@@ -34,6 +34,30 @@ public final class RegionResolver {
     private RegionResolver() {
     }
 
+    /** Whether {@code region} can hold a competition of {@code source}; {@code false} for {@code null}. */
+    public static boolean allows(ImportSource source, Region region) {
+        if (source == null || region == null) {
+            return false;
+        }
+        return switch (source) {
+            case RFETM -> region == Region.ESPANA;
+            case FCTT -> region == Region.CATALUNYA;
+            case BCNESA -> region != Region.ESPANA && region != Region.CATALUNYA;
+        };
+    }
+
+    /** Whether {@code regionType} can describe a competition of {@code source}; {@code false} for {@code null}. */
+    public static boolean allows(ImportSource source, RegionType regionType) {
+        if (source == null || regionType == null) {
+            return false;
+        }
+        return switch (source) {
+            case RFETM -> regionType == RegionType.NACIONAL;
+            case FCTT -> regionType == RegionType.AUTONOMICA;
+            case BCNESA -> regionType == RegionType.PROVINCIAL || regionType == RegionType.COMARCAL;
+        };
+    }
+
     /**
      * The region of a competition of {@code source}. {@code competition} is the export folder or the
      * stored competition name; it is only read for BCNESA.

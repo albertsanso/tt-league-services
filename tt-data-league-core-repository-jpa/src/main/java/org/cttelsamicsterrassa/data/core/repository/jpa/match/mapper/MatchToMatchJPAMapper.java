@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import org.cttelsamicsterrassa.data.core.domain.match.model.Match;
 import org.cttelsamicsterrassa.data.core.repository.jpa.club.mapper.TeamToTeamJPAMapper;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.model.MatchJPA;
+import org.cttelsamicsterrassa.data.core.repository.jpa.common.RegionMapping;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
 import org.cttelsamicsterrassa.data.core.repository.jpa.match.MatchStatus;
 import org.springframework.stereotype.Component;
@@ -27,11 +28,8 @@ public class MatchToMatchJPAMapper implements Function<Match, MatchJPA> {
         matchJPA.setExternalId(match.getExternalId());
         matchJPA.setSourceFixtureId(match.getSourceFixtureId());
         matchJPA.setSourceChecksum(match.getSourceChecksum());
-        matchJPA.setRegion(match.getRegion() != null
-                ? org.cttelsamicsterrassa.data.core.repository.jpa.common.Region.valueOf(match.getRegion().name()) : null);
-        matchJPA.setRegionType(match.getRegionType() != null
-                ? org.cttelsamicsterrassa.data.core.repository.jpa.common.RegionType.valueOf(match.getRegionType().name())
-                : null);
+        matchJPA.setRegion(RegionMapping.toJpa(match.getRegion()));
+        matchJPA.setRegionType(RegionMapping.toJpa(match.getRegionType()));
 
         // The date and time are nullable in the model and absent from some match reports.
         if (match.getDateTime() != null) {

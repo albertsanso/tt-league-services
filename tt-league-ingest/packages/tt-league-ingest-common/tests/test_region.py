@@ -29,7 +29,7 @@ def test_bcnesa_region_from_category_prefix(category, expected):
     assert region_for(Source.BCNESA, category) == expected
 
 
-@pytest.mark.parametrize("category", [None, "", "PREFERENT", "XYZ 1a"])
+@pytest.mark.parametrize("category", [None, "", "PREFERENT", "XYZ 1a", "rtbpreferent", "rtx-preferent"])
 def test_bcnesa_unknown_prefix_fails(category):
     with pytest.raises(ValueError, match="cannot derive the region"):
         region_for(Source.BCNESA, category)

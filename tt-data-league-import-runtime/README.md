@@ -322,7 +322,10 @@ no region yet (FEAT-00121). Matches imported after the feature get both values
 from the acta (`region`, `tipo_region`) or, when the acta has none, from
 `source` and the stored competition; matches imported before it keep `NULL`
 until this command runs, because the values are excluded from the content
-checksum and an unchanged acta is never re-written.
+checksum and an unchanged acta is never re-written. An acta whose `region` or
+`tipo_region` the source cannot have (for example an RFETM acta in `girona`) is
+rejected with an error and not imported. The backfill fills only the column that
+is still `NULL`; a value already stored is never overwritten.
 
 Both values come from the closed `RegionResolver` table:
 

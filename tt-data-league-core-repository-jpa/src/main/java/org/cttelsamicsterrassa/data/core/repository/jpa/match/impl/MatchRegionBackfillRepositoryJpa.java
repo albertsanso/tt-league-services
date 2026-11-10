@@ -7,6 +7,7 @@ import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRegionBack
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
+import org.cttelsamicsterrassa.data.core.repository.jpa.common.RegionMapping;
 import org.cttelsamicsterrassa.data.core.repository.jpa.common.Source;
 import org.springframework.stereotype.Component;
 
@@ -48,8 +49,8 @@ public class MatchRegionBackfillRepositoryJpa implements MatchRegionBackfillRepo
             List<UUID> chunk = new ArrayList<>(ids.subList(from, Math.min(from + CHUNK_SIZE, ids.size())));
             int changed = matchRepositoryHelper.updateRegion(
                     Source.valueOf(source.name()),
-                    org.cttelsamicsterrassa.data.core.repository.jpa.common.Region.valueOf(region.name()),
-                    org.cttelsamicsterrassa.data.core.repository.jpa.common.RegionType.valueOf(regionType.name()),
+                    RegionMapping.toJpa(region),
+                    RegionMapping.toJpa(regionType),
                     chunk);
             if (changed != chunk.size()) {
                 throw new IllegalStateException("Expected to set the region of " + chunk.size()
