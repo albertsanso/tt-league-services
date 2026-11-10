@@ -1,0 +1,12 @@
+https://fctt.cat/robots.txt
+https://fctt.cat/competicions-estatals/
+https://fctt.cat/lligues/1a-divisio/
+https://fctt.cat/lligues/1a-divisio/?jornada=1
+https://fctt.cat/lligues/1a-divisio/?jornada=1
+https://fctt.cat/lligues/1a-divisio/?jornada=1
+https://fctt.cat/lligues/1a-divisio/?jornada=1
+https://control.fctt.cat/robots.txt
+https://control.fctt.cat/partido/7202/imprimir/acta
+https://fctt.cat/lligues/2a-divisio/
+https://fctt.cat/lligues/2a-divisio/?jornada=1
+https://control.fctt.cat/partido/7301/imprimir/acta

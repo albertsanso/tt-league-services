@@ -1,0 +1,4 @@
+https://fctt.cat/robots.txt
+https://fctt.cat/competicions-estatals/
+https://fctt.cat/lligues/rtb-preferent-g4/
+https://fctt.cat/lligues/rtb-preferent-g4/?jornada=1

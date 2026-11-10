@@ -1,0 +1,52 @@
+{
+  "acta_publicada": false,
+  "id_partido": "2026-2027_RTB1aCOMARCAL_G1_1aFase_32-33_1",
+  "federacion": "Federació Catalana de Tennis Taula",
+  "region": "barcelona",
+  "tipo_region": "comarcal",
+  "temporada": "2026/2027",
+  "competicion": "RTB 1a COMARCAL",
+  "fase": "1a Fase",
+  "grupo": 1,
+  "jornada": 1,
+  "fecha": "2026-09-26",
+  "hora": "11:00",
+  "lugar": {
+    "ciudad": "CIUTAT",
+    "recinto": "Ctt Llica. C/ MAJOR 1,08000 CIUTAT"
+  },
+  "equipos": {
+    "local": {
+      "id": "32",
+      "nombre": "CTT LLICA",
+      "delegado": null,
+      "entrenador": null
+    },
+    "visitante": {
+      "id": "33",
+      "nombre": "CTT MONTORNES",
+      "delegado": null,
+      "entrenador": null
+    }
+  },
+  "arbitros": {
+    "principal": null,
+    "asistente": null
+  },
+  "abc_es_local": null,
+  "alineaciones": {
+    "local": {},
+    "visitante": {}
+  },
+  "dobles": null,
+  "partidos": [],
+  "resultado_final": {
+    "ganador": "CTT LLICA",
+    "marcador_partidos": {
+      "local": 6,
+      "visitante": 0
+    },
+    "marcador_juegos": null
+  },
+  "acta_protestada": false
+}

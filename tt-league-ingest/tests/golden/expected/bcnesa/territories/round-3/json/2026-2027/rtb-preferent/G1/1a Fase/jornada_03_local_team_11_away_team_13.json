@@ -1,0 +1,49 @@
+{
+  "acta_publicada": false,
+  "id_partido": "2026-2027_RTBPREFERENT_G1_1aFase_11-13_3",
+  "federacion": "Federació Catalana de Tennis Taula",
+  "region": "barcelona",
+  "tipo_region": "provincial",
+  "temporada": "2026/2027",
+  "competicion": "RTB PREFERENT",
+  "fase": "1a Fase",
+  "grupo": 1,
+  "jornada": 3,
+  "fecha": "2026-10-17",
+  "hora": "17:00",
+  "lugar": {
+    "ciudad": "CIUTAT",
+    "recinto": "Ctt Sabadell. C/ MAJOR 1,08000 CIUTAT"
+  },
+  "equipos": {
+    "local": {
+      "id": "11",
+      "nombre": "CTT SABADELL",
+      "delegado": null,
+      "entrenador": null
+    },
+    "visitante": {
+      "id": "13",
+      "nombre": "CTT MATARO",
+      "delegado": null,
+      "entrenador": null
+    }
+  },
+  "arbitros": {
+    "principal": null,
+    "asistente": null
+  },
+  "abc_es_local": null,
+  "alineaciones": {
+    "local": {},
+    "visitante": {}
+  },
+  "dobles": null,
+  "partidos": [],
+  "resultado_final": {
+    "ganador": null,
+    "marcador_partidos": null,
+    "marcador_juegos": null
+  },
+  "acta_protestada": false
+}

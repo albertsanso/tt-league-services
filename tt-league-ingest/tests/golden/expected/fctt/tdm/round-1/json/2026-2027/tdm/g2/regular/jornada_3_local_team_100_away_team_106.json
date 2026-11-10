@@ -1,0 +1,50 @@
+{
+  "id_partido": "2026-2027_tdm_g2_regular_100-106_3",
+  "acta_publicada": false,
+  "federacion": "Federació Catalana de Tennis Taula",
+  "region": "catalunya",
+  "tipo_region": "autonomica",
+  "temporada": "2026/2027",
+  "genero": "masculino",
+  "competicion": "TERCERA DIVISIÓ MASCULINA GRUP 2",
+  "fase": "1a Fase",
+  "grupo": 2,
+  "jornada": 3,
+  "fecha": "2026-10-17",
+  "hora": "18:00",
+  "lugar": {
+    "ciudad": "CIUTAT",
+    "recinto": "Ctt Alfa. C/ MAJOR 1,08000 CIUTAT"
+  },
+  "equipos": {
+    "local": {
+      "id": "100",
+      "nombre": "CTT ALFA",
+      "delegado": null,
+      "entrenador": null
+    },
+    "visitante": {
+      "id": "106",
+      "nombre": "CTT ETA",
+      "delegado": null,
+      "entrenador": null
+    }
+  },
+  "abc_es_local": null,
+  "arbitros": {
+    "principal": null,
+    "asistente": null
+  },
+  "alineaciones": {
+    "local": {},
+    "visitante": {}
+  },
+  "dobles": null,
+  "partidos": [],
+  "resultado_final": {
+    "ganador": null,
+    "marcador_partidos": null,
+    "marcador_juegos": null
+  },
+  "acta_protestada": false
+}
