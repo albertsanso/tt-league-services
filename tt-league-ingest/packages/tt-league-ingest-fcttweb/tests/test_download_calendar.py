@@ -1,22 +1,34 @@
-import importlib.util
-import io
+"""Download model "calendar checked" (FCTT): extraction, validation, incremental runs against a fake session."""
+
 import json
 import logging
-import sys
 import tempfile
 import unittest
 from datetime import datetime
-from email.message import Message
 from pathlib import Path
-from urllib.error import HTTPError
 
+from ingest_fcttweb import calendar_checked as dl
+from ingest_fcttweb import clock
+from ingest_fcttweb.discovery import discover
+from ingest_fcttweb.http import FetchClient
+from ingest_fcttweb.markup import Reader, make_soup
+from ingest_fcttweb.metrics import CHRONIC_FAILURES, AttemptLogMetrics
+from ingest_fcttweb.profile import FCTT_PROFILE, INDEX_URL
 
-from ingest_fctt import download as dl
-dl.LOGGER.addHandler(logging.NullHandler())
-dl.LOGGER.propagate = False
-
+LOGGER = logging.getLogger("test-fctt-download")
+LOGGER.addHandler(logging.NullHandler())
+LOGGER.propagate = False
+READER = Reader(FCTT_PROFILE.text_mode)
 SAVED_PAGES = Path(__file__).resolve().parent / "fixtures" / "saved-pages"
-NOW = datetime(2026, 10, 2, 12, 0, tzinfo=dl.LOCAL_TZ)
+NOW = datetime(2026, 10, 2, 12, 0, tzinfo=clock.LOCAL_TZ)
+
+
+def parse_html(text):
+    return make_soup(text)
+
+
+def extract_sections(soup):
+    return dl.extract_sections(READER, soup)
 
 INDEX_HTML = """<html><head><title>Competicions</title></head><body>
 <nav><a href="https://fctt.cat/lligues/altres/">Menú</a></nav>
@@ -79,29 +91,29 @@ J2_FUTURE = [match_html("17/10/2026", 2, 3), match_html("18/10/2026", 4, 1)]
 GROUP_PAGE = page({1: J1_CALENDAR, 2: J2_FUTURE}, selector=(1, 2))
 
 
-class FakeResponse(io.BytesIO):
-    def __init__(self, body, content_type="text/html; charset=UTF-8"):
-        super().__init__(body)
-        self.status = 200
+class FakeResponse:
+    def __init__(self, body, content_type="text/html; charset=UTF-8", status=200):
+        self.content = body
+        self.status_code = status
+        self.reason = "Error" if status >= 400 else "OK"
         self.headers = {"Content-Type": content_type}
 
 
-class FakeOpener:
+class FakeSession:
     """Serve queued responses per URL; the last queued response repeats."""
 
     def __init__(self, routes):
         self.routes = {url: list(responses) for url, responses in routes.items()}
         self.calls = []
 
-    def open(self, request, timeout):
-        url = request.full_url
-        self.calls.append((url, request.get_header("User-agent")))
+    def get(self, url, headers=None, timeout=None):
+        self.calls.append((url, (headers or {}).get("User-Agent")))
         queue = self.routes.get(url)
         if not queue:
-            raise HTTPError(url, 404, "Not Found", Message(), None)
+            return FakeResponse(b"", status=404)
         response = queue.pop(0) if len(queue) > 1 else queue[0]
         if isinstance(response, int):
-            raise HTTPError(url, response, "Error", Message(), None)
+            return FakeResponse(b"", status=response)
         if isinstance(response, tuple):
             return FakeResponse(*response)
         return FakeResponse(response)
@@ -114,28 +126,35 @@ def group_url(jornada=None):
 class Harness:
     def __init__(self, tmp, routes, **options):
         self.tmp = Path(tmp)
-        self.metrics = dl.MetricsStore(self.tmp / "metrics.json")
-        self.opener = FakeOpener({dl.INDEX_URL: [INDEX_HTML.encode("utf-8")], **routes})
+        self.metrics = AttemptLogMetrics(self.tmp / "metrics.json", LOGGER)
+        self.session = FakeSession({INDEX_URL: [INDEX_HTML.encode("utf-8")], **routes})
         self.options = dl.Options(output_dir=self.tmp / "out", groups={"g1"}, **options)
 
     def run(self):
-        self.opener.calls.clear()
+        self.session.calls.clear()
         tuning = self.metrics.tuning()
-        client = dl.HttpClient(self.metrics, request_delay=0, backoff_base=0, sleep=lambda _: None, opener=self.opener)
+        client = FetchClient(FCTT_PROFILE.http, self.metrics, default_retries=self.options.retries, delay=0,
+                             backoff=0, session=self.session, sleep=lambda _: None, logger=LOGGER)
         self.metrics.start_run({}, tuning)
-        ok = dl.IncrementalDownloader(client, self.metrics, self.options, tuning, now=lambda: NOW).run()
+        ok = dl.IncrementalDownloader(FCTT_PROFILE, client, self.metrics, self.options, tuning, now=lambda: NOW,
+                                      logger=LOGGER).run()
         return ok, self.metrics.finish_run()
 
     def path(self, jornada):
         return self.tmp / "out" / "2026-2027" / "tdm" / "g1" / "regular" / f"jornada-{jornada}.html"
 
     def calls_to(self, url):
-        return [call for call in self.opener.calls if call[0] == url]
+        return [call for call in self.session.calls if call[0] == url]
+
+
+def discover_index():
+    result = discover(FCTT_PROFILE, parse_html(INDEX_HTML), INDEX_URL)
+    return result.season, result.leagues
 
 
 class DiscoveryTests(unittest.TestCase):
     def test_discovers_current_season_leagues_only(self):
-        season, leagues = dl.discover_leagues(dl.parse_html(INDEX_HTML))
+        season, leagues = discover_index()
         self.assertEqual(season, "2026-2027")
         self.assertEqual([(l.gender, l.category, l.group, l.url) for l in leagues], [
             ("male", "tdm", "g1", "https://fctt.cat/lligues/grup-1/"),
@@ -146,14 +165,14 @@ class DiscoveryTests(unittest.TestCase):
 
     def test_heading_gives_season_and_phase(self):
         heading = "Copa Catalana Femenina Grup 1 - Fase Final - Temporada 2026/2027"
-        doc = dl.parse_html(page({}, heading=heading).decode("utf-8"))
-        self.assertEqual(dl.page_heading_info(doc), ("2026-2027", "fase-final"))
-        self.assertEqual(dl.page_heading_info(dl.parse_html(GROUP_PAGE.decode("utf-8"))), ("2026-2027", None))
+        doc = parse_html(page({}, heading=heading).decode("utf-8"))
+        self.assertEqual(dl.page_heading_info(READER, doc), ("2026-2027", "fase-final"))
+        self.assertEqual(dl.page_heading_info(READER, parse_html(GROUP_PAGE.decode("utf-8"))), ("2026-2027", None))
 
 
 class ExtractionAndValidationTests(unittest.TestCase):
     def sections(self, body):
-        return dl.extract_sections(dl.parse_html(body.decode("utf-8") if isinstance(body, bytes) else body))
+        return extract_sections(parse_html(body.decode("utf-8") if isinstance(body, bytes) else body))
 
     def test_saved_played_page_is_complete(self):
         matches = self.sections((SAVED_PAGES / "G1" / "jornada-1.html").read_text(encoding="utf-8"))[1]
@@ -228,7 +247,7 @@ class DownloaderTests(unittest.TestCase):
             self.assertEqual(len(harness.calls_to(group_url(2))), 1)
             future = dl.read_saved_meta(harness.path(2))
             self.assertEqual((future["acta-content-status"], future["acta-content-origin"]), ("partial", "calendar"))
-            minimal = dl.extract_sections(dl.parse_html(harness.path(2).read_text(encoding="utf-8")))[2]
+            minimal = extract_sections(parse_html(harness.path(2).read_text(encoding="utf-8")))[2]
             self.assertEqual([(m.date, m.time, m.home, m.away, m.location) for m in minimal][0],
                              ("2026-10-17", "17:00", "EQUIP 2", "EQUIP 3", "PAVELLÓ 2"))
             self.assertEqual(run["outcomes"], {"downloaded": 1, "saved_minimal": 1})
@@ -236,8 +255,8 @@ class DownloaderTests(unittest.TestCase):
 
             # Second run: nothing changed, so only the index and group page are requested.
             _, run = harness.run()
-            self.assertEqual([url for url, _ in harness.opener.calls],
-                             ["https://fctt.cat/robots.txt", dl.INDEX_URL, group_url()])
+            self.assertEqual([url for url, _ in harness.session.calls],
+                             ["https://fctt.cat/robots.txt", INDEX_URL, group_url()])
             self.assertEqual(run["outcomes"], {"up_to_date": 2})
 
             metrics = json.loads((Path(tmp) / "metrics.json").read_text(encoding="utf-8"))
@@ -254,8 +273,8 @@ class DownloaderTests(unittest.TestCase):
                                     group_url(2): [page({2: J2_FUTURE})]})
             harness.run()
             saved = harness.path(2).read_bytes()
-            harness.opener.routes[group_url()] = [moved]
-            harness.opener.routes[group_url(2)] = [NO_RESULTS]
+            harness.session.routes[group_url()] = [moved]
+            harness.session.routes[group_url(2)] = [NO_RESULTS]
             # The calendar moved the future match day, but a version is already saved: no request, no rewrite.
             _, run = harness.run()
             self.assertEqual(run["outcomes"], {"up_to_date": 2})
@@ -269,11 +288,11 @@ class DownloaderTests(unittest.TestCase):
                                     group_url(2): [page({2: J2_FUTURE})]})
             harness.run()
             harness.options.force = True
-            harness.opener.routes[group_url()] = [moved]
-            harness.opener.routes[group_url(2)] = [NO_RESULTS]
+            harness.session.routes[group_url()] = [moved]
+            harness.session.routes[group_url(2)] = [NO_RESULTS]
             harness.run()
             self.assertEqual(len(harness.calls_to(group_url(2))), 1)
-            minimal = dl.extract_sections(dl.parse_html(harness.path(2).read_text(encoding="utf-8")))[2]
+            minimal = extract_sections(parse_html(harness.path(2).read_text(encoding="utf-8")))[2]
             self.assertEqual(minimal[0].date, "2026-10-24")
 
     def test_incomplete_actas_are_kept_as_partial(self):
@@ -291,7 +310,7 @@ class DownloaderTests(unittest.TestCase):
     def test_failed_past_match_day_is_skipped_and_becomes_chronic(self):
         with tempfile.TemporaryDirectory() as tmp:
             harness = Harness(tmp, {group_url(): [GROUP_PAGE], group_url(1): [503]}, match_days={1}, retries=2)
-            for _ in range(dl.CHRONIC_FAILURES):
+            for _ in range(CHRONIC_FAILURES):
                 _, run = harness.run()
                 self.assertEqual(run["outcomes"], {"failed": 1})
                 self.assertFalse(harness.path(1).exists())
@@ -320,10 +339,10 @@ class DownloaderTests(unittest.TestCase):
     def test_unreachable_index_skips_everything(self):
         with tempfile.TemporaryDirectory() as tmp:
             harness = Harness(tmp, {}, retries=1)
-            harness.opener.routes[dl.INDEX_URL] = [502]
+            harness.session.routes[INDEX_URL] = [502]
             ok, _ = harness.run()
             self.assertFalse(ok)
-            self.assertEqual(len(harness.calls_to(dl.INDEX_URL)), 2)
+            self.assertEqual(len(harness.calls_to(INDEX_URL)), 2)
 
     def test_robots_txt(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -332,7 +351,7 @@ class DownloaderTests(unittest.TestCase):
             harness.run()
             self.assertEqual(harness.calls_to(group_url()), [])  # disallowed: never requested
             # Unreachable robots.txt: the cached copy from the previous run still applies.
-            harness.opener.routes[robots] = [500]
+            harness.session.routes[robots] = [500]
             harness.run()
             self.assertEqual(len(harness.calls_to(robots)), 3)
             self.assertEqual(harness.calls_to(group_url()), [])
@@ -340,7 +359,7 @@ class DownloaderTests(unittest.TestCase):
             harness.metrics.data["robots"].clear()
             ok, _ = harness.run()
             self.assertFalse(ok)
-            self.assertEqual(harness.calls_to(dl.INDEX_URL), [])
+            self.assertEqual(harness.calls_to(INDEX_URL), [])
 
     def test_pdf_actas(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -355,6 +374,3 @@ class DownloaderTests(unittest.TestCase):
             _, run = harness.run()
             self.assertEqual(run["counters"]["pdf_skipped"], 1)
 
-
-if __name__ == "__main__":
-    unittest.main()

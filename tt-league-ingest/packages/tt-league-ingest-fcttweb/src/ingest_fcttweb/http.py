@@ -14,7 +14,6 @@ import random
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import timezone
 from email.utils import parsedate_to_datetime
 from typing import Any, Protocol
 from urllib.parse import urlparse

@@ -1,24 +1,20 @@
-"""Adapters that run an implementation of the fctt.cat pipelines against the golden harness' fake site.
+"""Adapter that runs the unified ``ingest_fcttweb`` package against the golden harness' fake site.
 
-``FcttWebAdapter`` drives the unified ``ingest_fcttweb`` package (the one under test). ``LegacyAdapter`` drives the
-original ``ingest_bcnesa`` / ``ingest_fctt`` ports; it only works while those packages are installed and was used
-to produce the stored expected outputs.
+The stored expected outputs were produced by the original ``ingest_bcnesa`` / ``ingest_fctt`` ports (git history of
+``tests/golden/expected`` and of those packages); the adapter freezes the clock and replaces the HTTP session.
 """
 
 from __future__ import annotations
 
 import contextlib
-import email.message
 import importlib
-import io
 from datetime import datetime, timezone
-from typing import Any, Iterator
+from typing import Iterator
 from unittest import mock
-from urllib.error import HTTPError
 
 import requests
 
-from golden_harness import HTML_TYPE, TIMEOUT, Reply, Router
+from golden_harness import TIMEOUT, Reply, Router
 
 # 2026-10-02 12:00 in Madrid (10:00 UTC), the instant every golden run believes it is.
 FROZEN_UTC = datetime(2026, 10, 2, 10, 0, 0, tzinfo=timezone.utc)
@@ -58,55 +54,6 @@ def requests_transport(router: Router) -> Iterator[None]:
 
     with mock.patch.object(requests.Session, "get", fake_get), mock.patch("time.sleep", lambda _: None):
         yield
-
-
-class FakeUrllibResponse(io.BytesIO):
-    def __init__(self, reply: Reply):
-        super().__init__(reply.body)
-        self.status = reply.status
-        self.headers = {"Content-Type": reply.content_type}
-
-
-class FakeOpener:
-    def __init__(self, router: Router):
-        self.router = router
-
-    def open(self, request, timeout=None):
-        url = request.full_url
-        reply = self.router.respond(url)
-        if reply == TIMEOUT:
-            raise TimeoutError("timed out")
-        if reply.status >= 400:
-            raise HTTPError(url, reply.status, "error", email.message.Message(), None)
-        return FakeUrllibResponse(reply)
-
-
-class LegacyAdapter:
-    name = "legacy"
-
-    def __init__(self) -> None:
-        self.modules = {
-            "bcnesa": {"download": importlib.import_module("ingest_bcnesa.download"),
-                       "parse": importlib.import_module("ingest_bcnesa.parse")},
-            "fctt": {"download": importlib.import_module("ingest_fctt.download"),
-                     "parse": importlib.import_module("ingest_fctt.parse")},
-        }
-
-    @contextlib.contextmanager
-    def installed(self, router: Router) -> Iterator[None]:
-        bcnesa, fctt = self.modules["bcnesa"], self.modules["fctt"]
-        with contextlib.ExitStack() as stack:
-            stack.enter_context(requests_transport(router))
-            stack.enter_context(mock.patch.object(fctt["download"], "build_opener", lambda *_: FakeOpener(router)))
-            for module in (bcnesa["download"], fctt["download"], fctt["parse"]):
-                stack.enter_context(mock.patch.object(module, "datetime", FrozenDatetime))
-            yield
-
-    def download(self, source: str, argv: list[str]) -> int:
-        return self.modules[source]["download"].main(argv)
-
-    def parse(self, source: str, argv: list[str]) -> int:
-        return self.modules[source]["parse"].main(argv)
 
 
 class FcttWebAdapter:

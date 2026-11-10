@@ -1,8 +1,8 @@
-"""Regenerate the expected golden outputs: ``uv run python tests/golden/regenerate.py [legacy|fcttweb] [scenario...]``.
+"""Regenerate the expected golden outputs: ``uv run python tests/golden/regenerate.py [scenario...]``.
 
-The stored expected outputs were produced by the original ports (``legacy``, while ``ingest_bcnesa`` /
-``ingest_fctt`` exist). Once the unified package is the only implementation, regenerate with ``fcttweb`` only for
-an intentional, reviewed output change.
+The stored expected outputs were produced by the original ports (``ingest_bcnesa`` / ``ingest_fctt``), which the
+unified package reproduces byte for byte. Regenerate only for an intentional, reviewed output change (a dedicated
+commit whose diff shows exactly that change).
 """
 
 from __future__ import annotations
@@ -12,15 +12,14 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from golden_adapters import FcttWebAdapter, LegacyAdapter  # noqa: E402
+from golden_adapters import FcttWebAdapter  # noqa: E402
 from golden_harness import run_scenario, write_expected  # noqa: E402
 from golden_scenarios import SCENARIOS  # noqa: E402
 
 
 def main(argv: list[str]) -> int:
-    kind = argv[0] if argv else "fcttweb"
-    adapter = {"legacy": LegacyAdapter, "fcttweb": FcttWebAdapter}[kind]()
-    wanted = set(argv[1:])
+    adapter = FcttWebAdapter()
+    wanted = set(argv)
     for scenario in SCENARIOS:
         if wanted and scenario.key not in wanted:
             continue

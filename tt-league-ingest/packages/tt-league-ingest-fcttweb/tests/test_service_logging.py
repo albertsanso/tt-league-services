@@ -1,4 +1,5 @@
-"""The legacy BCNESA scripts leave the root logger and the console alone while the REST service logs."""
+"""The download and parse scripts of both profiles leave the root logger and the console alone while the REST
+service logs; standalone they log to their file and the console through their own logger only."""
 
 from __future__ import annotations
 
@@ -6,12 +7,14 @@ import logging
 
 import pytest
 
-from ingest_bcnesa import download, parse
 from ingest_common import logs
+from ingest_fcttweb.logging_setup import configure_script_logger
+from ingest_fcttweb.profile import PROFILES
 
 SCRIPTS = {
-    "download": (lambda log_file: download.configure_logging(log_file), "download_actas_content_incremental"),
-    "parse": (lambda log_file: parse.configure_logging(log_file) or parse.LOGGER, "parse_actas_content_incremental"),
+    f"{name}-{script}": ((lambda log_file, logger_name=getattr(profile, f"{script}_logger"):
+                          configure_script_logger(logger_name, log_file)), getattr(profile, f"{script}_logger"))
+    for name, profile in PROFILES.items() for script in ("download", "parse")
 }
 
 
@@ -110,32 +113,28 @@ def test_records_reach_the_root_logger_with_the_bound_ids(script, tmp_path):
     assert record.runId == "orchestrator-7" and record.ingestRunId == "ingest-7"
 
 
-def test_parse_without_a_log_file_adds_no_file_handler():
-    logs.configure_service_logging("json")
-    clear_script_handlers()
-
-    parse.configure_logging(None)
-
-    assert parse.LOGGER.handlers == []
-
-
-def test_standalone_download_still_adds_a_console_handler(tmp_path):
+@pytest.mark.parametrize("script", SCRIPTS)
+def test_standalone_still_adds_a_console_handler_and_stops_propagating(script, tmp_path):
+    configure, _ = SCRIPTS[script]
     logs._service_logging = False
     clear_script_handlers()
 
-    logger = download.configure_logging(tmp_path / "standalone.log")
+    logger = configure(tmp_path / "standalone.log")
 
     assert any(type(h) is logging.StreamHandler for h in logger.handlers)
     assert any(isinstance(h, logging.FileHandler) for h in logger.handlers)
+    assert logger.propagate is False
 
 
-def test_standalone_parse_still_replaces_the_root_handlers(tmp_path):
+@pytest.mark.parametrize("script", SCRIPTS)
+def test_standalone_leaves_the_root_logger_alone(script, tmp_path):
+    configure, _ = SCRIPTS[script]
     logs._service_logging = False
     root = logging.getLogger()
     marker = logging.NullHandler()
     root.addHandler(marker)
+    before = list(root.handlers)
 
-    parse.configure_logging(tmp_path / "standalone.log")
+    configure(tmp_path / "standalone.log")
 
-    assert marker not in root.handlers
-    assert any(isinstance(h, logging.FileHandler) for h in root.handlers)
+    assert root.handlers == before

@@ -1,16 +1,20 @@
 from __future__ import annotations
 
 import argparse
+import logging
 from pathlib import PurePosixPath
 
 import pytest
 
-from ingest_bcnesa import download, parse
-from ingest_bcnesa.ingestor import BcnesaIngestor
+from ingest_fcttweb import download, parse
+from ingest_fcttweb.ingestor import BcnesaIngestor
 from ingest_common.run import IngestFilters, IngestRequest, IngestStage, NoOpListener
 from ingest_common.season import Season
 from ingest_common.settings import IngestSettings
 from ingest_common.source import Source
+from ingest_fcttweb import validated
+from ingest_fcttweb.discovery import League
+from ingest_fcttweb.profile import BCNESA_PROFILE
 
 
 def request(**filters):
@@ -29,8 +33,8 @@ def option(argv, name):
 
 def test_territory_is_passed_to_the_downloader_only(tmp_path, monkeypatch):
     calls = {}
-    monkeypatch.setattr(download, "main", lambda argv: calls.setdefault("download", argv) and 0)
-    monkeypatch.setattr(parse, "main", lambda argv: calls.setdefault("parse", argv) and 0)
+    monkeypatch.setattr(download, "main", lambda profile, argv: calls.setdefault("download", argv) and 0)
+    monkeypatch.setattr(parse, "main", lambda profile, argv: calls.setdefault("parse", argv) and 0)
     ingestor, settings = BcnesaIngestor(), IngestSettings(tmp_path)
     filters = {"territory": "Barcelona", "match_days": frozenset({5})}
 
@@ -51,7 +55,7 @@ def test_download_writes_the_match_day_status_file(tmp_path, monkeypatch):
     import json
 
     from ingest_common.match_day_status import STATUS_FILE
-    monkeypatch.setattr(download, "main", lambda argv: 1)  # even a download with failures refreshes the status
+    monkeypatch.setattr(download, "main", lambda profile, argv: 1)  # even a download with failures refreshes the status
     report = BcnesaIngestor().download(request(), IngestSettings(tmp_path), NoOpListener())
     status_file = tmp_path / "bcnesa" / "content" / STATUS_FILE
     assert json.loads(status_file.read_text(encoding="utf-8"))["source"] == "BCNESA"
@@ -60,8 +64,8 @@ def test_download_writes_the_match_day_status_file(tmp_path, monkeypatch):
 
 def test_each_scope_downloads_once_and_scopes_differing_by_territory_parse_once(tmp_path, monkeypatch):
     calls = {"download": [], "parse": []}
-    monkeypatch.setattr(download, "main", lambda argv: calls["download"].append(argv) or 0)
-    monkeypatch.setattr(parse, "main", lambda argv: calls["parse"].append(argv) or 0)
+    monkeypatch.setattr(download, "main", lambda profile, argv: calls["download"].append(argv) or 0)
+    monkeypatch.setattr(parse, "main", lambda profile, argv: calls["parse"].append(argv) or 0)
     ingestor, settings = BcnesaIngestor(), IngestSettings(tmp_path)
     req = scoped({"territory": "Girona", "category": "PREFERENT", "group": "G1", "match_days": frozenset({3})},
                  {"territory": "Lleida", "category": "PREFERENT", "group": "G1", "match_days": frozenset({3})},
@@ -79,7 +83,7 @@ def test_each_scope_downloads_once_and_scopes_differing_by_territory_parse_once(
 
 def test_a_failing_scope_stops_the_download(tmp_path, monkeypatch):
     calls = []
-    monkeypatch.setattr(download, "main", lambda argv: calls.append(argv) or 2)
+    monkeypatch.setattr(download, "main", lambda profile, argv: calls.append(argv) or 2)
     report = BcnesaIngestor().download(scoped({"group": "G1"}, {"group": "G2"}), IngestSettings(tmp_path),
                                        NoOpListener())
     assert report.failed and len(calls) == 1
@@ -108,7 +112,7 @@ def test_scope_matches_follows_the_actas_layout_and_parser_normalisation(scope, 
 
 def test_region_selects_the_territory_and_region_type_is_passed_to_the_downloader(tmp_path, monkeypatch):
     calls = {}
-    monkeypatch.setattr(download, "main", lambda argv: calls.setdefault("download", argv) and 0)
+    monkeypatch.setattr(download, "main", lambda profile, argv: calls.setdefault("download", argv) and 0)
     ingestor = BcnesaIngestor()
     assert not ingestor.download(request(region="girona", region_type="comarcal"), IngestSettings(tmp_path),
                                  NoOpListener()).failed
@@ -137,8 +141,9 @@ def test_scope_matches_honours_region_and_region_type(path, scope, expected):
 
 
 def test_region_type_filters_the_downloaded_leagues():
-    comarcal = download.League("Girona", "RTG 1a COMARCAL G1", "RTG 1a COMARCAL", "G1", "1a Fase", "https://x/")
-    preferent = download.League("Girona", "RTG PREFERENT G1", "RTG PREFERENT", "G1", "1a Fase", "https://x/")
+    comarcal = League("Girona", "RTG 1a COMARCAL G1", "RTG 1a COMARCAL", "G1", "1a Fase", "https://x/")
+    preferent = League("Girona", "RTG PREFERENT G1", "RTG PREFERENT", "G1", "1a Fase", "https://x/")
     args = argparse.Namespace(territory=None, category=None, group=None, region_type="comarcal")
-    assert download.league_matches_filters(comarcal, args)
-    assert not download.league_matches_filters(preferent, args)
+    downloader = validated.Downloader(BCNESA_PROFILE, args, None, None, logging.getLogger("test-bcnesa-filters"))
+    assert downloader.league_matches_filters(comarcal)
+    assert not downloader.league_matches_filters(preferent)

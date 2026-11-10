@@ -13,10 +13,10 @@ from dataclasses import dataclass, replace
 from typing import cast
 from urllib.parse import urljoin, urlparse
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup
 
 from ingest_common.region import region_values
-from ingest_fcttweb.markup import HEADING_TAGS, Reader, fold, has_class, own_text, slugify
+from ingest_fcttweb.markup import HEADING_TAGS, Reader, fold, own_text, slugify
 from ingest_fcttweb.profile import INDEX_URL, SiteProfile
 
 OTHER_SEASONS_HEADING = "altres temporades"
@@ -167,5 +167,3 @@ def _headed_links(profile: SiteProfile, soup: BeautifulSoup, page_url: str) -> D
     current = next_season(max(listed_seasons)) if listed_seasons else None
     return Discovery(current, [league.with_season(current or "") for league in leagues])
 
-
-__all__ = ["Discovery", "League", "discover", "has_class", "league_region", "phase_from_text", "split_card_title"]

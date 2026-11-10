@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from bs4 import BeautifulSoup
 
-from ingest_bcnesa import download as dl
+from ingest_fcttweb.discovery import discover
+from ingest_fcttweb.profile import BCNESA_PROFILE
 
 PAGE_URL = "https://fctt.cat/competicions-estatals/"
 
@@ -25,14 +26,14 @@ INDEX = (
 
 
 def test_barcelona_cards_under_category_sub_headings_are_discovered():
-    leagues = dl.discover_leagues(BeautifulSoup(INDEX, "html.parser"), PAGE_URL)
+    leagues = discover(BCNESA_PROFILE, BeautifulSoup(INDEX, "html.parser"), PAGE_URL).leagues
 
     barcelona = [(league.category, league.group) for league in leagues if league.territory == "Barcelona"]
     assert barcelona == [("RTB PREFERENT", "G1"), ("RTB PREFERENT", "G2"), ("RTB PRIMERA", "G1")]
 
 
 def test_single_group_territory_and_non_territorial_sections():
-    leagues = dl.discover_leagues(BeautifulSoup(INDEX, "html.parser"), PAGE_URL)
+    leagues = discover(BCNESA_PROFILE, BeautifulSoup(INDEX, "html.parser"), PAGE_URL).leagues
 
     assert [(league.territory, league.category, league.group) for league in leagues if league.territory == "Girona"] \
         == [("Girona", "RTG PREFERENT", "G1")]

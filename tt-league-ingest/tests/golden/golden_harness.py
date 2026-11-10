@@ -8,7 +8,7 @@ actas (and the parser state file), the request sequence and the normalised metri
 must reproduce them byte for byte (see ``tt-league-ingest/AGENTS.md``: an output difference is a bug).
 
 The harness is implementation-agnostic: an *adapter* (``golden_adapters``) installs the fake transport and the frozen
-clock for one implementation and exposes ``download(source, argv)`` / ``parse(source, argv)``.
+clock and exposes ``download(source, argv)`` / ``parse(source, argv)``.
 """
 
 from __future__ import annotations

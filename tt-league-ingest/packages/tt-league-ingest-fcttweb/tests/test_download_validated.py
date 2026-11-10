@@ -8,12 +8,17 @@ from types import SimpleNamespace
 
 from bs4 import BeautifulSoup
 
-from ingest_bcnesa import download as dl
+from ingest_fcttweb import validated
+from ingest_fcttweb.discovery import League
+from ingest_fcttweb.http import ContentRejected, Fetched
+from ingest_fcttweb.markup import clean_name
+from ingest_fcttweb.profile import BCNESA_PROFILE
 
 LOGGER = logging.getLogger("test-bcnesa-incremental")
 LOGGER.addHandler(logging.NullHandler())
-LEAGUE = dl.League("Barcelona", "RTB PREFERENT G1", "rtb-preferent", "G1", "1a Fase",
-                   "https://fctt.cat/lligues/rtb-preferent-g1/")
+STATUS_META = BCNESA_PROFILE.layout.meta.status
+LEAGUE = League("Barcelona", "RTB PREFERENT G1", "rtb-preferent", "G1", "1a Fase",
+                "https://fctt.cat/lligues/rtb-preferent-g1/")
 PAGE_URL = "https://fctt.cat/lligues/rtb-preferent-g1/?jornada=3"
 
 
@@ -43,23 +48,20 @@ def pending_match():
 
 
 class FakeFetcher:
-    """Serves a fixed jornada page through the real validation check, like the HTTP fetcher does."""
+    """Serves a fixed jornada page through the real validation check, like the HTTP client does."""
 
     def __init__(self, html: str):
         self.html = html
         self.requests: list[str] = []
-        self.last = SimpleNamespace(retries=0, errors=[], outcome="ok")
 
-    def get(self, url, check, kind, key=None):
+    def get(self, url, check=None, *, kind="page", key=None, retries=None, accept=None):
         self.requests.append(url)
         if kind == "pdf":
-            return b"%PDF-1.4 fake"
-        response = SimpleNamespace(content=self.html.encode("utf-8"))
+            return Fetched(url, outcome="ok", attempts=1, payload=b"%PDF-1.4 fake")
         try:
-            return check(response)
-        except dl.IncompleteContent as error:
-            self.last = SimpleNamespace(retries=0, errors=[str(error)], outcome="incomplete")
-            return error.result
+            return Fetched(url, outcome="ok", attempts=1, payload=check(self.html.encode("utf-8"), "text/html"))
+        except ContentRejected as error:
+            return Fetched(url, outcome="incomplete", attempts=1, payload=error.payload, errors=[str(error)])
 
 
 class RecordingMetrics:
@@ -78,23 +80,23 @@ class RecordingMetrics:
 
 def run(tmp_path, fetcher, expected_matches=None, scheduled=None, **overrides):
     args = argparse.Namespace(**{"season": "2026-2027", "format": "html", "skip_pdf": True, "force": False,
-                                 **overrides})
+                                 "adaptive": True, **overrides})
     metrics = RecordingMetrics()
-    ctx = dl.Context(fetcher, metrics, args, LOGGER, adaptive=True)
+    downloader = validated.Downloader(BCNESA_PROFILE, args, fetcher, metrics, LOGGER)
     if expected_matches:
         scheduled = SimpleNamespace(containers=[object()] * expected_matches, heading=None, future=False)
-    dl.process_match_day(ctx, LEAGUE, "1a Fase", 3, tmp_path, scheduled, LEAGUE.title)
+    downloader.process_match_day(LEAGUE, "1a Fase", 3, tmp_path, scheduled, LEAGUE.title)
     return metrics.outcomes, tmp_path / "jornada_03.html"
 
 
 def meta(path):
-    return dl.read_saved(path)[1]
+    return validated.read_saved(path)[1]
 
 
 def test_complete_jornada_is_not_requested_again(tmp_path):
     first = FakeFetcher(played_match())
     outcomes, saved = run(tmp_path, first)
-    assert meta(saved)[dl.STATUS_META] == "complete" and outcomes == ["new"]
+    assert meta(saved)[STATUS_META] == "complete" and outcomes == ["new"]
 
     again = FakeFetcher(played_match())
     outcomes, _ = run(tmp_path, again)
@@ -104,7 +106,7 @@ def test_complete_jornada_is_not_requested_again(tmp_path):
 def test_partial_jornada_is_requested_again_and_upgraded_when_it_completes(tmp_path):
     pending = FakeFetcher(played_match() + pending_match())
     outcomes, saved = run(tmp_path, pending)
-    assert meta(saved)[dl.STATUS_META] == "partial" and pending.requests == [PAGE_URL]
+    assert meta(saved)[STATUS_META] == "partial" and pending.requests == [PAGE_URL]
     assert outcomes == ["new"]  # a pending match is valid minimal content, saved as partial
 
     still_pending = FakeFetcher(played_match() + pending_match())
@@ -114,7 +116,7 @@ def test_partial_jornada_is_requested_again_and_upgraded_when_it_completes(tmp_p
     finished = FakeFetcher(played_match() + played_match("30", "40", "https://fctt.cat/ligas/partido/556/imprimir/acta"))
     outcomes, saved = run(tmp_path, finished)
     assert finished.requests == [PAGE_URL] and outcomes == ["updated"]
-    assert meta(saved)[dl.STATUS_META] == "complete"
+    assert meta(saved)[STATUS_META] == "complete"
 
     after = FakeFetcher("")
     outcomes, _ = run(tmp_path, after)
@@ -168,9 +170,9 @@ def test_force_refreshes_a_downloaded_future_jornada(tmp_path):
 def test_status_scan_classifies_saved_jornadas(tmp_path):
     from datetime import datetime
 
-    from ingest_bcnesa import status
     from ingest_common.match_day_status import build_report
     from ingest_common.source import Source
+    from ingest_fcttweb import status
 
     content = tmp_path / "content"
     groups = {"G1": played_match(), "G2": played_match() + pending_match()}
@@ -178,7 +180,7 @@ def test_status_scan_classifies_saved_jornadas(tmp_path):
         league_dir = content / "2026-2027" / "rtb-preferent" / group / "1a Fase"
         league_dir.mkdir(parents=True)
         run(league_dir, FakeFetcher(html))  # saves jornada_03.html
-    report = build_report(Source.BCNESA, status.scan(content), datetime(2026, 10, 4, 12, 0))
+    report = build_report(Source.BCNESA, status.scan(BCNESA_PROFILE, content), datetime(2026, 10, 4, 12, 0))
     by_file = {day["file"]: day["status"] for day in report["matchDays"]}
     assert by_file == {"2026-2027/rtb-preferent/G1/1a Fase/jornada_03.html": "complete",
                        "2026-2027/rtb-preferent/G2/1a Fase/jornada_03.html": "partial"}
@@ -192,30 +194,31 @@ def test_status_row_is_a_valid_scope_for_download_parse_and_package(tmp_path):
     from datetime import datetime
     from pathlib import PurePosixPath
 
-    from ingest_bcnesa import parse, status
-    from ingest_bcnesa.ingestor import BcnesaIngestor
     from ingest_common.match_day_status import build_report
     from ingest_common.scopes import scope_from_values
     from ingest_common.source import Source
+    from ingest_fcttweb import status
+    from ingest_fcttweb.ingestor import BcnesaIngestor
+    from ingest_fcttweb.parse import GuardedParser
 
-    league = dl.League("Barcelona", "RTB PREFERENT G1", "RTB PREFERENT", "G1", "1a Fase", LEAGUE.url)
+    league = League("Barcelona", "RTB PREFERENT G1", "RTB PREFERENT", "G1", "1a Fase", LEAGUE.url)
     content = tmp_path / "content"
-    league_dir = content / "2026-2027" / dl.clean_name(league.category) / league.group / "1a Fase"
+    league_dir = content / "2026-2027" / clean_name(league.category) / league.group / "1a Fase"
     league_dir.mkdir(parents=True)
-    ctx = dl.Context(FakeFetcher(played_match()), RecordingMetrics(),
-                     argparse.Namespace(season="2026-2027", format="html", skip_pdf=True, force=False), LOGGER,
-                     adaptive=True)
-    dl.process_match_day(ctx, league, "1a Fase", 3, league_dir, None, league.title)
+    args = argparse.Namespace(season="2026-2027", format="html", skip_pdf=True, force=False, adaptive=True)
+    validated.Downloader(BCNESA_PROFILE, args, FakeFetcher(played_match()), RecordingMetrics(), LOGGER) \
+        .process_match_day(league, "1a Fase", 3, league_dir, None, league.title)
 
-    row = build_report(Source.BCNESA, status.scan(content), datetime(2026, 10, 4, 12, 0))["matchDays"][0]
+    row = build_report(Source.BCNESA, status.scan(BCNESA_PROFILE, content), datetime(2026, 10, 4, 12, 0))["matchDays"][0]
     scope = scope_from_values(category=row["category"], group=row["group"], phase=row["phase"],
                               territory=row["territory"], match_days=[row["matchDay"]])
 
-    assert dl.league_matches_filters(league, argparse.Namespace(territory=scope.territory, category=scope.category,
-                                                                group=scope.group))
-    selected = parse.find_jornada_files(content, argparse.Namespace(
+    filters = argparse.Namespace(territory=scope.territory, category=scope.category, group=scope.group,
+                                 region_type=None)
+    assert validated.Downloader(BCNESA_PROFILE, filters, None, None, LOGGER).league_matches_filters(league)
+    selected = GuardedParser(BCNESA_PROFILE, argparse.Namespace(
         season="2026-2027", category=scope.category, group=scope.group, phase=scope.phase,
-        match_day=set(scope.match_days)))
+        match_day=set(scope.match_days)), LOGGER).find_files(content)
     assert [path.relative_to(content).as_posix() for path in selected] == [row["file"]]
     acta = PurePosixPath("rtb-preferent/G1/1a Fase/jornada_03_local_team_10_away_team_20.json")
     assert BcnesaIngestor().scope_matches(scope, acta, row["matchDay"])

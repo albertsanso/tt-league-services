@@ -1,13 +1,19 @@
-import importlib.util
+"""The published-guard parse (BCNESA): one JSON per match, a published acta is never replaced by an unpublished one."""
+
 import json
 import logging
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from ingest_fcttweb import parse
+from ingest_fcttweb.markup import kebab_case
+from ingest_fcttweb.profile import BCNESA_PROFILE
 
-from ingest_bcnesa import parse as incremental
+
+class incremental:
+    main = staticmethod(lambda argv: parse.main(BCNESA_PROFILE, argv))
+    kebab_case = staticmethod(kebab_case)
 
 
 def player(code, name):
@@ -136,6 +142,3 @@ class ParseIncrementalTest(unittest.TestCase):
                                            "--output_dir", str(Path(self.temp.name) / "out"),
                                            "--log_file", str(Path(self.temp.name) / "log.txt")]), 2)
 
-
-if __name__ == "__main__":
-    unittest.main()

@@ -1,19 +1,43 @@
-import importlib.util
-import io
+"""Acta assembly of the table-present model (BCNESA): one match container -> one acta."""
+
 import json
-import os
-import sys
-import tempfile
+import re
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from jsonschema import Draft202012Validator
 
+from ingest_common.validation import ACTA_SCHEMA_PATH
+from ingest_fcttweb.acta import ActaLocation, TableActaBuilder, category_name, group_number_from_folder, parse_date_time
+from ingest_fcttweb.markup import fold_compact, make_soup, parse_score
+from ingest_fcttweb.profile import BCNESA_PROFILE
 
-from ingest_bcnesa import acta_parser as parser
+VALIDATOR = Draft202012Validator(json.loads(ACTA_SCHEMA_PATH.read_text(encoding="utf-8")))
+BUILDER = TableActaBuilder(BCNESA_PROFILE)
 
-VALIDATOR = Draft202012Validator(json.loads(parser.SCHEMA_PATH.read_text(encoding="utf-8")))
+
+def parse_acta(html, relative_path):
+    """A single acta without the region (the folders of these tests have no representation prefix)."""
+    parts = relative_path.parts
+    if len(parts) != 5:
+        raise ValueError("HTML path must have season/category/group/phase/filename components")
+    container = make_soup(html).select_one(".match-container")
+    if container is None:
+        raise ValueError("no match found in the HTML")
+    location = ActaLocation(*parts[:4], Path(parts[4]).stem)
+    day = int(re.search(r"_(\d+)$", location.stem).group(1))
+    header = BUILDER.match_header(location, container, day)
+    final = _score(container)
+    table = container.select_one(".match-results-table")
+    rows = BUILDER.parse_rows(table) if table else []
+    if table is None or not rows:
+        return BUILDER.unpublished_acta(header, final)
+    return BUILDER.published_acta(header, final, table, rows)
+
+
+def _score(container):
+    return parse_score(BUILDER.reader.text(container.select_one(".match-score")))
+
 RELATIVE = Path("2026-2027", "Segona _A_", "G2", "1a Fase", "acta_151-247_3.html")
 
 
@@ -90,7 +114,7 @@ class ParseActaTests(unittest.TestCase):
         self.assertEqual(errors, [])
 
     def test_played_match_with_abc_at_home(self):
-        data = parser.parse_acta(match_html(HOME_ABC_ROWS), RELATIVE)
+        data = parse_acta(match_html(HOME_ABC_ROWS), RELATIVE)
 
         self.assert_valid(data)
         self.assertEqual(data["temporada"], "2026/2027")
@@ -117,7 +141,7 @@ class ParseActaTests(unittest.TestCase):
 
     def test_abc_away_is_detected_from_the_column_headers(self):
         html = match_html(HOME_ABC_ROWS, header=("AWAY TEAM", "HOME TEAM"), score="1 - 4")
-        data = parser.parse_acta(html, RELATIVE)
+        data = parse_acta(html, RELATIVE)
 
         self.assert_valid(data)
         self.assertFalse(data["abc_es_local"])
@@ -129,7 +153,7 @@ class ParseActaTests(unittest.TestCase):
         self.assertEqual(data["resultado_final"]["ganador"], "AWAY TEAM")
 
     def test_abc_away_without_headers_uses_the_final_score(self):
-        data = parser.parse_acta(match_html(HOME_ABC_ROWS, header=None, score="1 - 4"), RELATIVE)
+        data = parse_acta(match_html(HOME_ABC_ROWS, header=None, score="1 - 4"), RELATIVE)
 
         self.assert_valid(data)
         self.assertFalse(data["abc_es_local"])
@@ -137,7 +161,7 @@ class ParseActaTests(unittest.TestCase):
 
     def test_xyz_in_left_column_at_home(self):
         rows = [swap_row(item) for item in HOME_ABC_ROWS]
-        data = parser.parse_acta(match_html(rows, score="1 - 4"), RELATIVE)
+        data = parse_acta(match_html(rows, score="1 - 4"), RELATIVE)
 
         self.assert_valid(data)
         self.assertFalse(data["abc_es_local"])
@@ -146,7 +170,7 @@ class ParseActaTests(unittest.TestCase):
 
     def test_game_without_result_is_marked_not_played(self):
         rows = HOME_ABC_ROWS[:4] + [("A", [("1", "HOME A")], "Y", [("12", "AWAY Y")], ["", "", "", ""], "", "")]
-        data = parser.parse_acta(match_html(rows, score="3 - 1"), RELATIVE)
+        data = parse_acta(match_html(rows, score="3 - 1"), RELATIVE)
 
         self.assert_valid(data)
         last = data["partidos"][-1]
@@ -158,7 +182,7 @@ class ParseActaTests(unittest.TestCase):
         html = match_html(HOME_ABC_ROWS)
         for name in ("position", "player-info", "game", "result", "global"):
             html = html.replace(f'<td class="{name}">', "<td>")
-        data = parser.parse_acta(html, RELATIVE)
+        data = parse_acta(html, RELATIVE)
 
         self.assert_valid(data)
         self.assertEqual(len(data["partidos"]), 5)
@@ -166,14 +190,14 @@ class ParseActaTests(unittest.TestCase):
 
     def test_missing_optional_fields_are_null(self):
         html = match_html(HOME_ABC_ROWS, extra_info=False).replace("04/10/2026 · 11:00", "")
-        data = parser.parse_acta(html, Path("2026-2027", "Segona _A_", "Other", "1a Fase", "acta_1_3.html"))
+        data = parse_acta(html, Path("2026-2027", "Segona _A_", "Other", "1a Fase", "acta_1_3.html"))
 
         self.assert_valid(data)
         self.assertEqual((data["fecha"], data["hora"], data["lugar"], data["grupo"]), (None, None, None, None))
         self.assertIsNone(data["arbitros"]["principal"])
 
     def test_placeholder_becomes_an_unpublished_acta(self):
-        data = parser.parse_acta(PLACEHOLDER, Path("2026-2027", "Vet 1a", "G1", "Play Off Títol", "acta_151-247_2.html"))
+        data = parse_acta(PLACEHOLDER, Path("2026-2027", "Vet 1a", "G1", "Play Off Títol", "acta_151-247_2.html"))
 
         self.assert_valid(data)
         self.assertFalse(data["acta_publicada"])
@@ -189,7 +213,7 @@ class ParseActaTests(unittest.TestCase):
         self.assertEqual(data["resultado_final"], {"ganador": None, "marcador_partidos": None, "marcador_juegos": None})
 
     def test_score_without_results_table_is_kept(self):
-        data = parser.parse_acta(PLACEHOLDER.replace("- - -", "4 - 0"), RELATIVE)
+        data = parse_acta(PLACEHOLDER.replace("- - -", "4 - 0"), RELATIVE)
 
         self.assert_valid(data)
         self.assertFalse(data["acta_publicada"])
@@ -197,7 +221,7 @@ class ParseActaTests(unittest.TestCase):
         self.assertEqual(data["resultado_final"]["ganador"], "HOME TEAM")
 
     def test_played_acta_is_published_and_strictly_validated(self):
-        data = parser.parse_acta(match_html(HOME_ABC_ROWS), RELATIVE)
+        data = parse_acta(match_html(HOME_ABC_ROWS), RELATIVE)
         self.assertTrue(data["acta_publicada"])
         self.assertEqual(data["id_partido"], "2026-2027_SegonaA_G2_1aFase_151-247_3")
 
@@ -209,103 +233,18 @@ class ParseActaTests(unittest.TestCase):
 
     def test_page_without_match_is_an_error(self):
         with self.assertRaisesRegex(ValueError, "no match found"):
-            parser.parse_acta("<html><body>Not found</body></html>", RELATIVE)
+            parse_acta("<html><body>Not found</body></html>", RELATIVE)
 
     def test_path_must_have_five_components(self):
         with self.assertRaisesRegex(ValueError, "season/category/group/phase"):
-            parser.parse_acta(match_html(HOME_ABC_ROWS), Path("2026-2027", "acta_1_3.html"))
+            parse_acta(match_html(HOME_ABC_ROWS), Path("2026-2027", "acta_1_3.html"))
 
     def test_helpers(self):
-        self.assertEqual(parser.parse_date_time("27/09/2025 17:00"), ("2025-09-27", "17:00"))
-        self.assertEqual(parser.parse_date_time("7/9/25 9:05"), ("2025-09-07", "09:05"))
-        self.assertEqual(parser.parse_date_time("31/02/2026 · 25:00"), (None, None))
-        self.assertEqual(parser.category_name("Vet 4a _C_"), 'Vet 4a "C"')
-        self.assertEqual(parser.category_name("1a Comarcal"), "1a Comarcal")
-        self.assertEqual(parser.group_number("G3"), 3)
-        self.assertIsNone(parser.group_number("Other"))
-        self.assertTrue(parser.matches("Segona _A_", 'Segona "A"'))
-
-
-class MainTests(unittest.TestCase):
-    def setUp(self):
-        self.temp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.temp.cleanup)
-        root = Path(self.temp.name)
-        self.input_root, self.output_root = root / "html", root / "json"
-        folder = self.input_root / "2026-2027" / "Segona _A_" / "G2" / "1a Fase"
-        folder.mkdir(parents=True)
-        (folder / "acta_151-247_3.html").write_text(match_html(HOME_ABC_ROWS), encoding="utf-8")
-        (folder / "acta_247-151_4.html").write_text(PLACEHOLDER, encoding="utf-8")
-
-    def run_main(self, *extra):
-        stdout, stderr = io.StringIO(), io.StringIO()
-        argv = ["--season", "2026-2027", "--input-root", str(self.input_root), "--output-root", str(self.output_root), *extra]
-        with redirect_stdout(stdout), redirect_stderr(stderr):
-            code = parser.main(argv)
-        return code, stdout.getvalue()
-
-    def output(self, name):
-        return self.output_root / "2026-2027" / "Segona _A_" / "G2" / "1a Fase" / name
-
-    def test_writes_played_and_unpublished_actas(self):
-        code, output = self.run_main()
-
-        self.assertEqual(code, 0)
-        self.assertIn("1 published, 1 unpublished, 0 skipped, 0 errors (2 HTML files found)", output)
-        self.assertEqual(json.loads(self.output("acta_151-247_3.json").read_text(encoding="utf-8"))["jornada"], 3)
-        placeholder = json.loads(self.output("acta_247-151_4.json").read_text(encoding="utf-8"))
-        self.assertEqual((placeholder["acta_publicada"], placeholder["jornada"]), (False, 4))
-
-    def test_up_to_date_json_is_skipped_unless_forced(self):
-        self.run_main()
-        _, output = self.run_main()
-        self.assertIn("0 published, 0 unpublished, 2 skipped", output)
-        _, output = self.run_main("--force")
-        self.assertIn("1 published, 1 unpublished, 0 skipped", output)
-
-    def test_refreshed_placeholder_is_parsed_again(self):
-        self.run_main()
-        html = self.input_root / "2026-2027" / "Segona _A_" / "G2" / "1a Fase" / "acta_247-151_4.html"
-        json_path = self.output("acta_247-151_4.json")
-        html.write_text(PLACEHOLDER.replace("04/10/2026", "05/10/2026"), encoding="utf-8")
-        os.utime(json_path, (html.stat().st_mtime - 10, html.stat().st_mtime - 10))
-
-        _, output = self.run_main()
-
-        self.assertIn("0 published, 1 unpublished, 1 skipped", output)
-        self.assertEqual(json.loads(json_path.read_text(encoding="utf-8"))["fecha"], "2026-10-05")
-
-    def test_placeholder_does_not_replace_a_published_json(self):
-        json_path = self.output("acta_247-151_4.json")
-        json_path.parent.mkdir(parents=True)
-        json_path.write_text('{"partidos": [{"numero": 1}]}', encoding="utf-8")
-        html = self.input_root / "2026-2027" / "Segona _A_" / "G2" / "1a Fase" / "acta_247-151_4.html"
-        os.utime(json_path, (html.stat().st_mtime - 10, html.stat().st_mtime - 10))
-
-        with self.assertLogs(parser.LOGGER, level="WARNING"):
-            _, output = self.run_main()
-
-        self.assertIn("1 published, 0 unpublished, 1 skipped", output)
-        self.assertEqual(json.loads(json_path.read_text(encoding="utf-8")), {"partidos": [{"numero": 1}]})
-
-    def test_broken_acta_is_logged_and_sets_exit_code(self):
-        broken = self.input_root / "2026-2027" / "Segona _A_" / "G2" / "1a Fase" / "acta_1-2_5.html"
-        broken.write_text("<html><body>error</body></html>", encoding="utf-8")
-        with self.assertLogs(parser.LOGGER, level="ERROR") as logs:
-            code, output = self.run_main()
-
-        self.assertEqual(code, 1)
-        self.assertIn("1 errors", output)
-        self.assertIn("no match found", "\n".join(logs.output))
-
-    def test_filters_and_bad_arguments(self):
-        self.assertEqual(self.run_main("--category", 'Segona "A"', "--group", "g2", "--phase", "1a fase")[0], 0)
-        self.assertEqual(self.run_main("--category", "Primera")[0], 2)
-        self.assertEqual(self.run_main("--phase", "ASCENS")[0], 2)
-        with redirect_stderr(io.StringIO()):
-            self.assertEqual(parser.main(["--season", "2026", "--input-root", str(self.input_root),
-                                          "--output-root", str(self.input_root)]), 2)
-
-
-if __name__ == "__main__":
-    unittest.main()
+        self.assertEqual(parse_date_time("27/09/2025 17:00"), ("2025-09-27", "17:00"))
+        self.assertEqual(parse_date_time("7/9/25 9:05"), ("2025-09-07", "09:05"))
+        self.assertEqual(parse_date_time("31/02/2026 · 25:00"), (None, None))
+        self.assertEqual(category_name("Vet 4a _C_"), 'Vet 4a "C"')
+        self.assertEqual(category_name("1a Comarcal"), "1a Comarcal")
+        self.assertEqual(group_number_from_folder("G3"), 3)
+        self.assertIsNone(group_number_from_folder("Other"))
+        self.assertEqual(fold_compact("Segona _A_"), fold_compact('Segona "A"'))

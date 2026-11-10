@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from golden_harness import BASE_URL, BLOCKED, EMPTY, PDF, TIMEOUT, Round, Scenario
+from golden_harness import BASE_URL, BLOCKED, EMPTY, TIMEOUT, Round, Scenario
 
 
 def league(slug: str) -> str:

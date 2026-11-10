@@ -33,7 +33,7 @@ from ingest_common.region import region_values
 from ingest_fcttweb import clock
 from ingest_fcttweb.discovery import League, discover, phase_from_text
 from ingest_fcttweb.files import atomic_write
-from ingest_fcttweb.http import ContentRejected, FetchClient, Fetched
+from ingest_fcttweb.http import ContentRejected, FetchClient
 from ingest_fcttweb.logging_setup import configure_script_logger
 from ingest_fcttweb.markup import (
     Reader, SCORE_RE, clean_name, day_sections, fold, league_page_title, make_soup, normalise_group, selector_days,

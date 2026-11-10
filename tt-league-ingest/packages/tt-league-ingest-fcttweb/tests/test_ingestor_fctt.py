@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime
 from pathlib import Path, PurePosixPath
 
@@ -11,8 +12,9 @@ from ingest_common.scopes import scope_from_values
 from ingest_common.season import Season
 from ingest_common.settings import IngestSettings
 from ingest_common.source import Source
-from ingest_fctt import download, parse, status
-from ingest_fctt.ingestor import FcttIngestor
+from ingest_fcttweb import download, parse, status
+from ingest_fcttweb.ingestor import FcttIngestor
+from ingest_fcttweb.profile import FCTT_PROFILE
 
 CONTENT = Path(__file__).resolve().parent / "fixtures" / "content"
 ACTA = "tdm/g1/regular/jornada_1_local_team_10_away_team_20.json"
@@ -29,8 +31,8 @@ def option(argv, name):
 
 def test_each_scope_runs_the_scripts_once(tmp_path, monkeypatch):
     calls = {"download": [], "parse": []}
-    monkeypatch.setattr(download, "main", lambda argv: calls["download"].append(argv) or 0)
-    monkeypatch.setattr(parse, "main", lambda argv: calls["parse"].append(argv) or 0)
+    monkeypatch.setattr(download, "main", lambda profile, argv: calls["download"].append(argv) or 0)
+    monkeypatch.setattr(parse, "main", lambda profile, argv: calls["parse"].append(argv) or 0)
     ingestor, settings = FcttIngestor(), IngestSettings(tmp_path)
     req = scoped({"category": "tdm", "group": "g1", "match_days": frozenset({3, 4})},
                  {"gender": "female", "territory": "catalunya"})
@@ -49,7 +51,7 @@ def test_downloads_wait_the_script_delay_between_scopes(tmp_path, monkeypatch):
 
     pauses = []
     monkeypatch.setattr(scan.time, "sleep", pauses.append)
-    monkeypatch.setattr(download, "main", lambda argv: 0)
+    monkeypatch.setattr(download, "main", lambda profile, argv: 0)
     request = IngestRequest(Source.FCTT, Season.parse("2026-2027"), (IngestStage.DOWNLOAD,),
                             scopes=(IngestFilters(group="g1"), IngestFilters(group="g2")))
     FcttIngestor().download(request, IngestSettings(tmp_path), NoOpListener())
@@ -79,13 +81,14 @@ def test_female_gender_selects_the_femenina_categories():
 
 
 def test_status_row_is_a_valid_scope_for_parse_and_package():
-    row = build_report(Source.FCTT, status.scan(CONTENT), datetime(2026, 10, 4, 12, 0))["matchDays"][0]
+    row = build_report(Source.FCTT, status.scan(FCTT_PROFILE, CONTENT), datetime(2026, 10, 4, 12, 0))["matchDays"][0]
     scope = scope_from_values(category=row["category"], group=row["group"], phase=row["phase"],
                               gender=row["gender"], territory=row["territory"], match_days=[row["matchDay"]])
-    pages, _ = parse.discover_pages(
-        CONTENT, seasons={row["season"]}, categories=download.parse_filter(scope.category),
-        groups=download.parse_filter(scope.group), phases=download.parse_filter(scope.phase),
-        match_days=set(scope.match_days))
+    pages, _ = parse.StatefulParser(FCTT_PROFILE, parse.Options(
+        CONTENT, CONTENT.parent / "unused-output", seasons={row["season"]},
+        categories=parse.parse_filter(scope.category), groups=parse.parse_filter(scope.group),
+        phases=parse.parse_filter(scope.phase), match_days=set(scope.match_days)), logging.getLogger("test")
+    ).discover_pages()
     assert [page.path.relative_to(CONTENT).as_posix() for page in pages] == [row["file"]]
     assert FcttIngestor().scope_matches(scope, PurePosixPath(ACTA), row["matchDay"])
 

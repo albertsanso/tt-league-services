@@ -1,15 +1,51 @@
-import importlib.util
+"""The parse-state parse (FCTT): match-status acta assembly, incremental runs and the real saved pages."""
+
 import json
 import logging
-import sys
 import tempfile
 import unittest
 from pathlib import Path
 
+from ingest_fcttweb import parse
+from ingest_fcttweb.profile import FCTT_PROFILE
 
-from ingest_fctt import parse as pa
-pa.LOGGER.addHandler(logging.NullHandler())
-pa.LOGGER.propagate = False
+LOGGER = logging.getLogger(FCTT_PROFILE.parse_logger)
+LOGGER.addHandler(logging.NullHandler())
+LOGGER.propagate = False
+NO_STATE = Path(tempfile.gettempdir()) / "fcttweb-tests-without-parse-state"
+
+
+class pa:
+    """Thin facade over the parser API, so the test bodies read like the original ones."""
+
+    LOGGER = LOGGER
+    DEFAULT_SCHEMA = parse.SCHEMA_PATH
+    Options = parse.Options
+
+    @staticmethod
+    def SchemaValidator(schema):
+        return parse.SchemaValidator(schema, LOGGER)
+
+    @staticmethod
+    def IncrementalParser(options):
+        return parse.StatefulParser(FCTT_PROFILE, options, LOGGER)
+
+    @staticmethod
+    def CompetitionNames():
+        return pa.IncrementalParser(parse.Options(NO_STATE, NO_STATE))
+
+    @staticmethod
+    def discover_pages(input_dir, **filters):
+        return pa.IncrementalParser(parse.Options(input_dir, NO_STATE, **{
+            key: value for key, value in filters.items()})).discover_pages()
+
+    @staticmethod
+    def parse_page(page, text, parser):
+        return parser.parse_page(page, text)
+
+    @staticmethod
+    def main(argv):
+        return parse.main(FCTT_PROFILE, argv)
 
 REAL_CONTENT = Path(__file__).resolve().parent / "fixtures" / "content"
 
@@ -306,6 +342,3 @@ class RealContentTest(ParserTestCase):
                 with self.subTest(file=match.filename, page=match_day.key):
                     self.assertValid(match.record)
 
-
-if __name__ == "__main__":
-    unittest.main()
