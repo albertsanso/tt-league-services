@@ -65,7 +65,7 @@ public class SearchMatchesQueryHandler extends DomainQueryHandler<SearchMatchesQ
                 match.getWinnerTeam() == null ? null : match.getWinnerTeam().getName(),
                 match.getHomeGamesWon(), match.getAwayGamesWon(),
                 match.getHomeSetsWon(), match.getAwaySetsWon(), match.isProtested(), homePlayers, awayPlayers,
-                match.getStatus());
+                match.getStatus(), match.getRegion(), match.getRegionType());
     }
 
     static MatchSearchReadModel.PlayerReadModel player(Lineup lineup) {

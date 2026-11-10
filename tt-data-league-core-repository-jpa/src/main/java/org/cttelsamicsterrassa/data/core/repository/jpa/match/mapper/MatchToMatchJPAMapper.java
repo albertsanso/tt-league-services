@@ -27,6 +27,11 @@ public class MatchToMatchJPAMapper implements Function<Match, MatchJPA> {
         matchJPA.setExternalId(match.getExternalId());
         matchJPA.setSourceFixtureId(match.getSourceFixtureId());
         matchJPA.setSourceChecksum(match.getSourceChecksum());
+        matchJPA.setRegion(match.getRegion() != null
+                ? org.cttelsamicsterrassa.data.core.repository.jpa.common.Region.valueOf(match.getRegion().name()) : null);
+        matchJPA.setRegionType(match.getRegionType() != null
+                ? org.cttelsamicsterrassa.data.core.repository.jpa.common.RegionType.valueOf(match.getRegionType().name())
+                : null);
 
         // The date and time are nullable in the model and absent from some match reports.
         if (match.getDateTime() != null) {

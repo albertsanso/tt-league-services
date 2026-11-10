@@ -77,6 +77,8 @@ public class FindCalendarRangeQueryHandler
                 .filter(m -> query.getGroupNumber() == null
                         || Objects.equals(query.getGroupNumber(), m.getGroupNumber()))
                 .filter(m -> query.getTeamId() == null || hasTeam(m, query.getTeamId()))
+                .filter(m -> query.getRegion() == null || query.getRegion() == m.getRegion())
+                .filter(m -> query.getRegionType() == null || query.getRegionType() == m.getRegionType())
                 .toList();
 
         LocalDate today = LocalDate.now(clock.withZone(Match.COMPETITION_ZONE));

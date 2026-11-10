@@ -1,6 +1,6 @@
 """Ingest scopes: the ``{"scopes": [...]}`` contract shared by the REST body and the CLI ``--scope-file``.
 
-A scope has the optional keys ``category``, ``group``, ``phase``, ``territory``, ``gender`` (text, the same
+A scope has the optional keys ``category``, ``group``, ``phase``, ``territory``, ``region``, ``regionType``, ``gender`` (text, the same
 vocabulary as the filters) and ``matchDays`` (an array of positive integers or a selector such as ``3``, ``1,4``
 or ``2-5``). Keys inside a scope are AND-combined; scopes are OR-combined.
 """
@@ -12,7 +12,7 @@ from collections.abc import Iterable, Mapping
 from ingest_common.match_days import parse_match_days
 from ingest_common.run import IngestFilters
 
-SCOPE_KEYS = ("category", "group", "phase", "territory", "gender", "matchDays")
+SCOPE_KEYS = ("category", "group", "phase", "territory", "region", "regionType", "gender", "matchDays")
 
 
 def _text(name: str, value: object) -> str | None:
@@ -38,10 +38,12 @@ def _match_days(value: object) -> frozenset[int] | None:
 
 
 def scope_from_values(*, category: object = None, group: object = None, phase: object = None,
-                      territory: object = None, gender: object = None, match_days: object = None) -> IngestFilters:
+                      territory: object = None, gender: object = None, match_days: object = None,
+                      region: object = None, region_type: object = None) -> IngestFilters:
     """One validated scope; blank text counts as unset and a scope must set at least one key."""
     scope = IngestFilters(_text("category", category), _text("group", group), _text("phase", phase),
-                          _match_days(match_days), _text("gender", gender), _text("territory", territory))
+                          _match_days(match_days), _text("gender", gender), _text("territory", territory),
+                          _text("region", region), _text("region_type", region_type))
     if scope.is_empty:
         raise ValueError("a scope must set at least one of " + ", ".join(SCOPE_KEYS))
     return scope
@@ -54,7 +56,8 @@ def scopes_from_values(values: Iterable[Mapping[str, object]]) -> tuple[IngestFi
         try:
             scopes.append(scope_from_values(category=value.get("category"), group=value.get("group"),
                                             phase=value.get("phase"), territory=value.get("territory"),
-                                            gender=value.get("gender"), match_days=value.get("matchDays")))
+                                            gender=value.get("gender"), match_days=value.get("matchDays"),
+                                            region=value.get("region"), region_type=value.get("regionType")))
         except ValueError as error:
             raise ValueError(f"scope {index}: {error}") from None
     if not scopes:

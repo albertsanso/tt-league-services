@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 
 from ingest_bcnesa import download, parse, status
+from ingest_common.region import PROVINCE_NAMES, Region, category_matches_region, scope_error
 from ingest_common.run import IngestFilters, IngestRequest, IngestStage, ProgressListener, StageReport
 from ingest_common.scan import count_files, match_days_argument, run_per_scope, scan_actas, write_match_day_status
 from ingest_common.settings import IngestSettings
@@ -31,7 +32,7 @@ def _filter_args(request: IngestRequest, filters: IngestFilters) -> list[str]:
 class BcnesaIngestor:
     source = Source.BCNESA
     supported_stages = frozenset({IngestStage.DOWNLOAD, IngestStage.PARSE, IngestStage.PACKAGE, IngestStage.UPLOAD})
-    supported_filters = frozenset({"category", "group", "phase", "match_days", "territory"})
+    supported_filters = frozenset({"category", "group", "phase", "match_days", "territory", "region", "region_type"})
 
     def download(self, request: IngestRequest, settings: IngestSettings, listener: ProgressListener) -> StageReport:
         report = StageReport(IngestStage.DOWNLOAD)
@@ -42,8 +43,11 @@ class BcnesaIngestor:
                 "--output_dir", str(settings.content_dir(self.source)),
                 "--log_file", str(logs / "download.log"),
                 "--metrics_file", str(logs / "download_metrics.json")]
-            if scope.territory:  # only the downloader filters by territory
-                args += ["--territory", scope.territory]
+            territory = scope.territory or (PROVINCE_NAMES[Region.parse(scope.region)] if scope.region else None)
+            if territory:  # only the downloader filters by territory (a region of BCNESA is a territory)
+                args += ["--territory", territory]
+            if scope.region_type:  # likewise: parsing and packaging see it through scope_matches
+                args += ["--region_type", scope.region_type]
             if request.delay_seconds is not None:
                 args += ["--delay", str(request.delay_seconds)]
             calls.append((scope, args))
@@ -68,6 +72,9 @@ class BcnesaIngestor:
     def teams(self, request: IngestRequest, settings: IngestSettings, listener: ProgressListener) -> StageReport:
         raise NotImplementedError("BCNESA has no teams stage")
 
+    def scope_error(self, scope: IngestFilters) -> str | None:
+        return scope_error(self.source, scope.region, scope.region_type, scope.territory)
+
     def scope_matches(self, scope: IngestFilters, relative: PurePosixPath, match_day: int | None) -> bool:
         """``<category>/<group>/<phase>/jornada_*.json``, compared the way the parser compares its filters.
 
@@ -89,4 +96,4 @@ class BcnesaIngestor:
             prefix = parse.fold(category)[:3]
             if prefix in TERRITORY_PREFIXES.values() and prefix != TERRITORY_PREFIXES.get(parse.fold(scope.territory)):
                 return False
-        return True
+        return category_matches_region(self.source, category, scope.region, scope.region_type)

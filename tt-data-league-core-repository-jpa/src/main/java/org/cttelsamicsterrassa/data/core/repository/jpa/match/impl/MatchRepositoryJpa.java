@@ -152,6 +152,8 @@ public class MatchRepositoryJpa implements MatchRepository {
                         playerNameFragments[3], playerNameFragments[4],
                         clubNameFragments[0], clubNameFragments[1], clubNameFragments[2],
                         clubNameFragments[3], clubNameFragments[4], toJpaStatus(criteria.status()),
+                        criteria.region() == null ? "" : criteria.region().name(),
+                        criteria.regionType() == null ? "" : criteria.regionType().name(),
                         PageRequest.of(criteria.page(), criteria.pageSize()))
                 .stream().map(matchJPAToMatchMapper).toList();
     }
@@ -167,7 +169,9 @@ public class MatchRepositoryJpa implements MatchRepository {
                 playerNameFragments[0], playerNameFragments[1], playerNameFragments[2],
                 playerNameFragments[3], playerNameFragments[4],
                 clubNameFragments[0], clubNameFragments[1], clubNameFragments[2],
-                clubNameFragments[3], clubNameFragments[4], toJpaStatus(criteria.status()));
+                clubNameFragments[3], clubNameFragments[4], toJpaStatus(criteria.status()),
+                criteria.region() == null ? "" : criteria.region().name(),
+                criteria.regionType() == null ? "" : criteria.regionType().name());
     }
 
     private static MatchStatus toJpaStatus(

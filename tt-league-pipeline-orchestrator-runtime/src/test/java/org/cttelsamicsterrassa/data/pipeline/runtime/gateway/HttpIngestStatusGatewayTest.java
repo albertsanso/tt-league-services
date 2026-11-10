@@ -46,7 +46,7 @@ class HttpIngestStatusGatewayTest {
              "summary":{"matchDays":2},
              "matchDays":[
               {"season":"2026-2027","category":"tercera","group":"G1","phase":"1a Fase","gender":"male",
-               "territory":"Barcelona","matchDay":3,"status":"scheduled","matches":4,"played":0,"reported":0,
+               "territory":"Barcelona","region":"barcelona","regionType":"provincial","matchDay":3,"status":"scheduled","matches":4,"played":0,"reported":0,
                "firstMatchAt":"2026-10-03T10:00","lastMatchAt":"2026-10-04T18:30","file":"x.html",
                "contentUpdatedAt":"2026-10-04T10:00:00+00:00"},
               {"season":"2026-2027","category":"tercera","group":"G1","phase":"","gender":"","territory":null,
@@ -64,7 +64,8 @@ class HttpIngestStatusGatewayTest {
         assertThat(status.get().season()).isEqualTo("2026-2027");
         assertThat(status.get().rows()).containsExactly(
                 new IngestStatusRow("2026-2027", "tercera", "G1", "1a Fase", "male", "Barcelona", 3, "scheduled",
-                        LocalDateTime.parse("2026-10-03T10:00"), LocalDateTime.parse("2026-10-04T18:30")),
+                        LocalDateTime.parse("2026-10-03T10:00"), LocalDateTime.parse("2026-10-04T18:30"),
+                        "barcelona", "provincial"),
                 new IngestStatusRow("2026-2027", "tercera", "G1", null, null, null, 4, "future", null, null));
         StubHttpServer.Recorded request = server.requests.get(0);
         assertThat(request.header("X-API-Key")).isEqualTo(KEY);

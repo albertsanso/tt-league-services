@@ -58,6 +58,8 @@ from jsonschema import Draft202012Validator
 
 from ingest_bcnesa import acta_parser
 from ingest_common import health, logs, progress
+from ingest_common.region import region_for
+from ingest_common.source import Source
 from ingest_common.validation import ACTA_SCHEMA_PATH
 
 
@@ -187,6 +189,17 @@ def match_stem(container: Tag, position: int, day: int) -> str:
     return f"acta_{pair}_{day}"
 
 
+def with_region(header: dict[str, Any], category: str) -> dict[str, Any]:
+    """``header`` with ``region`` / ``tipo_region`` right after ``federacion``; unknown prefixes raise ValueError."""
+    region, region_type = region_for(Source.BCNESA, category)
+    result: dict[str, Any] = {}
+    for key, value in header.items():
+        result[key] = value
+        if key == "federacion":
+            result["region"], result["tipo_region"] = region.value, region_type.value
+    return result
+
+
 def parse_match(container: Tag, season: str, category: str, group: str, phase: str,
                 day: int, position: int) -> dict[str, Any]:
     """One ``.match-container`` -> one acta following the acta model.
@@ -195,7 +208,7 @@ def parse_match(container: Tag, season: str, category: str, group: str, phase: s
     minimal fields and ``acta_publicada: false``.
     """
     location = acta_parser.ActaLocation(season, category, group, phase, match_stem(container, position, day))
-    header = acta_parser.match_header(location, container)
+    header = with_region(acta_parser.match_header(location, container), category)
     final = acta_parser.parse_score(acta_parser.node_text(container.select_one(acta_parser.SELECTORS["score"])))
     table = container.select_one(acta_parser.SELECTORS["table"])
     rows = acta_parser.parse_rows(table) if table else []

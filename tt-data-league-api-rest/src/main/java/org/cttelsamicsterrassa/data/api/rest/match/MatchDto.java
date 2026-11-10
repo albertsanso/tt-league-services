@@ -11,7 +11,8 @@ public record MatchDto(UUID id, String source, String competition, String season
                        ZonedDateTime dateTime, String homeTeam, String awayTeam, String winnerTeam,
                        Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon,
                        Integer awaySetsWon, boolean protested,
-                       List<PlayerDto> homePlayers, List<PlayerDto> awayPlayers, String status) {
+                       List<PlayerDto> homePlayers, List<PlayerDto> awayPlayers, String status,
+                       String region, String regionType) {
     public static MatchDto from(MatchSearchReadModel value) {
         return new MatchDto(value.id(), name(value.source()), value.competition(),
                 value.season() == null ? null : value.season().toString(), value.round(), value.phase(),
@@ -19,11 +20,17 @@ public record MatchDto(UUID id, String source, String competition, String season
                 value.homeTeam(), value.awayTeam(), value.winnerTeam(), value.homeGamesWon(),
                 value.awayGamesWon(), value.homeSetsWon(), value.awaySetsWon(), value.protested(),
                 value.homePlayers().stream().map(PlayerDto::from).toList(),
-                value.awayPlayers().stream().map(PlayerDto::from).toList(), name(value.status()));
+                value.awayPlayers().stream().map(PlayerDto::from).toList(), name(value.status()),
+                wire(value.region()), wire(value.regionType()));
     }
 
     private static String name(Enum<?> value) {
         return value == null ? null : value.name();
+    }
+
+    /** FEAT-00121: the lower-case wire value of a region attribute, {@code null} when not set. */
+    private static String wire(Enum<?> value) {
+        return value == null ? null : value.name().toLowerCase(java.util.Locale.ROOT);
     }
 
     public record PlayerDto(UUID id, String name, String license) {

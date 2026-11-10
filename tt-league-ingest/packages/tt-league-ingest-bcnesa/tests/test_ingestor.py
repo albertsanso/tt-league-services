@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import argparse
 from pathlib import PurePosixPath
 
 import pytest
@@ -103,3 +104,41 @@ def test_a_failing_scope_stops_the_download(tmp_path, monkeypatch):
 ])
 def test_scope_matches_follows_the_actas_layout_and_parser_normalisation(scope, relative, day, expected):
     assert BcnesaIngestor().scope_matches(IngestFilters(**scope), PurePosixPath(relative), day) is expected
+
+
+def test_region_selects_the_territory_and_region_type_is_passed_to_the_downloader(tmp_path, monkeypatch):
+    calls = {}
+    monkeypatch.setattr(download, "main", lambda argv: calls.setdefault("download", argv) and 0)
+    ingestor = BcnesaIngestor()
+    assert not ingestor.download(request(region="girona", region_type="comarcal"), IngestSettings(tmp_path),
+                                 NoOpListener()).failed
+    assert option(calls["download"], "--territory") == "Girona"
+    assert option(calls["download"], "--region_type") == "comarcal"
+
+
+def test_scope_error_rejects_scopes_that_can_never_match_bcnesa():
+    ingestor = BcnesaIngestor()
+    assert ingestor.scope_error(IngestFilters(region="lleida", region_type="provincial")) is None
+    assert "region 'catalunya'" in ingestor.scope_error(IngestFilters(region="catalunya"))
+    assert "regionType 'autonomica'" in ingestor.scope_error(IngestFilters(region_type="autonomica"))
+    assert "conflicts" in ingestor.scope_error(IngestFilters(region="girona", territory="Lleida"))
+    assert ingestor.scope_error(IngestFilters(region="girona", territory="Girona")) is None
+
+
+@pytest.mark.parametrize("path, scope, expected", [
+    ("rtb-preferent/G1/1a Fase/jornada_01_local_team_1_away_team_2.json", {"region": "barcelona"}, True),
+    ("rtb-preferent/G1/1a Fase/jornada_01_local_team_1_away_team_2.json", {"region": "girona"}, False),
+    ("rtg-1a-comarcal/G1/1a Fase/jornada_01_local_team_1_away_team_2.json", {"region_type": "comarcal"}, True),
+    ("rtg-1a-comarcal/G1/1a Fase/jornada_01_local_team_1_away_team_2.json", {"region_type": "provincial"}, False),
+    ("preferent/G1/1a Fase/jornada_01_local_team_1_away_team_2.json", {"region": "barcelona"}, False),
+])
+def test_scope_matches_honours_region_and_region_type(path, scope, expected):
+    assert BcnesaIngestor().scope_matches(IngestFilters(**scope), PurePosixPath(path), 1) is expected
+
+
+def test_region_type_filters_the_downloaded_leagues():
+    comarcal = download.League("Girona", "RTG 1a COMARCAL G1", "RTG 1a COMARCAL", "G1", "1a Fase", "https://x/")
+    preferent = download.League("Girona", "RTG PREFERENT G1", "RTG PREFERENT", "G1", "1a Fase", "https://x/")
+    args = argparse.Namespace(territory=None, category=None, group=None, region_type="comarcal")
+    assert download.league_matches_filters(comarcal, args)
+    assert not download.league_matches_filters(preferent, args)

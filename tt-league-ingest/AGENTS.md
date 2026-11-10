@@ -9,6 +9,8 @@ Supplements the root `AGENTS.md`. This is a uv workspace outside the Maven react
 - **Port, do not rewrite:** the federation parsers are ported from the legacy extractors. Their output (field
   values, `acta_publicada`, file and folder names, JSON formatting) must stay byte-compatible so the Java
   navigators and the upload endpoint need no change. An output difference against the legacy extractors is a bug.
+- **Region:** `ingest_common.region` is the only place that derives `region` / `regionType` (closed vocabularies, no
+  default for unknown input); `source` stays the segregation key and the region is never part of identity.
 - **Schemas:** `ingest_common/schema/*.json` are copies of `docs/*.json`; never edit them independently, the drift
   test must stay green.
 - **No network in tests;** use saved fixtures under `packages/*/tests/fixtures/` and fake transports.

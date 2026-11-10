@@ -5,6 +5,8 @@ import org.cttelsamicsterrassa.data.core.domain.club.model.Team;
 import org.cttelsamicsterrassa.data.core.domain.match.event.MatchCreatedEvent;
 import org.cttelsamicsterrassa.data.core.domain.match.event.MatchDeletedEvent;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 
 import java.time.ZoneId;
@@ -51,8 +53,10 @@ public class Match extends Entity {
     private final boolean protested;
     private final MatchStatus status;
     private final String sourceChecksum;
+    private final Region region;
+    private final RegionType regionType;
 
-    private Match(UUID id, ImportSource source, String externalId, String sourceFixtureId, String competition, Season season, Integer groupNumber, int round, String phase, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested, MatchStatus status, String sourceChecksum) {
+    private Match(UUID id, ImportSource source, String externalId, String sourceFixtureId, String competition, Season season, Integer groupNumber, int round, String phase, ZonedDateTime dateTime, String city, String venue, Team homeTeam, Team awayTeam, Team winnerTeam, String refereeName, String refereeLicense, Integer homeGamesWon, Integer awayGamesWon, Integer homeSetsWon, Integer awaySetsWon, boolean protested, MatchStatus status, String sourceChecksum, Region region, RegionType regionType) {
         this.id = id;
         this.source = source;
         this.externalId = externalId;
@@ -77,6 +81,8 @@ public class Match extends Entity {
         this.protested = protested;
         this.status = status;
         this.sourceChecksum = sourceChecksum;
+        this.region = region;
+        this.regionType = regionType;
     }
 
     public static MatchBuilder builder() {
@@ -129,7 +135,9 @@ public class Match extends Entity {
                 builder.awaySetsWon,
                 builder.protested,
                 builder.status,
-                builder.sourceChecksum
+                builder.sourceChecksum,
+                builder.region,
+                builder.regionType
         );
     }
     private static Match createNew(MatchBuilder matchBuilder) {
@@ -173,6 +181,8 @@ public class Match extends Entity {
                 .protested(protested)
                 .status(status)
                 .sourceChecksum(sourceChecksum)
+                .region(region)
+                .regionType(regionType)
                 .createExisting();
     }
 
@@ -208,6 +218,44 @@ public class Match extends Entity {
                 .protested(protested)
                 .status(status)
                 .sourceChecksum(sourceChecksum)
+                .region(region)
+                .regionType(regionType)
+                .createExisting();
+    }
+
+    /**
+     * A copy of this match with only {@code region} and {@code regionType} changed. Used by the region
+     * backfill so the attributes can be recorded without rebuilding the header field by field. No event
+     * is published; the match id, natural key and checksum are unchanged.
+     */
+    public Match withRegion(Region region, RegionType regionType) {
+        return Match.builder()
+                .id(id)
+                .source(source)
+                .externalId(externalId)
+                .sourceFixtureId(sourceFixtureId)
+                .competition(competition)
+                .season(season)
+                .groupNumber(groupNumber)
+                .round(round)
+                .phase(phase)
+                .dateTime(dateTime)
+                .city(city)
+                .venue(venue)
+                .homeTeam(homeTeam)
+                .awayTeam(awayTeam)
+                .winnerTeam(winnerTeam)
+                .refereeName(refereeName)
+                .refereeLicense(refereeLicense)
+                .homeGamesWon(homeGamesWon)
+                .awayGamesWon(awayGamesWon)
+                .homeSetsWon(homeSetsWon)
+                .awaySetsWon(awaySetsWon)
+                .protested(protested)
+                .status(status)
+                .sourceChecksum(sourceChecksum)
+                .region(region)
+                .regionType(regionType)
                 .createExisting();
     }
 
@@ -248,6 +296,8 @@ public class Match extends Entity {
         private boolean protested;
         private MatchStatus status = MatchStatus.PLAYED;
         private String sourceChecksum;
+        private Region region;
+        private RegionType regionType;
 
         public MatchBuilder id(UUID id) {
             this.id = id;
@@ -369,6 +419,16 @@ public class Match extends Entity {
             return this;
         }
 
+        public MatchBuilder region(Region region) {
+            this.region = region;
+            return this;
+        }
+
+        public MatchBuilder regionType(RegionType regionType) {
+            this.regionType = regionType;
+            return this;
+        }
+
         public Match createNew() {
             return Match.createNew(this);
         }
@@ -481,6 +541,20 @@ public class Match extends Entity {
      */
     public String getSourceChecksum() {
         return sourceChecksum;
+    }
+
+    /**
+     * Where the competition belongs (FEAT-00121), or {@code null} for rows imported before the
+     * attribute existed and not yet backfilled. An attribute of the match: never part of its identity,
+     * its natural key or its content checksum.
+     */
+    public Region getRegion() {
+        return region;
+    }
+
+    /** The level of the competition (FEAT-00121), or {@code null} like {@link #getRegion()}. */
+    public RegionType getRegionType() {
+        return regionType;
     }
 
     public boolean isPlayed() {

@@ -20,6 +20,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
+import org.cttelsamicsterrassa.data.load.shared.match.MatchRegions;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard.IncomingFixture;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleAction;
@@ -293,6 +294,8 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             return Match.builder()
                     .id(id)
                     .source(ImportSource.BCNESA)
+                    .region(MatchRegions.region(ImportSource.BCNESA, acta, competition))
+                    .regionType(MatchRegions.regionType(ImportSource.BCNESA, acta, competition))
                     .sourceFixtureId(sourceFixtureId(context, acta))
                     .competition(competition)
                     .season(season)
@@ -328,6 +331,8 @@ public class BcnesaMatchImportProcessor implements BcnesaMatchReportProcessor {
             Match.MatchBuilder builder = Match.builder()
                     .id(id)
                     .source(ImportSource.BCNESA)
+                    .region(MatchRegions.region(ImportSource.BCNESA, acta, competition))
+                    .regionType(MatchRegions.regionType(ImportSource.BCNESA, acta, competition))
                     .sourceFixtureId(sourceFixtureId(context, acta))
                     .competition(competition)
                     .season(season)

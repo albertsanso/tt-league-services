@@ -94,6 +94,8 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
               and (:competition is null or m.competition = :competition)
               and (:fromDate is null or m.matchDate >= :fromDate)
               and (:toDate is null or m.matchDate <= :toDate)
+              and (:region = '' or str(m.region) = :region)
+              and (:regionType = '' or str(m.regionType) = :regionType)
               and (:clubNameF0 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF0, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF0, '%')))
               and (:clubNameF1 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF1, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF1, '%')))
               and (:clubNameF2 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF2, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF2, '%')))
@@ -134,6 +136,7 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                           @Param("clubNameF0") String clubNameF0, @Param("clubNameF1") String clubNameF1,
                           @Param("clubNameF2") String clubNameF2, @Param("clubNameF3") String clubNameF3,
                           @Param("clubNameF4") String clubNameF4, @Param("status") MatchStatus status,
+                          @Param("region") String region, @Param("regionType") String regionType,
                           Pageable pageable);
 
     @Query("""
@@ -143,6 +146,8 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
               and (:competition is null or m.competition = :competition)
               and (:fromDate is null or m.matchDate >= :fromDate)
               and (:toDate is null or m.matchDate <= :toDate)
+              and (:region = '' or str(m.region) = :region)
+              and (:regionType = '' or str(m.regionType) = :regionType)
               and (:clubNameF0 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF0, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF0, '%')))
               and (:clubNameF1 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF1, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF1, '%')))
               and (:clubNameF2 = '' or lower(m.homeTeam.name) like lower(concat('%', :clubNameF2, '%')) or lower(m.awayTeam.name) like lower(concat('%', :clubNameF2, '%')))
@@ -177,7 +182,8 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                      @Param("playerNameF4") String playerNameF4,
                      @Param("clubNameF0") String clubNameF0, @Param("clubNameF1") String clubNameF1,
                      @Param("clubNameF2") String clubNameF2, @Param("clubNameF3") String clubNameF3,
-                     @Param("clubNameF4") String clubNameF4, @Param("status") MatchStatus status);
+                     @Param("clubNameF4") String clubNameF4, @Param("status") MatchStatus status,
+                     @Param("region") String region, @Param("regionType") String regionType);
 
     @Query("""
             select m from MatchJPA m
@@ -435,4 +441,29 @@ public interface MatchRepositoryHelper extends JpaRepository<MatchJPA, UUID> {
                                        @Param("venue") String venue,
                                        @Param("refereeName") String refereeName,
                                        @Param("refereeLicense") String refereeLicense);
+
+    /**
+     * FEAT-00121 backfill: ids and competitions of the matches of one source that lack a region or a
+     * region type.
+     */
+    @Query("""
+            select new org.cttelsamicsterrassa.data.core.repository.jpa.match.impl.MatchRegionCandidateProjection(
+                m.id, m.competition)
+            from MatchJPA m
+            where m.source = :source and (m.region is null or m.regionType is null)
+            order by m.id
+            """)
+    List<MatchRegionCandidateProjection> findMatchesWithoutRegion(@Param("source") Source source);
+
+    /** FEAT-00121 backfill: sets only the two region columns of the given matches of one source. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+            update MatchJPA m
+               set m.region = :region, m.regionType = :regionType
+             where m.source = :source and m.id in :matchIds
+            """)
+    int updateRegion(@Param("source") Source source,
+                     @Param("region") org.cttelsamicsterrassa.data.core.repository.jpa.common.Region region,
+                     @Param("regionType") org.cttelsamicsterrassa.data.core.repository.jpa.common.RegionType regionType,
+                     @Param("matchIds") Collection<UUID> matchIds);
 }

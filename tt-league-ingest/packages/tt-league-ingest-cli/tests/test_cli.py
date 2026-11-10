@@ -15,7 +15,7 @@ from ingest_common.source import Source
 class FakeIngestor:
     source = Source.FCTT
     supported_stages = frozenset({IngestStage.DOWNLOAD, IngestStage.PARSE})
-    supported_filters = frozenset({"category", "group", "phase", "match_days", "gender", "territory"})
+    supported_filters = frozenset({"category", "group", "phase", "match_days", "gender", "territory", "region", "region_type"})
     invalid = 0
     download_exit = 0
     write_page = False
@@ -77,6 +77,15 @@ def test_run_delegates_download_then_parse_with_filters(tmp_path):
 def test_territory_filter_reaches_the_request(tmp_path):
     code, ingestor = run(tmp_path, "download", "--source", "fctt", "--territory", "Barcelona")
     assert code == EXIT_OK and ingestor.requests[0].filters.territory == "Barcelona"
+
+
+def test_region_filters_reach_the_request_and_unknown_values_are_usage_errors(tmp_path):
+    code, ingestor = run(tmp_path, "download", "--source", "fctt", "--region", "Catalunya",
+                         "--region-type", "autonomica")
+    filters = ingestor.requests[0].filters
+    assert code == EXIT_OK and (filters.region, filters.region_type) == ("catalunya", "autonomica")
+    assert run(tmp_path, "download", "--source", "fctt", "--region", "mars")[0] == EXIT_USAGE
+    assert run(tmp_path, "download", "--source", "fctt", "--region-type", "local")[0] == EXIT_USAGE
 
 
 def test_run_stage_selection():

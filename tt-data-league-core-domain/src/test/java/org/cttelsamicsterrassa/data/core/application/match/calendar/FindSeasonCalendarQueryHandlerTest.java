@@ -13,6 +13,8 @@ import org.cttelsamicsterrassa.data.core.domain.match.model.OverdueGracePeriod;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchOverdueMarkRepository;
 import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.Region;
+import org.cttelsamicsterrassa.data.core.domain.shared.model.RegionType;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.junit.jupiter.api.Test;
 
@@ -152,6 +154,28 @@ class FindSeasonCalendarQueryHandlerTest {
         assertEquals(9, group.scheduledMatches(), "the header still describes the whole group");
         assertEquals(1, group.rounds().size());
         assertEquals(2, group.rounds().getFirst().round());
+    }
+
+    @Test
+    void regionFiltersKeepOnlyTheMatchesOfThatRegionAndTheRowsCarryIt() {
+        List<Match> matches = g1Shape().stream()
+                .map(m -> m.withRegion(Region.CATALUNYA, RegionType.AUTONOMICA)).toList();
+        MatchRepository matchRepository = matchRepositoryReturning(matches);
+        MatchOverdueMarkRepository marks = mock(MatchOverdueMarkRepository.class);
+        when(marks.findByMatchIds(anyCollection())).thenReturn(List.of());
+        FindSeasonCalendarQueryHandler handler = handler(matchRepository, marks, today(JORNADA_1.plusDays(3)));
+
+        SeasonCalendarReadModel matching = handler.handle(new FindSeasonCalendarQuery(
+                SOURCE, SEASON, TERCERA, null, null, Region.CATALUNYA, RegionType.AUTONOMICA)).getResponse();
+        SeasonCalendarReadModel other = handler.handle(new FindSeasonCalendarQuery(
+                SOURCE, SEASON, TERCERA, null, null, Region.GIRONA, null)).getResponse();
+        SeasonCalendarReadModel otherType = handler.handle(new FindSeasonCalendarQuery(
+                SOURCE, SEASON, TERCERA, null, null, null, RegionType.COMARCAL)).getResponse();
+
+        assertEquals(12, matching.groups().getFirst().rounds().stream().mapToInt(r -> r.matches().size()).sum());
+        assertEquals(Region.CATALUNYA, matching.groups().getFirst().rounds().getFirst().matches().getFirst().region());
+        assertTrue(other.groups().isEmpty());
+        assertTrue(otherType.groups().isEmpty());
     }
 
     @Test

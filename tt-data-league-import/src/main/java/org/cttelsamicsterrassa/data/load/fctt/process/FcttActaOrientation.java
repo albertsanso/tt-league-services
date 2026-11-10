@@ -28,7 +28,7 @@ final class FcttActaOrientation {
                 acta.date(), acta.time(), acta.venue(), acta.teams(), false, acta.officials(),
                 swapLineups(acta.lineups()), swapDoubles(acta.doubles()),
                 acta.games().stream().map(FcttActaOrientation::swapGame).toList(),
-                acta.finalResult(), acta.protested());
+                acta.finalResult(), acta.protested(), acta.region(), acta.regionType());
     }
 
     static boolean isMirrored(Acta acta) {

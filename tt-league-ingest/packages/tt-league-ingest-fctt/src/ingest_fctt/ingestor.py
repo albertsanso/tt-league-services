@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import PurePosixPath
 
+from ingest_common.region import scope_error
 from ingest_common.run import IngestFilters, IngestRequest, IngestStage, ProgressListener, StageReport
 from ingest_common.scan import count_files, match_days_argument, run_per_scope, scan_actas, write_match_day_status
 from ingest_common.settings import IngestSettings
@@ -35,7 +36,8 @@ def _filter_args(request: IngestRequest, filters: IngestFilters) -> list[str]:
 class FcttIngestor:
     source = Source.FCTT
     supported_stages = frozenset({IngestStage.DOWNLOAD, IngestStage.PARSE, IngestStage.PACKAGE, IngestStage.UPLOAD})
-    supported_filters = frozenset({"category", "group", "phase", "match_days", "gender", "territory"})
+    supported_filters = frozenset({"category", "group", "phase", "match_days", "gender", "territory", "region",
+                                   "region_type"})
 
     def download(self, request: IngestRequest, settings: IngestSettings, listener: ProgressListener) -> StageReport:
         report = StageReport(IngestStage.DOWNLOAD)
@@ -71,6 +73,9 @@ class FcttIngestor:
 
     def teams(self, request: IngestRequest, settings: IngestSettings, listener: ProgressListener) -> StageReport:
         raise NotImplementedError("FCTT has no teams stage")
+
+    def scope_error(self, scope: IngestFilters) -> str | None:
+        return scope_error(self.source, scope.region, scope.region_type)
 
     def scope_matches(self, scope: IngestFilters, relative: PurePosixPath, match_day: int | None) -> bool:
         """``<category>/<group>/<phase>/jornada_*.json`` with the scripts' slug filters.

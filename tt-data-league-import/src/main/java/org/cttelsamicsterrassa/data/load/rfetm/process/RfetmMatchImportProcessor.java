@@ -20,6 +20,7 @@ import org.cttelsamicsterrassa.data.core.domain.match.repository.MatchRepository
 import org.cttelsamicsterrassa.data.core.domain.game.repository.SetScoreRepository;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
+import org.cttelsamicsterrassa.data.load.shared.match.MatchRegions;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard.IncomingFixture;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleAction;
@@ -294,6 +295,8 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
             return Match.builder()
                     .id(id)
                     .source(ImportSource.RFETM)
+                    .region(MatchRegions.region(ImportSource.RFETM, acta, competition))
+                    .regionType(MatchRegions.regionType(ImportSource.RFETM, acta, competition))
                     .sourceFixtureId(acta.matchId())
                     .competition(competition)
                     .season(season)
@@ -329,6 +332,8 @@ public class RfetmMatchImportProcessor implements MatchContextProcessor {
             Match.MatchBuilder builder = Match.builder()
                     .id(id)
                     .source(ImportSource.RFETM)
+                    .region(MatchRegions.region(ImportSource.RFETM, acta, competition))
+                    .regionType(MatchRegions.regionType(ImportSource.RFETM, acta, competition))
                     .sourceFixtureId(acta.matchId())
                     .competition(competition)
                     .season(season)

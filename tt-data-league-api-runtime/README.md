@@ -436,10 +436,10 @@ matches of every status with derived calendar states. The grace period is bound
 from `tt.league.calendar.overdue-grace-days` (`CALENDAR_OVERDUE_GRACE_DAYS`,
 default `7`); an invalid value fails startup with no silent fallback.
 
-- `GET /api/v1/match/calendar?source=&season=&competition=&group=&round=`
+- `GET /api/v1/match/calendar?source=&season=&competition=&group=&round=&region=&regionType=`
   (`matches:read`) returns the calendar grouped by group/phase and jornada. The
   response summarizes each group's progress and lists each round's matches.
-- `GET /api/v1/match/calendar/range?source=&season=&from=&to=&competition=&group=&team=`
+- `GET /api/v1/match/calendar/range?source=&season=&from=&to=&competition=&group=&team=&region=&regionType=`
   (`matches:read`, FEAT-00093) returns the matches of **every** competition of a
   source and season whose date is in `[from, to)` (`from`/`to` ISO dates, `to`
   exclusive), with the same calendar states as the jornada calendar. The optional
@@ -453,6 +453,17 @@ default `7`); an invalid value fails startup with no silent fallback.
   returns `500 "Calendar range failed"`. Every match row also carries
   `competition`, `groupNumber`, `phase`, `round`, `homeTeamId` and `awayTeamId`
   (additive fields, also present in the jornada calendar).
+- **Region (FEAT-00121).** Every match row of the calendar, the search results
+  (`GET /api/v1/match/search`) and the match details carries `region`
+  (`espana`, `catalunya`, `barcelona`, `girona`, `lleida`, `tarragona`) and
+  `regionType` (`nacional`, `autonomica`, `provincial`, `comarcal`), both `null`
+  for matches imported before the feature and not yet backfilled
+  (`--backfill-regions` of the import runtime). The calendar, calendar range and
+  search endpoints accept the optional `region` and `regionType` query
+  parameters (case-insensitive); a blank value means no filter, an unknown value
+  returns `400` like any other invalid filter, and a match without the attribute
+  never matches a region filter. The `source` filter is unchanged, and the range
+  `facets` are still computed before the region filter is applied.
 - `PUT /api/v1/match/{id}/overdue-mark` (`matches:write`) records a manual
   overdue mark on a `SCHEDULED` match; `markedBy` is the authenticated user,
   never the request body. Re-marking is idempotent (the first author/time are

@@ -83,6 +83,8 @@ class ParseIncrementalTest(unittest.TestCase):
         played, scheduled = self.acta("1-2"), self.acta("3-4")
         self.assertEqual(played["id_partido"], "2026-2027_RTBVETERANS1a_G1_1aFase_1-2_1")
         self.assertTrue(played["acta_publicada"])
+        self.assertEqual((played["region"], played["tipo_region"]), ("barcelona", "provincial"))
+        self.assertEqual(list(played)[:4], ["acta_publicada", "id_partido", "federacion", "region"])
         self.assertEqual(len(played["partidos"]), 7)
         self.assertEqual(played["partidos"][0]["sets"][0], {"set": 1, "local": 11, "visitante": 5})
         self.assertEqual([p["nombre"] for p in played["dobles"]["local"]], ["UNLINKED ONE", "UNLINKED TWO"])
@@ -92,6 +94,21 @@ class ParseIncrementalTest(unittest.TestCase):
         self.assertEqual(scheduled["equipos"]["local"]["nombre"], "HOME 3")
         self.assertEqual(scheduled["lugar"]["ciudad"], "BARCELONA")
         self.assertEqual(scheduled["partidos"], [])
+
+    def test_region_comes_from_the_category_prefix_and_comarcal_categories(self):
+        comarcal = self.input_dir / "2026-2027" / "RTG 1a COMARCAL" / "G1" / "1a Fase" / "jornada_01.html"
+        comarcal.parent.mkdir(parents=True)
+        comarcal.write_text(jornada("partial", match(3, 4, "- - -")), encoding="utf-8")
+        self.assertEqual(self.run_main(), 0)
+        acta = json.loads(next((self.output_dir / "2026-2027" / "rtg-1a-comarcal").rglob("*.json")).read_text(encoding="utf-8"))
+        self.assertEqual((acta["region"], acta["tipo_region"]), ("girona", "comarcal"))
+
+    def test_unknown_category_prefix_is_an_error_and_writes_nothing(self):
+        unknown = self.input_dir / "2026-2027" / "PREFERENT" / "G1" / "1a Fase" / "jornada_01.html"
+        unknown.parent.mkdir(parents=True)
+        unknown.write_text(jornada("partial", match(3, 4, "- - -")), encoding="utf-8")
+        self.assertEqual(self.run_main("--category", "PREFERENT"), 1)
+        self.assertEqual(list((self.output_dir / "2026-2027" / "preferent").rglob("*.json")), [])
 
     def test_match_json_is_updated_in_place_when_played(self):
         self.html.write_text(jornada("partial", match(3, 4, "- - -")), encoding="utf-8")

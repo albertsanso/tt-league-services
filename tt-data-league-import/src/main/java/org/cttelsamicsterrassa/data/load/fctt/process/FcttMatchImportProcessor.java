@@ -20,6 +20,7 @@ import org.cttelsamicsterrassa.data.core.domain.shared.model.ImportSource;
 import org.cttelsamicsterrassa.data.core.domain.shared.model.Season;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaClassification;
 import org.cttelsamicsterrassa.data.load.shared.classify.ActaCompletenessClassifier;
+import org.cttelsamicsterrassa.data.load.shared.match.MatchRegions;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchFixtureIdentityGuard.IncomingFixture;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.MatchLifecycleAction;
@@ -334,6 +335,8 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
             return Match.builder()
                     .id(id)
                     .source(ImportSource.FCTT)
+                    .region(MatchRegions.region(ImportSource.FCTT, acta, context.competition()))
+                    .regionType(MatchRegions.regionType(ImportSource.FCTT, acta, context.competition()))
                     .sourceFixtureId(acta.matchId())
                     .competition(context.competition())
                     .season(season)
@@ -370,6 +373,8 @@ public class FcttMatchImportProcessor implements FcttMatchReportProcessor {
             Match.MatchBuilder builder = Match.builder()
                     .id(id)
                     .source(ImportSource.FCTT)
+                    .region(MatchRegions.region(ImportSource.FCTT, acta, context.competition()))
+                    .regionType(MatchRegions.regionType(ImportSource.FCTT, acta, context.competition()))
                     .sourceFixtureId(acta.matchId())
                     .competition(context.competition())
                     .season(season)

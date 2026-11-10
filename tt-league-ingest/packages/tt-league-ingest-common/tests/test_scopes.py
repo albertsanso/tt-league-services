@@ -81,7 +81,19 @@ def test_scope_description_and_dict():
     assert scope.describe() == "territory=Girona category=PREFERENT group=G2 days=3,4"
     assert IngestFilters().describe() == "all"
     assert scope.to_dict() == {"category": "PREFERENT", "group": "G2", "phase": None, "territory": "Girona",
-                               "gender": None, "matchDays": [3, 4]}
+                               "region": None, "regionType": None, "gender": None, "matchDays": [3, 4]}
+
+
+def test_region_filters_are_validated_and_normalised():
+    scope = scope_from_values(region=" Girona ", region_type="COMARCAL")
+    assert (scope.region, scope.region_type) == ("girona", "comarcal")
+    assert scope.describe() == "region=girona region_type=comarcal"
+    assert scope.to_dict()["regionType"] == "comarcal"
+    with pytest.raises(ValueError, match="unknown region 'mars'"):
+        scope_from_values(region="mars")
+    with pytest.raises(ValueError, match="unknown regionType"):
+        parse_scopes({"scopes": [{"regionType": "local"}]})
+    assert parse_scopes({"scopes": [{"region": "lleida", "regionType": "provincial"}]})[0].region == "lleida"
 
 
 class Script:

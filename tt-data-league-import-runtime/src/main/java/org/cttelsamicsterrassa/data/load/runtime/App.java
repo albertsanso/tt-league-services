@@ -13,6 +13,8 @@ import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionOptions
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionRequest;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionResult;
 import org.cttelsamicsterrassa.data.load.shared.execution.ImportExecutionService;
+import org.cttelsamicsterrassa.data.load.shared.match.backfill.MatchRegionBackfillService;
+import org.cttelsamicsterrassa.data.load.shared.match.backfill.MatchRegionBackfillSummary;
 import org.cttelsamicsterrassa.data.load.shared.match.backfill.ScheduledMatchBackfillService;
 import org.cttelsamicsterrassa.data.load.shared.match.backfill.ScheduledMatchBackfillSummary;
 import org.cttelsamicsterrassa.data.load.shared.traverse.TraversalSummary;
@@ -39,12 +41,20 @@ public class App implements CommandLineRunner {
     private static final Logger LOGGER = LoggerFactory.getLogger(App.class);
     private final ImportExecutionService executionService;
     private final ScheduledMatchBackfillService scheduledMatchBackfillService;
+    private final MatchRegionBackfillService matchRegionBackfillService;
 
     @Autowired
     public App(ImportExecutionService executionService,
-               ScheduledMatchBackfillService scheduledMatchBackfillService) {
+               ScheduledMatchBackfillService scheduledMatchBackfillService,
+               MatchRegionBackfillService matchRegionBackfillService) {
         this.executionService = executionService;
         this.scheduledMatchBackfillService = scheduledMatchBackfillService;
+        this.matchRegionBackfillService = matchRegionBackfillService;
+    }
+
+    /** Embedder constructor without the region backfill; {@code --backfill-regions} then fails clearly. */
+    App(ImportExecutionService executionService, ScheduledMatchBackfillService scheduledMatchBackfillService) {
+        this(executionService, scheduledMatchBackfillService, null);
     }
 
     /**
@@ -53,6 +63,7 @@ public class App implements CommandLineRunner {
      */
     App(RfetmActasDirectoryNavigator rfetm, BcnesaActasDirectoryNavigator bcnesa,
         FcttActasDirectoryNavigator fctt) {
+        this.matchRegionBackfillService = null;
         this.scheduledMatchBackfillService = new ScheduledMatchBackfillService(new ScheduledMatchBackfillRepository() {
             @Override
             public List<ScheduledMatchBackfillCandidate> findScheduledBackfillCandidates(
@@ -104,6 +115,10 @@ public class App implements CommandLineRunner {
     public void run(String... args) {
         ImportRuntimeArguments arguments = ImportRuntimeArguments.parse(args);
 
+        if (arguments.backfillRegions()) {
+            runRegionBackfill(arguments);
+            return;
+        }
         if (arguments.backfillScheduledMatches()) {
             runBackfill(arguments);
             return;
@@ -182,6 +197,30 @@ public class App implements CommandLineRunner {
                 scheduledMatchBackfillService.run(source, season, arguments.backfillMode());
         LOGGER.info("{}/{} scheduled-match backfill finished in {} mode: {} candidates, {}",
                 source, season, summary.mode(), summary.candidates().size(), summary.written());
+    }
+
+    /**
+     * Runs the FEAT-00121 region backfill instead of an import. Opt-in, source-scoped, and exclusive with
+     * every import argument and the other backfill. {@code report} analyses and never writes.
+     */
+    private void runRegionBackfill(ImportRuntimeArguments arguments) {
+        if (arguments.actasFolder() != null
+                || arguments.rfetmTeamsFolder() != null
+                || arguments.season() != null
+                || arguments.consolidateClubs()
+                || arguments.consolidatePlayers()
+                || arguments.backfillScheduledMatches()
+                || arguments.amendedActaMode() != null) {
+            throw new IllegalArgumentException(
+                    ImportRuntimeCliContract.BACKFILL_REGIONS_ARGUMENT + " cannot be combined with import arguments");
+        }
+        if (matchRegionBackfillService == null) {
+            throw new IllegalStateException("region backfill not wired");
+        }
+        ImportSource source = parseSource(arguments.source());
+        MatchRegionBackfillSummary summary = matchRegionBackfillService.run(source, arguments.regionBackfillMode());
+        LOGGER.info("{} region backfill finished in {} mode: {} candidates, {} unresolved, {} updated",
+                source, summary.mode(), summary.candidates(), summary.unresolved().size(), summary.updated());
     }
 
     private static ImportSource parseSource(String source) {

@@ -1,6 +1,7 @@
 package org.cttelsamicsterrassa.data.load.runtime;
 
 import org.cttelsamicsterrassa.data.load.shared.club.consolidate.ConsolidationMode;
+import org.cttelsamicsterrassa.data.load.shared.match.backfill.MatchRegionBackfillMode;
 import org.cttelsamicsterrassa.data.load.shared.match.backfill.ScheduledMatchBackfillMode;
 import org.cttelsamicsterrassa.data.load.shared.match.lifecycle.AmendedActaMode;
 import org.junit.jupiter.api.Test;
@@ -84,6 +85,21 @@ class ImportRuntimeArgumentsTest {
                 () -> ImportRuntimeArguments.parse("--consolidate-players=preview"));
 
         assertTrue(exception.getMessage().contains("--consolidate-players=preview"));
+    }
+
+    @Test
+    void regionBackfillIsOptInAndSupportsWriteAndReport() {
+        assertFalse(ImportRuntimeArguments.parse("--source=bcnesa").backfillRegions());
+
+        ImportRuntimeArguments bare = ImportRuntimeArguments.parse("--source=bcnesa", "--backfill-regions");
+        assertTrue(bare.backfillRegions());
+        assertEquals(MatchRegionBackfillMode.WRITE, bare.regionBackfillMode());
+        assertEquals(MatchRegionBackfillMode.WRITE,
+                ImportRuntimeArguments.parse("--backfill-regions=write").regionBackfillMode());
+        assertEquals(MatchRegionBackfillMode.REPORT,
+                ImportRuntimeArguments.parse("--backfill-regions=report").regionBackfillMode());
+        assertFalse(ImportRuntimeArguments.parse("--backfill-regions=report").backfillScheduledMatches());
+        assertThrows(IllegalArgumentException.class, () -> ImportRuntimeArguments.parse("--backfill-regions=maybe"));
     }
 
     @Test

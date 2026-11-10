@@ -126,7 +126,7 @@ public class FindMatchDetailsQueryHandler
                 gameValues.stream().map(game -> game(game, scoreByGame.getOrDefault(game.getId(), List.of()),
                         pairsByGame.getOrDefault(game.getId(), List.of()))).toList(),
                 homeForm, awayForm, playerFormValues, homeAlignment, awayAlignment,
-                match.getStatus());
+                match.getStatus(), match.getRegion(), match.getRegionType());
     }
 
     /**
