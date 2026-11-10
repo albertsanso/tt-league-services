@@ -48,6 +48,8 @@ class MatchDayEntry:
     phase: str | None = None
     gender: str | None = None
     territory: str | None = None
+    region: str | None = None  # ``Region`` value, an attribute next to ``territory``
+    region_type: str | None = None  # ``RegionType`` value
 
 
 @dataclass
@@ -100,6 +102,8 @@ def build_report(source: Source, scan: ScanResult, now: datetime) -> dict[str, A
             "phase": entry.phase,
             "gender": entry.gender,
             "territory": entry.territory,
+            "region": entry.region,
+            "regionType": entry.region_type,
             "matchDay": entry.match_day,
             "status": status,
             "matches": len(entry.matches),

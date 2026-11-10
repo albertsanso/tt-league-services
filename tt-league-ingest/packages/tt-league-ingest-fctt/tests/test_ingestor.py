@@ -88,3 +88,17 @@ def test_status_row_is_a_valid_scope_for_parse_and_package():
         match_days=set(scope.match_days))
     assert [page.path.relative_to(CONTENT).as_posix() for page in pages] == [row["file"]]
     assert FcttIngestor().scope_matches(scope, PurePosixPath(ACTA), row["matchDay"])
+
+
+def test_scope_error_accepts_only_the_catalonia_wide_region():
+    ingestor = FcttIngestor()
+    assert ingestor.scope_error(IngestFilters(region="catalunya", region_type="autonomica")) is None
+    assert "region 'barcelona'" in ingestor.scope_error(IngestFilters(region="barcelona"))
+    assert "regionType 'provincial'" in ingestor.scope_error(IngestFilters(region_type="provincial"))
+
+
+def test_region_filters_are_supported_and_do_not_narrow_the_catalonia_wide_files():
+    ingestor = FcttIngestor()
+    assert {"region", "region_type"} <= ingestor.supported_filters
+    assert ingestor.scope_matches(IngestFilters(region="catalunya", region_type="autonomica"),
+                                  PurePosixPath(ACTA), 1)

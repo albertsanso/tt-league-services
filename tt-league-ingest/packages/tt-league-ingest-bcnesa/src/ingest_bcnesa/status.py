@@ -6,6 +6,8 @@ import re
 from pathlib import Path
 
 from ingest_bcnesa import download as dl
+from ingest_common.region import region_values
+from ingest_common.source import Source
 from ingest_common.match_day_status import MatchDayEntry, MatchState, ScanResult, file_updated_at, relative
 
 SEASON_RE = re.compile(r"\d{4}-\d{4}")
@@ -36,6 +38,7 @@ def scan(content_dir: Path) -> ScanResult:
                 continue
             matches = dl.parse_matches(containers, meta.get("source-url", ""))
             category, group, phase = path.relative_to(season_dir).parts[:3]
+            region = region_values(Source.BCNESA, meta.get("category") or category)
             result.entries.append(MatchDayEntry(
                 season=meta.get("season") or season_dir.name,
                 match_day=int(meta.get("match-day") or found.group(1)),
@@ -48,5 +51,7 @@ def scan(content_dir: Path) -> ScanResult:
                 group=meta.get("group") or group,
                 phase=meta.get("phase") or phase,
                 territory=meta.get("territory") or None,
+                region=region[0] if region else None,
+                region_type=region[1] if region else None,
             ))
     return result

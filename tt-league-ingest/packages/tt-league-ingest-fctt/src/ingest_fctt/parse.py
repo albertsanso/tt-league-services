@@ -47,6 +47,8 @@ from ingest_fctt.download import (
 )
 
 from ingest_common import health, logs, progress
+from ingest_common.region import region_for
+from ingest_common.source import Source
 from ingest_common.validation import ACTA_SCHEMA_PATH
 
 try:
@@ -58,7 +60,7 @@ except ImportError:  # validation is optional
 DEFAULT_SCHEMA = ACTA_SCHEMA_PATH
 STATE_FILE = ".parse_state.json"
 # Bump when the parsing logic changes so that every page is parsed again.
-PARSER_VERSION = 1
+PARSER_VERSION = 2  # 2: actas carry region / tipo_region
 LOGGER = logging.getLogger("fctt-incremental-parse")
 
 FEDERATION = "Federació Catalana de Tennis Taula"
@@ -534,8 +536,11 @@ def parse_page(page: MatchDayPage, text: str, competitions: CompetitionNames) ->
     gender = meta.get("acta-gender", "").casefold()
     if gender not in GENDERS:
         gender = "female" if "femen" in page.category else "male"
+    region, region_type = region_for(Source.FCTT)
     common = {
         "federacion": FEDERATION,
+        "region": region.value,
+        "tipo_region": region_type.value,
         "temporada": page.season.replace("-", "/"),
         "genero": GENDERS[gender],
         "competicion": competitions.resolve(page, doc),

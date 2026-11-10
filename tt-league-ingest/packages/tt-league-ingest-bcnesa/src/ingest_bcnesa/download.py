@@ -64,6 +64,8 @@ import requests
 from bs4 import BeautifulSoup, Tag
 
 from ingest_common import health, logs, progress
+from ingest_common.region import region_values
+from ingest_common.source import Source
 
 
 INDEX_URL = "https://fctt.cat/competicions-estatals/"
@@ -165,6 +167,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--season", default=current_season(), help="Season, e.g. 2026-2027 (default: current season)")
     parser.add_argument("--territory", help=f"Territory: {', '.join(TERRITORIES)} (default: all)")
+    parser.add_argument("--region_type", help="Region type: provincial or comarcal (default: all)")
     parser.add_argument("--category", help="Category, e.g. 'RTB PREFERENT' or 'PREFERENT' (default: all)")
     parser.add_argument("--group", help="Group, e.g. G1 or 1 (default: all)")
     parser.add_argument("--phase", help="Phase, e.g. '1a Fase' (default: all)")
@@ -709,6 +712,10 @@ def split_card_title(title: str) -> tuple[str, str, str | None]:
 def league_matches_filters(league: League, args: argparse.Namespace) -> bool:
     if args.territory and fold(league.territory) != fold(args.territory):
         return False
+    if getattr(args, "region_type", None):
+        values = region_values(Source.BCNESA, league.category)
+        if values is None or values[1] != args.region_type.strip().lower():
+            return False
     if args.category:
         wanted = fold(args.category)
         short = re.sub(r"^rt[bglt] ", "", fold(league.category))
@@ -914,6 +921,12 @@ def jornada_check(page_url: str, expected: int | None, tolerate_incomplete: bool
 # --------------------------------------------------------------------------- storage
 
 
+def region_meta(category: str) -> dict[str, str]:
+    """``region`` / ``region-type`` meta tags, left out when the category prefix is unknown (the parser fails)."""
+    values = region_values(Source.BCNESA, category)
+    return dict(zip(("region", "region-type"), values)) if values else {}
+
+
 def build_document(league: League, season: str, phase: str, day: int, page_url: str, heading: str,
                    fragments: list[Tag], complete: bool, source: str, issues: list[str]) -> tuple[bytes, str]:
     """Return the jornada HTML document and the hash of its match content."""
@@ -928,6 +941,7 @@ def build_document(league: League, season: str, phase: str, day: int, page_url: 
         ISSUES_META: " | ".join(issues),
         "season": season,
         "territory": league.territory,
+        **region_meta(league.category),
         "category": league.category,
         "group": league.group,
         "phase": phase,

@@ -61,6 +61,7 @@ def test_report_shape_summary_and_ordering(tmp_path):
     second = report["matchDays"][1]
     assert second == {
         "season": "2026-2027", "category": "tdm", "group": "g1", "phase": None, "gender": None, "territory": None,
+        "region": None, "regionType": None,
         "matchDay": 1, "status": "partial", "matches": 2, "played": 2, "reported": 1,
         "firstMatchAt": "2026-10-03T12:00", "lastMatchAt": "2026-10-03T12:00",
         "file": "2026-2027/x/jornada-1.html", "contentUpdatedAt": "2026-10-04T09:00:00+00:00"}

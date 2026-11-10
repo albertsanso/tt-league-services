@@ -184,6 +184,7 @@ def test_status_scan_classifies_saved_jornadas(tmp_path):
                        "2026-2027/rtb-preferent/G2/1a Fase/jornada_03.html": "partial"}
     first = report["matchDays"][0]
     assert (first["matchDay"], first["category"], first["territory"]) == (3, "rtb-preferent", "Barcelona")
+    assert (first["region"], first["regionType"]) == ("barcelona", "provincial")
 
 
 def test_status_row_is_a_valid_scope_for_download_parse_and_package(tmp_path):

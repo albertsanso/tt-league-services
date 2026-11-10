@@ -18,6 +18,7 @@ def test_scan_real_fixture_page():
         "2026-2027", "tdm", "g1", "regular", 1)
     assert day["gender"] == "male" and day["status"] == "complete" and day["matches"] == day["reported"] == 6
     assert day["file"] == "2026-2027/tdm/g1/regular/jornada-1.html"
+    assert (day["region"], day["regionType"]) == ("catalunya", "autonomica")
 
 
 def test_same_page_before_kick_off_is_future_when_nothing_is_played(tmp_path):

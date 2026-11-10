@@ -6,8 +6,11 @@ import re
 from pathlib import Path
 
 from ingest_common.match_day_status import MatchDayEntry, MatchState, ScanResult, file_updated_at, relative
+from ingest_common.region import region_values
+from ingest_common.source import Source
 from ingest_fctt import download as dl
 
+REGION = region_values(Source.FCTT)  # every FCTT league is Catalonia-wide
 SEASON_RE = re.compile(r"\d{4}-\d{4}")
 PAGE_RE = re.compile(r"jornada-(\d+)\.html")
 
@@ -48,5 +51,7 @@ def scan(content_dir: Path) -> ScanResult:
                 phase=meta.get("acta-phase") or phase,
                 gender=meta.get("acta-gender") or None,
                 territory=meta.get("acta-territory") or None,
+                region=REGION[0],
+                region_type=REGION[1],
             ))
     return result

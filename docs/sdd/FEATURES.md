@@ -34,14 +34,8 @@ This file is the single source of truth for planned, in-progress, and completed 
 
 ## In Progress
 
-No features currently in progress.
-## In Review
-
-No features currently in review.
-## Backlog
-
 ### [FEAT-00121] align bcnesa and fctt import. Decouple source and seggregate by region
-- **Status:** planned
+- **Status:** in-progress
 - **Priority:** medium
 - **Effort:** large (> 8h)
 - **Depends on:** —
@@ -56,24 +50,30 @@ segregation key and adding `region` and `regionType` to every match.
   `bcnesa` and `fctt` entry points through a `SiteProfile`; `ingest_bcnesa` and `ingest_fctt` are removed.
 - [ ] Before the region fields are added, golden tests prove the unified package produces
   byte-identical content HTML and acta JSON to the legacy implementations for both sources.
-- [ ] `Source`/`ImportSource` values, entry points, CLI/REST source names, data directories,
+- [x] `Source`/`ImportSource` values, entry points, CLI/REST source names, data directories,
   manifests, `id_partido` formats and source-scoped club/player/fixture identity are unchanged.
-- [ ] `region` (`espana`, `catalunya`, `barcelona`, `girona`, `lleida`, `tarragona`) and
-  `regionType` (`nacional`, `provincial`, `comarcal`) are closed vocabularies derived
+- [x] `region` (`espana`, `catalunya`, `barcelona`, `girona`, `lleida`, `tarragona`) and
+  `regionType` (`nacional`, `autonomica`, `provincial`, `comarcal`) are closed vocabularies derived
   deterministically; unknown input fails clearly.
-- [ ] Acta JSON carries optional `region` / `tipo_region` (schema and schema copy updated together);
+- [x] Acta JSON carries optional `region` / `tipo_region` (schema and schema copy updated together);
   ingest status rows and filters expose `region` / `regionType` while `territory` keeps working.
-- [ ] `match_record` stores nullable `region` / `region_type`, documented in `rfetm-datamodel.md`;
+- [x] `match_record` stores nullable `region` / `region_type`, documented in `rfetm-datamodel.md`;
   an opt-in report/write backfill fills existing rows.
 - [ ] The Java ingest-layout path for BCNESA and FCTT runs through one shared navigator and
   processor set; legacy-history readers stay source-specific and their tests pass unchanged.
-- [ ] API match/calendar responses expose `region` / `regionType` and accept them as optional filters.
-- [ ] `uv run pytest` and the full `mvn test` build pass.
+- [x] API match/calendar responses expose `region` / `regionType` and accept them as optional filters.
+- [x] `uv run pytest` and the full `mvn test` build pass.
 
 #### Feature Details
 → See [FEAT-00121-DETAILS.md](./FEAT-00121-DETAILS.md) for a detailed breakdown of the feature, build plan, and implementation steps.
 
 ---
+## In Review
+
+No features currently in review.
+## Backlog
+
+No features currently in the backlog.
 ## Done
 
 ### [FEAT-00120] tt-league frontend client app season calendar redesign

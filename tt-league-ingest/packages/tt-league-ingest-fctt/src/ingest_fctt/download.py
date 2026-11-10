@@ -59,6 +59,8 @@ from urllib.request import HTTPCookieProcessor, Request, build_opener
 from urllib.robotparser import RobotFileParser
 
 from ingest_common import health, logs, progress
+from ingest_common.region import region_values
+from ingest_common.source import Source
 
 try:
     from zoneinfo import ZoneInfo
@@ -71,6 +73,7 @@ except Exception:  # tzdata missing: fall back to naive local time
 BASE_URL = "https://fctt.cat"
 INDEX_URL = f"{BASE_URL}/competicions-estatals/"
 DEFAULT_PHASE = "regular"
+FCTT_REGION = region_values(Source.FCTT)  # every FCTT league is Catalonia-wide
 LOGGER = logging.getLogger("fctt-incremental-download")
 
 # Index section heading -> (territory, gender, category slug, label prefix removed from group names).
@@ -1229,7 +1232,8 @@ class IncrementalDownloader:
             return "downloaded"
         meta = {
             "acta-content-status": status, "acta-content-origin": origin, "acta-season": league.season,
-            "acta-territory": league.territory, "acta-gender": league.gender, "acta-category": league.category,
+            "acta-territory": league.territory, "acta-region": FCTT_REGION[0], "acta-region-type": FCTT_REGION[1],
+            "acta-gender": league.gender, "acta-category": league.category,
             "acta-group": league.group, "acta-phase": league.phase, "acta-match-day": str(jornada),
             "acta-matches": str(len(matches)), "acta-matches-played": str(sum(m.played for m in matches)),
             "acta-matches-incomplete": str(sum(m.content_status == "incomplete" for m in matches)),

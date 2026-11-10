@@ -122,6 +122,8 @@ class CompleteActaTest(ParserTestCase):
         self.assertEqual(record["id_partido"], "2026-2027_tdm_g1_regular_130-149_1")
         self.assertEqual((record["temporada"], record["genero"], record["fase"], record["grupo"], record["jornada"]),
                          ("2026/2027", "masculino", "1a Fase", 1, 1))
+        self.assertEqual((record["region"], record["tipo_region"]), ("catalunya", "autonomica"))
+        self.assertEqual(list(record)[:4], ["id_partido", "acta_publicada", "federacion", "region"])
         self.assertEqual(record["competicion"], "Tercera Divisió Masculina Grup 1")
         self.assertEqual((record["fecha"], record["hora"]), ("2026-09-26", "16:00"))
         self.assertEqual(record["lugar"]["ciudad"], "RIPOLLET")
@@ -241,6 +243,16 @@ class IncrementalRunTest(ParserTestCase):
         self.assertEqual((counters["json_written"], counters["json_removed"]), (1, 1))
         self.assertFalse(output.exists())
         self.assertTrue((folder / "jornada_1_local_team_130_away_team_152.json").exists())
+
+    def test_state_from_an_older_parser_version_reparses_unchanged_pages(self):
+        self.write_page(page([scheduled_match()], status="partial"))
+        ok, counters = self.run_parser()
+        state_path = self.output_dir / ".parse_state.json"
+        state = json.loads(state_path.read_text(encoding="utf-8"))
+        state["parser_version"] = 1  # written before region / tipo_region existed
+        state_path.write_text(json.dumps(state), encoding="utf-8")
+        ok, counters = self.run_parser()
+        self.assertEqual((counters["pages_parsed"], counters["pages_unchanged"]), (1, 0))
 
     def test_the_run_reports_its_page_count_and_each_finished_page(self):
         from ingest_common import progress

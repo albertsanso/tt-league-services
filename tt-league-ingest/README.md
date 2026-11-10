@@ -85,11 +85,38 @@ jornada page of one group) gets one status:
 
 The file holds `source`, `generatedAt`, `evaluatedAt` (local time used for the date comparison), `seasons`,
 a `summary` (counts per status, `matches`, `played`, `reported`, `emptyPages`, `unreadablePages`) and a
-`matchDays` list. Each entry has `season`, `category`, `group`, `phase`, `gender`, `territory`, `matchDay`,
+`matchDays` list. Each entry has `season`, `category`, `group`, `phase`, `gender`, `territory`, `region`,
+`regionType`, `matchDay`,
 `status`, `matches`, `played`, `reported`, `firstMatchAt`, `lastMatchAt`, `file` (relative to the content
 folder) and `contentUpdatedAt`. Pages that list no matches are only counted in `emptyPages`. The file is
 written atomically, so a reader never sees a half-written file. The REST service serves it at
 `GET /api/v1/ingest/sources/{source}/match-days-status` (see [REST service](#rest-service)).
+
+## Region and region type (FEAT-00121)
+
+`source` stays the segregation key. Every BCNESA and FCTT acta also carries two optional attributes, `region` and
+`tipo_region` (`regionType` in filters, REST and the status file), both closed vocabularies derived by
+`ingest_common.region` without defaults:
+
+| Source | `region` | `regionType` |
+| --- | --- | --- |
+| FCTT (TDM, Copa Catalana Femenina) | `catalunya` | `autonomica` |
+| BCNESA | `barcelona`, `girona`, `lleida` or `tarragona`, from the category folder prefix `rtb`/`rtg`/`rtl`/`rtt` | `comarcal` when the category contains `comarcal`, else `provincial` |
+
+A BCNESA category without one of those prefixes cannot be placed: the parser reports an error for the match and
+writes no file (the downloader and the status file leave the region empty instead of failing). RFETM is Spain-wide
+(`espana`/`nacional`) and its acta files do not carry the fields; the Java import derives them. The downloaders
+write the attributes as page meta tags (`region`, `region-type` for BCNESA; `acta-region`, `acta-region-type` for
+FCTT) and the status file derives them from the category, so pages downloaded before the feature report them too.
+The FCTT parse state version moves to 2 and BCNESA rewrites a JSON whenever its content changes, so existing
+actas gain the two keys on the next parse without `--force`; no other key changes.
+
+The filters `--region` and `--region-type` (scope keys `region` and `regionType`, REST filter and scope fields of
+the same names) accept the vocabularies above. BCNESA maps a `region` onto the downloader's territory
+(`--region girona` equals `--territory Girona`; both given must agree) and passes `--region_type` to the downloader;
+packaging matches both against the category prefix. FCTT accepts only `catalunya`/`autonomica`, RFETM neither. A
+value outside the vocabulary, or one the source can never match (`region=girona` for FCTT), fails the run before
+any network call. `territory` keeps working unchanged.
 
 ## CLI
 
@@ -169,12 +196,12 @@ several competitions. It replaces the filter options with a list of **scopes**:
 uv run tt-league-ingest run --source bcnesa --scope-file scopes.json --package --mode delta --upload
 ```
 
-- A scope has the optional keys `category`, `group`, `phase`, `territory`, `gender` (the same values as the
+- A scope has the optional keys `category`, `group`, `phase`, `territory`, `region`, `regionType`, `gender` (the same values as the
   filter options) and `matchDays` (an array of positive integers, or a selector such as `3`, `1,4`, `2-5`).
   Keys inside one scope must all match; a run covers every scope. A scope must set at least one key,
   unknown keys are rejected and identical scopes run once.
 - Supported keys per source, as for the filters: RFETM `category`, `matchDays`; BCNESA `category`, `group`,
-  `phase`, `territory`, `matchDays`; FCTT all six. A key the source does not support fails the run before
+  `phase`, `territory`, `region`, `regionType`, `matchDays`; FCTT all six plus `region` and `regionType` (RFETM supports neither). A key the source does not support fails the run before
   any network call, naming the scope (`... does not support filter(s): group (scope 2)`).
 - The download and parse scripts run once per scope with that scope's filters (identical argument lists
   run once, for example two BCNESA scopes that differ only by territory parse once). Between two
