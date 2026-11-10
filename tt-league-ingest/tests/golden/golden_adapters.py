@@ -40,6 +40,7 @@ class FakeResponse:
         self.status_code = reply.status
         self.content = reply.body
         self.headers = {"Content-Type": reply.content_type}
+        self.reason = "error"  # what the legacy urllib fake reports as the HTTP error reason
         self.url = url
 
     @property
